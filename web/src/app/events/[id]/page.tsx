@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { NotifyCard } from "@/components/events/NotifyCard";
 import {
   getEventById, getListingsByEvent, getTier, formatIDR, formatEventDate, CAP_PCT, type Listing, type EventItem,
 } from "@/lib/mock";
@@ -120,6 +121,7 @@ export default function EventDetailPage() {
             <div className="font-fredoka font-bold text-2xl text-neutral-black">{formatIDR(event.fromPrice)}</div>
             <p className="text-xs text-neutral-gray mt-2">Pilih listing di sebelah untuk beli. Dana langsung masuk escrow.</p>
           </div>
+          <NotifyCard event={event} />
         </aside>
       </div>
     </div>

@@ -132,9 +132,12 @@ export function Navbar() {
                     <div className="font-semibold text-neutral-black text-sm">{user.name}</div>
                     <div className="text-neutral-gray text-xs truncate">{user.email}</div>
                   </div>
+                  <Link href="/profile" onClick={() => setUserOpen(false)} className="mt-2 w-full flex items-center gap-2 px-4 py-2.5 text-sm text-neutral-gray hover:bg-secondary-blue-light cursor-pointer">
+                    <UserIcon className="w-4 h-4" /> Profil
+                  </Link>
                   <button
                     onClick={() => { logout(); setUserOpen(false); }}
-                    className="mt-2 w-full flex items-center gap-2 px-4 py-2.5 text-sm text-secondary-pink-dark hover:bg-secondary-pink-light cursor-pointer"
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-secondary-pink-dark hover:bg-secondary-pink-light cursor-pointer"
                   >
                     <LogOut className="w-4 h-4" /> Keluar
                   </button>
@@ -179,6 +182,8 @@ export function Navbar() {
                         {ROLE_LABEL[r]}
                       </button>
                     ))}
+                    <Link href="/profile" onClick={() => setMobileOpen(false)} className="block px-3 py-2 rounded-lg text-sm text-neutral-gray hover:bg-secondary-blue-light mt-1 border-t border-dashed border-neutral-light-gray-1 pt-2">Profil</Link>
+                    <button onClick={() => { logout(); setMobileOpen(false); }} className="w-full text-left px-3 py-2 rounded-lg text-sm text-secondary-pink-dark hover:bg-secondary-pink-light cursor-pointer">Keluar</button>
                   </div>
                 )}
               </div>

@@ -16,6 +16,8 @@ export * from "./util";
 export { useOrders, type Order } from "./useOrders";
 export { useSellerListings, type SellerListing } from "./useSellerListings";
 export { useEventRequests, type EventRequest } from "./useEventRequests";
+export { useAlerts, type AlertChannel, type AlertSub } from "./useAlerts";
+export { useProfile, type PayoutBank } from "./useProfile";
 
 // --- format helpers ---
 export const formatIDR = (n: number) => `IDR ${n.toLocaleString("id-ID")}`;
