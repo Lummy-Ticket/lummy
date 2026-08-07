@@ -56,8 +56,10 @@ export interface Listing {
   eventId: string;
   tierId: string;
   sellerName: string;
-  askPrice: number; // IDR
-  faceValue: number; // IDR
+  askPrice: number; // IDR PER TIKET (Viagogo: harga per tiket, bukan total set)
+  faceValue: number; // IDR per tiket
+  quantity: number; // jumlah tiket dalam 1 set / PDF (duduk bareng)
+  splittable: boolean; // true = boleh beli sebagian; false = harus 1 set utuh
   status: ListingStatus;
   gateKtp: boolean; // event tipe gate-KTP (butuh foto KTP)
   ai: ListingAI;

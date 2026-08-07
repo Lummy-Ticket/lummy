@@ -14,40 +14,49 @@ import {
   getEventById, getListingsByEvent, getTier, formatIDR, formatEventDate, CAP_PCT, type Listing, type EventItem,
 } from "@/lib/mock";
 
-function TrustBadges({ ai }: { ai: Listing["ai"] }) {
-  if (ai.barcodeDuplicate)
-    return <Badge.Base className="bg-secondary-pink-soft text-secondary-pink-dark text-xs flex items-center gap-1 w-fit"><AlertTriangle className="w-3 h-3" /> Barcode duplikat</Badge.Base>;
-  if (ai.forgeryScore >= 60 || ai.pdfSuspicious)
-    return <Badge.Base className="bg-secondary-orange-soft text-secondary-orange-dark text-xs flex items-center gap-1 w-fit"><AlertTriangle className="w-3 h-3" /> Perlu review (skor {ai.forgeryScore})</Badge.Base>;
-  return <Badge.Base className="bg-secondary-green-soft text-secondary-green-dark text-xs flex items-center gap-1 w-fit"><ScanLine className="w-3 h-3" /> Terverifikasi AI</Badge.Base>;
-}
-
-function ListingRow({ event, listing, cheapest }: { event: EventItem; listing: Listing; cheapest?: boolean }) {
+function ListingRow({ event, listing, qty, cheapest }: { event: EventItem; listing: Listing; qty: number; cheapest?: boolean }) {
   const tier = getTier(event, listing.tierId);
-  const cap = listing.faceValue * (CAP_PCT / 100);
   const markup = Math.round((listing.askPrice / listing.faceValue - 1) * 100);
-  const withinCap = listing.askPrice <= cap;
+  const total = listing.askPrice * qty;
+  const dup = listing.ai.barcodeDuplicate;
+  const flagged = !dup && (listing.ai.pdfSuspicious || listing.ai.forgeryScore >= 60);
+  const buyable = !dup && !flagged;
 
   return (
-    <div className={`bg-neutral-white rounded-2xl border p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition ${cheapest ? "border-lummy-500 ring-1 ring-lummy-500" : "border-neutral-light-gray-1"}`}>
+    <div className={`bg-neutral-white rounded-2xl border p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition ${cheapest && buyable ? "border-lummy-500 ring-1 ring-lummy-500" : "border-neutral-light-gray-1"}`}>
       <div className="flex flex-col gap-2 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-fredoka font-semibold text-neutral-black">{tier?.name}</span>
-          {cheapest && <Badge.Base className="bg-secondary-green-soft text-secondary-green-dark text-xs font-medium">Termurah</Badge.Base>}
-          <TrustBadges ai={listing.ai} />
-          {listing.gateKtp && <Badge.Base className="bg-secondary-blue-soft text-lummy-500 text-xs">Gate cek KTP</Badge.Base>}
+          <Badge.Base className="bg-secondary-blue-soft text-lummy-500 text-xs">{qty} tiket bersebelahan</Badge.Base>
+          {cheapest && buyable && <Badge.Base className="bg-secondary-green-soft text-secondary-green-dark text-xs font-medium">Termurah</Badge.Base>}
+          {dup ? (
+            <Badge.Base className="bg-secondary-pink-soft text-secondary-pink-dark text-xs flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Barcode duplikat</Badge.Base>
+          ) : flagged ? (
+            <Badge.Base className="bg-secondary-orange-soft text-secondary-orange-dark text-xs flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Dalam review</Badge.Base>
+          ) : (
+            <Badge.Base className="bg-secondary-green-soft text-secondary-green-dark text-xs flex items-center gap-1"><ScanLine className="w-3 h-3" /> Terverifikasi AI</Badge.Base>
+          )}
+          {listing.gateKtp && <Badge.Base className="bg-secondary-cream-soft text-secondary-brown-dark text-xs">Gate cek KTP</Badge.Base>}
         </div>
-        <span className="text-xs text-neutral-gray">Penjual: {listing.sellerName} · Harga asli {formatIDR(listing.faceValue)}</span>
-        <span className={`text-xs flex items-center gap-1 ${withinCap ? "text-secondary-green-dark" : "text-secondary-pink-dark"}`}>
-          <CheckCircle2 className="w-3 h-3" /> Markup {markup}% · batas cap {formatIDR(cap)}
+        <span className="text-xs text-neutral-gray">
+          Penjual: {listing.sellerName} · Harga asli {formatIDR(listing.faceValue)}/tiket
+          {listing.splittable && listing.quantity > qty ? ` · set ${listing.quantity}, sisanya bisa dibeli orang lain` : ""}
+        </span>
+        <span className="text-xs text-secondary-green-dark flex items-center gap-1">
+          <CheckCircle2 className="w-3 h-3" /> Markup {markup}% · dalam batas cap 150%
         </span>
       </div>
       <div className="flex items-center gap-4 shrink-0">
-        <span className="font-fredoka font-bold text-lg text-lummy-500 text-nowrap">{formatIDR(listing.askPrice)}</span>
-        {listing.ai.barcodeDuplicate ? (
-          <Button.Primary className="text-sm" disabled>Barcode duplikat</Button.Primary>
+        <div className="text-right">
+          <div className="font-fredoka font-bold text-lg text-lummy-500 text-nowrap">{formatIDR(listing.askPrice)}<span className="text-xs text-neutral-gray font-normal">/tiket</span></div>
+          {qty > 1 && <div className="text-xs text-neutral-gray text-nowrap">{qty} tiket · {formatIDR(total)}</div>}
+        </div>
+        {dup ? (
+          <Button.Primary className="text-sm" disabled>Duplikat</Button.Primary>
+        ) : flagged ? (
+          <Button.Primary className="text-sm" disabled>Dalam review</Button.Primary>
         ) : (
-          <Link href={`/checkout?listing=${listing.id}`}>
+          <Link href={`/checkout?listing=${listing.id}&qty=${qty}`}>
             <Button.Primary className="text-sm">Beli</Button.Primary>
           </Link>
         )}
@@ -66,6 +75,7 @@ export default function EventDetailPage() {
   const params = useParams<{ id: string }>();
   const event = getEventById(params.id);
   const [sort, setSort] = useState<SortId>("cheap");
+  const [qty, setQty] = useState(2);
 
   if (!event) {
     return (
@@ -78,27 +88,28 @@ export default function EventDetailPage() {
   }
 
   const listings = getListingsByEvent(event.id);
-  const sortedListings = useMemo(() => {
-    const arr = [...listings];
-    // Termurah dulu = default ala Viagogo (langsung nangkep harga terbaik).
-    if (sort === "cheap") arr.sort((a, b) => a.askPrice - b.askPrice);
+  // Filter ala Viagogo: tampilkan set yang bisa penuhi qty (>=N), non-splittable cuma kalau pas N.
+  const visibleListings = useMemo(() => {
+    const arr = listings.filter((l) => l.quantity >= qty && (l.splittable || l.quantity === qty));
+    if (sort === "cheap") arr.sort((a, b) => a.askPrice - b.askPrice); // per tiket
     return arr;
-  }, [listings, sort]);
-  const cheapest = listings.length ? Math.min(...listings.map((l) => l.askPrice)) : 0;
+  }, [listings, sort, qty]);
+  const buyable = visibleListings.filter((l) => !l.ai.barcodeDuplicate && !(l.ai.pdfSuspicious || l.ai.forgeryScore >= 60));
+  const cheapest = buyable.length ? Math.min(...buyable.map((l) => l.askPrice)) : 0;
 
   return (
     <div className="pt-28 pb-16">
       {/* Cover */}
-      <div className="max-w-6xl mx-auto px-5 lg:px-10">
+      <div className="max-w-7xl mx-auto px-5 lg:px-10">
         <Link href="/events" className="inline-flex items-center gap-1 text-neutral-gray hover:text-primary-navy transition text-sm mb-4">
           <ArrowLeft className="w-4 h-4" /> Jelajah
         </Link>
-        <div className="relative w-full aspect-[21/9] rounded-3xl overflow-hidden border border-lummy-500">
+        <div className="relative w-full h-44 sm:h-56 lg:h-64 rounded-3xl overflow-hidden border border-lummy-500">
           <Image src={event.image} alt={event.title} fill className="object-cover" priority />
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-5 lg:px-10 mt-6 grid lg:grid-cols-[1.6fr_1fr] gap-8">
+      <div className="max-w-7xl mx-auto px-5 lg:px-10 mt-6 grid lg:grid-cols-[1.6fr_1fr] gap-8">
         {/* Main */}
         <div>
           <Badge.Base className="bg-secondary-blue-soft text-lummy-500 text-sm w-fit">{event.category}</Badge.Base>
@@ -108,11 +119,28 @@ export default function EventDetailPage() {
             <span className="flex items-center gap-2"><MapPin className="w-4 h-4 text-primary-navy" /> {event.venue}, {event.city}</span>
           </div>
 
-          <div className="flex items-center justify-between mt-10 mb-4 gap-3 flex-wrap">
+          {/* Jumlah tiket (ala Viagogo): filter set yang bisa penuhi qty */}
+          <div className="mt-10 mb-4 flex items-center gap-3 flex-wrap">
+            <span className="text-sm text-neutral-gray">Mau berapa tiket?</span>
+            <div className="flex items-center gap-1 bg-secondary-gray-soft rounded-full p-1">
+              {[1, 2, 3, 4, 5, 6].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setQty(n)}
+                  className={`w-9 h-9 rounded-full text-sm transition cursor-pointer ${qty === n ? "bg-primary-navy text-white font-medium" : "text-neutral-gray hover:text-primary-navy"}`}
+                >
+                  {n}{n === 6 ? "+" : ""}
+                </button>
+              ))}
+            </div>
+            <span className="text-xs text-secondary-green-dark flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Dijamin duduk bersebelahan</span>
+          </div>
+
+          <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
             <h3 className="font-fredoka font-semibold text-xl text-neutral-black">
-              Tiket resale tersedia <span className="text-neutral-gray font-normal text-base">({listings.length})</span>
+              Tiket resale tersedia <span className="text-neutral-gray font-normal text-base">({visibleListings.length})</span>
             </h3>
-            {listings.length > 1 && (
+            {visibleListings.length > 1 && (
               <div className="flex items-center gap-1 bg-secondary-gray-soft rounded-full p-1">
                 {SORTS.map((s) => (
                   <button
@@ -129,12 +157,15 @@ export default function EventDetailPage() {
             )}
           </div>
           <div className="flex flex-col gap-3">
-            {sortedListings.length > 0 ? (
-              sortedListings.map((l) => (
-                <ListingRow key={l.id} event={event} listing={l} cheapest={l.askPrice === cheapest} />
+            {visibleListings.length > 0 ? (
+              visibleListings.map((l) => (
+                <ListingRow key={l.id} event={event} listing={l} qty={qty} cheapest={l.askPrice === cheapest} />
               ))
             ) : (
-              <p className="text-neutral-gray text-sm">Belum ada listing. Jadi yang pertama jual di sini.</p>
+              <div className="text-center py-10 bg-secondary-gray-soft rounded-2xl">
+                <p className="text-neutral-gray text-sm">Gak ada yang jual <b>{qty} tiket sekaligus</b> buat event ini.</p>
+                <button onClick={() => setQty(1)} className="text-primary-navy text-sm font-medium mt-1 cursor-pointer">Coba cari 1 tiket</button>
+              </div>
             )}
           </div>
         </div>

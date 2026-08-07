@@ -51,7 +51,7 @@ function PromoteModal({ listing, onClose }: { listing: SellerListing | null; onC
         </div>
         <div className="flex items-start gap-2 text-xs text-neutral-gray bg-secondary-blue-extra rounded-xl p-3">
           <ShieldCheck className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" />
-          Ingetin pembeli: <b className="text-neutral-black">&nbsp;beli HARUS lewat link ini</b>&nbsp;biar dilindungi escrow. Jangan transfer manual.
+          <span>Ingetin pembeli: <b className="text-neutral-black">beli HARUS lewat link ini</b> biar dilindungi escrow. Jangan transfer manual.</span>
         </div>
       </div>
     </Modal>

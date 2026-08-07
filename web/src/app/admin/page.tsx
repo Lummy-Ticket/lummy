@@ -5,22 +5,26 @@ import toast from "react-hot-toast";
 import { CheckCircle2, XCircle, AlertTriangle, Sparkles, Calendar, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Modal } from "@/components/common/Modal";
 import { PageContainer } from "@/components/layout/PageContainer";
-import { useEventRequests, formatIDR, formatEventDate } from "@/lib/mock";
+import { useEventRequests, formatIDR, formatEventDate, type EventRequest } from "@/lib/mock";
 
 export default function AdminPage() {
   const [mounted, setMounted] = useState(false);
+  const [confirmReq, setConfirmReq] = useState<EventRequest | null>(null);
   const requests = useEventRequests((s) => s.requests);
   const approve = useEventRequests((s) => s.approve);
   const reject = useEventRequests((s) => s.reject);
   useEffect(() => setMounted(true), []);
+
+  const doApprove = (r: EventRequest) => { approve(r.id); toast.success("Event disetujui, tiket boleh dijual"); };
 
   return (
     <PageContainer width="app">
       <h1 className="text-2xl md:text-3xl font-bold text-neutral-black">Approval event</h1>
       <div className="flex items-start gap-2 text-sm text-neutral-gray bg-secondary-blue-extra rounded-2xl p-4 mt-4 mb-8">
         <Sparkles className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" />
-        Event baru diverifikasi sebelum tiketnya boleh dijual. AI sudah pre-fill dari PDF penjual pertama. <b className="text-neutral-black">&nbsp;Face value = pre-fill</b>, cek ke sumber resmi sebelum approve.
+        <span>Event baru diverifikasi sebelum tiketnya boleh dijual. AI sudah pre-fill dari PDF penjual pertama. <b className="text-neutral-black">Face value = pre-fill</b>, cek ke sumber resmi sebelum approve.</span>
       </div>
 
       {!mounted ? (
@@ -66,10 +70,16 @@ export default function AdminPage() {
 
               {r.status === "pending" && (
                 <div className="flex gap-3 mt-4">
-                  <Button.Primary className="flex items-center gap-2 text-sm" onClick={() => { approve(r.id); toast.success("Event disetujui, tiket boleh dijual"); }}>
-                    <CheckCircle2 className="w-4 h-4" /> Approve
-                  </Button.Primary>
-                  <button onClick={() => { reject(r.id); toast("Event ditolak"); }} className="flex items-center gap-2 px-4 py-3 rounded-2xl border-2 border-neutral-light-gray-1 text-neutral-gray text-sm hover:border-secondary-pink-dark hover:text-secondary-pink-dark transition cursor-pointer">
+                  {r.pdfSuspicious || r.forgeryScore >= 60 ? (
+                    <button onClick={() => setConfirmReq(r)} className="flex items-center gap-2 px-4 py-3 rounded-2xl border-2 border-secondary-orange-dark text-secondary-orange-dark text-sm hover:bg-secondary-orange-soft transition cursor-pointer">
+                      <AlertTriangle className="w-4 h-4" /> Approve (skor tinggi)
+                    </button>
+                  ) : (
+                    <Button.Primary className="flex items-center gap-2 text-sm" onClick={() => doApprove(r)}>
+                      <CheckCircle2 className="w-4 h-4" /> Approve
+                    </Button.Primary>
+                  )}
+                  <button onClick={() => { reject(r.id); toast("Event ditolak"); }} className={`flex items-center gap-2 px-4 py-3 rounded-2xl text-sm transition cursor-pointer ${r.pdfSuspicious || r.forgeryScore >= 60 ? "bg-primary-navy text-white hover:bg-primary-navy-dark" : "border-2 border-neutral-light-gray-1 text-neutral-gray hover:border-secondary-pink-dark hover:text-secondary-pink-dark"}`}>
                     <XCircle className="w-4 h-4" /> Reject
                   </button>
                 </div>
@@ -78,6 +88,21 @@ export default function AdminPage() {
           ))}
         </div>
       )}
+
+      <Modal open={!!confirmReq} onClose={() => setConfirmReq(null)} title="Approve tiket ter-flag?">
+        {confirmReq && (
+          <>
+            <p className="text-sm text-neutral-gray">
+              <b className="text-neutral-black">{confirmReq.title}</b> kena flag AI (skor {confirmReq.forgeryScore}/100{confirmReq.pdfSuspicious ? ", struktur PDF mencurigakan" : ""}).
+              Approve tetap membolehkan tiket ini dijual. Pastikan kamu sudah cek manual dokumennya.
+            </p>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setConfirmReq(null)} className="flex-1 px-4 py-3 rounded-2xl border-2 border-neutral-light-gray-1 text-neutral-gray text-sm cursor-pointer">Batal</button>
+              <Button.Primary wrapperClass="flex-1" className="w-full text-sm" onClick={() => { doApprove(confirmReq); setConfirmReq(null); }}>Ya, approve</Button.Primary>
+            </div>
+          </>
+        )}
+      </Modal>
     </PageContainer>
   );
 }

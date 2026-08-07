@@ -42,20 +42,22 @@ function CheckoutInner() {
     );
   }
 
-  const fee = platformFee(listing.askPrice);
-  const total = listing.askPrice + fee + MATERAI;
+  const qty = Math.max(1, Number(params.get("qty")) || 1);
+  const subtotal = listing.askPrice * qty;
+  const fee = platformFee(subtotal);
+  const total = subtotal + fee + MATERAI;
 
   const pay = () => {
     setProcessing(true);
     setTimeout(() => {
-      const id = buy(listing, event, tier);
+      const id = buy(listing, event, tier, qty);
       toast.success("Pembayaran berhasil, dana masuk escrow");
       router.push(`/tickets/${id}`);
     }, 1800);
   };
 
   return (
-    <div className="max-w-6xl mx-auto w-full px-5 lg:px-10 pt-28 pb-16">
+    <div className="max-w-7xl mx-auto w-full px-5 lg:px-10 pt-28 pb-16">
       <Link href={`/events/${event.id}`} className="inline-flex items-center gap-1 text-neutral-gray hover:text-primary-navy text-sm mb-4">
         <ArrowLeft className="w-4 h-4" /> Kembali
       </Link>
@@ -72,8 +74,9 @@ function CheckoutInner() {
             <div className="min-w-0">
               <h3 className="font-fredoka font-semibold text-neutral-black truncate">{event.title}</h3>
               <p className="text-sm text-neutral-gray">{formatEventDate(event.dateISO)} · {event.city}</p>
-              <div className="flex items-center gap-2 mt-2">
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <Badge.Base className="bg-secondary-blue-soft text-lummy-500 text-xs">{tier.name}</Badge.Base>
+                <Badge.Base className="bg-secondary-cream-soft text-secondary-brown-dark text-xs">{qty} tiket</Badge.Base>
                 <span className="text-xs text-neutral-gray">Penjual {listing.sellerName}</span>
               </div>
             </div>
@@ -112,7 +115,7 @@ function CheckoutInner() {
         <div className="lg:sticky lg:top-24 h-fit bg-neutral-white rounded-3xl border border-lummy-500 shadow-lummy p-6 flex flex-col gap-4">
           <h4 className="font-fredoka font-semibold text-neutral-black">Rincian</h4>
           <div className="flex flex-col gap-2">
-            <Row label="Harga tiket" value={formatIDR(listing.askPrice)} />
+            <Row label={qty > 1 ? `Tiket (${qty} × ${formatIDR(listing.askPrice)})` : "Harga tiket"} value={formatIDR(subtotal)} />
             <Row label="Biaya layanan (5%)" value={formatIDR(fee)} />
             <Row label="e-Materai" value={formatIDR(MATERAI)} />
             <div className="border-t border-dashed border-neutral-light-gray-1 my-1" />

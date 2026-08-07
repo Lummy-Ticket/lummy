@@ -1,19 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { FlaskConical, RotateCcw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser, type Role } from "@/lib/mock";
 
-const ROLES: { role: Role; label: string }[] = [
-  { role: "BUYER", label: "Pembeli" },
-  { role: "SELLER", label: "Penjual" },
-  { role: "ADMIN", label: "Admin" },
+const ROLES: { role: Role; label: string; home: string }[] = [
+  { role: "BUYER", label: "Pembeli", home: "/" },
+  { role: "SELLER", label: "Penjual", home: "/seller" },
+  { role: "ADMIN", label: "Admin", home: "/admin" },
 ];
 
 export default function DevPanel() {
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
+  const router = useRouter();
   const user = useUser((s) => s.user);
   const switchPersona = useUser((s) => s.switchPersona);
   const login = useUser((s) => s.login);
@@ -46,7 +48,7 @@ export default function DevPanel() {
             {ROLES.map((r) => (
               <button
                 key={r.role}
-                onClick={() => switchPersona(r.role)}
+                onClick={() => { switchPersona(r.role); router.push(r.home); }}
                 className={cn(
                   "px-2 py-1.5 rounded-lg text-xs border transition cursor-pointer",
                   user?.role === r.role

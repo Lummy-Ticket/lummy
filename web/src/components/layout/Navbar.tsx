@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown, LogOut, Menu, User as UserIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "./Logo";
@@ -36,6 +36,7 @@ const ROLE_LINKS: Record<Role, NavLink[]> = {
 };
 
 const ROLE_LABEL: Record<Role, string> = { BUYER: "Pembeli", SELLER: "Penjual", ADMIN: "Admin" };
+const ROLE_HOME: Record<Role, string> = { BUYER: "/", SELLER: "/seller", ADMIN: "/admin" };
 
 function initials(name: string) {
   return name.split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("");
@@ -43,15 +44,26 @@ function initials(name: string) {
 
 export function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const user = useUser((s) => s.user);
   const switchPersona = useUser((s) => s.switchPersona);
   const logout = useUser((s) => s.logout);
+
+  // Ganti persona = langsung ke home role itu (jangan nyangkut di page lama).
+  const goPersona = (r: Role) => {
+    switchPersona(r);
+    router.push(ROLE_HOME[r]);
+  };
 
   const [mounted, setMounted] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [roleOpen, setRoleOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const roleRef = useRef<HTMLDivElement>(null);
+  const userRef = useRef<HTMLDivElement>(null);
+  const mobileRef = useRef<HTMLDivElement>(null);
 
   const links = mounted && user ? ROLE_LINKS[user.role] : GUEST_LINKS;
 
@@ -62,6 +74,28 @@ export function Navbar() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+  // Tutup dropdown pas klik di luar (bukan hover, biar gak ilang pas mouse pindah ke menu).
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (roleRef.current && !roleRef.current.contains(t)) setRoleOpen(false);
+      if (userRef.current && !userRef.current.contains(t)) setUserOpen(false);
+      if (mobileRef.current && !mobileRef.current.contains(t)) setMobileOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, []);
+
+  // Halaman auth: navbar minimal (logo doang), jangan tampilin avatar/persona.
+  if (pathname.startsWith("/login") || pathname.startsWith("/register")) {
+    return (
+      <nav className="fixed z-40 top-0 w-full h-20 flex justify-center px-5 lg:px-10 bg-neutral-white border-b border-neutral-light-gray-1">
+        <div className="max-w-7xl w-full flex items-center">
+          <Logo />
+        </div>
+      </nav>
+    );
+  }
 
   return (
     <nav
@@ -70,7 +104,7 @@ export function Navbar() {
         scrolled ? "bg-neutral-white border-neutral-light-gray-1" : "bg-transparent border-transparent"
       )}
     >
-      <div className="max-w-6xl w-full flex items-center justify-between">
+      <div className="max-w-7xl w-full flex items-center justify-between">
         <Logo />
 
         <div className="hidden lg:flex gap-8">
@@ -91,7 +125,7 @@ export function Navbar() {
         <div className="flex items-center gap-3">
           {/* Role switcher (demo) */}
           {mounted && user && isDemoMode() && (
-            <div className="relative hidden sm:block" onMouseLeave={() => setRoleOpen(false)}>
+            <div ref={roleRef} className="relative hidden sm:block">
               <button
                 onClick={() => setRoleOpen((o) => !o)}
                 className="flex items-center gap-2 px-4 py-2 rounded-2xl border-2 border-lummy-500 bg-neutral-white text-lummy-500 text-sm font-medium hover:bg-pastel-yellow transition cursor-pointer"
@@ -103,7 +137,7 @@ export function Navbar() {
                   {(Object.keys(ROLE_LABEL) as Role[]).map((r) => (
                     <button
                       key={r}
-                      onClick={() => { switchPersona(r); setRoleOpen(false); }}
+                      onClick={() => { goPersona(r); setRoleOpen(false); }}
                       className={cn(
                         "w-full text-left px-4 py-2.5 text-sm hover:bg-secondary-blue-light transition cursor-pointer",
                         user.role === r ? "text-lummy-500 font-semibold" : "text-neutral-gray"
@@ -119,7 +153,7 @@ export function Navbar() {
 
           {/* Avatar / sign in */}
           {mounted && user ? (
-            <div className="relative hidden lg:block" onMouseLeave={() => setUserOpen(false)}>
+            <div ref={userRef} className="relative hidden lg:block">
               <button onClick={() => setUserOpen((o) => !o)} className="flex items-center gap-2 cursor-pointer">
                 <span className="w-10 h-10 rounded-full bg-secondary-blue-light text-lummy-500 font-semibold grid place-items-center border border-lummy-500">
                   {initials(user.name)}
@@ -151,7 +185,7 @@ export function Navbar() {
           ) : null}
 
           {/* Mobile menu */}
-          <div className="lg:hidden relative">
+          <div ref={mobileRef} className="lg:hidden relative">
             <button onClick={() => setMobileOpen((o) => !o)} aria-label="Menu" className="p-1 text-lummy-500 cursor-pointer">
               <Menu className="w-6 h-6" />
             </button>
@@ -176,7 +210,7 @@ export function Navbar() {
                     {(Object.keys(ROLE_LABEL) as Role[]).map((r) => (
                       <button
                         key={r}
-                        onClick={() => { switchPersona(r); setMobileOpen(false); }}
+                        onClick={() => { goPersona(r); setMobileOpen(false); }}
                         className={cn("w-full text-left px-3 py-2 rounded-lg text-sm", user.role === r ? "text-lummy-500 font-semibold" : "text-neutral-gray hover:bg-secondary-blue-light")}
                       >
                         {ROLE_LABEL[r]}

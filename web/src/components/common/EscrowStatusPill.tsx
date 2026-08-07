@@ -6,7 +6,7 @@ import type { EscrowStatus } from "@/lib/mock";
 const MAP = {
   LOCKED: { label: "Dana terkunci", cls: "bg-secondary-blue-soft text-lummy-500", Icon: Lock },
   RELEASED: { label: "Cair ke penjual", cls: "bg-secondary-green-soft text-secondary-green-dark", Icon: CheckCircle2 },
-  REFUNDED: { label: "Dana dikembalikan", cls: "bg-neutral-light-gray-2 text-neutral-gray", Icon: RotateCcw },
+  REFUNDED: { label: "Dana dikembalikan", cls: "bg-secondary-blue-soft text-lummy-500", Icon: RotateCcw },
 } as const;
 
 export function EscrowStatusPill({ status, className }: { status: EscrowStatus; className?: string }) {

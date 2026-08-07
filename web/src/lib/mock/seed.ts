@@ -83,29 +83,42 @@ export const SEED_EVENTS: EventItem[] = [
 // Beberapa listing resale. Termasuk 1 skor forgery tinggi + 1 barcode duplikat
 // buat mendemokan AI trust layer nanti.
 export const SEED_LISTINGS: Listing[] = [
+  // Coldplay: variasi qty biar filter "jumlah tiket" kelihatan
   {
     id: "ls-1", eventId: "ev-coldplay", tierId: "t-cp-cat1", sellerName: "Zahra A.",
-    askPrice: 2_800_000, faceValue: 2_250_000, status: "active", gateKtp: true,
+    askPrice: 2_800_000, faceValue: 2_250_000, quantity: 2, splittable: false, status: "active", gateKtp: true,
     ai: { autofilled: true, forgeryScore: 8, barcodeDuplicate: false, pdfSuspicious: false },
   },
   {
     id: "ls-2", eventId: "ev-coldplay", tierId: "t-cp-cat3", sellerName: "Rian P.",
-    askPrice: 1_400_000, faceValue: 1_250_000, status: "active", gateKtp: true,
+    askPrice: 1_400_000, faceValue: 1_250_000, quantity: 1, splittable: false, status: "active", gateKtp: true,
     ai: { autofilled: true, forgeryScore: 12, barcodeDuplicate: false, pdfSuspicious: false },
   },
   {
-    id: "ls-3", eventId: "ev-newjeans", tierId: "t-nj-cat1", sellerName: "Dinda K.",
-    askPrice: 1_650_000, faceValue: 1_500_000, status: "active", gateKtp: true,
-    ai: { autofilled: true, forgeryScore: 74, barcodeDuplicate: false, pdfSuspicious: true },
+    id: "ls-6", eventId: "ev-coldplay", tierId: "t-cp-cat1", sellerName: "Vino M.",
+    askPrice: 2_650_000, faceValue: 2_250_000, quantity: 2, splittable: true, status: "active", gateKtp: true,
+    ai: { autofilled: true, forgeryScore: 6, barcodeDuplicate: false, pdfSuspicious: false },
   },
   {
+    id: "ls-7", eventId: "ev-coldplay", tierId: "t-cp-fest", sellerName: "Kirana W.",
+    askPrice: 3_900_000, faceValue: 3_500_000, quantity: 4, splittable: true, status: "active", gateKtp: true,
+    ai: { autofilled: true, forgeryScore: 10, barcodeDuplicate: false, pdfSuspicious: false },
+  },
+  // NewJeans: satu kena flag (buat demo badge "Dalam review", gak bisa dibeli)
+  {
+    id: "ls-3", eventId: "ev-newjeans", tierId: "t-nj-cat1", sellerName: "Dinda K.",
+    askPrice: 1_650_000, faceValue: 1_500_000, quantity: 2, splittable: true, status: "active", gateKtp: true,
+    ai: { autofilled: true, forgeryScore: 74, barcodeDuplicate: false, pdfSuspicious: true },
+  },
+  // WTF: satu barcode duplikat (demo blok)
+  {
     id: "ls-4", eventId: "ev-wtf", tierId: "t-wtf-1day", sellerName: "Bagas W.",
-    askPrice: 950_000, faceValue: 850_000, status: "active", gateKtp: false,
+    askPrice: 950_000, faceValue: 850_000, quantity: 1, splittable: false, status: "active", gateKtp: false,
     ai: { autofilled: true, forgeryScore: 5, barcodeDuplicate: true, pdfSuspicious: false },
   },
   {
     id: "ls-5", eventId: "ev-timnas", tierId: "t-tn-cat1", sellerName: "Fajar S.",
-    askPrice: 620_000, faceValue: 500_000, status: "active", gateKtp: false,
+    askPrice: 620_000, faceValue: 500_000, quantity: 3, splittable: true, status: "active", gateKtp: false,
     ai: { autofilled: true, forgeryScore: 9, barcodeDuplicate: false, pdfSuspicious: false },
   },
 ];

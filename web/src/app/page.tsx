@@ -38,7 +38,7 @@ export default function Home() {
     <>
       {/* Hero */}
       <section className="bg-hero-gradient pt-28 pb-20">
-        <div className="max-w-6xl mx-auto px-5 lg:px-10 grid lg:grid-cols-2 gap-10 items-center">
+        <div className="max-w-7xl mx-auto px-5 lg:px-10 grid lg:grid-cols-2 gap-10 items-center">
           <div className="flex flex-col gap-6">
             <Badge.Base className="w-fit bg-secondary-blue-soft text-lummy-500 text-sm">
               Escrow + AI, tanpa ribet crypto
@@ -88,7 +88,7 @@ export default function Home() {
       </section>
 
       {/* Trust pillars */}
-      <section className="max-w-6xl mx-auto px-5 lg:px-10 -mt-10 grid md:grid-cols-3 gap-5">
+      <section className="max-w-7xl mx-auto px-5 lg:px-10 -mt-10 grid md:grid-cols-3 gap-5">
         {pillars.map((p) => (
           <div key={p.title} className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 shadow-lummy p-6 flex flex-col gap-3">
             <span className={`w-12 h-12 rounded-2xl grid place-items-center ${p.color}`}>
@@ -101,7 +101,7 @@ export default function Home() {
       </section>
 
       {/* How it works */}
-      <section id="cara-kerja" className="max-w-6xl mx-auto px-5 lg:px-10 mt-24">
+      <section id="cara-kerja" className="max-w-7xl mx-auto px-5 lg:px-10 mt-24">
         <div className="text-center max-w-2xl mx-auto mb-12">
           <Badge.Base className="bg-secondary-pink-soft text-secondary-pink-dark text-sm">Cara kerja</Badge.Base>
           <h2 className="text-3xl md:text-4xl font-bold text-neutral-black mt-4">Aman dari klik pertama sampai konser</h2>
@@ -119,7 +119,7 @@ export default function Home() {
       </section>
 
       {/* Featured events */}
-      <section className="max-w-6xl mx-auto px-5 lg:px-10 mt-24">
+      <section className="max-w-7xl mx-auto px-5 lg:px-10 mt-24">
         <div className="flex items-end justify-between mb-8">
           <div>
             <h2 className="text-3xl font-bold text-neutral-black">Event pilihan</h2>
@@ -146,7 +146,7 @@ export default function Home() {
       </section>
 
       {/* CTA band */}
-      <section className="max-w-6xl mx-auto px-5 lg:px-10 mt-24">
+      <section className="max-w-7xl mx-auto px-5 lg:px-10 mt-24">
         <div className="rounded-3xl bg-lummy-gradient text-white px-8 py-14 text-center flex flex-col items-center gap-5">
           <h2 className="text-3xl md:text-4xl font-bold">Punya tiket yang gak kepakai?</h2>
           <p className="text-white/85 max-w-xl">Jual di OperTix. AI bantu isi datanya otomatis, dan dana kamu aman sampai konser lewat.</p>

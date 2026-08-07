@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
-import { Search, MapPin } from "lucide-react";
+import { Search, MapPin, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { getEvents, formatEventDate } from "@/lib/mock";
@@ -48,11 +48,12 @@ export default function EventsPage() {
               className="outline-none w-full text-neutral-black placeholder:text-neutral-gray bg-transparent text-sm"
             />
           </div>
-          <div className="flex items-center gap-2 py-3 px-4 rounded-xl ring-1 ring-lummy-500 bg-neutral-white">
+          <div className="flex items-center gap-2 py-3 pl-4 pr-3 rounded-xl ring-1 ring-lummy-500 bg-neutral-white">
             <MapPin className="w-4 h-4 text-neutral-gray shrink-0" />
-            <select value={city} onChange={(e) => setCity(e.target.value)} className="outline-none bg-transparent text-sm text-neutral-black cursor-pointer">
+            <select value={city} onChange={(e) => setCity(e.target.value)} className="appearance-none outline-none bg-transparent text-sm text-neutral-black cursor-pointer">
               {cities.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
+            <ChevronDown className="w-4 h-4 text-neutral-gray shrink-0" />
           </div>
         </div>
         <div className="flex flex-wrap gap-2">

@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import {
-  UploadCloud, FileText, ScanLine, CheckCircle2, AlertTriangle, Loader2, ArrowRight, ArrowLeft, Sparkles, ShieldCheck,
+  UploadCloud, FileText, ScanLine, CheckCircle2, AlertTriangle, Loader2, ArrowRight, ArrowLeft, Sparkles, ShieldCheck, ChevronDown, Minus, Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,14 +46,18 @@ export default function SellPage() {
   const [barcode, setBarcode] = useState("");
   const [ai, setAi] = useState<ListingAI | null>(null);
   const [price, setPrice] = useState<number>(0);
+  const [qty, setQty] = useState(1);
 
   const event = getEventById(eventId);
   const tier = event ? getTier(event, tierId) : undefined;
   const faceValue = tier?.faceValue ?? 0;
   const cap = Math.round(faceValue * (CAP_PCT / 100));
   const floor = Math.round(faceValue * (FLOOR_PCT / 100));
-  const priceValid = price >= floor && price <= cap;
   const markup = faceValue ? Math.round((price / faceValue - 1) * 100) : 0;
+
+  // Barcode duplikat = hard block. Editan/skor tinggi = gak langsung tayang, masuk review admin.
+  const blocked = !!ai?.barcodeDuplicate;
+  const flagged = !!ai && !blocked && (ai.pdfSuspicious || ai.forgeryScore >= 60);
 
   const analyze = () => {
     setAnalyzing(true);
@@ -74,9 +78,13 @@ export default function SellPage() {
   };
 
   const publish = () => {
-    if (!event || !tier) return;
-    addListing({ eventId: event.id, eventTitle: event.title, tierName: tier.name, askPrice: price, faceValue, ai: ai! });
-    toast.success("Listing tayang. Dijaga escrow.");
+    if (!event || !tier || blocked) return;
+    addListing({
+      eventId: event.id, eventTitle: event.title, tierName: tier.name,
+      askPrice: price, faceValue, quantity: qty, ai: ai!,
+      status: flagged ? "review" : "active",
+    });
+    toast.success(flagged ? "Diajukan untuk review admin" : "Listing tayang. Dijaga escrow.");
     router.push("/seller");
   };
 
@@ -122,11 +130,11 @@ export default function SellPage() {
             <div className="text-xs text-neutral-gray mb-2">Demo: coba analisa beberapa jenis tiket</div>
             <div className="flex flex-wrap gap-2">
               {([
-                { id: "good", label: "Tiket asli" },
-                { id: "edited", label: "Tiket editan" },
-                { id: "dup", label: "Barcode duplikat" },
+                { id: "good", label: "Tiket asli", file: "tiket-tulus-asli.pdf" },
+                { id: "edited", label: "Tiket editan", file: "tiket-tulus-editan.pdf" },
+                { id: "dup", label: "Barcode duplikat", file: "tiket-tulus-duplikat.pdf" },
               ] as const).map((s) => (
-                <button key={s.id} onClick={() => setSample(s.id)} className={`px-3 py-1.5 rounded-lg text-sm border cursor-pointer ${sample === s.id ? "bg-primary-navy text-white border-primary-navy" : "bg-neutral-white text-neutral-gray border-neutral-light-gray-1"}`}>
+                <button key={s.id} onClick={() => { setSample(s.id); setFileName(s.file); }} className={`px-3 py-1.5 rounded-lg text-sm border cursor-pointer ${sample === s.id ? "bg-primary-navy text-white border-primary-navy" : "bg-neutral-white text-neutral-gray border-neutral-light-gray-1"}`}>
                   {s.label}
                 </button>
               ))}
@@ -162,15 +170,21 @@ export default function SellPage() {
             <div className="grid sm:grid-cols-2 gap-4">
               <label className="flex flex-col gap-1.5">
                 <span className="text-xs text-neutral-gray">Event</span>
-                <select value={eventId} onChange={(e) => { setEventId(e.target.value); const ev = getEventById(e.target.value); setTierId(ev?.tiers[0]?.id ?? ""); }} className="rounded-xl border border-lummy-500 px-4 py-3 text-sm text-neutral-black bg-neutral-white outline-none">
-                  {events.map((ev) => <option key={ev.id} value={ev.id}>{ev.title}</option>)}
-                </select>
+                <div className="relative">
+                  <select value={eventId} onChange={(e) => { setEventId(e.target.value); const ev = getEventById(e.target.value); setTierId(ev?.tiers[0]?.id ?? ""); }} className="appearance-none w-full rounded-xl border border-lummy-500 px-4 py-3 pr-10 text-sm text-neutral-black bg-neutral-white outline-none cursor-pointer">
+                    {events.map((ev) => <option key={ev.id} value={ev.id}>{ev.title}</option>)}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-neutral-gray absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
               </label>
               <label className="flex flex-col gap-1.5">
                 <span className="text-xs text-neutral-gray">Kategori tiket</span>
-                <select value={tierId} onChange={(e) => setTierId(e.target.value)} className="rounded-xl border border-lummy-500 px-4 py-3 text-sm text-neutral-black bg-neutral-white outline-none">
-                  {event?.tiers.map((t) => <option key={t.id} value={t.id}>{t.name} · {formatIDR(t.faceValue)}</option>)}
-                </select>
+                <div className="relative">
+                  <select value={tierId} onChange={(e) => setTierId(e.target.value)} className="appearance-none w-full rounded-xl border border-lummy-500 px-4 py-3 pr-10 text-sm text-neutral-black bg-neutral-white outline-none cursor-pointer">
+                    {event?.tiers.map((t) => <option key={t.id} value={t.id}>{t.name} · {formatIDR(t.faceValue)}</option>)}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-neutral-gray absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
               </label>
               <label className="flex flex-col gap-1.5">
                 <span className="text-xs text-neutral-gray">Nama pemesan asli</span>
@@ -180,12 +194,21 @@ export default function SellPage() {
                 <span className="text-xs text-neutral-gray">Barcode (dari decoder)</span>
                 <input value={barcode} readOnly className="rounded-xl border border-neutral-light-gray-1 bg-secondary-gray-soft px-4 py-3 text-sm text-neutral-gray font-mono outline-none" />
               </label>
+              <label className="flex flex-col gap-1.5 sm:col-span-2">
+                <span className="text-xs text-neutral-gray">Jumlah tiket dalam PDF ini</span>
+                <div className="flex items-center gap-3">
+                  <button type="button" onClick={() => setQty((q) => Math.max(1, q - 1))} className="w-10 h-10 rounded-xl border border-lummy-500 grid place-items-center text-lummy-500 hover:bg-secondary-blue-light transition cursor-pointer"><Minus className="w-4 h-4" /></button>
+                  <span className="font-fredoka font-bold text-lg text-neutral-black w-8 text-center">{qty}</span>
+                  <button type="button" onClick={() => setQty((q) => Math.min(8, q + 1))} className="w-10 h-10 rounded-xl border border-lummy-500 grid place-items-center text-lummy-500 hover:bg-secondary-blue-light transition cursor-pointer"><Plus className="w-4 h-4" /></button>
+                  <span className="text-xs text-neutral-gray">Dijual sebagai 1 set (duduk bareng). {qty > 1 ? `${qty} tiket sekaligus.` : ""}</span>
+                </div>
+              </label>
             </div>
           </div>
 
           <div className="flex gap-3">
             <button onClick={() => setStep(0)} className="px-5 py-3 rounded-2xl border-2 border-neutral-light-gray-1 text-neutral-gray text-sm flex items-center gap-1 cursor-pointer"><ArrowLeft className="w-4 h-4" /> Kembali</button>
-            <Button.Primary className="flex items-center gap-2" onClick={() => setStep(2)}>Lanjut ke harga <ArrowRight className="w-4 h-4" /></Button.Primary>
+            <Button.Primary className="flex items-center gap-2" onClick={() => { setPrice((p) => Math.min(Math.max(p || cap, floor), cap)); setStep(2); }}>Lanjut ke harga <ArrowRight className="w-4 h-4" /></Button.Primary>
           </div>
         </div>
       )}
@@ -194,29 +217,37 @@ export default function SellPage() {
       {step === 2 && event && tier && (
         <div className="flex flex-col gap-6">
           <div className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-6">
-            <div className="flex justify-between text-sm mb-4">
+            <div className="flex justify-between text-sm mb-5">
               <span className="text-neutral-gray">Harga asli (face value)</span>
-              <span className="font-medium text-neutral-black">{formatIDR(faceValue)}</span>
+              <span className="font-medium text-neutral-black">{formatIDR(faceValue)} <span className="text-neutral-gray font-normal">/tiket</span></span>
             </div>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-xs text-neutral-gray">Harga jual kamu</span>
-              <div className="flex items-center gap-2 rounded-xl border border-lummy-500 px-4 py-3">
-                <span className="text-neutral-gray text-sm">IDR</span>
-                <input type="number" value={price || ""} onChange={(e) => setPrice(Number(e.target.value))} className="w-full outline-none text-neutral-black" />
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-neutral-gray">Harga jual per tiket</span>
+              <span className="font-fredoka font-bold text-xl text-lummy-500">{formatIDR(price)}</span>
+            </div>
+            <input type="range" min={floor} max={cap} step={10000} value={price} onChange={(e) => setPrice(Number(e.target.value))} className="w-full accent-[#3A6CB4] cursor-pointer" />
+            <div className="flex justify-between items-center text-xs text-neutral-gray mt-2">
+              <span className="flex flex-col"><span>{formatIDR(floor)}</span><span className="text-[10px]">min 50%</span></span>
+              <span className={`font-medium ${markup >= 0 ? "text-secondary-green-dark" : "text-secondary-orange-dark"}`}>{markup >= 0 ? `+${markup}%` : `${markup}%`} dari harga asli</span>
+              <span className="flex flex-col text-right"><span>{formatIDR(cap)}</span><span className="text-[10px]">max 150%</span></span>
+            </div>
+            {qty > 1 && (
+              <div className="mt-4 pt-4 border-t border-dashed border-neutral-light-gray-1 flex justify-between text-sm">
+                <span className="text-neutral-gray">Total {qty} tiket (1 set)</span>
+                <span className="font-fredoka font-bold text-neutral-black">{formatIDR(price * qty)}</span>
               </div>
-            </label>
-            <div className="mt-3 flex items-center justify-between text-sm">
-              <span className={priceValid ? "text-secondary-green-dark" : "text-secondary-pink-dark"}>
-                {priceValid ? `Dalam batas · markup ${markup}%` : "Di luar batas harga"}
-              </span>
-              <span className="text-neutral-gray text-xs">Batas {formatIDR(floor)} – {formatIDR(cap)} ({CAP_PCT}%)</span>
-            </div>
+            )}
           </div>
 
-          {ai?.barcodeDuplicate ? (
+          {blocked ? (
             <div className="flex items-start gap-2 text-sm text-secondary-pink-dark bg-secondary-pink-soft rounded-2xl p-4">
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-              Barcode tiket ini sudah pernah dijual di OperTix. Listing diblokir otomatis, gak bisa publish. (Deterministik, bukan tebakan.)
+              Barcode tiket ini sudah pernah dijual di OperTix. Listing diblokir otomatis, gak bisa dijual. (Deterministik, bukan tebakan.)
+            </div>
+          ) : flagged ? (
+            <div className="flex items-start gap-2 text-sm text-secondary-orange-dark bg-secondary-orange-soft rounded-2xl p-4">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>Tiket ini kena flag AI (skor pemalsuan / struktur PDF mencurigakan). <b>Gak langsung tayang</b>, tapi masuk antrian <b>review admin</b> dulu. Kalau lolos, baru bisa dibeli.</span>
             </div>
           ) : (
             <div className="flex items-start gap-2 text-sm text-neutral-gray bg-secondary-blue-extra rounded-2xl p-4">
@@ -227,8 +258,8 @@ export default function SellPage() {
 
           <div className="flex gap-3">
             <button onClick={() => setStep(1)} className="px-5 py-3 rounded-2xl border-2 border-neutral-light-gray-1 text-neutral-gray text-sm flex items-center gap-1 cursor-pointer"><ArrowLeft className="w-4 h-4" /> Kembali</button>
-            <Button.Primary disabled={!priceValid || ai?.barcodeDuplicate} onClick={publish}>
-              {ai?.barcodeDuplicate ? "Diblokir (duplikat)" : "Publish listing"}
+            <Button.Primary disabled={blocked} onClick={publish}>
+              {blocked ? "Diblokir (duplikat)" : flagged ? "Ajukan untuk review" : "Publish listing"}
             </Button.Primary>
           </div>
         </div>

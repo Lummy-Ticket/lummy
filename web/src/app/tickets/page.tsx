@@ -36,7 +36,7 @@ export default function TicketsPage() {
               </div>
               <div className="min-w-0 flex-1">
                 <h3 className="font-fredoka font-semibold text-neutral-black truncate">{o.eventTitle}</h3>
-                <p className="text-xs text-neutral-gray">{formatEventDate(o.eventDateISO)} · {o.tierName}</p>
+                <p className="text-xs text-neutral-gray">{formatEventDate(o.eventDateISO)} · {o.tierName}{o.quantity > 1 ? ` · ${o.quantity} tiket` : ""}</p>
                 <div className="mt-1.5"><EscrowStatusPill status={o.escrowStatus} /></div>
               </div>
               <div className="text-right shrink-0">

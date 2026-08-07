@@ -84,7 +84,7 @@ export default function OrderDetailPage() {
         </div>
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-neutral-black">{order.eventTitle}</h1>
-          <p className="text-sm text-neutral-gray">{formatEventDate(order.eventDateISO)} · {order.tierName} · Penjual {order.sellerName}</p>
+          <p className="text-sm text-neutral-gray">{formatEventDate(order.eventDateISO)} · {order.tierName}{order.quantity > 1 ? ` · ${order.quantity} tiket` : ""} · Penjual {order.sellerName}</p>
         </div>
       </div>
 

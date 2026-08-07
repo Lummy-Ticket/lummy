@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { ListingAI } from "./types";
 
+export type SellerListingStatus = "active" | "sold" | "review";
+
 export interface SellerListing {
   id: string;
   eventId: string;
@@ -9,7 +11,8 @@ export interface SellerListing {
   tierName: string;
   askPrice: number;
   faceValue: number;
-  status: "active" | "sold";
+  quantity: number;
+  status: SellerListingStatus;
   views: number;
   ai: ListingAI;
   createdAtISO: string;
@@ -18,13 +21,13 @@ export interface SellerListing {
 const SEED: SellerListing[] = [
   {
     id: "sl-1", eventId: "ev-coldplay", eventTitle: "Coldplay: Music of the Spheres",
-    tierName: "CAT 1", askPrice: 2_800_000, faceValue: 2_250_000, status: "active", views: 142,
+    tierName: "CAT 1", askPrice: 2_800_000, faceValue: 2_250_000, quantity: 2, status: "active", views: 142,
     ai: { autofilled: true, forgeryScore: 8, barcodeDuplicate: false, pdfSuspicious: false },
     createdAtISO: "2026-07-28T09:00:00+07:00",
   },
   {
     id: "sl-2", eventId: "ev-newjeans", eventTitle: "NewJeans Fan Meeting: Bunnies Jakarta",
-    tierName: "CAT 1", askPrice: 1_650_000, faceValue: 1_500_000, status: "sold", views: 310,
+    tierName: "CAT 1", askPrice: 1_650_000, faceValue: 1_500_000, quantity: 1, status: "sold", views: 310,
     ai: { autofilled: true, forgeryScore: 6, barcodeDuplicate: false, pdfSuspicious: false },
     createdAtISO: "2026-07-15T14:00:00+07:00",
   },
@@ -32,7 +35,7 @@ const SEED: SellerListing[] = [
 
 interface SellerState {
   listings: SellerListing[];
-  add: (l: Omit<SellerListing, "id" | "createdAtISO" | "views" | "status">) => void;
+  add: (l: Omit<SellerListing, "id" | "createdAtISO" | "views">) => void;
 }
 
 export const useSellerListings = create<SellerState>()(
@@ -42,7 +45,7 @@ export const useSellerListings = create<SellerState>()(
       add: (l) =>
         set((s) => ({
           listings: [
-            { ...l, id: "sl-" + Date.now(), createdAtISO: new Date().toISOString(), views: 0, status: "active" },
+            { ...l, id: "sl-" + Date.now(), createdAtISO: new Date().toISOString(), views: 0 },
             ...s.listings,
           ],
         })),

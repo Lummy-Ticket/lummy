@@ -33,7 +33,7 @@ const Event = (({className, image, date, title, location, category, price, redir
 
   return (
         <Link href={redirect} className={cn("border hover:opacity-80 transition ease-in-out flex flex-col justify-between border-primary-navy rounded-3xl pt-2.5 pb-3 px-2.5 gap-2 sm:pb-5 w-full h-fit shrink-0", className)} {...props}>
-            <div className="relative w-full aspect-283/207 h-auto">
+            <div className="relative w-full aspect-[16/10] h-auto">
                 <Image alt="event" className={cn("rounded-2xl border border-lummy-500 object-cover", soldOut && "grayscale-[35%]")} src={image} fill />
                 {soldOut && (
                     <Badge.Base className="absolute top-2.5 left-2.5 bg-secondary-pink-dark text-white text-sm xl:text-base">Sold Out</Badge.Base>

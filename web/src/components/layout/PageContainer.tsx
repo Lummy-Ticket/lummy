@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 //   app   = halaman task (tiket, dashboard, admin, profil, checkout)
 //   form  = konten sempit fokus (wizard jual, cara kerja)
 const WIDTH = {
-  wide: "max-w-6xl",
-  app: "max-w-6xl",
+  wide: "max-w-7xl",
+  app: "max-w-7xl",
   form: "max-w-3xl",
 } as const;
 
