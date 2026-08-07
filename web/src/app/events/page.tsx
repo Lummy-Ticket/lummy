@@ -6,6 +6,7 @@ import { Search, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { getEvents, formatEventDate } from "@/lib/mock";
+import { PageContainer } from "@/components/layout/PageContainer";
 
 const events = getEvents();
 const categories = ["Semua", ...Array.from(new Set(events.map((e) => e.category)))];
@@ -29,7 +30,7 @@ export default function EventsPage() {
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-5 lg:px-10 pt-28 pb-10">
+    <PageContainer width="wide">
       <div className="mb-8">
         <h1 className="text-3xl md:text-4xl font-bold text-neutral-black">Jelajah event</h1>
         <p className="text-neutral-gray mt-2">Tiket resale terverifikasi, dijaga escrow sampai konser selesai.</p>
@@ -94,6 +95,6 @@ export default function EventsPage() {
           <p className="text-neutral-gray">Gak ada event yang cocok. Coba hapus filter atau kata kunci lain.</p>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

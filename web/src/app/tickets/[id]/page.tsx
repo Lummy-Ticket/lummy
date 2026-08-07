@@ -16,6 +16,7 @@ import { EscrowStatusPill } from "@/components/common/EscrowStatusPill";
 import {
   useOrders, useUser, formatIDR, formatEventDate, formatDateTime, explorerTx, explorerAddr, shortHash,
 } from "@/lib/mock";
+import { PageContainer } from "@/components/layout/PageContainer";
 
 function ChainRow({ label, value, href, onCopy }: { label: string; value: string; href?: string; onCopy?: () => void }) {
   return (
@@ -46,10 +47,10 @@ export default function OrderDetailPage() {
 
   useEffect(() => setMounted(true), []);
 
-  if (!mounted) return <div className="pt-32 text-center text-neutral-gray">Memuat...</div>;
+  if (!mounted) return <div className="pt-28 pb-16 text-center text-neutral-gray">Memuat...</div>;
   if (!order) {
     return (
-      <div className="max-w-lg mx-auto px-5 pt-32 text-center">
+      <div className="max-w-lg mx-auto px-5 pt-28 pb-16 text-center">
         <p className="text-neutral-gray">Tiket gak ketemu.</p>
         <Link href="/tickets" className="text-primary-navy font-medium">Balik ke tiket saya</Link>
       </div>
@@ -71,7 +72,7 @@ export default function OrderDetailPage() {
   const watermark = `${user?.name ?? "Pembeli"} · ${new Date().toLocaleDateString("id-ID")} · OperTix`;
 
   return (
-    <div className="max-w-4xl mx-auto px-5 lg:px-10 pt-24 pb-10">
+    <PageContainer width="app">
       <Link href="/tickets" className="inline-flex items-center gap-1 text-neutral-gray hover:text-primary-navy text-sm mb-4">
         <ArrowLeft className="w-4 h-4" /> Tiket saya
       </Link>
@@ -277,6 +278,6 @@ export default function OrderDetailPage() {
           <p className="text-sm text-neutral-gray">Menandatangani + broadcast ke Monad testnet.</p>
         </div>
       </Modal>
-    </div>
+    </PageContainer>
   );
 }

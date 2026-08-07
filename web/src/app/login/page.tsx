@@ -27,7 +27,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-5 pt-20">
+    <div className="min-h-[80vh] flex items-center justify-center px-5 pt-28 pb-16">
       <div className="w-full max-w-md bg-neutral-white rounded-3xl border border-lummy-500 shadow-lummy-lg p-8">
         <Logo className="mx-auto mb-6" />
         <h1 className="text-2xl font-bold text-neutral-black text-center">Masuk ke OperTix</h1>

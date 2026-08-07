@@ -7,6 +7,7 @@ import { Plus, Eye, Megaphone, Copy, ExternalLink, ShieldCheck, Search } from "l
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/common/Modal";
+import { PageContainer } from "@/components/layout/PageContainer";
 import { useSellerListings, formatIDR, type SellerListing } from "@/lib/mock";
 
 function Stat({ label, value }: { label: string; value: string }) {
@@ -69,7 +70,7 @@ export default function SellerPage() {
   const est = active.reduce((a, l) => a + Math.round(l.askPrice * 0.95), 0);
 
   return (
-    <div className="max-w-4xl mx-auto px-5 lg:px-10 pt-28 pb-10">
+    <PageContainer width="app">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl md:text-3xl font-bold text-neutral-black">Dashboard penjual</h1>
         <Link href="/sell"><Button.Primary className="flex items-center gap-2 text-sm"><Plus className="w-4 h-4" /> Jual tiket</Button.Primary></Link>
@@ -113,6 +114,6 @@ export default function SellerPage() {
       )}
 
       <PromoteModal listing={promote} onClose={() => setPromote(null)} />
-    </div>
+    </PageContainer>
   );
 }

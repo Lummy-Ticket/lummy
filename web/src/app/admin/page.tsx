@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import { CheckCircle2, XCircle, AlertTriangle, Sparkles, Calendar, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PageContainer } from "@/components/layout/PageContainer";
 import { useEventRequests, formatIDR, formatEventDate } from "@/lib/mock";
 
 export default function AdminPage() {
@@ -15,7 +16,7 @@ export default function AdminPage() {
   useEffect(() => setMounted(true), []);
 
   return (
-    <div className="max-w-4xl mx-auto px-5 lg:px-10 pt-28 pb-10">
+    <PageContainer width="app">
       <h1 className="text-2xl md:text-3xl font-bold text-neutral-black">Approval event</h1>
       <div className="flex items-start gap-2 text-sm text-neutral-gray bg-secondary-blue-extra rounded-2xl p-4 mt-4 mb-8">
         <Sparkles className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" />
@@ -77,6 +78,6 @@ export default function AdminPage() {
           ))}
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

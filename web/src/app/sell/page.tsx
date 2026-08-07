@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   getEvents, getEventById, getTier, formatIDR, CAP_PCT, FLOOR_PCT, useSellerListings, type ListingAI,
 } from "@/lib/mock";
+import { PageContainer } from "@/components/layout/PageContainer";
 
 const events = getEvents();
 
@@ -80,7 +81,7 @@ export default function SellPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-5 lg:px-10 pt-28 pb-10">
+    <PageContainer width="form">
       <h1 className="text-2xl md:text-3xl font-bold text-neutral-black">Jual tiket</h1>
       <p className="text-neutral-gray mt-1">Upload PDF, AI isi datanya otomatis dan cek keasliannya.</p>
 
@@ -232,6 +233,6 @@ export default function SellPage() {
           </div>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

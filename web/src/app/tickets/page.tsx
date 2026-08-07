@@ -5,13 +5,14 @@ import Image from "next/image";
 import { Ticket, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EscrowStatusPill } from "@/components/common/EscrowStatusPill";
+import { PageContainer } from "@/components/layout/PageContainer";
 import { useOrders, formatIDR, formatEventDate } from "@/lib/mock";
 
 export default function TicketsPage() {
   const orders = useOrders((s) => s.orders);
 
   return (
-    <div className="max-w-4xl mx-auto px-5 lg:px-10 pt-28 pb-10">
+    <PageContainer width="app">
       <h1 className="text-2xl md:text-3xl font-bold text-neutral-black mb-6">Tiket saya</h1>
 
       {orders.length === 0 ? (
@@ -46,6 +47,6 @@ export default function TicketsPage() {
           ))}
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

@@ -35,7 +35,7 @@ function CheckoutInner() {
 
   if (!listing || !event || !tier) {
     return (
-      <div className="max-w-lg mx-auto px-5 pt-32 text-center">
+      <div className="max-w-lg mx-auto px-5 pt-28 pb-16 text-center">
         <p className="text-neutral-gray">Listing gak ketemu.</p>
         <Link href="/events" className="text-primary-navy font-medium">Balik ke jelajah</Link>
       </div>
@@ -55,7 +55,7 @@ function CheckoutInner() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-5 lg:px-10 pt-24 pb-10">
+    <div className="max-w-6xl mx-auto w-full px-5 lg:px-10 pt-28 pb-16">
       <Link href={`/events/${event.id}`} className="inline-flex items-center gap-1 text-neutral-gray hover:text-primary-navy text-sm mb-4">
         <ArrowLeft className="w-4 h-4" /> Kembali
       </Link>
@@ -140,7 +140,7 @@ function CheckoutInner() {
 
 export default function CheckoutPage() {
   return (
-    <Suspense fallback={<div className="pt-32 text-center text-neutral-gray">Memuat...</div>}>
+    <Suspense fallback={<div className="pt-28 pb-16 text-center text-neutral-gray">Memuat...</div>}>
       <CheckoutInner />
     </Suspense>
   );

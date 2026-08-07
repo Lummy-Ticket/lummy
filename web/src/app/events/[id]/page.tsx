@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -21,17 +22,18 @@ function TrustBadges({ ai }: { ai: Listing["ai"] }) {
   return <Badge.Base className="bg-secondary-green-soft text-secondary-green-dark text-xs flex items-center gap-1 w-fit"><ScanLine className="w-3 h-3" /> Terverifikasi AI</Badge.Base>;
 }
 
-function ListingRow({ event, listing }: { event: EventItem; listing: Listing }) {
+function ListingRow({ event, listing, cheapest }: { event: EventItem; listing: Listing; cheapest?: boolean }) {
   const tier = getTier(event, listing.tierId);
   const cap = listing.faceValue * (CAP_PCT / 100);
   const markup = Math.round((listing.askPrice / listing.faceValue - 1) * 100);
   const withinCap = listing.askPrice <= cap;
 
   return (
-    <div className="bg-neutral-white rounded-2xl border border-neutral-light-gray-1 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className={`bg-neutral-white rounded-2xl border p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition ${cheapest ? "border-lummy-500 ring-1 ring-lummy-500" : "border-neutral-light-gray-1"}`}>
       <div className="flex flex-col gap-2 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-fredoka font-semibold text-neutral-black">{tier?.name}</span>
+          {cheapest && <Badge.Base className="bg-secondary-green-soft text-secondary-green-dark text-xs font-medium">Termurah</Badge.Base>}
           <TrustBadges ai={listing.ai} />
           {listing.gateKtp && <Badge.Base className="bg-secondary-blue-soft text-lummy-500 text-xs">Gate cek KTP</Badge.Base>}
         </div>
@@ -54,13 +56,20 @@ function ListingRow({ event, listing }: { event: EventItem; listing: Listing }) 
   );
 }
 
+const SORTS = [
+  { id: "cheap", label: "Termurah" },
+  { id: "new", label: "Terbaru" },
+] as const;
+type SortId = (typeof SORTS)[number]["id"];
+
 export default function EventDetailPage() {
   const params = useParams<{ id: string }>();
   const event = getEventById(params.id);
+  const [sort, setSort] = useState<SortId>("cheap");
 
   if (!event) {
     return (
-      <div className="max-w-3xl mx-auto px-5 pt-32 pb-20 text-center flex flex-col items-center gap-4">
+      <div className="max-w-4xl mx-auto px-5 lg:px-10 pt-28 pb-16 text-center flex flex-col items-center gap-4">
         <Image src="/assets/images/mascot-confused.svg" alt="" width={120} height={120} />
         <p className="text-neutral-gray">Event gak ketemu.</p>
         <Link href="/events"><Button.Secondary>Balik ke jelajah</Button.Secondary></Link>
@@ -69,11 +78,18 @@ export default function EventDetailPage() {
   }
 
   const listings = getListingsByEvent(event.id);
+  const sortedListings = useMemo(() => {
+    const arr = [...listings];
+    // Termurah dulu = default ala Viagogo (langsung nangkep harga terbaik).
+    if (sort === "cheap") arr.sort((a, b) => a.askPrice - b.askPrice);
+    return arr;
+  }, [listings, sort]);
+  const cheapest = listings.length ? Math.min(...listings.map((l) => l.askPrice)) : 0;
 
   return (
-    <div className="pt-24 pb-10">
+    <div className="pt-28 pb-16">
       {/* Cover */}
-      <div className="max-w-7xl mx-auto px-5 lg:px-10">
+      <div className="max-w-6xl mx-auto px-5 lg:px-10">
         <Link href="/events" className="inline-flex items-center gap-1 text-neutral-gray hover:text-primary-navy transition text-sm mb-4">
           <ArrowLeft className="w-4 h-4" /> Jelajah
         </Link>
@@ -82,7 +98,7 @@ export default function EventDetailPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-5 lg:px-10 mt-6 grid lg:grid-cols-[1.6fr_1fr] gap-8">
+      <div className="max-w-6xl mx-auto px-5 lg:px-10 mt-6 grid lg:grid-cols-[1.6fr_1fr] gap-8">
         {/* Main */}
         <div>
           <Badge.Base className="bg-secondary-blue-soft text-lummy-500 text-sm w-fit">{event.category}</Badge.Base>
@@ -92,12 +108,31 @@ export default function EventDetailPage() {
             <span className="flex items-center gap-2"><MapPin className="w-4 h-4 text-primary-navy" /> {event.venue}, {event.city}</span>
           </div>
 
-          <h3 className="font-fredoka font-semibold text-xl text-neutral-black mt-10 mb-4">
-            Tiket resale tersedia <span className="text-neutral-gray font-normal text-base">({listings.length})</span>
-          </h3>
+          <div className="flex items-center justify-between mt-10 mb-4 gap-3 flex-wrap">
+            <h3 className="font-fredoka font-semibold text-xl text-neutral-black">
+              Tiket resale tersedia <span className="text-neutral-gray font-normal text-base">({listings.length})</span>
+            </h3>
+            {listings.length > 1 && (
+              <div className="flex items-center gap-1 bg-secondary-gray-soft rounded-full p-1">
+                {SORTS.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => setSort(s.id)}
+                    className={`px-3 py-1.5 rounded-full text-sm transition cursor-pointer ${
+                      sort === s.id ? "bg-neutral-white text-primary-navy font-medium shadow-sm" : "text-neutral-gray"
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="flex flex-col gap-3">
-            {listings.length > 0 ? (
-              listings.map((l) => <ListingRow key={l.id} event={event} listing={l} />)
+            {sortedListings.length > 0 ? (
+              sortedListings.map((l) => (
+                <ListingRow key={l.id} event={event} listing={l} cheapest={l.askPrice === cheapest} />
+              ))
             ) : (
               <p className="text-neutral-gray text-sm">Belum ada listing. Jadi yang pertama jual di sini.</p>
             )}

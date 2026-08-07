@@ -32,7 +32,7 @@ const cols: { title: string; links: { label: string; href: string }[] }[] = [
 export function Footer() {
   return (
     <footer className="mt-24 border-t border-neutral-light-gray-1 bg-secondary-blue-extra">
-      <div className="max-w-7xl mx-auto px-5 lg:px-10 py-14 grid gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
+      <div className="max-w-6xl mx-auto px-5 lg:px-10 py-14 grid gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div className="flex flex-col gap-3">
           <Logo />
           <p className="text-neutral-gray text-sm max-w-xs">
@@ -55,7 +55,7 @@ export function Footer() {
         ))}
       </div>
       <div className="border-t border-neutral-light-gray-1">
-        <div className="max-w-7xl mx-auto px-5 lg:px-10 py-5 flex flex-col sm:flex-row justify-between gap-2 text-xs text-neutral-gray">
+        <div className="max-w-6xl mx-auto px-5 lg:px-10 py-5 flex flex-col sm:flex-row justify-between gap-2 text-xs text-neutral-gray">
           <span>© 2026 OperTix. Prototype, data dummy.</span>
           <span>Dibangun untuk Indonesia.</span>
         </div>

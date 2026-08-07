@@ -70,7 +70,7 @@ export function Navbar() {
         scrolled ? "bg-neutral-white border-neutral-light-gray-1" : "bg-transparent border-transparent"
       )}
     >
-      <div className="max-w-7xl w-full flex items-center justify-between">
+      <div className="max-w-6xl w-full flex items-center justify-between">
         <Logo />
 
         <div className="hidden lg:flex gap-8">

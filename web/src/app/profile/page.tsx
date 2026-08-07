@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   useUser, useProfile, useAlerts, type AlertChannel, type PayoutBank,
 } from "@/lib/mock";
+import { PageContainer } from "@/components/layout/PageContainer";
 
 const CHANNELS: { id: AlertChannel; label: string }[] = [
   { id: "email", label: "Email" },
@@ -45,10 +46,10 @@ export default function ProfilePage() {
     setAcct(useProfile.getState().payoutNumber);
   }, []);
 
-  if (!mounted) return <div className="pt-32 text-center text-neutral-gray">Memuat...</div>;
+  if (!mounted) return <div className="pt-28 pb-16 text-center text-neutral-gray">Memuat...</div>;
 
   return (
-    <div className="max-w-2xl mx-auto px-5 lg:px-10 pt-28 pb-10 flex flex-col gap-5">
+    <PageContainer width="app" className="flex flex-col gap-5">
       <h1 className="text-2xl md:text-3xl font-bold text-neutral-black">Profil</h1>
 
       {/* Info pribadi */}
@@ -148,6 +149,6 @@ export default function ProfilePage() {
           </div>
         </Section>
       )}
-    </div>
+    </PageContainer>
   );
 }
