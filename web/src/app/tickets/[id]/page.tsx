@@ -1,0 +1,237 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
+import toast from "react-hot-toast";
+import {
+  ArrowLeft, Lock, CheckCircle2, ExternalLink, Copy, FileText, CreditCard,
+  ShieldCheck, AlertTriangle, Loader2, RotateCcw,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Modal } from "@/components/common/Modal";
+import { EscrowStatusPill } from "@/components/common/EscrowStatusPill";
+import {
+  useOrders, useUser, formatIDR, formatEventDate, formatDateTime, explorerTx, explorerAddr, shortHash,
+} from "@/lib/mock";
+
+function ChainRow({ label, value, href, onCopy }: { label: string; value: string; href?: string; onCopy?: () => void }) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-2.5 border-b border-dashed border-neutral-light-gray-1 last:border-0">
+      <span className="text-xs text-neutral-gray shrink-0">{label}</span>
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="font-mono text-xs text-neutral-black truncate">{value}</span>
+        {onCopy && <button onClick={onCopy} className="text-neutral-gray hover:text-primary-navy cursor-pointer shrink-0"><Copy className="w-3.5 h-3.5" /></button>}
+        {href && <a href={href} target="_blank" rel="noreferrer" className="text-primary-navy hover:opacity-70 shrink-0"><ExternalLink className="w-3.5 h-3.5" /></a>}
+      </div>
+    </div>
+  );
+}
+
+export default function OrderDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const order = useOrders((s) => s.orders.find((o) => o.id === id));
+  const release = useOrders((s) => s.release);
+  const refund = useOrders((s) => s.refund);
+  const user = useUser((s) => s.user);
+
+  const [mounted, setMounted] = useState(false);
+  const [acting, setActing] = useState(false);
+  const [showKuasa, setShowKuasa] = useState(false);
+  const [showKtp, setShowKtp] = useState(false);
+  const [showRefund, setShowRefund] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) return <div className="pt-32 text-center text-neutral-gray">Memuat...</div>;
+  if (!order) {
+    return (
+      <div className="max-w-lg mx-auto px-5 pt-32 text-center">
+        <p className="text-neutral-gray">Tiket gak ketemu.</p>
+        <Link href="/tickets" className="text-primary-navy font-medium">Balik ke tiket saya</Link>
+      </div>
+    );
+  }
+
+  const copy = (t: string) => { navigator.clipboard?.writeText(t); toast.success("Disalin"); };
+
+  const doRelease = () => {
+    setActing(true);
+    setTimeout(() => { release(order.id); setActing(false); toast.success("Dana cair ke penjual. Cek tx di explorer."); }, 1300);
+  };
+  const doRefund = () => {
+    setShowRefund(false); setActing(true);
+    setTimeout(() => { refund(order.id); setActing(false); toast.success("Dana dikembalikan ke kamu."); }, 1300);
+  };
+
+  const locked = order.escrowStatus === "LOCKED";
+  const watermark = `${user?.name ?? "Pembeli"} · ${new Date().toLocaleDateString("id-ID")} · OperTix`;
+
+  return (
+    <div className="max-w-4xl mx-auto px-5 lg:px-10 pt-24 pb-10">
+      <Link href="/tickets" className="inline-flex items-center gap-1 text-neutral-gray hover:text-primary-navy text-sm mb-4">
+        <ArrowLeft className="w-4 h-4" /> Tiket saya
+      </Link>
+
+      {/* Event header */}
+      <div className="flex items-center gap-4 mb-6">
+        <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-neutral-light-gray-1 shrink-0">
+          <Image src={order.eventImage} alt={order.eventTitle} fill className="object-cover" />
+        </div>
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold text-neutral-black">{order.eventTitle}</h1>
+          <p className="text-sm text-neutral-gray">{formatEventDate(order.eventDateISO)} · {order.tierName} · Penjual {order.sellerName}</p>
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-[1.4fr_1fr] gap-6">
+        {/* Escrow / transparency */}
+        <div className="bg-neutral-white rounded-3xl border border-lummy-500 shadow-lummy p-6">
+          <div className="flex items-center justify-between mb-4">
+            <span className="font-fredoka font-semibold text-neutral-black flex items-center gap-2">
+              <Lock className="w-5 h-5 text-lummy-500" /> Dana Terkunci
+            </span>
+            <EscrowStatusPill status={order.escrowStatus} />
+          </div>
+
+          <div className="font-fredoka font-bold text-3xl text-neutral-black mb-1">{formatIDR(order.amount)}</div>
+          <p className="text-sm text-neutral-gray mb-4">
+            {locked
+              ? "Ditahan di smart contract, bukan di rekening kami."
+              : order.escrowStatus === "RELEASED"
+              ? "Sudah cair ke penjual setelah konser aman."
+              : "Sudah dikembalikan ke kamu."}
+          </p>
+
+          <div className="bg-secondary-blue-extra rounded-2xl p-4">
+            <ChainRow label="Kontrak escrow" value={shortHash(order.contractAddress)} href={explorerAddr(order.contractAddress)} onCopy={() => copy(order.contractAddress)} />
+            <ChainRow label="Tx pendanaan" value={shortHash(order.fundTxHash)} href={explorerTx(order.fundTxHash)} onCopy={() => copy(order.fundTxHash)} />
+            {order.settleTxHash && (
+              <ChainRow label={order.escrowStatus === "RELEASED" ? "Tx pencairan" : "Tx refund"} value={shortHash(order.settleTxHash)} href={explorerTx(order.settleTxHash)} onCopy={() => copy(order.settleTxHash!)} />
+            )}
+            <ChainRow label="Kondisi rilis" value={`Konser + 48 jam`} />
+            <ChainRow label="Jaringan" value="Monad testnet (10143)" />
+          </div>
+
+          <p className="flex items-center gap-1.5 text-xs text-neutral-gray mt-3">
+            <ShieldCheck className="w-3.5 h-3.5 text-secondary-green-dark" /> Jangan percaya kami, cek sendiri di explorer.
+          </p>
+
+          {/* Actions */}
+          {locked && (
+            <div className="flex flex-col sm:flex-row gap-3 mt-5">
+              <Button.Primary wrapperClass="flex-1" className="w-full text-sm" onClick={doRelease}>
+                Simulasi event selesai
+              </Button.Primary>
+              <button
+                onClick={() => setShowRefund(true)}
+                className="flex-1 px-4 py-3 rounded-2xl border-2 border-neutral-light-gray-1 text-neutral-gray text-sm font-medium hover:border-secondary-pink-dark hover:text-secondary-pink-dark transition cursor-pointer"
+              >
+                Ajukan masalah / refund
+              </button>
+            </div>
+          )}
+          {order.escrowStatus === "RELEASED" && (
+            <div className="mt-5 flex items-center gap-2 text-sm text-secondary-green-dark bg-secondary-green-soft rounded-2xl p-3">
+              <CheckCircle2 className="w-4 h-4" /> Transaksi selesai. Dana sudah cair ke penjual.
+            </div>
+          )}
+          {order.escrowStatus === "REFUNDED" && (
+            <div className="mt-5 flex items-center gap-2 text-sm text-neutral-gray bg-neutral-light-gray-2 rounded-2xl p-3">
+              <RotateCcw className="w-4 h-4" /> Dana sudah dikembalikan ke kamu.
+            </div>
+          )}
+        </div>
+
+        {/* Documents */}
+        <div className="flex flex-col gap-4">
+          <div className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
+            <h4 className="font-fredoka font-semibold text-neutral-black mb-3">Dokumen serah-terima</h4>
+            <button onClick={() => setShowKuasa(true)} className="w-full flex items-center gap-3 p-3 rounded-2xl border border-neutral-light-gray-1 hover:border-lummy-500 transition cursor-pointer text-left">
+              <span className="w-10 h-10 rounded-xl bg-secondary-blue-soft text-lummy-500 grid place-items-center shrink-0"><FileText className="w-5 h-5" /></span>
+              <div>
+                <div className="text-sm font-medium text-neutral-black">Surat kuasa</div>
+                <div className="text-xs text-neutral-gray">Siap-print, e-materai + TTE</div>
+              </div>
+            </button>
+            {order.gateKtp && (
+              <button onClick={() => setShowKtp(true)} className="mt-3 w-full flex items-center gap-3 p-3 rounded-2xl border border-neutral-light-gray-1 hover:border-lummy-500 transition cursor-pointer text-left">
+                <span className="w-10 h-10 rounded-xl bg-secondary-pink-soft text-secondary-pink-dark grid place-items-center shrink-0"><CreditCard className="w-5 h-5" /></span>
+                <div>
+                  <div className="text-sm font-medium text-neutral-black">Foto KTP penjual (gate)</div>
+                  <div className="text-xs text-neutral-gray">View-only, kebuka mendekati event</div>
+                </div>
+              </button>
+            )}
+          </div>
+          <div className="bg-secondary-cream-light rounded-3xl border border-neutral-light-gray-1 p-5 text-xs text-neutral-gray">
+            Order <span className="font-mono text-neutral-black">{order.id}</span> · dibuat {formatDateTime(order.createdAtISO)}
+          </div>
+        </div>
+      </div>
+
+      {/* Surat kuasa modal */}
+      <Modal open={showKuasa} onClose={() => setShowKuasa(false)} title="Surat Kuasa">
+        <div className="bg-secondary-gray-soft rounded-2xl p-6 text-sm text-neutral-black leading-relaxed">
+          <p className="text-center font-fredoka font-bold text-base mb-4">SURAT KUASA</p>
+          <p>Yang bertanda tangan di bawah ini memberi kuasa kepada:</p>
+          <p className="mt-2"><b>Penerima:</b> {user?.name ?? "Pembeli"}</p>
+          <p><b>Pemberi:</b> {order.sellerName}</p>
+          <p className="mt-3">Untuk mengambil dan menggunakan tiket <b>{order.eventTitle}</b> ({order.tierName}) pada {formatEventDate(order.eventDateISO)}.</p>
+          <div className="flex justify-between mt-6 text-xs text-neutral-gray">
+            <span>Ditandatangani secara elektronik (TTE)</span>
+            <span className="bg-secondary-gold-soft text-secondary-gold-dark px-2 py-1 rounded">e-Materai Rp10.000</span>
+          </div>
+        </div>
+        <Button.Primary wrapperClass="w-full mt-4" className="w-full text-sm" onClick={() => toast("Print / download (demo)")}>Print surat kuasa</Button.Primary>
+      </Modal>
+
+      {/* KTP modal — watermarked view-only */}
+      <Modal open={showKtp} onClose={() => setShowKtp(false)} title="Foto KTP penjual">
+        <div className="relative rounded-2xl overflow-hidden border border-neutral-light-gray-1 select-none" onContextMenu={(e) => e.preventDefault()}>
+          <div className="bg-gradient-to-br from-secondary-blue-soft to-secondary-blue-light p-5 h-56">
+            <div className="text-xs text-neutral-gray">PROVINSI DKI JAKARTA</div>
+            <div className="flex gap-4 mt-3">
+              <div className="w-20 h-24 rounded bg-neutral-light-gray-1" />
+              <div className="text-xs space-y-1 text-neutral-black/70">
+                <div>NIK ••• •••• •••• ••••</div>
+                <div>Nama {order.sellerName.toUpperCase()}</div>
+                <div>Tempat/Tgl Lahir ••••</div>
+                <div>Alamat ••••••••</div>
+              </div>
+            </div>
+          </div>
+          {/* dynamic watermark overlay */}
+          <div className="absolute inset-0 flex flex-wrap gap-6 content-center justify-center opacity-30 pointer-events-none">
+            {Array.from({ length: 9 }).map((_, i) => (
+              <span key={i} className="text-[10px] text-neutral-black -rotate-[20deg] whitespace-nowrap">{watermark}</span>
+            ))}
+          </div>
+        </div>
+        <p className="flex items-start gap-2 text-xs text-neutral-gray mt-3">
+          <AlertTriangle className="w-4 h-4 text-secondary-orange-dark shrink-0 mt-0.5" />
+          View-only. Watermark melacak siapa yang menyebar. Screenshot gak bisa dicegah di web, tapi kebocoran ketahuan.
+        </p>
+      </Modal>
+
+      {/* Refund confirm */}
+      <Modal open={showRefund} onClose={() => setShowRefund(false)} title="Ajukan refund?">
+        <p className="text-sm text-neutral-gray">Dana <b className="text-neutral-black">{formatIDR(order.amount)}</b> dikembalikan ke kamu dan pesanan dibatalkan. Pakai kalau tiket bermasalah atau kamu gagal masuk gate.</p>
+        <div className="flex gap-3 mt-5">
+          <button onClick={() => setShowRefund(false)} className="flex-1 px-4 py-3 rounded-2xl border-2 border-neutral-light-gray-1 text-neutral-gray text-sm cursor-pointer">Batal</button>
+          <Button.Primary wrapperClass="flex-1" className="w-full text-sm" onClick={doRefund}>Ya, refund</Button.Primary>
+        </div>
+      </Modal>
+
+      <Modal open={acting} onClose={() => {}}>
+        <div className="flex flex-col items-center gap-3 py-4">
+          <Loader2 className="w-8 h-8 text-lummy-500 animate-spin" />
+          <p className="font-fredoka font-semibold text-neutral-black">Mengirim transaksi...</p>
+          <p className="text-sm text-neutral-gray">Menandatangani + broadcast ke Monad testnet.</p>
+        </div>
+      </Modal>
+    </div>
+  );
+}
