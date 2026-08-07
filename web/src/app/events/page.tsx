@@ -2,27 +2,30 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
-import { Search } from "lucide-react";
+import { Search, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { getEvents, formatEventDate } from "@/lib/mock";
 
 const events = getEvents();
 const categories = ["Semua", ...Array.from(new Set(events.map((e) => e.category)))];
+const cities = ["Semua kota", ...Array.from(new Set(events.map((e) => e.city)))];
 
 export default function EventsPage() {
   const [query, setQuery] = useState("");
   const [cat, setCat] = useState("Semua");
+  const [city, setCity] = useState("Semua kota");
 
   const filtered = useMemo(
     () =>
       events.filter((e) => {
         const matchCat = cat === "Semua" || e.category === cat;
+        const matchCity = city === "Semua kota" || e.city === city;
         const q = query.toLowerCase().trim();
         const matchQ = !q || e.title.toLowerCase().includes(q) || e.city.toLowerCase().includes(q) || e.venue.toLowerCase().includes(q);
-        return matchCat && matchQ;
+        return matchCat && matchCity && matchQ;
       }),
-    [query, cat]
+    [query, cat, city]
   );
 
   return (
@@ -34,14 +37,22 @@ export default function EventsPage() {
 
       {/* Search + filter */}
       <div className="flex flex-col gap-4 mb-8">
-        <div className="flex items-center gap-2 py-3 px-4 rounded-xl ring-1 ring-lummy-500 focus-within:ring-2 max-w-md bg-neutral-white transition">
-          <Search className="w-4 h-4 text-neutral-gray shrink-0" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cari event, artis, atau kota..."
-            className="outline-none w-full text-neutral-black placeholder:text-neutral-gray bg-transparent text-sm"
-          />
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex items-center gap-2 py-3 px-4 rounded-xl ring-1 ring-lummy-500 focus-within:ring-2 flex-1 max-w-md bg-neutral-white transition">
+            <Search className="w-4 h-4 text-neutral-gray shrink-0" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Cari event, artis, atau kota..."
+              className="outline-none w-full text-neutral-black placeholder:text-neutral-gray bg-transparent text-sm"
+            />
+          </div>
+          <div className="flex items-center gap-2 py-3 px-4 rounded-xl ring-1 ring-lummy-500 bg-neutral-white">
+            <MapPin className="w-4 h-4 text-neutral-gray shrink-0" />
+            <select value={city} onChange={(e) => setCity(e.target.value)} className="outline-none bg-transparent text-sm text-neutral-black cursor-pointer">
+              {cities.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           {categories.map((c) => (

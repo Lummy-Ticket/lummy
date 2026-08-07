@@ -35,7 +35,7 @@ export default function SellPage() {
 
   const [step, setStep] = useState(0);
   const [fileName, setFileName] = useState<string | null>(null);
-  const [sample, setSample] = useState<"good" | "bad">("good");
+  const [sample, setSample] = useState<"good" | "edited" | "dup">("good");
   const [analyzing, setAnalyzing] = useState(false);
 
   // extracted / editable
@@ -60,7 +60,9 @@ export default function SellPage() {
       const result: ListingAI =
         sample === "good"
           ? { autofilled: true, forgeryScore: 9, barcodeDuplicate: false, pdfSuspicious: false }
-          : { autofilled: true, forgeryScore: 78, barcodeDuplicate: false, pdfSuspicious: true };
+          : sample === "edited"
+          ? { autofilled: true, forgeryScore: 78, barcodeDuplicate: false, pdfSuspicious: true }
+          : { autofilled: true, forgeryScore: 11, barcodeDuplicate: true, pdfSuspicious: false };
       setAi(result);
       setOrderer("Zahra Amelia");
       setBarcode("TIX-8842-7731-2290");
@@ -116,11 +118,15 @@ export default function SellPage() {
           )}
 
           <div className="bg-secondary-gray-soft rounded-2xl p-4">
-            <div className="text-xs text-neutral-gray mb-2">Demo: coba analisa tiket asli vs editan</div>
-            <div className="flex gap-2">
-              {(["good", "bad"] as const).map((s) => (
-                <button key={s} onClick={() => setSample(s)} className={`px-3 py-1.5 rounded-lg text-sm border cursor-pointer ${sample === s ? "bg-primary-navy text-white border-primary-navy" : "bg-neutral-white text-neutral-gray border-neutral-light-gray-1"}`}>
-                  {s === "good" ? "Tiket asli" : "Tiket editan"}
+            <div className="text-xs text-neutral-gray mb-2">Demo: coba analisa beberapa jenis tiket</div>
+            <div className="flex flex-wrap gap-2">
+              {([
+                { id: "good", label: "Tiket asli" },
+                { id: "edited", label: "Tiket editan" },
+                { id: "dup", label: "Barcode duplikat" },
+              ] as const).map((s) => (
+                <button key={s.id} onClick={() => setSample(s.id)} className={`px-3 py-1.5 rounded-lg text-sm border cursor-pointer ${sample === s.id ? "bg-primary-navy text-white border-primary-navy" : "bg-neutral-white text-neutral-gray border-neutral-light-gray-1"}`}>
+                  {s.label}
                 </button>
               ))}
             </div>
@@ -206,14 +212,23 @@ export default function SellPage() {
             </div>
           </div>
 
-          <div className="flex items-start gap-2 text-sm text-neutral-gray bg-secondary-blue-extra rounded-2xl p-4">
-            <ShieldCheck className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" />
-            Setelah publish, tiket dijaga escrow. Kamu baru dibayar setelah konser selesai + pembeli beres serah-terima.
-          </div>
+          {ai?.barcodeDuplicate ? (
+            <div className="flex items-start gap-2 text-sm text-secondary-pink-dark bg-secondary-pink-soft rounded-2xl p-4">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              Barcode tiket ini sudah pernah dijual di OperTix. Listing diblokir otomatis, gak bisa publish. (Deterministik, bukan tebakan.)
+            </div>
+          ) : (
+            <div className="flex items-start gap-2 text-sm text-neutral-gray bg-secondary-blue-extra rounded-2xl p-4">
+              <ShieldCheck className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" />
+              Setelah publish, tiket dijaga escrow. Kamu baru dibayar setelah konser selesai + pembeli beres serah-terima.
+            </div>
+          )}
 
           <div className="flex gap-3">
             <button onClick={() => setStep(1)} className="px-5 py-3 rounded-2xl border-2 border-neutral-light-gray-1 text-neutral-gray text-sm flex items-center gap-1 cursor-pointer"><ArrowLeft className="w-4 h-4" /> Kembali</button>
-            <Button.Primary disabled={!priceValid} onClick={publish}>Publish listing</Button.Primary>
+            <Button.Primary disabled={!priceValid || ai?.barcodeDuplicate} onClick={publish}>
+              {ai?.barcodeDuplicate ? "Diblokir (duplikat)" : "Publish listing"}
+            </Button.Primary>
           </div>
         </div>
       )}
