@@ -107,6 +107,7 @@ export default function OrderDetailPage() {
               : "Sudah dikembalikan ke kamu."}
           </p>
 
+          <div className="text-xs text-neutral-gray mb-2">Bukti dana kamu aman dan bisa dicek siapa aja — gak perlu ngerti teknisnya:</div>
           <div className="bg-secondary-blue-extra rounded-2xl p-4">
             <ChainRow label="Kontrak escrow" value={shortHash(order.contractAddress)} href={explorerAddr(order.contractAddress)} onCopy={() => copy(order.contractAddress)} />
             <ChainRow label="Tx pendanaan" value={shortHash(order.fundTxHash)} href={explorerTx(order.fundTxHash)} onCopy={() => copy(order.fundTxHash)} />

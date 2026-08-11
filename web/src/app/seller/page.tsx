@@ -93,7 +93,9 @@ export default function SellerPage() {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <h4 className="font-fredoka font-semibold text-neutral-black truncate">{l.eventTitle}</h4>
-                  <Badge.Base className={l.status === "active" ? "bg-secondary-green-soft text-secondary-green-dark text-xs" : "bg-neutral-light-gray-2 text-neutral-gray text-xs"}>{l.status === "active" ? "Aktif" : "Terjual"}</Badge.Base>
+                  <Badge.Base className={`text-xs ${l.status === "active" ? "bg-secondary-green-soft text-secondary-green-dark" : l.status === "review" ? "bg-secondary-orange-soft text-secondary-orange-dark" : "bg-neutral-light-gray-2 text-neutral-gray"}`}>
+                    {l.status === "active" ? "Aktif" : l.status === "review" ? "Menunggu review" : "Terjual"}
+                  </Badge.Base>
                 </div>
                 <div className="text-xs text-neutral-gray mt-1 flex items-center gap-3">
                   <span>{l.tierName}</span>

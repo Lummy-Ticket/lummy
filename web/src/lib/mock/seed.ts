@@ -1,4 +1,5 @@
 import type { EventItem, Listing, User, Role } from "./types";
+import { eventPoster } from "../poster";
 
 // Harga ceiling resale = 150% face value (docs: price cap).
 export const CAP_PCT = 150;
@@ -10,7 +11,8 @@ export const DEMO_USERS: Record<Role, User> = {
   ADMIN: { id: "u-admin", name: "Admin OperTix", email: "admin@opertix.id", role: "ADMIN" },
 };
 
-const img = (seed: string) => `https://picsum.photos/seed/${seed}/600/440`;
+// Poster offline branded (gak ada host eksternal, anti-gagal pas demo).
+const img = (seed: string) => eventPoster(seed);
 
 export const SEED_EVENTS: EventItem[] = [
   {

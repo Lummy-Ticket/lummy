@@ -31,6 +31,12 @@ const SEED: SellerListing[] = [
     ai: { autofilled: true, forgeryScore: 6, barcodeDuplicate: false, pdfSuspicious: false },
     createdAtISO: "2026-07-15T14:00:00+07:00",
   },
+  {
+    id: "sl-3", eventId: "ev-tulus", eventTitle: "Tulus: Manusia Tour",
+    tierName: "VIP", askPrice: 1_380_000, faceValue: 1_200_000, quantity: 1, status: "review", views: 12,
+    ai: { autofilled: true, forgeryScore: 78, barcodeDuplicate: false, pdfSuspicious: true },
+    createdAtISO: "2026-08-05T11:00:00+07:00",
+  },
 ];
 
 interface SellerState {

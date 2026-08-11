@@ -82,8 +82,15 @@ export function Navbar() {
       if (userRef.current && !userRef.current.contains(t)) setUserOpen(false);
       if (mobileRef.current && !mobileRef.current.contains(t)) setMobileOpen(false);
     };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { setRoleOpen(false); setUserOpen(false); setMobileOpen(false); }
+    };
     document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
   }, []);
 
   // Halaman auth: navbar minimal (logo doang), jangan tampilin avatar/persona.
@@ -128,6 +135,9 @@ export function Navbar() {
             <div ref={roleRef} className="relative hidden sm:block">
               <button
                 onClick={() => setRoleOpen((o) => !o)}
+                aria-haspopup="menu"
+                aria-expanded={roleOpen}
+                aria-label="Ganti persona (demo)"
                 className="flex items-center gap-2 px-4 py-2 rounded-2xl border-2 border-lummy-500 bg-neutral-white text-lummy-500 text-sm font-medium hover:bg-pastel-yellow transition cursor-pointer"
               >
                 {ROLE_LABEL[user.role]} <ChevronDown className="w-4 h-4" />
@@ -154,7 +164,7 @@ export function Navbar() {
           {/* Avatar / sign in */}
           {mounted && user ? (
             <div ref={userRef} className="relative hidden lg:block">
-              <button onClick={() => setUserOpen((o) => !o)} className="flex items-center gap-2 cursor-pointer">
+              <button onClick={() => setUserOpen((o) => !o)} aria-haspopup="menu" aria-expanded={userOpen} aria-label="Menu akun" className="flex items-center gap-2 cursor-pointer">
                 <span className="w-10 h-10 rounded-full bg-secondary-blue-light text-lummy-500 font-semibold grid place-items-center border border-lummy-500">
                   {initials(user.name)}
                 </span>
@@ -186,7 +196,7 @@ export function Navbar() {
 
           {/* Mobile menu */}
           <div ref={mobileRef} className="lg:hidden relative">
-            <button onClick={() => setMobileOpen((o) => !o)} aria-label="Menu" className="p-1 text-lummy-500 cursor-pointer">
+            <button onClick={() => setMobileOpen((o) => !o)} aria-label="Menu" aria-haspopup="menu" aria-expanded={mobileOpen} className="p-1 text-lummy-500 cursor-pointer">
               <Menu className="w-6 h-6" />
             </button>
             {mobileOpen && (

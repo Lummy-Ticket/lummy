@@ -71,7 +71,7 @@ export default function SellPage() {
       setAi(result);
       setOrderer("Zahra Amelia");
       setBarcode("TIX-8842-7731-2290");
-      setPrice(Math.round((getEventById("ev-tulus")?.tiers.find((t) => t.id === "t-tl-vip")?.faceValue ?? 0) * 1.15));
+      setPrice(Math.round(faceValue * 1.15));
       setAnalyzing(false);
       setStep(1);
     }, 1800);

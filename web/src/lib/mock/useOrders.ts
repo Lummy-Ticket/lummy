@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { EscrowStatus, EventItem, Listing, Tier } from "./types";
 import { CONTRACT_ADDRESS, mockTxHash, releaseDeadline } from "./util";
+import { eventPoster } from "../poster";
 
 export interface Order {
   id: string;
@@ -27,7 +28,7 @@ const SEED_ORDERS: Order[] = [
   {
     id: "or-seed-1", listingId: "ls-2", eventId: "ev-coldplay",
     eventTitle: "Coldplay: Music of the Spheres",
-    eventImage: "https://picsum.photos/seed/coldplay/600/440",
+    eventImage: eventPoster("coldplay"),
     eventDateISO: "2026-11-14T19:00:00+07:00", tierName: "CAT 3", sellerName: "Rian P.", quantity: 1,
     amount: 1_400_000, gateKtp: true, escrowStatus: "LOCKED",
     contractAddress: CONTRACT_ADDRESS, fundTxHash: mockTxHash(),
@@ -37,7 +38,7 @@ const SEED_ORDERS: Order[] = [
   {
     id: "or-seed-2", listingId: "ls-x1", eventId: "ev-wtf",
     eventTitle: "We The Fest 2026",
-    eventImage: "https://picsum.photos/seed/wtf/600/440",
+    eventImage: eventPoster("wtf"),
     eventDateISO: "2026-08-21T14:00:00+07:00", tierName: "1-Day Pass", sellerName: "Bagas W.", quantity: 1,
     amount: 950_000, gateKtp: false, escrowStatus: "RELEASED",
     contractAddress: CONTRACT_ADDRESS, fundTxHash: mockTxHash(), settleTxHash: mockTxHash(),
@@ -47,7 +48,7 @@ const SEED_ORDERS: Order[] = [
   {
     id: "or-seed-3", listingId: "ls-x2", eventId: "ev-pandji",
     eventTitle: "Pandji Pragiwaksono: Menyala",
-    eventImage: "https://picsum.photos/seed/pandji/600/440",
+    eventImage: eventPoster("pandji"),
     eventDateISO: "2026-09-06T19:00:00+07:00", tierName: "Silver", sellerName: "Dinda K.", quantity: 1,
     amount: 430_000, gateKtp: false, escrowStatus: "REFUNDED",
     contractAddress: CONTRACT_ADDRESS, fundTxHash: mockTxHash(), settleTxHash: mockTxHash(),

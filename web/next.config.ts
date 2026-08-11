@@ -3,8 +3,10 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   devIndicators: false,
   images: {
+    // Poster event = SVG data-URI (offline). Izinkan SVG lewat next/image.
+    dangerouslyAllowSVG: true,
+    contentDispositionType: "inline",
     remotePatterns: [
-      {hostname: "picsum.photos"}, 
       {hostname: "i.pravatar.cc"}
     ],
   },

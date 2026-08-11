@@ -88,7 +88,7 @@ function CheckoutInner() {
             <div className="grid grid-cols-2 gap-3">
               {([
                 { id: "qris", label: "QRIS", desc: "GoPay, OVO, DANA, bank", Icon: QrCode },
-                { id: "usdc", label: "Stablecoin", desc: "Demo web3 (testnet)", Icon: Coins },
+                { id: "usdc", label: "Kripto (demo)", desc: "Stablecoin, opsional", Icon: Coins },
               ] as const).map((m) => (
                 <button
                   key={m.id}
@@ -134,7 +134,7 @@ function CheckoutInner() {
         <div className="flex flex-col items-center gap-3 py-4">
           <Loader2 className="w-8 h-8 text-lummy-500 animate-spin" />
           <p className="font-fredoka font-semibold text-neutral-black">Memproses pembayaran...</p>
-          <p className="text-sm text-neutral-gray text-center">Mengunci dana ke escrow di Monad testnet.</p>
+          <p className="text-sm text-neutral-gray text-center">Mengamankan dana kamu di escrow.</p>
         </div>
       </Modal>
     </div>
