@@ -99,20 +99,21 @@ export default function EventDetailPage() {
 
   return (
     <div className="pt-28 pb-16">
-      {/* Cover */}
+      {/* Back link */}
       <div className="max-w-7xl mx-auto px-5 lg:px-10">
-        <Link href="/events" className="inline-flex items-center gap-1 text-neutral-gray hover:text-primary-navy transition text-sm mb-4">
+        <Link href="/events" className="inline-flex items-center gap-1 text-neutral-gray hover:text-primary-navy transition text-sm">
           <ArrowLeft className="w-4 h-4" /> Jelajah
         </Link>
-        <div className="relative w-full h-44 sm:h-56 lg:h-64 rounded-3xl overflow-hidden border border-lummy-500">
-          <Image src={event.image} alt={event.title} fill className="object-cover" priority />
-        </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-5 lg:px-10 mt-6 grid lg:grid-cols-[1.6fr_1fr] gap-8">
+      <div className="max-w-7xl mx-auto px-5 lg:px-10 mt-4 grid lg:grid-cols-[1.6fr_1fr] gap-8">
         {/* Main */}
         <div>
-          <Badge.Base className="bg-secondary-blue-soft text-lummy-500 text-sm w-fit">{event.category}</Badge.Base>
+          {/* Foto di kolom kiri (rasio 16:9 natural, crop jauh lebih sedikit dari banner full-width) */}
+          <div className="relative w-full aspect-video rounded-3xl overflow-hidden border border-lummy-500">
+            <Image src={event.image} alt={event.title} fill className="object-cover" priority />
+          </div>
+          <Badge.Base className="bg-secondary-blue-soft text-lummy-500 text-sm w-fit mt-5">{event.category}</Badge.Base>
           <h1 className="text-3xl md:text-4xl font-bold text-neutral-black mt-3">{event.title}</h1>
           <div className="flex flex-wrap gap-x-6 gap-y-2 mt-4 text-neutral-gray">
             <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-primary-navy" /> {formatEventDate(event.dateISO)}</span>
