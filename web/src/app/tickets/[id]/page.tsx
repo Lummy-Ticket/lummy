@@ -7,7 +7,7 @@ import Image from "next/image";
 import toast from "react-hot-toast";
 import {
   ArrowLeft, Lock, CheckCircle2, ExternalLink, Copy, FileText, CreditCard,
-  ShieldCheck, AlertTriangle, Loader2, RotateCcw,
+  ShieldCheck, AlertTriangle, Loader2, RotateCcw, Paperclip, ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,7 +35,7 @@ export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const order = useOrders((s) => s.orders.find((o) => o.id === id));
   const release = useOrders((s) => s.release);
-  const refund = useOrders((s) => s.refund);
+  const openDispute = useOrders((s) => s.openDispute);
   const user = useUser((s) => s.user);
 
   const [mounted, setMounted] = useState(false);
@@ -43,7 +43,9 @@ export default function OrderDetailPage() {
   const [showKuasa, setShowKuasa] = useState(false);
   const [showKtp, setShowKtp] = useState(false);
   const [ktpOpen, setKtpOpen] = useState(false); // akses KTP kebuka mendekati event / pas tap "aku di gate"
-  const [showRefund, setShowRefund] = useState(false);
+  const [showDispute, setShowDispute] = useState(false);
+  const [dReason, setDReason] = useState("Gagal masuk gate (barcode ditolak)");
+  const [dEvidence, setDEvidence] = useState<string | null>(null);
 
   useEffect(() => setMounted(true), []);
 
@@ -63,9 +65,13 @@ export default function OrderDetailPage() {
     setActing(true);
     setTimeout(() => { release(order.id); setActing(false); toast.success("Dana cair ke penjual. Cek tx di explorer."); }, 1300);
   };
-  const doRefund = () => {
-    setShowRefund(false); setActing(true);
-    setTimeout(() => { refund(order.id); setActing(false); toast.success("Dana dikembalikan ke kamu."); }, 1300);
+  const submitDispute = () => {
+    setShowDispute(false); setActing(true);
+    setTimeout(() => {
+      openDispute(order.id, dReason, dEvidence ?? "bukti.jpg");
+      setActing(false);
+      toast.success("Sengketa diajukan. Ditinjau admin OperTix.");
+    }, 1300);
   };
 
   const locked = order.escrowStatus === "LOCKED";
@@ -154,16 +160,30 @@ export default function OrderDetailPage() {
 
           {/* Actions */}
           {locked && (
-            <div className="flex flex-col sm:flex-row gap-3 mt-5">
-              <Button.Primary wrapperClass="flex-1" className="w-full text-sm" onClick={doRelease}>
-                Simulasi event selesai
-              </Button.Primary>
-              <button
-                onClick={() => setShowRefund(true)}
-                className="flex-1 px-4 py-3 rounded-2xl border-2 border-neutral-light-gray-1 text-neutral-gray text-sm font-medium hover:border-secondary-pink-dark hover:text-secondary-pink-dark transition cursor-pointer"
-              >
-                Ajukan masalah / refund
-              </button>
+            <div className="mt-5 flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button.Primary wrapperClass="flex-1" className="w-full text-sm" onClick={doRelease}>
+                  Simulasi event selesai
+                </Button.Primary>
+                <button
+                  onClick={() => setShowDispute(true)}
+                  className="flex-1 px-4 py-3 rounded-2xl border-2 border-secondary-orange-dark text-secondary-orange-dark text-sm font-medium hover:bg-secondary-orange-soft transition cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <AlertTriangle className="w-4 h-4" /> Tiket bermasalah? Ajukan sengketa
+                </button>
+              </div>
+              <p className="text-xs text-neutral-gray leading-relaxed">
+                Diem = dana <b className="text-neutral-black">cair otomatis ke penjual</b> setelah event + 48 jam. Refund cuma buat tiket bermasalah, <b className="text-neutral-black">pakai bukti gagal-masuk di gate</b> (diputus admin, bukan otomatis). Gak bisa dateng?{" "}
+                <Link href="/sell" className="text-primary-navy font-medium hover:opacity-80">Jual lagi</Link> sebelum event, karena <b className="text-neutral-black">no-show = hangus</b>.
+              </p>
+            </div>
+          )}
+          {order.escrowStatus === "DISPUTED" && (
+            <div className="mt-5 flex flex-col gap-2 text-sm bg-secondary-orange-soft text-secondary-orange-dark rounded-2xl p-4">
+              <span className="flex items-center gap-2 font-medium"><AlertTriangle className="w-4 h-4" /> Sengketa lagi ditinjau admin</span>
+              <span className="text-xs leading-relaxed">
+                Alasan: <b>{order.dispute?.reason}</b>. Bukti: {order.dispute?.evidence}. Admin OperTix bakal mutusin dana ke penjual atau refund ke kamu. Sampai selesai, dana tetap ketahan (gak ke mana-mana).
+              </span>
             </div>
           )}
           {order.escrowStatus === "RELEASED" && (
@@ -263,12 +283,35 @@ export default function OrderDetailPage() {
         )}
       </Modal>
 
-      {/* Refund confirm */}
-      <Modal open={showRefund} onClose={() => setShowRefund(false)} title="Ajukan refund?">
-        <p className="text-sm text-neutral-gray">Dana <b className="text-neutral-black">{formatIDR(order.amount)}</b> dikembalikan ke kamu dan pesanan dibatalkan. Pakai kalau tiket bermasalah atau kamu gagal masuk gate.</p>
+      {/* Ajukan sengketa (bukan auto-refund) */}
+      <Modal open={showDispute} onClose={() => setShowDispute(false)} title="Ajukan sengketa">
+        <p className="text-sm text-neutral-gray leading-relaxed">
+          Sengketa diperiksa <b className="text-neutral-black">admin OperTix</b>, bukan otomatis refund. Kalau kamu beneran masuk, dana tetap cair ke penjual. Butuh <b className="text-neutral-black">bukti gagal-masuk saat di gate</b> (foto layar scanner yang nolak / surat dari petugas), maksimal 48 jam setelah event.
+        </p>
+        <div className="mt-4 flex flex-col gap-3">
+          <label className="flex flex-col gap-1.5">
+            <span className="text-xs text-neutral-gray">Masalahnya apa?</span>
+            <div className="relative">
+              <select value={dReason} onChange={(e) => setDReason(e.target.value)} className="appearance-none w-full rounded-xl border border-lummy-500 px-4 py-3 pr-10 text-sm text-neutral-black bg-neutral-white outline-none cursor-pointer">
+                <option>Gagal masuk gate (barcode ditolak)</option>
+                <option>Barcode sudah pernah dipakai</option>
+                <option>Tiket beda dari deskripsi</option>
+                <option>Tiket gak dikirim</option>
+              </select>
+              <ChevronDown className="w-4 h-4 text-neutral-gray absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </label>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-xs text-neutral-gray">Bukti (foto/video penolakan di gate)</span>
+            <button onClick={() => setDEvidence("foto-scanner-error.jpg")} className="w-full flex items-center gap-2 p-3 rounded-xl border border-dashed border-lummy-500 text-sm text-lummy-500 hover:bg-secondary-blue-light transition cursor-pointer">
+              <Paperclip className="w-4 h-4 shrink-0" /> {dEvidence ?? "Upload bukti (demo)"}
+            </button>
+            {!dEvidence && <span className="text-xs text-secondary-orange-dark">Bukti wajib. Tanpa bukti gagal-masuk, sengketa ditolak dan dana cair ke penjual.</span>}
+          </div>
+        </div>
         <div className="flex gap-3 mt-5">
-          <button onClick={() => setShowRefund(false)} className="flex-1 px-4 py-3 rounded-2xl border-2 border-neutral-light-gray-1 text-neutral-gray text-sm cursor-pointer">Batal</button>
-          <Button.Primary wrapperClass="flex-1" className="w-full text-sm" onClick={doRefund}>Ya, refund</Button.Primary>
+          <button onClick={() => setShowDispute(false)} className="flex-1 px-4 py-3 rounded-2xl border-2 border-neutral-light-gray-1 text-neutral-gray text-sm cursor-pointer">Batal</button>
+          <Button.Primary wrapperClass="flex-1" className="w-full text-sm" disabled={!dEvidence} onClick={submitDispute}>Kirim sengketa</Button.Primary>
         </div>
       </Modal>
 

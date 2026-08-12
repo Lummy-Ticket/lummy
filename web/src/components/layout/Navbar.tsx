@@ -14,6 +14,7 @@ const GUEST_LINKS: NavLink[] = [
   { label: "Beranda", href: "/" },
   { label: "Jelajah", href: "/events" },
   { label: "Cara Kerja", href: "/how-it-works" },
+  { label: "Tentang", href: "/about" },
 ];
 const ROLE_LINKS: Record<Role, NavLink[]> = {
   BUYER: [
@@ -21,6 +22,7 @@ const ROLE_LINKS: Record<Role, NavLink[]> = {
     { label: "Jelajah", href: "/events" },
     { label: "Tiket Saya", href: "/tickets" },
     { label: "Cara Kerja", href: "/how-it-works" },
+    { label: "Tentang", href: "/about" },
   ],
   SELLER: [
     { label: "Jelajah", href: "/events" },

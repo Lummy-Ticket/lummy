@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Lock, ScanLine, TrendingUp, Eye, RotateCcw, ArrowRight } from "lucide-react";
+import { Lock, ScanLine, TrendingUp, Eye, RotateCcw, Repeat, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -26,8 +26,13 @@ const sections = [
   },
   {
     icon: RotateCcw, color: "bg-secondary-gold-soft text-secondary-gold-dark",
-    title: "Gagal masuk? Uang balik",
-    body: "Kalau tiket bermasalah atau kamu ditolak di gate, dana di-refund karena belum cair ke penjual. Garansinya uang balik, jujur, bukan 'dijamin masuk'.",
+    title: "Gagal masuk? Ajukan sengketa",
+    body: "Ditolak di gate karena tiket bermasalah? Ajukan sengketa dengan bukti (foto layar scanner yang nolak) maksimal 48 jam setelah event. Diputus admin, bukan otomatis, jadi yang beneran masuk gak bisa ngaku gagal. Garansinya uang balik, jujur, bukan 'dijamin masuk'.",
+  },
+  {
+    icon: Repeat, color: "bg-secondary-orange-soft text-secondary-orange-dark",
+    title: "Gak bisa dateng? Jual lagi",
+    body: "Kalau kamu gak jadi hadir, itu bukan alasan refund (tiketnya valid, kamu yang gak dateng, jadi hangus). Tapi sebelum event kamu bisa jual lagi tiketnya di OperTix, balikin nilainya lewat pasar, bukan minta refund.",
   },
 ];
 

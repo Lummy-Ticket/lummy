@@ -1,10 +1,11 @@
-import { Lock, CheckCircle2, RotateCcw } from "lucide-react";
+import { Lock, CheckCircle2, RotateCcw, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import type { EscrowStatus } from "@/lib/mock";
 
 const MAP = {
   LOCKED: { label: "Dana terkunci", cls: "bg-secondary-blue-soft text-lummy-500", Icon: Lock },
+  DISPUTED: { label: "Sengketa ditinjau", cls: "bg-secondary-orange-soft text-secondary-orange-dark", Icon: AlertTriangle },
   RELEASED: { label: "Cair ke penjual", cls: "bg-secondary-green-soft text-secondary-green-dark", Icon: CheckCircle2 },
   REFUNDED: { label: "Dana dikembalikan", cls: "bg-secondary-blue-soft text-lummy-500", Icon: RotateCcw },
 } as const;

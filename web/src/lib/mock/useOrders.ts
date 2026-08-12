@@ -22,6 +22,7 @@ export interface Order {
   settleTxHash?: string;
   createdAtISO: string;
   disputeDeadlineISO: string;
+  dispute?: { reason: string; evidence: string; openedAtISO: string };
 }
 
 const SEED_ORDERS: Order[] = [
@@ -55,6 +56,17 @@ const SEED_ORDERS: Order[] = [
     createdAtISO: "2026-07-25T09:00:00+07:00",
     disputeDeadlineISO: releaseDeadline("2026-09-06T19:00:00+07:00"),
   },
+  {
+    id: "or-seed-4", listingId: "ls-x3", eventId: "ev-dwp",
+    eventTitle: "Djakarta Warehouse Project 2026",
+    eventImage: eventPoster("dwp"),
+    eventDateISO: "2026-08-09T20:00:00+07:00", tierName: "GA", sellerName: "Rizky T.", quantity: 1,
+    amount: 1_250_000, gateKtp: false, escrowStatus: "DISPUTED",
+    contractAddress: CONTRACT_ADDRESS, fundTxHash: mockTxHash(),
+    createdAtISO: "2026-08-02T13:00:00+07:00",
+    disputeDeadlineISO: releaseDeadline("2026-08-09T20:00:00+07:00"),
+    dispute: { reason: "Barcode ditolak di gate — katanya sudah pernah dipakai", evidence: "foto-scanner-error.jpg", openedAtISO: "2026-08-09T20:40:00+07:00" },
+  },
 ];
 
 interface OrderState {
@@ -62,6 +74,8 @@ interface OrderState {
   buy: (listing: Listing, event: EventItem, tier: Tier, quantity: number) => string;
   release: (id: string) => void;
   refund: (id: string) => void;
+  openDispute: (id: string, reason: string, evidence: string) => void;
+  resolveDispute: (id: string, toSeller: boolean) => void;
   getById: (id: string) => Order | undefined;
 }
 
@@ -91,6 +105,22 @@ export const useOrders = create<OrderState>()(
         set((s) => ({
           orders: s.orders.map((o) =>
             o.id === id ? { ...o, escrowStatus: "REFUNDED", settleTxHash: mockTxHash() } : o
+          ),
+        })),
+      // Buyer buka sengketa (bukan langsung refund). Dana ketahan, nunggu arbiter.
+      openDispute: (id, reason, evidence) =>
+        set((s) => ({
+          orders: s.orders.map((o) =>
+            o.id === id
+              ? { ...o, escrowStatus: "DISPUTED", dispute: { reason, evidence, openedAtISO: new Date().toISOString() } }
+              : o
+          ),
+        })),
+      // Arbiter (admin) memutuskan: menangin seller (release) atau refund buyer.
+      resolveDispute: (id, toSeller) =>
+        set((s) => ({
+          orders: s.orders.map((o) =>
+            o.id === id ? { ...o, escrowStatus: toSeller ? "RELEASED" : "REFUNDED", settleTxHash: mockTxHash() } : o
           ),
         })),
       getById: (id) => get().orders.find((o) => o.id === id),

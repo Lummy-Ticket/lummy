@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import { Search, MapPin, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
@@ -12,9 +13,12 @@ const events = getEvents();
 const categories = ["Semua", ...Array.from(new Set(events.map((e) => e.category)))];
 const cities = ["Semua kota", ...Array.from(new Set(events.map((e) => e.city)))];
 
-export default function EventsPage() {
-  const [query, setQuery] = useState("");
-  const [cat, setCat] = useState("Semua");
+function EventsInner() {
+  // Deep-link dari home: ?q= (search) & ?cat= (kategori).
+  const params = useSearchParams();
+  const catParam = params.get("cat");
+  const [query, setQuery] = useState(params.get("q") ?? "");
+  const [cat, setCat] = useState(catParam && categories.includes(catParam) ? catParam : "Semua");
   const [city, setCity] = useState("Semua kota");
 
   const filtered = useMemo(
@@ -97,5 +101,13 @@ export default function EventsPage() {
         </div>
       )}
     </PageContainer>
+  );
+}
+
+export default function EventsPage() {
+  return (
+    <Suspense fallback={<div className="pt-28 pb-16 text-center text-neutral-gray">Memuat...</div>}>
+      <EventsInner />
+    </Suspense>
   );
 }

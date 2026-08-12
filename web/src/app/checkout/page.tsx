@@ -107,7 +107,7 @@ function CheckoutInner() {
 
           <div className="flex items-start gap-2 text-sm text-neutral-gray bg-secondary-blue-extra rounded-2xl p-4">
             <Lock className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" />
-            Dana kamu dikunci di smart contract, bukan ke penjual, sampai konser selesai. Gagal masuk = uang balik.
+            <span>Dana dikunci, bukan ke penjual, sampai <b className="text-neutral-black">event selesai + 48 jam</b>. Kalau tiket bermasalah, ajukan sengketa dengan <b className="text-neutral-black">bukti gagal-masuk</b> — refund diputus admin, bukan otomatis.</span>
           </div>
         </div>
 

@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { CheckCircle2, XCircle, AlertTriangle, Sparkles, Calendar, MapPin } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle, Sparkles, Calendar, MapPin, Scale, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/common/Modal";
 import { PageContainer } from "@/components/layout/PageContainer";
-import { useEventRequests, formatIDR, formatEventDate, type EventRequest } from "@/lib/mock";
+import { useEventRequests, useOrders, formatIDR, formatEventDate, formatDateTime, type EventRequest } from "@/lib/mock";
 
 export default function AdminPage() {
   const [mounted, setMounted] = useState(false);
@@ -15,14 +15,62 @@ export default function AdminPage() {
   const requests = useEventRequests((s) => s.requests);
   const approve = useEventRequests((s) => s.approve);
   const reject = useEventRequests((s) => s.reject);
+  const orders = useOrders((s) => s.orders);
+  const resolveDispute = useOrders((s) => s.resolveDispute);
   useEffect(() => setMounted(true), []);
 
+  const disputes = orders.filter((o) => o.escrowStatus === "DISPUTED");
   const doApprove = (r: EventRequest) => { approve(r.id); toast.success("Event disetujui, tiket boleh dijual"); };
+  const doResolve = (id: string, toSeller: boolean) => {
+    resolveDispute(id, toSeller);
+    toast.success(toSeller ? "Sengketa ditutup — dana cair ke penjual" : "Sengketa dimenangkan pembeli — dana di-refund");
+  };
 
   return (
     <PageContainer width="app">
-      <h1 className="text-2xl md:text-3xl font-bold text-neutral-black">Approval event</h1>
-      <div className="flex items-start gap-2 text-sm text-neutral-gray bg-secondary-blue-extra rounded-2xl p-4 mt-4 mb-8">
+      <h1 className="text-2xl md:text-3xl font-bold text-neutral-black">Panel admin</h1>
+
+      {/* Sengketa: arbiter memutuskan, refund gak otomatis */}
+      {mounted && disputes.length > 0 && (
+        <div className="mt-6">
+          <h2 className="font-fredoka font-bold text-xl text-neutral-black flex items-center gap-2">
+            <Scale className="w-5 h-5 text-secondary-orange-dark" /> Sengketa <span className="text-neutral-gray font-normal text-base">({disputes.length})</span>
+          </h2>
+          <p className="text-sm text-neutral-gray mt-1 mb-3">
+            Refund <b className="text-neutral-black">gak otomatis</b>. Arbiter (kamu) yang mutusin dari bukti. Default: menang penjual, kecuali ada bukti gagal-masuk yang kredibel.
+          </p>
+          <div className="flex flex-col gap-4">
+            {disputes.map((o) => (
+              <div key={o.id} className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="font-fredoka font-semibold text-neutral-black truncate">{o.eventTitle}</h3>
+                    <div className="text-xs text-neutral-gray mt-1">{formatEventDate(o.eventDateISO)} · {o.tierName} · Penjual {o.sellerName}</div>
+                  </div>
+                  <span className="font-fredoka font-bold text-lummy-500 text-nowrap">{formatIDR(o.amount)}</span>
+                </div>
+                {o.dispute && (
+                  <div className="mt-3 bg-secondary-orange-soft rounded-2xl p-4 text-secondary-orange-dark">
+                    <div className="text-sm font-medium flex items-center gap-2"><AlertTriangle className="w-4 h-4 shrink-0" /> {o.dispute.reason}</div>
+                    <div className="text-xs mt-1.5 flex items-center gap-1.5"><Paperclip className="w-3.5 h-3.5 shrink-0" /> Bukti: {o.dispute.evidence} · diajukan {formatDateTime(o.dispute.openedAtISO)}</div>
+                  </div>
+                )}
+                <div className="flex flex-col sm:flex-row gap-3 mt-4">
+                  <button onClick={() => doResolve(o.id, false)} className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border-2 border-secondary-green-dark text-secondary-green-dark text-sm hover:bg-secondary-green-soft transition cursor-pointer">
+                    <CheckCircle2 className="w-4 h-4" /> Bukti valid — refund pembeli
+                  </button>
+                  <button onClick={() => doResolve(o.id, true)} className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border-2 border-primary-navy text-primary-navy text-sm hover:bg-secondary-blue-light transition cursor-pointer">
+                    <XCircle className="w-4 h-4" /> Bukti lemah — menang penjual
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <h2 className="font-fredoka font-bold text-xl text-neutral-black mt-10">Approval event</h2>
+      <div className="flex items-start gap-2 text-sm text-neutral-gray bg-secondary-blue-extra rounded-2xl p-4 mt-3 mb-8">
         <Sparkles className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" />
         <span>Event baru diverifikasi sebelum tiketnya boleh dijual. AI sudah pre-fill dari PDF penjual pertama. <b className="text-neutral-black">Face value = pre-fill</b>, cek ke sumber resmi sebelum approve.</span>
       </div>

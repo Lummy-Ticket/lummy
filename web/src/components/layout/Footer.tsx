@@ -14,7 +14,7 @@ const cols: { title: string; links: { label: string; href: string }[] }[] = [
   {
     title: "Perusahaan",
     links: [
-      { label: "Tentang", href: "#" },
+      { label: "Tentang", href: "/about" },
       { label: "Karier", href: "#" },
       { label: "Blog", href: "#" },
     ],

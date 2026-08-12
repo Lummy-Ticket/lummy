@@ -65,7 +65,9 @@ export interface Listing {
   ai: ListingAI;
 }
 
-export type EscrowStatus = "LOCKED" | "RELEASED" | "REFUNDED";
+// LOCKED = dana ditahan (Funded/DisputeWindow). DISPUTED = buyer buka sengketa,
+// nunggu arbiter. RELEASED = cair ke seller. REFUNDED = balik ke buyer.
+export type EscrowStatus = "LOCKED" | "DISPUTED" | "RELEASED" | "REFUNDED";
 
 export interface Escrow {
   id: string;
