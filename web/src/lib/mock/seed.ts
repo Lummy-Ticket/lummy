@@ -11,8 +11,19 @@ export const DEMO_USERS: Record<Role, User> = {
   ADMIN: { id: "u-admin", name: "Admin OperTix", email: "admin@opertix.id", role: "ADMIN" },
 };
 
-// Poster offline branded (gak ada host eksternal, anti-gagal pas demo).
-const img = (seed: string) => eventPoster(seed);
+// Foto event lokal (di public/assets/events, license Unsplash) — offline-safe.
+// Fallback ke poster gradient generatif kalau seed belum punya foto.
+const PHOTOS: Record<string, string> = {
+  coldplay: "/assets/events/coldplay.jpg",
+  newjeans: "/assets/events/newjeans.jpg",
+  wtf: "/assets/events/wtf.jpg",
+  tulus: "/assets/events/tulus.jpg",
+  sheila: "/assets/events/sheila.jpg",
+  pandji: "/assets/events/pandji.jpg",
+  timnas: "/assets/events/timnas.jpg",
+  dwp: "/assets/events/dwp.jpg",
+};
+const img = (seed: string) => PHOTOS[seed] ?? eventPoster(seed);
 
 export const SEED_EVENTS: EventItem[] = [
   {

@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 // Search-first hero ala Viagogo: langsung arahin ke katalog /events (deep-link ?q / ?cat).
 export function HeroSearch({ quickCats }: { quickCats: string[] }) {
@@ -28,7 +27,9 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
           aria-label="Cari event"
           className="flex-1 outline-none bg-transparent text-neutral-black placeholder:text-neutral-gray min-w-0"
         />
-        <Button.Primary type="submit" className="text-sm px-5">Cari</Button.Primary>
+        <button type="submit" className="shrink-0 bg-primary-navy hover:bg-primary-navy-dark text-white font-fredoka font-medium rounded-xl px-5 py-2.5 text-sm transition cursor-pointer">
+          Cari
+        </button>
       </form>
 
       <div className="flex flex-wrap justify-center gap-2">

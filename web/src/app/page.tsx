@@ -57,14 +57,14 @@ export default function Home() {
       <section className="bg-hero-gradient pt-32 pb-16">
         <div className="max-w-7xl mx-auto px-5 lg:px-10 flex flex-col items-center text-center gap-5">
           <h1 className="text-3xl md:text-5xl font-bold text-neutral-black leading-tight max-w-3xl">
-            Tiket konser resale, <span className="text-primary-navy">aman lewat escrow.</span>
+            Beli tiket konser resale <span className="text-primary-navy">tanpa takut ketipu.</span>
           </h1>
           <p className="text-neutral-gray max-w-xl">
-            Dana kamu dikunci sampai konser selesai, AI jaga dari tiket palsu. Kerasa seperti aplikasi biasa.
+            Uang kamu ditahan dulu, baru cair ke penjual setelah konser aman. AI jaga dari tiket palsu. Kerasa seperti aplikasi biasa.
           </p>
           <HeroSearch quickCats={quickCats} />
           <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 pt-1 text-sm text-neutral-gray">
-            {["Dana di-escrow", "AI anti-palsu", "Harga dibatasi 150%", "Bisa dicek on-chain"].map((t) => (
+            {["Uang aman sampai konser", "Dijaga AI anti-palsu", "Harga wajar (maks 150%)", "Transparan, bisa dicek"].map((t) => (
               <span key={t} className="flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-secondary-green-dark" /> {t}
               </span>
