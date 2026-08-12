@@ -11,17 +11,19 @@ export const DEMO_USERS: Record<Role, User> = {
   ADMIN: { id: "u-admin", name: "Admin OperTix", email: "admin@opertix.id", role: "ADMIN" },
 };
 
-// Foto event lokal (di public/assets/events, license Unsplash) — offline-safe.
-// Fallback ke poster gradient generatif kalau seed belum punya foto.
+// Foto event lokal di public/assets/events (foto artis asli dari Wikimedia Commons,
+// lisensi CC/PD; timnas = stadion Unsplash) — offline-safe. Fallback ke poster
+// gradient generatif kalau seed belum punya foto. Suffix -hd = versi foto (bump
+// nama file kalau ganti foto, biar cache next/image + browser ke-bust).
 const PHOTOS: Record<string, string> = {
-  coldplay: "/assets/events/coldplay.jpg",
-  newjeans: "/assets/events/newjeans.jpg",
-  wtf: "/assets/events/wtf.jpg",
-  tulus: "/assets/events/tulus.jpg",
-  sheila: "/assets/events/sheila.jpg",
-  pandji: "/assets/events/pandji.jpg",
-  timnas: "/assets/events/timnas.jpg",
-  dwp: "/assets/events/dwp.jpg",
+  coldplay: "/assets/events/coldplay-hd.jpg",
+  newjeans: "/assets/events/newjeans-hd.jpg",
+  wtf: "/assets/events/wtf-hd.jpg",
+  tulus: "/assets/events/tulus-hd.jpg",
+  sheila: "/assets/events/sheila-hd.jpg",
+  pandji: "/assets/events/pandji-hd.jpg",
+  timnas: "/assets/events/timnas-hd.jpg",
+  dwp: "/assets/events/dwp-hd.jpg",
 };
 const img = (seed: string) => PHOTOS[seed] ?? eventPoster(seed);
 
