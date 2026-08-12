@@ -1,7 +1,9 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Lock, ScanLine, TrendingUp, Eye, RotateCcw, Repeat, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { HeroBlobs } from "@/components/home/HeroBlobs";
 
 const sections = [
   {
@@ -39,10 +41,15 @@ const sections = [
 export default function HowItWorks() {
   return (
     <div className="pb-10">
-      <section className="bg-hero-gradient pt-28 pb-16">
-        <div className="max-w-3xl mx-auto px-5 text-center">
+      <section className="relative overflow-hidden bg-hero-gradient pt-28 pb-16">
+        <HeroBlobs />
+        <div className="relative z-10 max-w-3xl mx-auto px-5 text-center flex flex-col items-center">
+          <Image src="/assets/images/mascot-powered.svg" alt="" width={110} height={110} className="mb-3 drop-shadow-lg" />
           <Badge.Base className="bg-secondary-blue-soft text-lummy-500 text-sm">Cara kerja</Badge.Base>
-          <h1 className="text-3xl md:text-5xl font-bold text-neutral-black mt-4">Kenapa resale di OperTix aman</h1>
+          <h1 className="flex flex-col font-bold leading-[1.05] text-4xl md:text-5xl mt-4">
+            <span className="text-neutral-black">Kenapa resale di OperTix</span>
+            <span className="text-primary-navy">beneran aman</span>
+          </h1>
           <p className="text-lg text-neutral-gray mt-4">Blockchain + AI kerja di belakang layar. Kamu cukup beli seperti biasa.</p>
         </div>
       </section>

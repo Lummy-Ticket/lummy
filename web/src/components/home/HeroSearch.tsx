@@ -17,7 +17,7 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto flex flex-col gap-4">
+    <div className="w-full max-w-xl mx-auto lg:mx-0 flex flex-col gap-3">
       <form onSubmit={submit} className="flex items-center gap-2 bg-neutral-white rounded-2xl border-2 border-lummy-500 p-2 pl-4 shadow-lummy">
         <Search className="w-5 h-5 text-neutral-gray shrink-0" />
         <input
@@ -32,7 +32,7 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
         </button>
       </form>
 
-      <div className="flex flex-wrap justify-center gap-2">
+      <div className="flex flex-wrap justify-center lg:justify-start gap-2">
         <Link href="/events" className="px-4 py-1.5 rounded-full text-sm bg-neutral-white/70 border border-lummy-500 text-lummy-500 hover:bg-neutral-white transition">
           Semua event
         </Link>

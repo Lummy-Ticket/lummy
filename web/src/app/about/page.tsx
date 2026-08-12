@@ -3,6 +3,7 @@ import Image from "next/image";
 import { Lock, ScanLine, TrendingUp, Eye, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/layout/PageContainer";
+import { HeroBlobs } from "@/components/home/HeroBlobs";
 
 const pillars = [
   { Icon: Lock, cls: "bg-secondary-blue-soft text-lummy-500", title: "Dana di-escrow", body: "Uang dikunci smart contract sampai konser selesai. Penjual gak bisa kabur, pembeli gak bisa dighosting." },
@@ -28,28 +29,33 @@ const journey = [
 export default function AboutPage() {
   return (
     <PageContainer width="wide">
-      {/* Intro */}
-      <div className="grid lg:grid-cols-[1.4fr_1fr] gap-8 items-center">
-        <div>
-          <h1 className="text-3xl md:text-5xl font-bold text-neutral-black leading-tight">
-            Beli-jual tiket konser <span className="text-primary-navy">tanpa takut ketipu.</span>
-          </h1>
-          <p className="text-neutral-gray mt-4 max-w-xl">
-            OperTix lahir dari masalah nyata: pasar resale tiket di Indonesia penuh calo, harga liar, dan penipuan
-            transfer manual. Kami jadi pihak ketiga tepercaya, tempat penjual bisa pasang harga wajar dan pembeli
-            gak perlu takut kehilangan uang.
-          </p>
-          <p className="text-neutral-gray mt-3 max-w-xl">
-            Di balik layar ada escrow dan AI. Di depan, rasanya seperti aplikasi biasa, tanpa ribet crypto. Dana kamu
-            dijaga kode, bukan sekadar janji.
-          </p>
-          <div className="flex flex-wrap gap-3 mt-6">
-            <Link href="/events"><Button.Primary className="flex items-center gap-2">Jelajah event <ArrowRight className="w-4 h-4" /></Button.Primary></Link>
-            <Link href="/how-it-works"><Button.Secondary>Cara kerja</Button.Secondary></Link>
+      {/* Intro (hero band + dekorasi blob ala Lummy) */}
+      <div className="relative overflow-hidden rounded-3xl border border-lummy-500 bg-hero-gradient p-6 sm:p-10">
+        <HeroBlobs />
+        <div className="relative z-10 grid lg:grid-cols-[1.4fr_1fr] gap-8 items-center">
+          <div>
+            <span className="w-fit bg-secondary-blue-soft text-lummy-500 text-sm font-medium rounded-full px-3 py-1 inline-block mb-4">Tentang OperTix</span>
+            <h1 className="flex flex-col font-bold leading-[1.05] text-4xl md:text-5xl">
+              <span className="text-neutral-black">Beli-jual tiket konser</span>
+              <span className="text-primary-navy">tanpa takut ketipu.</span>
+            </h1>
+            <p className="text-neutral-gray mt-4 max-w-xl">
+              OperTix lahir dari masalah nyata: pasar resale tiket di Indonesia penuh calo, harga liar, dan penipuan
+              transfer manual. Kami jadi pihak ketiga tepercaya, tempat penjual bisa pasang harga wajar dan pembeli
+              gak perlu takut kehilangan uang.
+            </p>
+            <p className="text-neutral-gray mt-3 max-w-xl">
+              Di balik layar ada escrow dan AI. Di depan, rasanya seperti aplikasi biasa, tanpa ribet crypto. Dana kamu
+              dijaga kode, bukan sekadar janji.
+            </p>
+            <div className="flex flex-wrap gap-3 mt-6">
+              <Link href="/events"><Button.Primary className="flex items-center gap-2">Jelajah event <ArrowRight className="w-4 h-4" /></Button.Primary></Link>
+              <Link href="/how-it-works"><Button.Secondary>Cara kerja</Button.Secondary></Link>
+            </div>
           </div>
-        </div>
-        <div className="hidden lg:flex justify-center">
-          <Image src="/assets/images/mascot.png" alt="OperTix" width={300} height={300} className="object-contain drop-shadow-xl" priority />
+          <div className="hidden lg:flex justify-center">
+            <Image src="/assets/images/mascot.png" alt="OperTix" width={300} height={300} className="object-contain drop-shadow-xl" priority />
+          </div>
         </div>
       </div>
 

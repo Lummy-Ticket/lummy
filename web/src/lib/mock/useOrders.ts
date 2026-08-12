@@ -124,6 +124,12 @@ export const useOrders = create<OrderState>()(
         })),
       getById: (id) => get().orders.find((o) => o.id === id),
     }),
-    { name: "opertix:orders" }
+    {
+      name: "opertix:orders",
+      // v2: seed pindah dari picsum ke foto lokal. Bump versi biar localStorage lama
+      // (yang masih nyimpen URL picsum) ke-reset, gak bikin next/image error host.
+      version: 2,
+      migrate: () => ({ orders: SEED_ORDERS }),
+    }
   )
 );

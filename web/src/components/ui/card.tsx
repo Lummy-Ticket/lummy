@@ -32,16 +32,16 @@ const Event = (({className, image, date, title, location, category, price, redir
     }
 
   return (
-        <Link href={redirect} className={cn("border hover:opacity-80 transition ease-in-out flex flex-col justify-between border-primary-navy rounded-3xl pt-2.5 pb-3 px-2.5 gap-2 sm:pb-5 w-full h-fit shrink-0", className)} {...props}>
+        <Link href={redirect} className={cn("border transition ease-in-out flex flex-col justify-between border-primary-navy rounded-3xl pt-2.5 pb-3 px-2.5 gap-2 sm:pb-4 w-full h-fit shrink-0 hover:-translate-x-1 hover:-translate-y-1 hover:shadow-[4px_4px_0px_#245397]", className)} {...props}>
             <div className="relative w-full aspect-[16/10] h-auto">
                 <Image alt="event" className={cn("rounded-2xl border border-lummy-500 object-cover", soldOut && "grayscale-[35%]")} src={image} fill />
                 {soldOut && (
                     <Badge.Base className="absolute top-2.5 left-2.5 bg-secondary-pink-dark text-white text-sm xl:text-base">Sold Out</Badge.Base>
                 )}
-                {/* Mobile: category sits on the photo to keep the bottom row to a single price line */}
-                <Badge.Base className={cn("sm:hidden absolute top-2.5 right-2.5 text-xs h-fit w-fit text-nowrap", badgeClass[category])}>{category}</Badge.Base>
+                {/* Kategori nempel di foto (badge di kanan-atas), shadow biar kebaca di atas foto */}
+                <Badge.Base className={cn("absolute top-2.5 right-2.5 text-xs h-fit w-fit text-nowrap shadow-sm", badgeClass[category])}>{category}</Badge.Base>
             </div>
-            
+
             <div className="flex flex-col gap-1 px-0.5 sm:px-2">
                 <span className="text-neutral-gray text-sm xl:text-base">{date}</span>
 
@@ -51,11 +51,6 @@ const Event = (({className, image, date, title, location, category, price, redir
                     <FaMapMarkerAlt className="shrink-0" />
 
                     <span className="text-neutral-gray text-sm xl:text-base truncate">{location}</span>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                    <Badge.Base className={cn("hidden sm:flex text-xs sm:text-sm xl:text-base h-fit w-fit text-nowrap", badgeClass[category])}>{category}</Badge.Base>
-
-                    <span className="text-base sm:text-lg xl:text-xl text-lummy-500 font-medium text-nowrap">IDR {price.toLocaleString("id-ID")}</span>
                 </div>
             </div>
         </Link>

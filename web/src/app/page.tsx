@@ -1,9 +1,11 @@
 import Link from "next/link";
-import { ArrowRight, ShieldCheck, Music, Trophy, Drama } from "lucide-react";
+import Image from "next/image";
+import { ArrowRight, ShieldCheck, Lock, Music, Trophy, Drama } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { HeroSearch } from "@/components/home/HeroSearch";
-import { getEvents, getFeaturedEvents, formatEventDate } from "@/lib/mock";
+import { HeroBlobs } from "@/components/home/HeroBlobs";
+import { getEvents, getFeaturedEvents, formatEventDate, formatIDR } from "@/lib/mock";
 
 const CATEGORY_TILES = [
   { cat: "Music", label: "Konser & Musik", Icon: Music, cls: "bg-secondary-pink-soft text-secondary-pink-dark" },
@@ -53,26 +55,46 @@ export default function Home() {
 
   return (
     <>
-      {/* Hero: search-first */}
-      <section className="bg-hero-gradient pt-32 pb-16">
-        <div className="max-w-7xl mx-auto px-5 lg:px-10 flex flex-col items-center text-center gap-5">
-          <h1 className="text-3xl md:text-5xl font-bold text-neutral-black leading-tight max-w-3xl">
-            Beli tiket konser resale <span className="text-primary-navy">tanpa takut ketipu.</span>
-          </h1>
-          <p className="text-neutral-gray max-w-xl">
-            Uang kamu ditahan dulu, baru cair ke penjual setelah konser aman. AI jaga dari tiket palsu. Kerasa seperti aplikasi biasa.
-          </p>
-          <HeroSearch quickCats={quickCats} />
-          <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 pt-1 text-sm text-neutral-gray">
-            {["Uang aman sampai konser", "Dijaga AI anti-palsu", "Harga wajar (maks 150%)", "Transparan, bisa dicek"].map((t) => (
-              <span key={t} className="flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-secondary-green-dark" /> {t}
-              </span>
-            ))}
+      {/* Hero: search-first, tapi asimetris + dekorasi ala Lummy biar gak template */}
+      <section className="relative overflow-hidden bg-hero-gradient pt-28 lg:pt-32 pb-16">
+        <HeroBlobs />
+        <div className="relative z-10 max-w-7xl mx-auto px-5 lg:px-10 grid lg:grid-cols-[1.15fr_0.85fr] gap-10 lg:gap-6 items-center">
+          {/* Kiri: headline + search */}
+          <div className="flex flex-col gap-5 text-center lg:text-left">
+            <span className="mx-auto lg:mx-0 w-fit bg-secondary-blue-soft text-lummy-500 text-sm font-medium rounded-full px-3 py-1">
+              Escrow + AI, tanpa ribet crypto
+            </span>
+            <h1 className="flex flex-col font-bold leading-[1.05] text-4xl sm:text-5xl xl:text-6xl">
+              <span className="text-neutral-black">Beli tiket konser</span>
+              <span className="text-primary-navy">tanpa takut ketipu.</span>
+            </h1>
+            <p className="text-neutral-gray max-w-lg mx-auto lg:mx-0">
+              Uang kamu ditahan dulu, baru cair ke penjual setelah konser aman. AI jaga dari tiket palsu. Kerasa seperti aplikasi biasa.
+            </p>
+            <HeroSearch quickCats={quickCats} />
+            <div className="flex flex-wrap justify-center lg:justify-start gap-x-5 gap-y-2 text-sm text-neutral-gray">
+              {["Uang aman sampai konser", "AI anti-palsu", "Harga wajar (maks 150%)"].map((t) => (
+                <span key={t} className="flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-secondary-green-dark" /> {t}
+                </span>
+              ))}
+            </div>
           </div>
-          <Link href="/how-it-works" className="text-primary-navy text-sm font-medium hover:opacity-80 transition">
-            Lihat cara kerjanya →
-          </Link>
+
+          {/* Kanan: mascot + sticker "Dana terkunci" (overlap + hard shadow) */}
+          <div className="relative hidden lg:flex justify-center items-center">
+            <Image src="/assets/images/mascot.png" alt="OperTix" width={340} height={340} className="object-contain drop-shadow-xl" priority />
+            <div className="absolute bottom-6 -left-2 w-60 bg-neutral-white rounded-2xl border-2 border-lummy-500 shadow-[4px_4px_0px_#245397] p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-neutral-gray flex items-center gap-1"><Lock className="w-3.5 h-3.5 text-lummy-500" /> Dana kamu</span>
+                <span className="bg-secondary-blue-soft text-lummy-500 text-[10px] font-semibold rounded px-1.5 py-0.5">TERKUNCI</span>
+              </div>
+              <div className="font-fredoka font-bold text-xl text-neutral-black">{formatIDR(2_800_000)}</div>
+              <div className="flex items-center gap-1.5 mt-1.5 text-xs text-secondary-green-dark">
+                <ShieldCheck className="w-3.5 h-3.5" /> Cair ke penjual pas konser aman
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
