@@ -24,24 +24,30 @@ export default function TicketsPage() {
           <Link href="/events"><Button.Primary>Jelajah event</Button.Primary></Link>
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="grid sm:grid-cols-2 gap-4">
           {orders.map((o) => (
             <Link
               key={o.id}
               href={`/tickets/${o.id}`}
-              className="bg-neutral-white rounded-2xl border border-neutral-light-gray-1 p-4 flex items-center gap-4 hover:border-lummy-500 transition"
+              className="group bg-neutral-white rounded-2xl border-2 border-lummy-500 p-4 flex flex-col transition hover:-translate-x-1 hover:-translate-y-1 hover:shadow-[4px_4px_0px_#245397]"
             >
-              <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-neutral-light-gray-1 shrink-0">
-                <Image src={o.eventImage} alt={o.eventTitle} fill className="object-cover" />
+              <div className="flex gap-4">
+                <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-lummy-500 shrink-0">
+                  <Image src={o.eventImage} alt={o.eventTitle} fill className="object-cover" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-fredoka font-semibold text-neutral-black truncate">{o.eventTitle}</h3>
+                  <p className="text-xs text-neutral-gray mt-0.5">{formatEventDate(o.eventDateISO)}</p>
+                  <p className="text-xs text-neutral-gray">{o.tierName}{o.quantity > 1 ? ` · ${o.quantity} tiket` : ""}</p>
+                  <div className="mt-2"><EscrowStatusPill status={o.escrowStatus} /></div>
+                </div>
               </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="font-fredoka font-semibold text-neutral-black truncate">{o.eventTitle}</h3>
-                <p className="text-xs text-neutral-gray">{formatEventDate(o.eventDateISO)} · {o.tierName}{o.quantity > 1 ? ` · ${o.quantity} tiket` : ""}</p>
-                <div className="mt-1.5"><EscrowStatusPill status={o.escrowStatus} /></div>
-              </div>
-              <div className="text-right shrink-0">
-                <div className="font-fredoka font-bold text-lummy-500">{formatIDR(o.amount)}</div>
-                <ChevronRight className="w-4 h-4 text-neutral-gray inline-block mt-1" />
+              {/* Stub bawah (perforasi + cream) */}
+              <div className="mt-4 -mx-4 -mb-4 px-4 py-3 rounded-b-2xl bg-secondary-cream-light border-t-2 border-dashed border-neutral-light-gray-1 flex items-center justify-between">
+                <span className="text-xs text-neutral-gray">Total dibayar</span>
+                <span className="font-fredoka font-bold text-lummy-500 flex items-center gap-1">
+                  {formatIDR(o.amount)} <ChevronRight className="w-4 h-4 text-neutral-gray group-hover:text-primary-navy transition" />
+                </span>
               </div>
             </Link>
           ))}

@@ -7,7 +7,7 @@ import Image from "next/image";
 import toast from "react-hot-toast";
 import {
   ArrowLeft, Lock, CheckCircle2, ExternalLink, Copy, FileText, CreditCard,
-  ShieldCheck, AlertTriangle, Loader2, RotateCcw, Paperclip, ChevronDown,
+  ShieldCheck, AlertTriangle, Loader2, RotateCcw, Paperclip, ChevronDown, Repeat,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -86,18 +86,19 @@ export default function OrderDetailPage() {
 
       {/* Event header */}
       <div className="flex items-center gap-4 mb-6">
-        <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-neutral-light-gray-1 shrink-0">
+        <div className="relative w-20 h-20 rounded-2xl overflow-hidden border-2 border-lummy-500 shrink-0">
           <Image src={order.eventImage} alt={order.eventTitle} fill className="object-cover" />
         </div>
-        <div>
+        <div className="min-w-0">
           <h1 className="text-xl md:text-2xl font-bold text-neutral-black">{order.eventTitle}</h1>
-          <p className="text-sm text-neutral-gray">{formatEventDate(order.eventDateISO)} · {order.tierName}{order.quantity > 1 ? ` · ${order.quantity} tiket` : ""} · Penjual {order.sellerName}</p>
+          <p className="text-sm text-neutral-gray">{formatEventDate(order.eventDateISO)} · {order.tierName}{order.quantity > 1 ? ` · ${order.quantity} tiket` : ""}</p>
+          <p className="text-xs text-neutral-gray mt-0.5">Penjual {order.sellerName} · Order <span className="font-mono">{order.id}</span></p>
         </div>
       </div>
 
       <div className="grid lg:grid-cols-[1.4fr_1fr] gap-6">
         {/* Escrow / transparency */}
-        <div className="bg-neutral-white rounded-3xl border border-lummy-500 shadow-lummy p-6">
+        <div className="bg-neutral-white rounded-3xl border border-lummy-500 p-6">
           <div className="flex items-center justify-between mb-4">
             <span className="font-fredoka font-semibold text-neutral-black flex items-center gap-2">
               <Lock className="w-5 h-5 text-lummy-500" /> Dana Terkunci
@@ -187,10 +188,10 @@ export default function OrderDetailPage() {
                   <AlertTriangle className="w-4 h-4" /> Tiket bermasalah? Ajukan sengketa
                 </button>
               </div>
-              <div className="text-xs text-neutral-gray leading-relaxed flex flex-col gap-1.5">
-                <span>✅ Kalau lancar, gak usah ngapa-ngapain. Uang otomatis ke penjual <b className="text-neutral-black">2 hari setelah konser</b>.</span>
-                <span>⚠️ Tiket bermasalah? <b className="text-neutral-black">Ajukan sengketa + foto bukti pas di gate</b>. Tim kami yang cek, uang balik kalau kebukti.</span>
-                <span>🎟️ Gak jadi dateng? <Link href="/sell" className="text-primary-navy font-medium hover:opacity-80">Jual lagi</Link> tiketnya sebelum konser — kalau dibiarin, tiketnya hangus.</span>
+              <div className="text-xs text-neutral-gray leading-relaxed flex flex-col gap-2">
+                <span className="flex gap-2"><CheckCircle2 className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" /> <span>Kalau lancar, gak usah ngapa-ngapain. Uang otomatis ke penjual <b className="text-neutral-black">2 hari setelah konser</b>.</span></span>
+                <span className="flex gap-2"><AlertTriangle className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" /> <span>Tiket bermasalah? <b className="text-neutral-black">Ajukan sengketa + foto bukti pas di gate</b>. Tim kami yang cek, uang balik kalau kebukti.</span></span>
+                <span className="flex gap-2"><Repeat className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" /> <span>Gak jadi dateng? <Link href="/sell" className="text-primary-navy font-medium hover:opacity-80">Jual lagi</Link> tiketnya sebelum konser — kalau dibiarin, tiketnya hangus.</span></span>
               </div>
             </div>
           )}

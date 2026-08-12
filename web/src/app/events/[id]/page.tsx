@@ -109,12 +109,12 @@ export default function EventDetailPage() {
       <div className="max-w-7xl mx-auto px-5 lg:px-10 mt-4 grid lg:grid-cols-[1.6fr_1fr] gap-8">
         {/* Main */}
         <div>
-          {/* Foto di kolom kiri (rasio 16:9 natural, crop jauh lebih sedikit dari banner full-width) */}
+          {/* Foto di kolom kiri (rasio 16:9); kategori jadi label overlay biar gak nempel awkward */}
           <div className="relative w-full aspect-video rounded-3xl overflow-hidden border border-lummy-500">
             <Image src={event.image} alt={event.title} fill className="object-cover" priority />
+            <span className="absolute top-3 left-3 bg-neutral-white/95 backdrop-blur-sm text-lummy-500 text-xs font-semibold rounded-full px-3 py-1 shadow-sm">{event.category}</span>
           </div>
-          <Badge.Base className="bg-secondary-blue-soft text-lummy-500 text-sm w-fit mt-5">{event.category}</Badge.Base>
-          <h1 className="text-3xl md:text-4xl font-bold text-neutral-black mt-3">{event.title}</h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-neutral-black mt-6">{event.title}</h1>
           <div className="flex flex-wrap gap-x-6 gap-y-2 mt-4 text-neutral-gray">
             <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-primary-navy" /> {formatEventDate(event.dateISO)}</span>
             <span className="flex items-center gap-2"><MapPin className="w-4 h-4 text-primary-navy" /> {event.venue}, {event.city}</span>
@@ -173,7 +173,7 @@ export default function EventDetailPage() {
 
         {/* Sidebar */}
         <aside className="lg:sticky lg:top-24 h-fit flex flex-col gap-4">
-          <div className="bg-neutral-white rounded-3xl border border-lummy-500 shadow-lummy p-6 flex flex-col gap-4">
+          <div className="bg-neutral-white rounded-3xl border border-lummy-500 p-6 flex flex-col gap-4">
             <div className="flex items-center gap-2 text-lummy-500 font-fredoka font-semibold">
               <Lock className="w-5 h-5" /> Dilindungi escrow
             </div>

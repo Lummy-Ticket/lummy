@@ -3,9 +3,10 @@
 import { Suspense, useMemo, useState } from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { Search, MapPin, ChevronDown } from "lucide-react";
+import { Search, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
+import { SelectMenu } from "@/components/ui/select-menu";
 import { getEvents, formatEventDate } from "@/lib/mock";
 import { PageContainer } from "@/components/layout/PageContainer";
 
@@ -52,13 +53,13 @@ function EventsInner() {
               className="outline-none w-full text-neutral-black placeholder:text-neutral-gray bg-transparent text-sm"
             />
           </div>
-          <div className="flex items-center gap-2 py-3 pl-4 pr-3 rounded-xl ring-1 ring-lummy-500 bg-neutral-white">
-            <MapPin className="w-4 h-4 text-neutral-gray shrink-0" />
-            <select value={city} onChange={(e) => setCity(e.target.value)} className="appearance-none outline-none bg-transparent text-sm text-neutral-black cursor-pointer">
-              {cities.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <ChevronDown className="w-4 h-4 text-neutral-gray shrink-0" />
-          </div>
+          <SelectMenu
+            value={city}
+            options={cities}
+            onChange={setCity}
+            icon={<MapPin className="w-4 h-4 text-neutral-gray shrink-0" />}
+            className="sm:w-52"
+          />
         </div>
         <div className="flex flex-wrap gap-2">
           {categories.map((c) => (
