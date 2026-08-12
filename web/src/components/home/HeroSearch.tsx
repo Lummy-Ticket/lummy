@@ -66,8 +66,8 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
 
         {open && suggestions.length > 0 && (
           <div className="absolute top-full left-0 right-0 mt-2 z-40 rounded-2xl border-2 border-lummy-500 bg-neutral-white shadow-lummy-lg overflow-hidden text-left">
-            <div className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-secondary-brown-dark bg-secondary-cream-light">
-              <TrendingUp className="w-3.5 h-3.5" /> {query ? "Hasil pencarian" : "Lagi trending"}
+            <div className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium text-neutral-gray border-b border-neutral-light-gray-1">
+              <TrendingUp className="w-3.5 h-3.5 text-lummy-500" /> {query ? "Hasil pencarian" : "Lagi trending"}
             </div>
             {suggestions.map((e) => (
               <Link

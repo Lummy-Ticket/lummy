@@ -50,39 +50,44 @@ export default function HowItWorks() {
         </div>
       </section>
 
-      {/* Timeline: 6 lapis perlindungan, garis dashed = perforasi tiket, band cream */}
-      <section className="bg-secondary-cream-light border-y border-secondary-cream-soft py-14 lg:py-16">
+      {/* Stepper: enam lapis perlindungan. Node navy hard-shadow + garis dashed nyambung
+          (perforasi tiket), panel putih dengan border tipis di atas latar putih. */}
+      <section className="border-y border-neutral-light-gray-1 py-16 lg:py-20">
         <div className="max-w-2xl mx-auto px-5">
-          <p className="text-center text-sm font-medium text-secondary-brown-dark mb-10">6 lapis perlindungan, dari klik pertama sampai konser lewat</p>
-          <div className="relative">
-            {/* garis vertikal putus-putus */}
-            <div className="absolute left-[21px] top-3 bottom-3 border-l-2 border-dashed border-lummy-500/40" aria-hidden />
-            <div className="flex flex-col gap-9">
-              {sections.map((s, i) => (
-                <div key={s.title} className="relative flex gap-5">
-                  {/* node bernomor */}
-                  <span className="relative z-10 shrink-0 w-11 h-11 rounded-full bg-primary-navy text-white font-fredoka font-bold grid place-items-center border-4 border-secondary-cream-light">
+          <h2 className="text-center font-bold text-2xl md:text-3xl text-neutral-black leading-tight">Enam lapisan yang jaga uangmu</h2>
+          <p className="text-center text-neutral-gray mt-3 mb-12">Nyala di belakang layar, dari klik pertama sampai konser lewat.</p>
+          <div className="flex flex-col">
+            {sections.map((s, i) => (
+              <div key={s.title} className="flex gap-4 sm:gap-5">
+                {/* kolom node + garis nyambung */}
+                <div className="flex flex-col items-center shrink-0">
+                  <span className="relative z-10 w-12 h-12 rounded-full bg-primary-navy text-white font-fredoka font-bold text-lg grid place-items-center shadow-[3px_3px_0px_#245397]">
                     {i + 1}
                   </span>
-                  {/* konten */}
-                  <div className="pt-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="w-8 h-8 rounded-lg bg-secondary-blue-soft text-lummy-500 grid place-items-center shrink-0">
-                        <s.Icon className="w-4 h-4" />
-                      </span>
-                      <h3 className="font-fredoka font-semibold text-lg text-neutral-black">{s.title}</h3>
-                    </div>
-                    <p className="text-neutral-gray text-sm mt-2 leading-relaxed">{s.body}</p>
-                  </div>
+                  {i < sections.length - 1 && (
+                    <span className="w-0.5 grow my-2 border-l-2 border-dashed border-lummy-500/50" aria-hidden />
+                  )}
                 </div>
-              ))}
-            </div>
+                {/* panel putih */}
+                <div className="flex-1 mb-7 bg-neutral-white rounded-2xl border border-neutral-light-gray-1 p-5">
+                  <div className="flex items-center gap-2.5 mb-1.5">
+                    <span className="w-9 h-9 rounded-lg bg-secondary-blue-soft text-lummy-500 grid place-items-center shrink-0">
+                      <s.Icon className="w-5 h-5" />
+                    </span>
+                    <h3 className="font-fredoka font-semibold text-lg text-neutral-black">{s.title}</h3>
+                  </div>
+                  <p className="text-neutral-gray text-sm leading-relaxed">{s.body}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      <section className="max-w-3xl mx-auto px-5 mt-14 text-center">
-        <Link href="/events"><Button.Primary className="flex items-center gap-2 mx-auto">Jelajah event <ArrowRight className="w-4 h-4" /></Button.Primary></Link>
+      <section className="max-w-3xl mx-auto px-5 mt-16 text-center flex flex-col items-center">
+        <h2 className="font-bold text-2xl md:text-3xl text-neutral-black">Sekarang tinggal cari tiketnya</h2>
+        <p className="text-neutral-gray mt-3 mb-6">Ratusan tiket resale terverifikasi, semuanya dijaga escrow.</p>
+        <Link href="/events"><Button.Primary className="flex items-center gap-2">Jelajah event <ArrowRight className="w-4 h-4" /></Button.Primary></Link>
       </section>
     </div>
   );
