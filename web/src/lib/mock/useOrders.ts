@@ -2,7 +2,6 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { EscrowStatus, EventItem, Listing, Tier } from "./types";
 import { CONTRACT_ADDRESS, mockTxHash, releaseDeadline } from "./util";
-import { eventPoster } from "../poster";
 
 export interface Order {
   id: string;
@@ -29,7 +28,7 @@ const SEED_ORDERS: Order[] = [
   {
     id: "or-seed-1", listingId: "ls-2", eventId: "ev-coldplay",
     eventTitle: "Coldplay: Music of the Spheres",
-    eventImage: eventPoster("coldplay"),
+    eventImage: "/assets/events/coldplay-hd.jpg",
     eventDateISO: "2026-11-14T19:00:00+07:00", tierName: "CAT 3", sellerName: "Rian P.", quantity: 1,
     amount: 1_400_000, gateKtp: true, escrowStatus: "LOCKED",
     contractAddress: CONTRACT_ADDRESS, fundTxHash: mockTxHash(),
@@ -39,7 +38,7 @@ const SEED_ORDERS: Order[] = [
   {
     id: "or-seed-2", listingId: "ls-x1", eventId: "ev-wtf",
     eventTitle: "We The Fest 2026",
-    eventImage: eventPoster("wtf"),
+    eventImage: "/assets/events/wtf-hd.jpg",
     eventDateISO: "2026-08-21T14:00:00+07:00", tierName: "1-Day Pass", sellerName: "Bagas W.", quantity: 1,
     amount: 950_000, gateKtp: false, escrowStatus: "RELEASED",
     contractAddress: CONTRACT_ADDRESS, fundTxHash: mockTxHash(), settleTxHash: mockTxHash(),
@@ -49,7 +48,7 @@ const SEED_ORDERS: Order[] = [
   {
     id: "or-seed-3", listingId: "ls-x2", eventId: "ev-pandji",
     eventTitle: "Pandji Pragiwaksono: Menyala",
-    eventImage: eventPoster("pandji"),
+    eventImage: "/assets/events/pandji-hd.jpg",
     eventDateISO: "2026-09-06T19:00:00+07:00", tierName: "Silver", sellerName: "Dinda K.", quantity: 1,
     amount: 430_000, gateKtp: false, escrowStatus: "REFUNDED",
     contractAddress: CONTRACT_ADDRESS, fundTxHash: mockTxHash(), settleTxHash: mockTxHash(),
@@ -59,7 +58,7 @@ const SEED_ORDERS: Order[] = [
   {
     id: "or-seed-4", listingId: "ls-x3", eventId: "ev-dwp",
     eventTitle: "Djakarta Warehouse Project 2026",
-    eventImage: eventPoster("dwp"),
+    eventImage: "/assets/events/dwp-hd.jpg",
     eventDateISO: "2026-08-09T20:00:00+07:00", tierName: "GA", sellerName: "Rizky T.", quantity: 1,
     amount: 1_250_000, gateKtp: false, escrowStatus: "DISPUTED",
     contractAddress: CONTRACT_ADDRESS, fundTxHash: mockTxHash(),
@@ -125,6 +124,12 @@ export const useOrders = create<OrderState>()(
         })),
       getById: (id) => get().orders.find((o) => o.id === id),
     }),
-    { name: "opertix:orders" }
+    {
+      name: "opertix:orders",
+      // v2: seed pindah dari picsum ke foto lokal. Bump versi biar localStorage lama
+      // (yang masih nyimpen URL picsum) ke-reset, gak bikin next/image error host.
+      version: 2,
+      migrate: () => ({ orders: SEED_ORDERS }),
+    }
   )
 );

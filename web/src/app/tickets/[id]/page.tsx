@@ -7,7 +7,7 @@ import Image from "next/image";
 import toast from "react-hot-toast";
 import {
   ArrowLeft, Lock, CheckCircle2, ExternalLink, Copy, FileText, CreditCard,
-  ShieldCheck, AlertTriangle, Loader2, RotateCcw, Paperclip, ChevronDown,
+  ShieldCheck, AlertTriangle, Loader2, RotateCcw, Paperclip, ChevronDown, Repeat,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +46,7 @@ export default function OrderDetailPage() {
   const [showDispute, setShowDispute] = useState(false);
   const [dReason, setDReason] = useState("Gagal masuk gate (barcode ditolak)");
   const [dEvidence, setDEvidence] = useState<string | null>(null);
+  const [showProof, setShowProof] = useState(false); // detail on-chain disembunyiin default (web2-first)
 
   useEffect(() => setMounted(true), []);
 
@@ -63,7 +64,7 @@ export default function OrderDetailPage() {
 
   const doRelease = () => {
     setActing(true);
-    setTimeout(() => { release(order.id); setActing(false); toast.success("Dana cair ke penjual. Cek tx di explorer."); }, 1300);
+    setTimeout(() => { release(order.id); setActing(false); toast.success("Dana cair ke penjual."); }, 1300);
   };
   const submitDispute = () => {
     setShowDispute(false); setActing(true);
@@ -85,18 +86,19 @@ export default function OrderDetailPage() {
 
       {/* Event header */}
       <div className="flex items-center gap-4 mb-6">
-        <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-neutral-light-gray-1 shrink-0">
+        <div className="relative w-20 h-20 rounded-2xl overflow-hidden border-2 border-lummy-500 shrink-0">
           <Image src={order.eventImage} alt={order.eventTitle} fill className="object-cover" />
         </div>
-        <div>
+        <div className="min-w-0">
           <h1 className="text-xl md:text-2xl font-bold text-neutral-black">{order.eventTitle}</h1>
-          <p className="text-sm text-neutral-gray">{formatEventDate(order.eventDateISO)} · {order.tierName}{order.quantity > 1 ? ` · ${order.quantity} tiket` : ""} · Penjual {order.sellerName}</p>
+          <p className="text-sm text-neutral-gray">{formatEventDate(order.eventDateISO)} · {order.tierName}{order.quantity > 1 ? ` · ${order.quantity} tiket` : ""}</p>
+          <p className="text-xs text-neutral-gray mt-0.5">Penjual {order.sellerName} · Order <span className="font-mono">{order.id}</span></p>
         </div>
       </div>
 
       <div className="grid lg:grid-cols-[1.4fr_1fr] gap-6">
         {/* Escrow / transparency */}
-        <div className="bg-neutral-white rounded-3xl border border-lummy-500 shadow-lummy p-6">
+        <div className="bg-neutral-white rounded-3xl border border-lummy-500 p-6">
           <div className="flex items-center justify-between mb-4">
             <span className="font-fredoka font-semibold text-neutral-black flex items-center gap-2">
               <Lock className="w-5 h-5 text-lummy-500" /> Dana Terkunci
@@ -107,13 +109,25 @@ export default function OrderDetailPage() {
           <div className="font-fredoka font-bold text-3xl text-neutral-black mb-1">{formatIDR(order.amount)}</div>
           <p className="text-sm text-neutral-gray mb-4">
             {locked
-              ? "Ditahan di smart contract, bukan di rekening kami."
+              ? "Ditahan aman sampai konser selesai, bukan di rekening kami atau penjual."
               : order.escrowStatus === "RELEASED"
               ? "Sudah cair ke penjual setelah konser aman."
-              : "Sudah dikembalikan ke kamu."}
+              : order.escrowStatus === "REFUNDED"
+              ? "Sudah dikembalikan ke kamu."
+              : "Sengketa lagi ditinjau. Dana ketahan sampai diputus."}
           </p>
 
-          <div className="text-xs text-neutral-gray mb-2">Bukti dana kamu aman dan bisa dicek siapa aja — gak perlu ngerti teknisnya:</div>
+          <button
+            onClick={() => setShowProof((v) => !v)}
+            aria-expanded={showProof}
+            className="flex items-center gap-1.5 text-xs text-primary-navy font-medium hover:opacity-80 cursor-pointer"
+          >
+            <ShieldCheck className="w-3.5 h-3.5" /> {showProof ? "Sembunyikan detail teknis" : "Bukti transparan · cek sendiri"}
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showProof ? "rotate-180" : ""}`} />
+          </button>
+          {showProof && (
+          <div className="mt-3">
+          <p className="text-xs text-neutral-gray mb-2">Dana kamu tercatat publik & bisa diverifikasi siapa aja — buat yang mau cek teknisnya.</p>
           <div className="bg-secondary-blue-extra rounded-2xl p-4">
             <ChainRow label="Kontrak escrow" value={shortHash(order.contractAddress)} href={explorerAddr(order.contractAddress)} onCopy={() => copy(order.contractAddress)} />
             <ChainRow label="Tx pendanaan" value={shortHash(order.fundTxHash)} href={explorerTx(order.fundTxHash)} onCopy={() => copy(order.fundTxHash)} />
@@ -127,16 +141,18 @@ export default function OrderDetailPage() {
           <p className="flex items-center gap-1.5 text-xs text-neutral-gray mt-3">
             <ShieldCheck className="w-3.5 h-3.5 text-secondary-green-dark" /> Jangan percaya kami, cek sendiri di explorer.
           </p>
+          </div>
+          )}
 
-          {/* Timeline transaksi (tiap state -> explorer) */}
+          {/* Timeline: plain-language journey (jargon disembunyiin) */}
           <div className="mt-5">
-            <div className="text-xs text-neutral-gray mb-2">Riwayat on-chain</div>
+            <div className="text-xs text-neutral-gray mb-2">Riwayat</div>
             <ol className="relative border-l-2 border-dashed border-neutral-light-gray-1 ml-1.5 flex flex-col gap-4">
               <li className="pl-4 relative">
                 <span className="absolute -left-[7px] top-1 w-3 h-3 rounded-full bg-lummy-500 border-2 border-neutral-white" />
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm text-neutral-black">Dana masuk escrow</span>
-                  <a href={explorerTx(order.fundTxHash)} target="_blank" rel="noreferrer" className="text-xs text-primary-navy flex items-center gap-1 shrink-0">{shortHash(order.fundTxHash, 4)} <ExternalLink className="w-3 h-3" /></a>
+                  {showProof && <a href={explorerTx(order.fundTxHash)} target="_blank" rel="noreferrer" className="text-xs text-primary-navy flex items-center gap-1 shrink-0">{shortHash(order.fundTxHash, 4)} <ExternalLink className="w-3 h-3" /></a>}
                 </div>
                 <span className="text-xs text-neutral-gray">{formatDateTime(order.createdAtISO)}</span>
               </li>
@@ -145,7 +161,7 @@ export default function OrderDetailPage() {
                   <span className={`absolute -left-[7px] top-1 w-3 h-3 rounded-full border-2 border-neutral-white ${order.escrowStatus === "RELEASED" ? "bg-secondary-green-dark" : "bg-neutral-gray"}`} />
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm text-neutral-black">{order.escrowStatus === "RELEASED" ? "Dana cair ke penjual" : "Dana dikembalikan"}</span>
-                    <a href={explorerTx(order.settleTxHash)} target="_blank" rel="noreferrer" className="text-xs text-primary-navy flex items-center gap-1 shrink-0">{shortHash(order.settleTxHash, 4)} <ExternalLink className="w-3 h-3" /></a>
+                    {showProof && <a href={explorerTx(order.settleTxHash)} target="_blank" rel="noreferrer" className="text-xs text-primary-navy flex items-center gap-1 shrink-0">{shortHash(order.settleTxHash, 4)} <ExternalLink className="w-3 h-3" /></a>}
                   </div>
                   <span className="text-xs text-neutral-gray">Baru saja</span>
                 </li>
@@ -172,10 +188,11 @@ export default function OrderDetailPage() {
                   <AlertTriangle className="w-4 h-4" /> Tiket bermasalah? Ajukan sengketa
                 </button>
               </div>
-              <p className="text-xs text-neutral-gray leading-relaxed">
-                Diem = dana <b className="text-neutral-black">cair otomatis ke penjual</b> setelah event + 48 jam. Refund cuma buat tiket bermasalah, <b className="text-neutral-black">pakai bukti gagal-masuk di gate</b> (diputus admin, bukan otomatis). Gak bisa dateng?{" "}
-                <Link href="/sell" className="text-primary-navy font-medium hover:opacity-80">Jual lagi</Link> sebelum event, karena <b className="text-neutral-black">no-show = hangus</b>.
-              </p>
+              <div className="text-xs text-neutral-gray leading-relaxed flex flex-col gap-2">
+                <span className="flex gap-2"><CheckCircle2 className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" /> <span>Kalau lancar, gak usah ngapa-ngapain. Uang otomatis ke penjual <b className="text-neutral-black">2 hari setelah konser</b>.</span></span>
+                <span className="flex gap-2"><AlertTriangle className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" /> <span>Tiket bermasalah? <b className="text-neutral-black">Ajukan sengketa + foto bukti pas di gate</b>. Tim kami yang cek, uang balik kalau kebukti.</span></span>
+                <span className="flex gap-2"><Repeat className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" /> <span>Gak jadi dateng? <Link href="/sell" className="text-primary-navy font-medium hover:opacity-80">Jual lagi</Link> tiketnya sebelum konser — kalau dibiarin, tiketnya hangus.</span></span>
+              </div>
             </div>
           )}
           {order.escrowStatus === "DISPUTED" && (
@@ -319,7 +336,7 @@ export default function OrderDetailPage() {
         <div className="flex flex-col items-center gap-3 py-4">
           <Loader2 className="w-8 h-8 text-lummy-500 animate-spin" />
           <p className="font-fredoka font-semibold text-neutral-black">Mengirim transaksi...</p>
-          <p className="text-sm text-neutral-gray">Menandatangani + broadcast ke Monad testnet.</p>
+          <p className="text-sm text-neutral-gray">Sebentar ya, lagi diproses aman.</p>
         </div>
       </Modal>
     </PageContainer>

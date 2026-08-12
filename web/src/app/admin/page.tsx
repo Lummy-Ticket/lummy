@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { CheckCircle2, XCircle, AlertTriangle, Sparkles, Calendar, MapPin, Scale, Paperclip } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle, Sparkles, Calendar, MapPin, Scale, Paperclip, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/common/Modal";
@@ -98,15 +98,24 @@ export default function AdminPage() {
                 )}
               </div>
 
-              {/* AI-seeded face values */}
+              {/* Harga asli: 1 tier dari PDF penjual, sisanya dari sumber resmi organizer */}
               <div className="mt-4 bg-secondary-gray-soft rounded-2xl p-4">
-                <div className="text-xs text-neutral-gray mb-2">Harga asli (di-extract AI dari PDF)</div>
+                <div className="text-xs text-neutral-gray mb-2">Harga asli per tier <span className="text-neutral-black">(cek ke sumber resmi organizer, jangan cuma dari PDF)</span></div>
                 <div className="flex flex-wrap gap-2">
-                  {r.faceValues.map((f) => (
-                    <span key={f.tier} className="text-sm bg-neutral-white border border-neutral-light-gray-1 rounded-lg px-3 py-1.5 text-neutral-black">
-                      {f.tier} <b className="text-lummy-500">{formatIDR(f.value)}</b>
-                    </span>
-                  ))}
+                  {r.faceValues.map((f) => {
+                    const fromPdf = f.tier === r.pdfTier;
+                    return (
+                      <span key={f.tier} className={`text-sm rounded-lg px-3 py-1.5 flex items-center gap-1.5 ${fromPdf ? "bg-secondary-blue-soft border border-lummy-500 text-neutral-black" : "bg-neutral-white border border-neutral-light-gray-1 text-neutral-black"}`}>
+                        {f.tier} <b className="text-lummy-500">{formatIDR(f.value)}</b>
+                        {fromPdf && <span className="text-[10px] text-lummy-500 font-medium">dari PDF</span>}
+                      </span>
+                    );
+                  })}
+                </div>
+                <div className="text-xs text-neutral-gray mt-3 flex flex-wrap items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-lummy-500 shrink-0" />
+                  AI cuma bisa baca <b className="text-neutral-black">1 kategori</b> dari PDF penjual ({r.pdfTier}, dia sendiri). Tier lain admin lengkapi + verifikasi dari
+                  <a href={`https://${r.organizerRef}`} target="_blank" rel="noreferrer" className="text-primary-navy font-medium hover:opacity-80 inline-flex items-center gap-0.5">{r.organizerRef} <ExternalLink className="w-3 h-3" /></a>
                 </div>
               </div>
 

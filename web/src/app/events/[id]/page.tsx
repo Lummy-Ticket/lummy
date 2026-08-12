@@ -99,21 +99,22 @@ export default function EventDetailPage() {
 
   return (
     <div className="pt-28 pb-16">
-      {/* Cover */}
+      {/* Back link */}
       <div className="max-w-7xl mx-auto px-5 lg:px-10">
-        <Link href="/events" className="inline-flex items-center gap-1 text-neutral-gray hover:text-primary-navy transition text-sm mb-4">
+        <Link href="/events" className="inline-flex items-center gap-1 text-neutral-gray hover:text-primary-navy transition text-sm">
           <ArrowLeft className="w-4 h-4" /> Jelajah
         </Link>
-        <div className="relative w-full h-44 sm:h-56 lg:h-64 rounded-3xl overflow-hidden border border-lummy-500">
-          <Image src={event.image} alt={event.title} fill className="object-cover" priority />
-        </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-5 lg:px-10 mt-6 grid lg:grid-cols-[1.6fr_1fr] gap-8">
+      <div className="max-w-7xl mx-auto px-5 lg:px-10 mt-4 grid lg:grid-cols-[1.6fr_1fr] gap-8">
         {/* Main */}
         <div>
-          <Badge.Base className="bg-secondary-blue-soft text-lummy-500 text-sm w-fit">{event.category}</Badge.Base>
-          <h1 className="text-3xl md:text-4xl font-bold text-neutral-black mt-3">{event.title}</h1>
+          {/* Foto di kolom kiri (rasio 16:9); kategori jadi label overlay biar gak nempel awkward */}
+          <div className="relative w-full aspect-video rounded-3xl overflow-hidden border border-lummy-500">
+            <Image src={event.image} alt={event.title} fill className="object-cover" priority />
+            <span className="absolute top-3 left-3 bg-neutral-white/95 backdrop-blur-sm text-lummy-500 text-xs font-semibold rounded-full px-3 py-1 shadow-sm">{event.category}</span>
+          </div>
+          <h1 className="text-3xl md:text-4xl font-bold text-neutral-black mt-6">{event.title}</h1>
           <div className="flex flex-wrap gap-x-6 gap-y-2 mt-4 text-neutral-gray">
             <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-primary-navy" /> {formatEventDate(event.dateISO)}</span>
             <span className="flex items-center gap-2"><MapPin className="w-4 h-4 text-primary-navy" /> {event.venue}, {event.city}</span>
@@ -172,20 +173,23 @@ export default function EventDetailPage() {
 
         {/* Sidebar */}
         <aside className="lg:sticky lg:top-24 h-fit flex flex-col gap-4">
-          <div className="bg-neutral-white rounded-3xl border border-lummy-500 shadow-lummy p-6 flex flex-col gap-4">
-            <div className="flex items-center gap-2 text-lummy-500 font-fredoka font-semibold">
-              <Lock className="w-5 h-5" /> Dilindungi escrow
+          <div className="bg-neutral-white rounded-3xl border border-lummy-500 overflow-hidden">
+            <div className="p-6 flex flex-col gap-4">
+              <div className="flex items-center gap-2 text-lummy-500 font-fredoka font-semibold">
+                <Lock className="w-5 h-5" /> Dilindungi escrow
+              </div>
+              <ul className="flex flex-col gap-3 text-sm text-neutral-gray">
+                <li className="flex gap-2"><ShieldCheck className="w-4 h-4 text-secondary-green-dark shrink-0 mt-0.5" /> Dana ditahan sampai konser selesai. Gagal masuk = uang balik.</li>
+                <li className="flex gap-2"><ScanLine className="w-4 h-4 text-secondary-pink-dark shrink-0 mt-0.5" /> Tiap tiket dicek AI: forensik PDF + barcode duplikat.</li>
+                <li className="flex gap-2"><CheckCircle2 className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" /> Harga dibatasi maksimal {CAP_PCT}% dari harga asli.</li>
+              </ul>
             </div>
-            <ul className="flex flex-col gap-3 text-sm text-neutral-gray">
-              <li className="flex gap-2"><ShieldCheck className="w-4 h-4 text-secondary-green-dark shrink-0 mt-0.5" /> Dana ditahan sampai konser selesai. Gagal masuk = uang balik.</li>
-              <li className="flex gap-2"><ScanLine className="w-4 h-4 text-secondary-pink-dark shrink-0 mt-0.5" /> Tiap tiket dicek AI: forensik PDF + barcode duplikat.</li>
-              <li className="flex gap-2"><CheckCircle2 className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" /> Harga dibatasi maksimal {CAP_PCT}% dari harga asli.</li>
-            </ul>
-          </div>
-          <div className="bg-secondary-cream-light rounded-3xl border border-neutral-light-gray-1 p-6">
-            <div className="text-xs text-neutral-gray mb-1">Harga mulai dari</div>
-            <div className="font-fredoka font-bold text-2xl text-neutral-black">{formatIDR(event.fromPrice)}</div>
-            <p className="text-xs text-neutral-gray mt-2">Pilih listing di sebelah untuk beli. Dana langsung masuk escrow.</p>
+            {/* Stub harga: perforasi + cream = kertas tiket */}
+            <div className="px-6 py-4 bg-secondary-cream-light border-t-2 border-dashed border-neutral-light-gray-1">
+              <div className="text-xs text-secondary-brown-dark/80">Harga mulai dari</div>
+              <div className="font-fredoka font-bold text-2xl text-neutral-black">{formatIDR(event.fromPrice)}</div>
+              <p className="text-xs text-secondary-brown-dark/70 mt-1">Pilih listing di sebelah untuk beli. Dana langsung masuk escrow.</p>
+            </div>
           </div>
           <NotifyCard event={event} />
         </aside>

@@ -1,37 +1,95 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import Image from "next/image";
+import { Search, TrendingUp } from "lucide-react";
+import { getEvents, formatEventDate } from "@/lib/mock";
 
-// Search-first hero ala Viagogo: langsung arahin ke katalog /events (deep-link ?q / ?cat).
+const ALL = getEvents();
+
+// Search-first hero + suggest: fokus = event trending, ketik = hasil live.
+// Tiap item ada foto kecil + judul, bisa klik langsung tanpa harus ke /events.
 export function HeroSearch({ quickCats }: { quickCats: string[] }) {
   const router = useRouter();
   const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, []);
+
+  const query = q.trim().toLowerCase();
+  const suggestions = useMemo(() => {
+    if (!query) return ALL.filter((e) => e.featured).slice(0, 5);
+    return ALL.filter(
+      (e) =>
+        e.title.toLowerCase().includes(query) ||
+        e.city.toLowerCase().includes(query) ||
+        e.venue.toLowerCase().includes(query)
+    ).slice(0, 6);
+  }, [query]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const query = q.trim();
-    router.push(query ? `/events?q=${encodeURIComponent(query)}` : "/events");
+    router.push(q.trim() ? `/events?q=${encodeURIComponent(q.trim())}` : "/events");
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto flex flex-col gap-4">
-      <form onSubmit={submit} className="flex items-center gap-2 bg-neutral-white rounded-2xl border-2 border-lummy-500 p-2 pl-4 shadow-lummy">
-        <Search className="w-5 h-5 text-neutral-gray shrink-0" />
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Cari event, artis, atau venue..."
-          aria-label="Cari event"
-          className="flex-1 outline-none bg-transparent text-neutral-black placeholder:text-neutral-gray min-w-0"
-        />
-        <Button.Primary type="submit" className="text-sm px-5">Cari</Button.Primary>
-      </form>
+    <div ref={ref} className="w-full max-w-xl mx-auto lg:mx-0 flex flex-col gap-3">
+      <div className="relative">
+        <form onSubmit={submit} className="flex items-center gap-2 bg-neutral-white rounded-2xl border-2 border-lummy-500 p-2 pl-4 shadow-lummy">
+          <Search className="w-5 h-5 text-neutral-gray shrink-0" />
+          <input
+            value={q}
+            onChange={(e) => { setQ(e.target.value); setOpen(true); }}
+            onFocus={() => setOpen(true)}
+            placeholder="Cari event, artis, atau venue..."
+            aria-label="Cari event"
+            className="flex-1 outline-none bg-transparent text-neutral-black placeholder:text-neutral-gray min-w-0"
+          />
+          <button type="submit" className="shrink-0 bg-primary-navy hover:bg-primary-navy-dark text-white font-fredoka font-medium rounded-xl px-5 py-2.5 text-sm transition cursor-pointer">
+            Cari
+          </button>
+        </form>
 
-      <div className="flex flex-wrap justify-center gap-2">
+        {open && suggestions.length > 0 && (
+          <div className="absolute top-full left-0 right-0 mt-2 z-40 rounded-2xl border-2 border-lummy-500 bg-neutral-white shadow-lummy-lg overflow-hidden text-left">
+            <div className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium text-neutral-gray border-b border-neutral-light-gray-1">
+              <TrendingUp className="w-3.5 h-3.5 text-lummy-500" /> {query ? "Hasil pencarian" : "Lagi trending"}
+            </div>
+            {suggestions.map((e) => (
+              <Link
+                key={e.id}
+                href={`/events/${e.id}`}
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-3 px-3 py-2.5 hover:bg-secondary-blue-light transition"
+              >
+                <div className="relative w-11 h-11 rounded-lg overflow-hidden border border-neutral-light-gray-1 shrink-0">
+                  <Image src={e.image} alt="" fill className="object-cover" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-neutral-black truncate">{e.title}</div>
+                  <div className="text-xs text-neutral-gray truncate">{e.city} · {formatEventDate(e.dateISO)}</div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-wrap justify-center lg:justify-start gap-2">
         <Link href="/events" className="px-4 py-1.5 rounded-full text-sm bg-neutral-white/70 border border-lummy-500 text-lummy-500 hover:bg-neutral-white transition">
           Semua event
         </Link>

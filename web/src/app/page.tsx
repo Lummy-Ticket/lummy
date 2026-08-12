@@ -1,14 +1,16 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight, ShieldCheck, Music, Trophy, Drama } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { HeroSearch } from "@/components/home/HeroSearch";
+import { TicketBand } from "@/components/ui/ticket-band";
 import { getEvents, getFeaturedEvents, formatEventDate } from "@/lib/mock";
 
 const CATEGORY_TILES = [
-  { cat: "Music", label: "Konser & Musik", Icon: Music, cls: "bg-secondary-pink-soft text-secondary-pink-dark" },
-  { cat: "Sports", label: "Olahraga", Icon: Trophy, cls: "bg-secondary-orange-soft text-secondary-orange-dark" },
-  { cat: "Theater", label: "Teater & Komedi", Icon: Drama, cls: "bg-secondary-green-soft text-secondary-green-dark" },
+  { cat: "Music", label: "Konser & Musik", Icon: Music },
+  { cat: "Sports", label: "Olahraga", Icon: Trophy },
+  { cat: "Theater", label: "Teater & Komedi", Icon: Drama },
 ];
 
 function EventGrid({ events }: { events: ReturnType<typeof getEvents> }) {
@@ -53,26 +55,32 @@ export default function Home() {
 
   return (
     <>
-      {/* Hero: search-first */}
-      <section className="bg-hero-gradient pt-32 pb-16">
-        <div className="max-w-7xl mx-auto px-5 lg:px-10 flex flex-col items-center text-center gap-5">
-          <h1 className="text-3xl md:text-5xl font-bold text-neutral-black leading-tight max-w-3xl">
-            Tiket konser resale, <span className="text-primary-navy">aman lewat escrow.</span>
-          </h1>
-          <p className="text-neutral-gray max-w-xl">
-            Dana kamu dikunci sampai konser selesai, AI jaga dari tiket palsu. Kerasa seperti aplikasi biasa.
-          </p>
-          <HeroSearch quickCats={quickCats} />
-          <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 pt-1 text-sm text-neutral-gray">
-            {["Dana di-escrow", "AI anti-palsu", "Harga dibatasi 150%", "Bisa dicek on-chain"].map((t) => (
-              <span key={t} className="flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-secondary-green-dark" /> {t}
-              </span>
-            ))}
+      {/* Hero: search-first, asimetris (text kiri + mascot kanan) */}
+      <section className="bg-hero-gradient pt-28 lg:pt-32 pb-16">
+        <div className="max-w-7xl mx-auto px-5 lg:px-10 grid lg:grid-cols-[1.15fr_0.85fr] gap-8 lg:gap-6 items-center">
+          {/* Kiri: headline + search */}
+          <div className="flex flex-col gap-5 text-center lg:text-left">
+            <h1 className="flex flex-col font-bold leading-[1.05] text-4xl sm:text-5xl xl:text-6xl">
+              <span className="text-neutral-black">Beli tiket konser</span>
+              <span className="text-primary-navy">tanpa takut ketipu.</span>
+            </h1>
+            <p className="text-neutral-gray max-w-lg mx-auto lg:mx-0">
+              Uang kamu ditahan dulu, baru cair ke penjual setelah konser aman. AI jaga dari tiket palsu, harga dibatasi biar wajar.
+            </p>
+            <HeroSearch quickCats={quickCats} />
+            <div className="flex flex-wrap justify-center lg:justify-start gap-x-5 gap-y-2 text-sm text-neutral-gray">
+              {["Uang aman sampai konser", "AI anti-palsu", "Harga wajar (maks 150%)"].map((t) => (
+                <span key={t} className="flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-secondary-green-dark" /> {t}
+                </span>
+              ))}
+            </div>
           </div>
-          <Link href="/how-it-works" className="text-primary-navy text-sm font-medium hover:opacity-80 transition">
-            Lihat cara kerjanya →
-          </Link>
+
+          {/* Kanan: mascot doang */}
+          <div className="hidden lg:flex justify-center items-center">
+            <Image src="/assets/images/mascot.png" alt="OperTix" width={360} height={360} className="object-contain drop-shadow-xl" priority />
+          </div>
         </div>
       </section>
 
@@ -96,9 +104,9 @@ export default function Home() {
             <Link
               key={t.cat}
               href={`/events?cat=${t.cat}`}
-              className="group flex items-center gap-4 bg-neutral-white rounded-3xl border border-neutral-light-gray-1 hover:border-lummy-500 shadow-lummy p-5 transition"
+              className="group flex items-center gap-4 bg-neutral-white rounded-3xl border-2 border-lummy-500 p-5 transition hover:-translate-x-1 hover:-translate-y-1 hover:shadow-[4px_4px_0px_#245397]"
             >
-              <span className={`w-14 h-14 rounded-2xl grid place-items-center shrink-0 ${t.cls}`}>
+              <span className="w-14 h-14 rounded-2xl grid place-items-center shrink-0 bg-secondary-blue-soft text-lummy-500">
                 <t.Icon className="w-7 h-7" />
               </span>
               <div className="min-w-0">
@@ -112,19 +120,21 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Jual CTA */}
+      {/* Jual CTA (ticket band) */}
       <section className="max-w-7xl mx-auto px-5 lg:px-10 mt-16 mb-4">
-        <div className="rounded-3xl bg-lummy-gradient text-white px-8 py-10 flex flex-col sm:flex-row items-center justify-between gap-5 text-center sm:text-left">
-          <div>
-            <h2 className="text-2xl md:text-3xl font-bold">Punya tiket nganggur?</h2>
-            <p className="text-white/85 mt-1">Jual di OperTix. AI isi datanya otomatis, dana aman sampai konser lewat.</p>
+        <TicketBand>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-5 text-center sm:text-left">
+            <div>
+              <h2 className="text-2xl md:text-3xl font-bold">Punya tiket nganggur?</h2>
+              <p className="text-white/85 mt-1">Jual di OperTix. AI isi datanya otomatis, dana aman sampai konser lewat.</p>
+            </div>
+            <Link href="/sell">
+              <Button.Secondary className="flex items-center gap-2 text-nowrap">
+                Jual tiket <ArrowRight className="w-4 h-4" />
+              </Button.Secondary>
+            </Link>
           </div>
-          <Link href="/sell">
-            <Button.Secondary className="flex items-center gap-2 text-nowrap">
-              Jual tiket <ArrowRight className="w-4 h-4" />
-            </Button.Secondary>
-          </Link>
-        </div>
+        </TicketBand>
       </section>
     </>
   );

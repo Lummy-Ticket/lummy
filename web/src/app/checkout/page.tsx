@@ -112,7 +112,7 @@ function CheckoutInner() {
         </div>
 
         {/* Right: summary */}
-        <div className="lg:sticky lg:top-24 h-fit bg-neutral-white rounded-3xl border border-lummy-500 shadow-lummy p-6 flex flex-col gap-4">
+        <div className="lg:sticky lg:top-24 h-fit bg-neutral-white rounded-3xl border border-lummy-500 p-6 flex flex-col gap-4">
           <h4 className="font-fredoka font-semibold text-neutral-black">Rincian</h4>
           <div className="flex flex-col gap-2">
             <Row label={qty > 1 ? `Tiket (${qty} × ${formatIDR(listing.askPrice)})` : "Harga tiket"} value={formatIDR(subtotal)} />
