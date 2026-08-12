@@ -116,8 +116,8 @@ function CheckoutInner() {
           <h4 className="font-fredoka font-semibold text-neutral-black">Rincian</h4>
           <div className="flex flex-col gap-2">
             <Row label={qty > 1 ? `Tiket (${qty} × ${formatIDR(listing.askPrice)})` : "Harga tiket"} value={formatIDR(subtotal)} />
-            <Row label="Biaya layanan (5%)" value={formatIDR(fee)} />
-            <Row label="e-Materai" value={formatIDR(MATERAI)} />
+            <Row label="Biaya layanan (5%, min. Rp25.000)" value={formatIDR(fee)} />
+            <Row label="e-Materai + biaya PSrE" value={formatIDR(MATERAI)} />
             <div className="border-t border-dashed border-neutral-light-gray-1 my-1" />
             <Row label="Total" value={formatIDR(total)} bold />
           </div>
