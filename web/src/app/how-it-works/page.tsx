@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Lock, ScanLine, TrendingUp, Eye, RotateCcw, Repeat, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const sections = [
   {
@@ -36,6 +37,23 @@ const sections = [
   },
 ];
 
+const NODE =
+  "z-10 w-12 h-12 rounded-full bg-primary-navy text-white font-fredoka font-bold text-lg grid place-items-center shadow-[3px_3px_0px_#245397]";
+
+function StepCard({ s }: { s: (typeof sections)[number] }) {
+  return (
+    <div className="bg-neutral-white rounded-2xl border border-neutral-light-gray-1 p-5">
+      <div className="flex items-center gap-2.5 mb-1.5">
+        <span className="w-9 h-9 rounded-lg bg-secondary-blue-soft text-lummy-500 grid place-items-center shrink-0">
+          <s.Icon className="w-5 h-5" />
+        </span>
+        <h3 className="font-fredoka font-semibold text-lg text-neutral-black">{s.title}</h3>
+      </div>
+      <p className="text-neutral-gray text-sm leading-relaxed">{s.body}</p>
+    </div>
+  );
+}
+
 export default function HowItWorks() {
   return (
     <div className="pb-10">
@@ -50,36 +68,50 @@ export default function HowItWorks() {
         </div>
       </section>
 
-      {/* Stepper: enam lapis perlindungan. Node navy hard-shadow + garis dashed nyambung
-          (perforasi tiket), panel putih dengan border tipis di atas latar putih. */}
+      {/* Stepper zigzag. Desktop: band tinggi tetap (h-28) -> rhythm nomor rata & rapat;
+          kartu di-center absolut ke node-nya, kiri-kanan beda kolom jadi aman gak nabrak.
+          Spine top-14/bottom-14 = pas di titik node pertama & terakhir. Mobile: satu kolom flow. */}
       <section className="border-y border-neutral-light-gray-1 py-16 lg:py-20">
-        <div className="max-w-2xl mx-auto px-5">
+        <div className="max-w-4xl mx-auto px-5">
           <h2 className="text-center font-bold text-2xl md:text-3xl text-neutral-black leading-tight">Enam lapisan yang jaga uangmu</h2>
           <p className="text-center text-neutral-gray mt-3 mb-12">Nyala di belakang layar, dari klik pertama sampai konser lewat.</p>
-          <div className="flex flex-col">
-            {sections.map((s, i) => (
-              <div key={s.title} className="flex gap-4 sm:gap-5">
-                {/* kolom node + garis nyambung */}
-                <div className="flex flex-col items-center shrink-0">
-                  <span className="relative z-10 w-12 h-12 rounded-full bg-primary-navy text-white font-fredoka font-bold text-lg grid place-items-center shadow-[3px_3px_0px_#245397]">
-                    {i + 1}
-                  </span>
-                  {i < sections.length - 1 && (
-                    <span className="w-0.5 grow my-2 border-l-2 border-dashed border-lummy-500/50" aria-hidden />
-                  )}
-                </div>
-                {/* panel putih */}
-                <div className="flex-1 mb-7 bg-neutral-white rounded-2xl border border-neutral-light-gray-1 p-5">
-                  <div className="flex items-center gap-2.5 mb-1.5">
-                    <span className="w-9 h-9 rounded-lg bg-secondary-blue-soft text-lummy-500 grid place-items-center shrink-0">
-                      <s.Icon className="w-5 h-5" />
-                    </span>
-                    <h3 className="font-fredoka font-semibold text-lg text-neutral-black">{s.title}</h3>
+
+          {/* Desktop */}
+          <div className="relative hidden md:block">
+            <div className="absolute top-14 bottom-14 left-1/2 -translate-x-1/2 border-l-2 border-dashed border-lummy-500/50" aria-hidden />
+            {sections.map((s, i) => {
+              const left = i % 2 === 0;
+              return (
+                <div key={s.title} className="relative h-28">
+                  <span className={cn("absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2", NODE)}>{i + 1}</span>
+                  <span
+                    className={cn(
+                      "absolute top-1/2 -translate-y-1/2 w-8 border-t-2 border-dashed border-lummy-500/50",
+                      left ? "right-1/2 mr-6" : "left-1/2 ml-6"
+                    )}
+                    aria-hidden
+                  />
+                  <div className={cn("absolute top-1/2 -translate-y-1/2 w-[calc(50%-3.5rem)]", left ? "left-0" : "right-0")}>
+                    <StepCard s={s} />
                   </div>
-                  <p className="text-neutral-gray text-sm leading-relaxed">{s.body}</p>
                 </div>
-              </div>
-            ))}
+              );
+            })}
+          </div>
+
+          {/* Mobile */}
+          <div className="relative md:hidden">
+            <div className="absolute top-6 bottom-6 left-6 border-l-2 border-dashed border-lummy-500/50" aria-hidden />
+            <div className="flex flex-col gap-5">
+              {sections.map((s, i) => (
+                <div key={s.title} className="relative flex gap-4">
+                  <span className={cn("shrink-0", NODE)}>{i + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <StepCard s={s} />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
