@@ -17,12 +17,11 @@ type CardEventProps = {
     title: string,
     location: string,
     category: CategoryT,
-    price: number,
     redirect: string,
     soldOut?: boolean,
 }
 
-const Event = (({className, image, date, title, location, category, price, redirect, soldOut, ...props}: CardEventProps) => {
+const Event = (({className, image, date, title, location, category, redirect, soldOut, ...props}: CardEventProps) => {
     const categoryLabel = useCategoryLabel();
     const badgeClass = {
         Music: "bg-secondary-pink-soft text-secondary-pink-dark",

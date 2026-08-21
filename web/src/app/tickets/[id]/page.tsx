@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/common/Modal";
-import { useAccessGuard } from "@/lib/access";
+import { useAccessGuard, useHydrated } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters } from "@/lib/i18n";
 import { EscrowStatusPill } from "@/components/common/EscrowStatusPill";
@@ -66,7 +66,7 @@ export default function OrderDetailPage() {
   const refundPostponed = useOrders((s) => s.refundPostponed);
   const user = useUser((s) => s.user);
 
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const [now, setNow] = useState(() => Date.now());
   const [acting, setActing] = useState(false);
   const [showKuasa, setShowKuasa] = useState(false);
@@ -81,7 +81,6 @@ export default function OrderDetailPage() {
   const [note, setNote] = useState("");
   const [attested, setAttested] = useState(false);
 
-  useEffect(() => setMounted(true), []);
 
   // One ticking clock drives the countdown and the automatic payout, so the
   // page never shows a window that has silently expired.
@@ -179,9 +178,9 @@ export default function OrderDetailPage() {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[1.4fr_1fr] gap-6">
+      <div className="grid lg:grid-cols-[1.4fr_1fr] gap-6 min-w-0">
         {/* Escrow */}
-        <div className="bg-neutral-white rounded-3xl border border-lummy-500 p-6">
+        <div className="bg-neutral-white rounded-3xl border border-lummy-500 p-6 min-w-0">
           <div className="flex items-center justify-between gap-3 mb-4">
             <span className="font-fredoka font-semibold text-neutral-black flex items-center gap-2">
               <Lock className="w-5 h-5 text-lummy-500" /> {t("Escrow", "Escrow")}
@@ -309,6 +308,20 @@ export default function OrderDetailPage() {
                   </span>
                 </div>
                 {filedCheck?.checks.map((c) => <CheckRow key={c.label.en} ok={c.ok} label={t(c.label.en, c.label.id)} detail={t(c.detail.en, c.detail.id)} />)}
+                {(order.dispute.replies ?? []).map((r, i) => (
+                  <div key={i} className="mt-3 pt-3 border-t border-dashed border-neutral-light-gray-1 text-xs">
+                    <span className={`font-medium ${r.fromSeller ? "text-primary-navy" : "text-secondary-orange-dark"}`}>
+                      {r.fromSeller ? t("The seller answered", "Penjual menjawab") : t("You added", "Kamu menambahkan")}
+                    </span>
+                    <span className="text-neutral-gray"> · {formatDateTime(r.atISO)}</span>
+                    <p className="text-neutral-gray italic mt-0.5">&ldquo;{t(r.note.en, r.note.id)}&rdquo;</p>
+                    {r.evidence && (
+                      <span className="flex items-center gap-1.5 mt-1 font-mono text-neutral-black">
+                        <Paperclip className="w-3 h-3 shrink-0" /> {r.evidence.fileName}
+                      </span>
+                    )}
+                  </div>
+                ))}
                 {order.dispute.verdict && (
                   <div className="mt-3 pt-3 border-t border-dashed border-neutral-light-gray-1">
                     <div className="text-xs font-semibold text-neutral-black flex items-center gap-1.5">
@@ -466,7 +479,7 @@ export default function OrderDetailPage() {
         </div>
 
         {/* Documents */}
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 min-w-0">
           <div className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
             <h4 className="font-fredoka font-semibold text-neutral-black mb-3">{t("Handover documents", "Dokumen serah-terima")}</h4>
             <button onClick={() => { setShowKuasa(true); markDocsAccessed(order.id, "letter"); }} className="w-full flex items-center gap-3 p-3 rounded-2xl border border-neutral-light-gray-1 hover:border-lummy-500 transition cursor-pointer text-left">

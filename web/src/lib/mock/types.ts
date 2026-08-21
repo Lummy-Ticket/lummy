@@ -135,6 +135,18 @@ export interface DisputeVerdict {
   decidedAtISO: string;
 }
 
+/**
+ * A reply on a claim. Deciding on the filer's word alone is how a marketplace
+ * ends up refunding people who actually walked in, so the other side gets to
+ * answer before an arbiter looks at it.
+ */
+export interface DisputeReply {
+  fromSeller: boolean;
+  note: { en: string; id: string };
+  evidence?: DisputeEvidence;
+  atISO: string;
+}
+
 export interface Dispute {
   reason: DisputeReason;
   /** Free text. Seeded demo notes carry both languages; anything a buyer types
@@ -143,6 +155,8 @@ export interface Dispute {
   /** Absent for claims the platform settles from its own records. */
   evidence?: DisputeEvidence;
   openedAtISO: string;
+  /** Replies from either side, oldest first. */
+  replies?: DisputeReply[];
   verdict?: DisputeVerdict;
 }
 

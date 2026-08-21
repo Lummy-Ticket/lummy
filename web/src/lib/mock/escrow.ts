@@ -183,7 +183,7 @@ export function reasonBlockedNote(o: Order, r: ReasonMeta, now: number = Date.no
 // --- Evidence -----------------------------------------------------------------
 
 /** Could this file plausibly have been shot at the gate? */
-export function inGateWindow(o: Order, capturedAtISO: string) {
+function inGateWindow(o: Order, capturedAtISO: string) {
   const opens = new Date(o.eventDateISO).getTime() - GATE_GRACE_H * H;
   const closes = new Date(scheduledEndISO(o)).getTime() + GATE_GRACE_H * H;
   const t = new Date(capturedAtISO).getTime();
@@ -456,6 +456,30 @@ export function mockEvidenceOptions(o: Order, reason: DisputeReason): DisputeEvi
       fileName: "screenshot-next-morning.png",
       kind: "CHAT_LOG",
       capturedAtISO: new Date(start + 18 * H).toISOString(),
+      atVenue: false,
+      showsBarcode: false,
+    },
+  ];
+}
+
+/**
+ * What a seller can put forward against a claim. The strong one is the handover
+ * thread with a timestamp; the weak one is an assertion with nothing behind it.
+ */
+export function mockSellerEvidence(o: Order): DisputeEvidence[] {
+  const start = new Date(o.eventDateISO).getTime();
+  return [
+    {
+      fileName: "handover-chat.png",
+      kind: "CHAT_LOG",
+      capturedAtISO: new Date(start - 36 * H).toISOString(),
+      atVenue: false,
+      showsBarcode: true,
+    },
+    {
+      fileName: "my-screenshot.png",
+      kind: "CHAT_LOG",
+      capturedAtISO: new Date(start + 30 * H).toISOString(),
       atVenue: false,
       showsBarcode: false,
     },

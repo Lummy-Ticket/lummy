@@ -7,6 +7,7 @@ import { Search, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { SelectMenu } from "@/components/ui/select-menu";
+import { DualRangeSlider } from "@/components/ui/dual-range-slider";
 import {
   getEvents,
 } from "@/lib/mock";
@@ -17,9 +18,14 @@ const events = getEvents();
 const categories = ["All", ...Array.from(new Set(events.map((e) => e.category)))];
 const cities = ["All cities", ...Array.from(new Set(events.map((e) => e.city)))];
 
+// Round the bounds outward so the handles land on tidy numbers.
+const STEP = 100_000;
+const PRICE_MIN = Math.floor(Math.min(...events.map((e) => e.fromPrice)) / STEP) * STEP;
+const PRICE_MAX = Math.ceil(Math.max(...events.map((e) => e.fromPrice)) / STEP) * STEP;
+
 function EventsInner() {
   const t = useT();
-  const { formatEventDate } = useFormatters();
+  const { formatEventDate, formatIDR } = useFormatters();
   const categoryLabel = useCategoryLabel();
   // Deep links from home: ?q= (search) and ?cat= (category).
   const params = useSearchParams();
@@ -27,6 +33,7 @@ function EventsInner() {
   const [query, setQuery] = useState(params.get("q") ?? "");
   const [cat, setCat] = useState(catParam && categories.includes(catParam) ? catParam : "All");
   const [city, setCity] = useState("All cities");
+  const [price, setPrice] = useState<[number, number]>([PRICE_MIN, PRICE_MAX]);
 
   const filtered = useMemo(
     () =>
@@ -35,9 +42,10 @@ function EventsInner() {
         const matchCity = city === "All cities" || e.city === city;
         const q = query.toLowerCase().trim();
         const matchQ = !q || e.title.toLowerCase().includes(q) || e.city.toLowerCase().includes(q) || e.venue.toLowerCase().includes(q);
-        return matchCat && matchCity && matchQ;
+        const matchPrice = e.fromPrice >= price[0] && e.fromPrice <= price[1];
+        return matchCat && matchCity && matchQ && matchPrice;
       }),
-    [query, cat, city]
+    [query, cat, city, price]
   );
 
   return (
@@ -67,6 +75,23 @@ function EventsInner() {
             className="sm:w-52"
           />
         </div>
+        <div className="max-w-md">
+          <div className="flex items-center justify-between text-xs text-neutral-gray mb-2">
+            <span>{t("Price from", "Harga mulai")}</span>
+            <span className="font-medium text-neutral-black">
+              {formatIDR(price[0])} - {formatIDR(price[1])}
+            </span>
+          </div>
+          <DualRangeSlider
+            min={PRICE_MIN}
+            max={PRICE_MAX}
+            step={STEP}
+            valueMin={price[0]}
+            valueMax={price[1]}
+            onChange={(lo, hi) => setPrice([lo, hi])}
+          />
+        </div>
+
         <div className="flex flex-wrap gap-2">
           {categories.map((c) => (
             <button
@@ -95,8 +120,7 @@ function EventsInner() {
               title={e.title}
               location={`${e.venue}, ${e.city}`}
               category={e.category}
-              price={e.fromPrice}
-              redirect={`/events/${e.id}`}
+                  redirect={`/events/${e.id}`}
               soldOut={e.soldOut}
             />
           ))}

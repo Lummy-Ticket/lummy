@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import toast from "react-hot-toast";
 import { Mail, Phone, ShieldCheck, BadgeCheck, Bell, X, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import {
   useUser, useProfile, useAlerts, type AlertChannel, type PayoutBank,
 } from "@/lib/mock";
 import { PageContainer } from "@/components/layout/PageContainer";
-import { useAccessGuard } from "@/lib/access";
+import { useAccessGuard, useHydrated } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
 import { useT } from "@/lib/i18n";
 
@@ -32,7 +32,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function ProfilePage() {
   const t = useT();
   const ready = useAccessGuard("account");
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const user = useUser((s) => s.user);
   const { phone, kycVerified, payoutBank, payoutNumber, setPhone, verifyKyc, setPayout } = useProfile();
   const channel = useAlerts((s) => s.channel);
@@ -40,16 +40,14 @@ export default function ProfilePage() {
   const subs = useAlerts((s) => s.subs);
   const unsubscribe = useAlerts((s) => s.unsubscribe);
 
-  const [phoneVal, setPhoneVal] = useState("");
-  const [bank, setBank] = useState<PayoutBank>("BCA");
-  const [acct, setAcct] = useState("");
-
-  useEffect(() => {
-    setMounted(true);
-    setPhoneVal(useProfile.getState().phone);
-    if (useProfile.getState().payoutBank) setBank(useProfile.getState().payoutBank!);
-    setAcct(useProfile.getState().payoutNumber);
-  }, []);
+  // Drafts are null until the field is touched, so what you see is whatever the
+  // store holds, with no second copy to fall out of sync.
+  const [phoneDraft, setPhoneDraft] = useState<string | null>(null);
+  const [bankDraft, setBankDraft] = useState<PayoutBank | null>(null);
+  const [acctDraft, setAcctDraft] = useState<string | null>(null);
+  const phoneVal = phoneDraft ?? phone;
+  const bank = bankDraft ?? payoutBank ?? "BCA";
+  const acct = acctDraft ?? payoutNumber;
 
   if (!mounted) return <div className="pt-28 pb-16 text-center text-neutral-gray">{t("Loading...", "Memuat...")}</div>;
 
@@ -76,7 +74,7 @@ export default function ProfilePage() {
             <span className="text-xs text-neutral-gray">{t("WhatsApp number", "Nomor WhatsApp")}</span>
             <div className="flex items-center gap-2 rounded-xl border border-lummy-500 px-4 py-3">
               <Phone className="w-4 h-4 text-neutral-gray" />
-              <input value={phoneVal} onChange={(e) => setPhoneVal(e.target.value)} className="w-full outline-none text-sm text-neutral-black" />
+              <input value={phoneVal} onChange={(e) => setPhoneDraft(e.target.value)} className="w-full outline-none text-sm text-neutral-black" />
             </div>
           </label>
           <Button.Primary wrapperClass="w-fit" className="text-sm" onClick={() => { setPhone(phoneVal); toast.success(t("Profile saved", "Profil disimpan")); }}>{t("Save", "Simpan")}</Button.Primary>
@@ -143,7 +141,7 @@ export default function ProfilePage() {
               <span className="text-xs text-neutral-gray">{t("Bank", "Bank")}</span>
               <div className="grid grid-cols-4 gap-2 mt-1.5">
                 {BANKS.map((b) => (
-                  <button key={b} onClick={() => setBank(b)} className={`px-2 py-2 rounded-lg text-sm border cursor-pointer ${bank === b ? "bg-primary-navy text-white border-primary-navy" : "bg-neutral-white text-neutral-gray border-neutral-light-gray-1"}`}>{b}</button>
+                  <button key={b} onClick={() => setBankDraft(b)} className={`px-2 py-2 rounded-lg text-sm border cursor-pointer ${bank === b ? "bg-primary-navy text-white border-primary-navy" : "bg-neutral-white text-neutral-gray border-neutral-light-gray-1"}`}>{b}</button>
                 ))}
               </div>
             </div>
@@ -151,7 +149,7 @@ export default function ProfilePage() {
               <span className="text-xs text-neutral-gray">{t("Account number", "Nomor rekening")}</span>
               <div className="flex items-center gap-2 rounded-xl border border-lummy-500 px-4 py-3">
                 <Building2 className="w-4 h-4 text-neutral-gray" />
-                <input value={acct} onChange={(e) => setAcct(e.target.value)} placeholder="1234567890" className="w-full outline-none text-sm text-neutral-black" />
+                <input value={acct} onChange={(e) => setAcctDraft(e.target.value)} placeholder="1234567890" className="w-full outline-none text-sm text-neutral-black" />
               </div>
             </label>
             {payoutBank && <p className="text-xs text-secondary-green-dark">{t("Saved", "Tersimpan")}: {payoutBank} · {payoutNumber}</p>}

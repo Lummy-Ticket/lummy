@@ -41,6 +41,9 @@ const Secondary = React.forwardRef<HTMLButtonElement, AdditionalProps> (({classN
   );
 });
 
+Primary.displayName = "Button.Primary";
+Secondary.displayName = "Button.Secondary";
+
 const Button = {
   Primary,
   Secondary

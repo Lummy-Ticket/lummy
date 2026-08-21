@@ -83,6 +83,16 @@ export default function EventDetailPage() {
   const [sort, setSort] = useState<SortId>("cheap");
   const [qty, setQty] = useState(2);
 
+  // Hooks run before any early return, so the order stays identical on every
+  // render even when the event id does not resolve.
+  const listings = useMemo(() => (event ? getListingsByEvent(event.id) : []), [event]);
+  // Viagogo-style filter: show sets that can satisfy qty (>=N); non-splittable only at exactly N.
+  const visibleListings = useMemo(() => {
+    const arr = listings.filter((l) => l.quantity >= qty && (l.splittable || l.quantity === qty));
+    if (sort === "cheap") arr.sort((a, b) => a.askPrice - b.askPrice); // per ticket
+    return arr;
+  }, [listings, sort, qty]);
+
   if (!event) {
     return (
       <div className="max-w-4xl mx-auto px-5 lg:px-10 pt-28 pb-16 text-center flex flex-col items-center gap-4">
@@ -92,14 +102,6 @@ export default function EventDetailPage() {
       </div>
     );
   }
-
-  const listings = getListingsByEvent(event.id);
-  // Viagogo-style filter: show sets that can satisfy qty (>=N); non-splittable only at exactly N.
-  const visibleListings = useMemo(() => {
-    const arr = listings.filter((l) => l.quantity >= qty && (l.splittable || l.quantity === qty));
-    if (sort === "cheap") arr.sort((a, b) => a.askPrice - b.askPrice); // per ticket
-    return arr;
-  }, [listings, sort, qty]);
   const buyable = visibleListings.filter((l) => !l.ai.barcodeDuplicate && !(l.ai.pdfSuspicious || l.ai.forgeryScore >= 60));
   const cheapest = buyable.length ? Math.min(...buyable.map((l) => l.askPrice)) : 0;
 

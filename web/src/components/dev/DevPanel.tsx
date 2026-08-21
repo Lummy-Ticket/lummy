@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FlaskConical, RotateCcw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser, type Role } from "@/lib/mock";
+import { useHydrated } from "@/lib/access";
 import { useT } from "@/lib/i18n";
 
 const ROLES: { role: Role; en: string; id: string; home: string }[] = [
@@ -15,7 +16,7 @@ const ROLES: { role: Role; en: string; id: string; home: string }[] = [
 
 export default function DevPanel() {
   const t = useT();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const [open, setOpen] = useState(false);
   const router = useRouter();
   const user = useUser((s) => s.user);
@@ -23,7 +24,6 @@ export default function DevPanel() {
   const login = useUser((s) => s.login);
   const logout = useUser((s) => s.logout);
 
-  useEffect(() => setMounted(true), []);
   if (!mounted) return null;
 
   const reset = () => {

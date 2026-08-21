@@ -1,18 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { Plus, Eye, Megaphone, Copy, ExternalLink, ShieldCheck, Search, Clock } from "lucide-react";
+import { Plus, Eye, Megaphone, Copy, ExternalLink, ShieldCheck, Search, Clock, Scale, Paperclip, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/common/Modal";
 import { PageContainer } from "@/components/layout/PageContainer";
 import {
-  useSellerListings, sellerPenalty, SELLER_PENALTY_PCT, getEventById,
-  EVENT_DURATION_H, DISPUTE_WINDOW_H, type SellerListing,
+  useSellerListings, useOrders, useUser, reasonMeta, mockSellerEvidence,
+  sellerPenalty, SELLER_PENALTY_PCT, getEventById,
+  EVENT_DURATION_H, DISPUTE_WINDOW_H, type SellerListing, type Order, type DisputeEvidence,
 } from "@/lib/mock";
-import { useAccessGuard } from "@/lib/access";
+import { useAccessGuard, useHydrated } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters } from "@/lib/i18n";
 
@@ -67,14 +68,120 @@ function PromoteModal({ listing, onClose }: { listing: SellerListing | null; onC
   );
 }
 
+/**
+ * Claims filed against this seller. Deciding on the buyer's word alone would
+ * make a false claim cheap, so the seller answers here before staff rules.
+ */
+function ClaimsAgainstYou({ orders }: { orders: Order[] }) {
+  const t = useT();
+  const { formatIDR, formatDateTime } = useFormatters();
+  const reply = useOrders((s) => s.replyToDispute);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [note, setNote] = useState("");
+  const [file, setFile] = useState<DisputeEvidence | null>(null);
+
+  if (orders.length === 0) return null;
+
+  const send = (o: Order) => {
+    reply(o.id, { fromSeller: true, note: { en: note, id: note }, evidence: file ?? undefined });
+    setOpenId(null); setNote(""); setFile(null);
+    toast.success(t("Your answer was added to the claim", "Jawabanmu ditambahkan ke klaim"));
+  };
+
+  return (
+    <div className="mb-8">
+      <h3 className="font-fredoka font-semibold text-neutral-black flex items-center gap-2 mb-1">
+        <Scale className="w-4 h-4 text-secondary-orange-dark" /> {t("Claims against you", "Klaim terhadap kamu")}
+        <span className="text-neutral-gray font-normal text-sm">({orders.length})</span>
+      </h3>
+      <p className="text-sm text-neutral-gray mb-3">
+        {t(
+          "Nothing has been decided yet. Answer while the money is still held, because staff reads both sides before ruling.",
+          "Belum ada yang diputuskan. Jawab selagi dananya masih ditahan, karena staf membaca kedua sisi sebelum memutus."
+        )}
+      </p>
+      <div className="flex flex-col gap-3">
+        {orders.map((o) => {
+          const answered = (o.dispute?.replies ?? []).some((r) => r.fromSeller);
+          return (
+            <div key={o.id} className="bg-neutral-white rounded-2xl border border-secondary-orange-dark/30 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h4 className="font-fredoka font-semibold text-neutral-black truncate">{o.eventTitle}</h4>
+                  <div className="text-xs text-secondary-orange-dark mt-1">
+                    {t(reasonMeta(o.dispute!.reason).label.en, reasonMeta(o.dispute!.reason).label.id)}
+                    <span className="text-neutral-gray"> · {formatDateTime(o.dispute!.openedAtISO)}</span>
+                  </div>
+                </div>
+                <span className="font-fredoka font-bold text-lummy-500 text-nowrap">{formatIDR(o.amount)}</span>
+              </div>
+
+              {o.dispute?.note && (
+                <p className="text-xs text-neutral-gray italic mt-2">&ldquo;{t(o.dispute.note.en, o.dispute.note.id)}&rdquo;</p>
+              )}
+
+              {answered ? (
+                <p className="text-xs text-secondary-green-dark mt-3 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> {t("Your answer is on file, waiting on staff", "Jawabanmu sudah masuk, menunggu staf")}
+                </p>
+              ) : openId === o.id ? (
+                <div className="mt-3 flex flex-col gap-2">
+                  <textarea
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    rows={2}
+                    placeholder={t("What actually happened, in your words...", "Apa yang sebenarnya terjadi, menurut kamu...")}
+                    className="w-full rounded-xl border border-neutral-light-gray-1 focus:border-lummy-500 px-3 py-2 text-sm outline-none resize-none"
+                  />
+                  <span className="text-xs text-neutral-gray">{t("Attach something, if you have it", "Lampirkan sesuatu, kalau ada")}</span>
+                  {mockSellerEvidence(o).map((ev) => (
+                    <button
+                      key={ev.fileName}
+                      onClick={() => setFile(ev)}
+                      className={`w-full flex items-center gap-2 p-2.5 rounded-xl border text-left transition cursor-pointer ${file?.fileName === ev.fileName ? "border-lummy-500 bg-secondary-blue-light" : "border-dashed border-neutral-light-gray-1 hover:border-lummy-500"}`}
+                    >
+                      <Paperclip className="w-3.5 h-3.5 shrink-0 text-neutral-gray" />
+                      <span className="text-xs font-mono truncate">{ev.fileName}</span>
+                    </button>
+                  ))}
+                  <div className="flex gap-2 mt-1">
+                    <button onClick={() => { setOpenId(null); setNote(""); setFile(null); }} className="px-3 py-2 rounded-xl border border-neutral-light-gray-1 text-xs text-neutral-gray cursor-pointer">
+                      {t("Cancel", "Batal")}
+                    </button>
+                    <Button.Primary className="text-xs px-4 py-2" disabled={!note.trim()} onClick={() => send(o)}>
+                      {t("Send answer", "Kirim jawaban")}
+                    </Button.Primary>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setOpenId(o.id)}
+                  className="mt-3 text-xs font-medium text-primary-navy hover:opacity-80 cursor-pointer"
+                >
+                  {t("Answer this claim", "Jawab klaim ini")}
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function SellerPage() {
   const t = useT();
   const ready = useAccessGuard("account");
   const { formatIDR, formatEventDate } = useFormatters();
-  const [mounted, setMounted] = useState(false);
+  const user = useUser((s) => s.user);
+  const orders = useOrders((s) => s.orders);
+  // One reading of the clock per render, so the same list cannot disagree with itself.
+  const [now] = useState(() => Date.now());
+  // Claims land on the seller whose name is on the sale.
+  const claims = orders.filter((o) => o.escrowStatus === "DISPUTED" && o.sellerName === user?.name);
+  const mounted = useHydrated();
   const listings = useSellerListings((s) => s.listings);
   const [promote, setPromote] = useState<SellerListing | null>(null);
-  useEffect(() => setMounted(true), []);
 
   const active = listings.filter((l) => l.status === "active");
   const sold = listings.filter((l) => l.status === "sold");
@@ -90,7 +197,7 @@ export default function SellerPage() {
     const ev = getEventById(l.eventId);
     if (!ev) return null;
     const due = new Date(new Date(ev.dateISO).getTime() + (EVENT_DURATION_H + DISPUTE_WINDOW_H) * 3_600_000);
-    return due.getTime() < Date.now()
+    return due.getTime() < now
       ? t("Paid out", "Sudah cair")
       : t(`Pays out ${formatEventDate(due.toISOString())}`, `Cair ${formatEventDate(due.toISOString())}`);
   };
@@ -111,6 +218,8 @@ export default function SellerPage() {
         <Stat label={t("Estimated payout", "Estimasi pendapatan")} value={formatIDR(est)} />
       </div>
 
+      <ClaimsAgainstYou orders={claims} />
+
       {/* The whole model rests on cheating costing more than it earns. That is
           only credible if a seller can see the number before they list. */}
       <div className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5 mb-8">
@@ -119,7 +228,7 @@ export default function SellerPage() {
         </h3>
         <div className="flex flex-wrap gap-x-8 gap-y-3 mt-3">
           <div>
-            <div className="text-xs text-neutral-gray">{t("Upheld claims against you", "Klaim yang dikabulkan")}</div>
+            <div className="text-xs text-neutral-gray">{t("Claims upheld", "Klaim dikabulkan")}</div>
             <div className="font-fredoka font-bold text-xl text-secondary-green-dark">0</div>
           </div>
           <div>

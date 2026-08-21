@@ -30,7 +30,6 @@ function EventGrid({ events }: { events: ReturnType<typeof getEvents> }) {
           title={e.title}
           location={`${e.venue}, ${e.city}`}
           category={e.category}
-          price={e.fromPrice}
           redirect={`/events/${e.id}`}
           soldOut={e.soldOut}
         />

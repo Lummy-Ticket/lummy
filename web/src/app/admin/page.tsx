@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import {
   CheckCircle2, XCircle, AlertTriangle, Sparkles, Calendar, MapPin, Scale, Paperclip,
@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/common/Modal";
-import { useAccessGuard } from "@/lib/access";
+import { useAccessGuard, useHydrated } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 import { PageContainer } from "@/components/layout/PageContainer";
@@ -57,6 +57,25 @@ function EvidencePanel({ order }: { order: Order }) {
             </div>
           ))}
         </div>
+        {(d.replies ?? []).length > 0 && (
+          <div className="mt-3 pt-3 border-t border-dashed border-neutral-light-gray-1 flex flex-col gap-2">
+            {(d.replies ?? []).map((r, i) => (
+              <div key={i} className="text-xs">
+                <span className={`font-medium ${r.fromSeller ? "text-primary-navy" : "text-secondary-orange-dark"}`}>
+                  {r.fromSeller ? t("Seller replied", "Penjual menjawab") : t("Buyer replied", "Pembeli menjawab")}
+                </span>
+                <span className="text-neutral-gray"> · {formatDateTime(r.atISO)}</span>
+                <p className="text-neutral-gray italic mt-0.5">&ldquo;{t(r.note.en, r.note.id)}&rdquo;</p>
+                {r.evidence && (
+                  <span className="flex items-center gap-1.5 mt-1 font-mono text-neutral-black">
+                    <Paperclip className="w-3 h-3 shrink-0" /> {r.evidence.fileName}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="mt-3 pt-3 border-t border-dashed border-neutral-light-gray-1 flex flex-wrap gap-x-5 gap-y-1 text-xs text-neutral-gray">
           {d.evidence && <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {t("Captured", "Diambil")} {formatDateTime(d.evidence.capturedAtISO)}</span>}
           <span className="flex items-center gap-1.5"><Gavel className="w-3.5 h-3.5" /> {t("Filed", "Diajukan")} {formatDateTime(d.openedAtISO)}</span>
@@ -172,7 +191,7 @@ export default function AdminPage() {
   const ready = useAccessGuard("staff");
   const { formatIDR, formatEventDate } = useFormatters();
   const categoryLabel = useCategoryLabel();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const [confirmReq, setConfirmReq] = useState<EventRequest | null>(null);
   const requests = useEventRequests((s) => s.requests);
   const approve = useEventRequests((s) => s.approve);
@@ -183,7 +202,6 @@ export default function AdminPage() {
   const approveListing = useSellerListings((s) => s.approve);
   const rejectListing = useSellerListings((s) => s.reject);
   const [tab, setTab] = useState<"claims" | "listings" | "events">("claims");
-  useEffect(() => setMounted(true), []);
 
   const disputes = orders.filter((o) => o.escrowStatus === "DISPUTED");
   const held = listings.filter((l) => l.status === "review");
@@ -281,6 +299,14 @@ export default function AdminPage() {
 
                   <EvidencePanel order={o} />
 
+                  {!(o.dispute!.replies ?? []).some((r) => r.fromSeller) && (
+                    <p className="text-xs text-secondary-brown-dark bg-secondary-gold-soft rounded-xl px-3 py-2 mt-3">
+                      {t(
+                        "The seller has not answered yet. You can still rule, but a decision reads better once both sides are on file.",
+                        "Penjual belum menjawab. Kamu tetap boleh memutus, tapi putusannya lebih kuat kalau kedua sisi sudah masuk."
+                      )}
+                    </p>
+                  )}
                   <p className="text-xs text-neutral-gray mt-3 flex gap-2">
                     <Gavel className="w-4 h-4 shrink-0 text-neutral-gray mt-0.5" />
                     <span>

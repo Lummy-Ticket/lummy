@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Dispute, DisputeEvidence, DisputeReason, EventItem, Listing, Order, Remedy, Tier } from "./types";
+import type { Dispute, DisputeEvidence, DisputeReason, DisputeReply, EventItem, Listing, Order, Remedy, Tier } from "./types";
 import { CONTRACT_ADDRESS, mockTxHash } from "./util";
 import { DISPUTE_WINDOW_H, canFileDispute, disputeDeadlineISO, partialAmount, sellerPenalty } from "./escrow";
 
@@ -48,7 +48,7 @@ const seedOrders = (): Order[] => [
     id: "or-seed-4", listingId: "ls-x3", eventId: "ev-pandji",
     eventTitle: "Pandji Pragiwaksono: Menyala, Bandung",
     eventImage: "/assets/events/pandji-hd.jpg",
-    eventDateISO: ago(30), tierName: "Silver", sellerName: "Dinda K.",
+    eventDateISO: ago(30), tierName: "Silver", sellerName: "Zahra Amelia",
     quantity: 1, amount: 430_000, gateKtp: false, escrowStatus: "DISPUTED",
     contractAddress: CONTRACT_ADDRESS, fundTxHash: mockTxHash(),
     createdAtISO: ago(24 * 24), eventEndedAtISO: ago(26),
@@ -118,6 +118,8 @@ interface OrderState {
   /** Pays out every locked order whose window has elapsed in silence. */
   sweepAutoRelease: () => void;
   openDispute: (id: string, input: { reason: DisputeReason; note: { en: string; id: string }; evidence?: DisputeEvidence }) => void;
+  /** Either side answering an open claim, before the arbiter rules. */
+  replyToDispute: (id: string, reply: Omit<DisputeReply, "atISO">) => void;
   /** Records that the buyer opened a handover document. This log is what
    *  settles a later "never handed over" claim, in either direction. */
   markDocsAccessed: (id: string, which: "letter" | "sellerId") => void;
@@ -229,6 +231,21 @@ export const useOrders = create<OrderState>()(
               },
             };
           }),
+        })),
+
+      replyToDispute: (id, reply) =>
+        set((s) => ({
+          orders: patch(s.orders, id, (o) =>
+            o.escrowStatus === "DISPUTED" && o.dispute
+              ? {
+                  ...o,
+                  dispute: {
+                    ...o.dispute,
+                    replies: [...(o.dispute.replies ?? []), { ...reply, atISO: new Date().toISOString() }],
+                  },
+                }
+              : o
+          ),
         })),
 
       markDocsAccessed: (id, which) =>

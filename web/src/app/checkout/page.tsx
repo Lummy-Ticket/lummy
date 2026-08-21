@@ -73,9 +73,9 @@ function CheckoutInner() {
 
       <div className="grid lg:grid-cols-[1.5fr_1fr] gap-6">
         {/* Left */}
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-5 min-w-0">
           {/* Item */}
-          <div className="bg-neutral-white rounded-2xl border border-neutral-light-gray-1 p-4 flex gap-4">
+          <div className="bg-neutral-white rounded-2xl border border-neutral-light-gray-1 p-4 flex gap-4 min-w-0">
             <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-neutral-light-gray-1 shrink-0">
               <Image src={event.image} alt={event.title} fill className="object-cover" />
             </div>
@@ -101,13 +101,13 @@ function CheckoutInner() {
                 <button
                   key={m.id}
                   onClick={() => setMethod(m.id)}
-                  className={`text-left p-3 rounded-xl border-2 transition cursor-pointer ${
+                  className={`text-left p-3 rounded-xl border-2 transition cursor-pointer min-w-0 ${
                     method === m.id ? "border-lummy-500 bg-secondary-blue-light" : "border-neutral-light-gray-1 hover:border-lummy-500"
                   }`}
                 >
                   <m.Icon className="w-5 h-5 text-lummy-500 mb-1" />
                   <div className="font-medium text-sm text-neutral-black">{m.label}</div>
-                  <div className="text-xs text-neutral-gray">{m.desc}</div>
+                  <div className="text-xs text-neutral-gray break-words">{m.desc}</div>
                 </button>
               ))}
             </div>

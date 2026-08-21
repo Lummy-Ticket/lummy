@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Logo } from "./Logo";
 import { Button } from "@/components/ui/button";
 import { useUser, isDemoMode, type Role } from "@/lib/mock";
+import { useHydrated } from "@/lib/access";
 import { useT } from "@/lib/i18n";
 import { LangToggle } from "./LangToggle";
 
@@ -57,7 +58,7 @@ export function Navbar() {
     router.push(ROLE_HOME[r]);
   };
 
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const [scrolled, setScrolled] = useState(false);
   const [roleOpen, setRoleOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
@@ -69,7 +70,6 @@ export function Navbar() {
 
   const links = mounted && user ? ROLE_LINKS[user.role] : GUEST_LINKS;
 
-  useEffect(() => setMounted(true), []);
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
     onScroll();
