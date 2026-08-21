@@ -54,7 +54,10 @@ const seedOrders = (): Order[] => [
     createdAtISO: ago(24 * 24), eventEndedAtISO: ago(26),
     dispute: {
       reason: "BARCODE_USED",
-      note: "Scanner showed the code had already been used. Staff turned me away at gate 3.",
+      note: {
+        en: "Scanner showed the code had already been used. Staff turned me away at gate 3.",
+        id: "Scanner menunjukkan kodenya sudah pernah dipakai. Petugas menolak saya di gate 3.",
+      },
       evidence: {
         fileName: "gate-scanner-rejected.jpg",
         kind: "SCANNER_PHOTO",
@@ -75,7 +78,10 @@ const seedOrders = (): Order[] => [
     createdAtISO: ago(40 * 24), eventEndedAtISO: ago(21 * 24 - 4),
     dispute: {
       reason: "GATE_DENIED",
-      note: "Barcode was rejected twice, the crew wrote a rejection note.",
+      note: {
+        en: "Barcode was rejected twice, the crew wrote a rejection note.",
+        id: "Barcode ditolak dua kali, petugas menuliskan surat penolakan.",
+      },
       evidence: {
         fileName: "staff-rejection-note.jpg",
         kind: "STAFF_LETTER",
@@ -85,7 +91,10 @@ const seedOrders = (): Order[] => [
       openedAtISO: ago(21 * 24 - 6),
       verdict: {
         toSeller: false,
-        rationale: "Gate-time evidence is consistent with a denied entry: timestamp and location both check out.",
+        rationale: {
+          en: "Gate-time evidence is consistent with a denied entry: timestamp and location both check out.",
+          id: "Bukti dari gate konsisten dengan penolakan masuk: waktu dan lokasi sama-sama cocok.",
+        },
         decidedAtISO: ago(20 * 24),
       },
     },
@@ -103,8 +112,8 @@ interface OrderState {
   fastForwardWindow: (id: string) => void;
   /** Pays out every locked order whose window has elapsed in silence. */
   sweepAutoRelease: () => void;
-  openDispute: (id: string, input: { reason: DisputeReason; note: string; evidence: DisputeEvidence }) => void;
-  resolveDispute: (id: string, toSeller: boolean, rationale: string) => void;
+  openDispute: (id: string, input: { reason: DisputeReason; note: { en: string; id: string }; evidence: DisputeEvidence }) => void;
+  resolveDispute: (id: string, toSeller: boolean, rationale: { en: string; id: string }) => void;
   getById: (id: string) => Order | undefined;
 }
 

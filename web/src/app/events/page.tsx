@@ -7,15 +7,20 @@ import { Search, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { SelectMenu } from "@/components/ui/select-menu";
-import { getEvents, formatEventDate } from "@/lib/mock";
+import {
+  getEvents,
+} from "@/lib/mock";
 import { PageContainer } from "@/components/layout/PageContainer";
-import { SubId } from "@/components/common/Bilingual";
+import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 
 const events = getEvents();
 const categories = ["All", ...Array.from(new Set(events.map((e) => e.category)))];
 const cities = ["All cities", ...Array.from(new Set(events.map((e) => e.city)))];
 
 function EventsInner() {
+  const t = useT();
+  const { formatEventDate } = useFormatters();
+  const categoryLabel = useCategoryLabel();
   // Deep links from home: ?q= (search) and ?cat= (category).
   const params = useSearchParams();
   const catParam = params.get("cat");
@@ -38,8 +43,8 @@ function EventsInner() {
   return (
     <PageContainer width="wide">
       <div className="mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold text-neutral-black">Browse events</h1>
-        <SubId className="mt-2">Tiket resale terverifikasi, dijaga escrow sampai konser selesai.</SubId>
+        <h1 className="text-3xl md:text-4xl font-bold text-neutral-black">{t("Browse events", "Jelajah event")}</h1>
+        <p className="text-neutral-gray mt-2">{t("Verified resale tickets, held in escrow until the show is over.", "Tiket resale terverifikasi, dijaga escrow sampai konser selesai.")}</p>
       </div>
 
       {/* Search + filter */}
@@ -50,7 +55,7 @@ function EventsInner() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search events, artists, or cities..."
+              placeholder={t("Search events, artists, or cities...", "Cari event, artis, atau kota...")}
               className="outline-none w-full text-neutral-black placeholder:text-neutral-gray bg-transparent text-sm"
             />
           </div>
@@ -74,7 +79,7 @@ function EventsInner() {
                   : "bg-neutral-white text-neutral-gray border-neutral-light-gray-1 hover:border-primary-navy"
               )}
             >
-              {c}
+              {c === "All" ? t("All", "Semua") : categoryLabel(c)}
             </button>
           ))}
         </div>
@@ -99,7 +104,7 @@ function EventsInner() {
       ) : (
         <div className="flex flex-col items-center text-center py-16 gap-4">
           <Image src="/assets/images/mascot-confused.svg" alt="" width={120} height={120} />
-          <p className="text-neutral-gray">Nothing matches. Try clearing a filter or a different keyword.</p>
+          <p className="text-neutral-gray">{t("Nothing matches. Try clearing a filter or a different keyword.", "Tidak ada yang cocok. Coba hapus filter atau pakai kata kunci lain.")}</p>
         </div>
       )}
     </PageContainer>
@@ -107,8 +112,9 @@ function EventsInner() {
 }
 
 export default function EventsPage() {
+  const t = useT();
   return (
-    <Suspense fallback={<div className="pt-28 pb-16 text-center text-neutral-gray">Loading...</div>}>
+    <Suspense fallback={<div className="pt-28 pb-16 text-center text-neutral-gray">{t("Loading...", "Memuat...")}</div>}>
       <EventsInner />
     </Suspense>
   );

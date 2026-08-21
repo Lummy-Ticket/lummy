@@ -107,13 +107,16 @@ export interface DisputeEvidence {
 
 export interface DisputeVerdict {
   toSeller: boolean;
-  rationale: string;
+  /** Kept in both languages so a stored verdict still follows the language switch. */
+  rationale: { en: string; id: string };
   decidedAtISO: string;
 }
 
 export interface Dispute {
   reason: DisputeReason;
-  note: string;
+  /** Free text. Seeded demo notes carry both languages; anything a buyer types
+   *  is stored as they wrote it, in whichever language they used. */
+  note: { en: string; id: string };
   evidence: DisputeEvidence;
   openedAtISO: string;
   verdict?: DisputeVerdict;

@@ -7,10 +7,13 @@ import { Ticket, ChevronRight, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EscrowStatusPill } from "@/components/common/EscrowStatusPill";
 import { PageContainer } from "@/components/layout/PageContainer";
-import { SubId } from "@/components/common/Bilingual";
-import { useOrders, formatIDR, formatEventDate, phaseOf, msUntilRelease, formatCountdown } from "@/lib/mock";
+import { useT, useFormatters } from "@/lib/i18n";
+import {useOrders, phaseOf, msUntilRelease,
+} from "@/lib/mock";
 
 export default function TicketsPage() {
+  const t = useT();
+  const { formatIDR, formatEventDate, formatCountdown } = useFormatters();
   const orders = useOrders((s) => s.orders);
   const sweepAutoRelease = useOrders((s) => s.sweepAutoRelease);
   const [mounted, setMounted] = useState(false);
@@ -27,18 +30,18 @@ export default function TicketsPage() {
 
   return (
     <PageContainer width="app">
-      <h1 className="text-2xl md:text-3xl font-bold text-neutral-black">My tickets</h1>
-      <SubId className="text-sm mt-1 mb-6">Tiket yang kamu beli, lengkap dengan status dananya.</SubId>
+      <h1 className="text-2xl md:text-3xl font-bold text-neutral-black">{t("My tickets", "Tiket saya")}</h1>
+      <p className="text-neutral-gray text-sm mt-1 mb-6">{t("Everything you bought, with the state of the money.", "Semua yang kamu beli, lengkap dengan status dananya.")}</p>
 
       {!mounted ? (
-        <p className="text-neutral-gray text-sm">Loading...</p>
+        <p className="text-neutral-gray text-sm">{t("Loading...", "Memuat...")}</p>
       ) : orders.length === 0 ? (
         <div className="flex flex-col items-center text-center py-16 gap-4">
           <span className="w-16 h-16 rounded-2xl bg-secondary-blue-soft text-lummy-500 grid place-items-center">
             <Ticket className="w-8 h-8" />
           </span>
-          <p className="text-neutral-gray">No tickets yet. Browse events and buy one that escrow protects.</p>
-          <Link href="/events"><Button.Primary>Browse events</Button.Primary></Link>
+          <p className="text-neutral-gray">{t("No tickets yet. Browse events and buy one that escrow protects.", "Belum ada tiket. Jelajah event dan beli yang dijaga escrow.")}</p>
+          <Link href="/events"><Button.Primary>{t("Browse events", "Jelajah event")}</Button.Primary></Link>
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 gap-4">
@@ -58,7 +61,7 @@ export default function TicketsPage() {
                   <div className="min-w-0 flex-1">
                     <h3 className="font-fredoka font-semibold text-neutral-black truncate">{o.eventTitle}</h3>
                     <p className="text-xs text-neutral-gray mt-0.5">{formatEventDate(o.eventDateISO)}</p>
-                    <p className="text-xs text-neutral-gray">{o.tierName}{o.quantity > 1 ? ` · ${o.quantity} tickets` : ""}</p>
+                    <p className="text-xs text-neutral-gray">{o.tierName}{o.quantity > 1 ? ` · ${o.quantity} ${t("tickets", "tiket")}` : ""}</p>
                     <div className="mt-2"><EscrowStatusPill phase={phase} /></div>
                   </div>
                 </div>
@@ -67,7 +70,7 @@ export default function TicketsPage() {
                 {phase === "WINDOW_OPEN" && (
                   <div className="mt-3 flex items-center gap-1.5 text-xs text-secondary-brown-dark bg-secondary-gold-soft rounded-lg px-2.5 py-1.5">
                     <Timer className="w-3.5 h-3.5 shrink-0" />
-                    Releases in <span className="font-mono font-semibold tabular-nums">{formatCountdown(left)}</span>
+                    {t("Releases in", "Cair dalam")} <span className="font-mono font-semibold tabular-nums">{formatCountdown(left)}</span>
                   </div>
                 )}
 
@@ -75,7 +78,7 @@ export default function TicketsPage() {
                 <div className="grow min-h-4" aria-hidden />
 
                 <div className="-mx-4 -mb-4 px-4 py-3 rounded-b-2xl bg-secondary-cream-light border-t-2 border-dashed border-neutral-light-gray-1 flex items-center justify-between">
-                  <span className="text-xs text-neutral-gray">Total paid</span>
+                  <span className="text-xs text-neutral-gray">{t("Total paid", "Total dibayar")}</span>
                   <span className="font-fredoka font-bold text-lummy-500 flex items-center gap-1">
                     {formatIDR(o.amount)} <ChevronRight className="w-4 h-4 text-neutral-gray group-hover:text-primary-navy transition" />
                   </span>

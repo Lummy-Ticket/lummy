@@ -66,13 +66,19 @@ export function inGateWindow(o: Order, capturedAtISO: string) {
   return t >= opens && t <= closes;
 }
 
+/** Copy that the UI renders, carried in both languages. */
+export interface Bi {
+  en: string;
+  id: string;
+}
+
 export interface EvidenceCheck {
   withinGateWindow: boolean;
   atVenue: boolean;
   filedInTime: boolean;
   /** STRONG only when every automated check passes. The arbiter still decides. */
   strength: "STRONG" | "WEAK";
-  checks: { ok: boolean; label: string; detail: string }[];
+  checks: { ok: boolean; label: Bi; detail: Bi }[];
 }
 
 export function checkEvidence(o: Order, ev: DisputeEvidence, filedAtISO: string): EvidenceCheck {
@@ -83,20 +89,27 @@ export function checkEvidence(o: Order, ev: DisputeEvidence, filedAtISO: string)
   const checks = [
     {
       ok: withinGateWindow,
-      label: "Captured during the event window",
+      label: { en: "Captured during the event window", id: "Diambil saat jam acara" },
       detail: withinGateWindow
-        ? "Timestamp falls inside gate hours."
-        : "Timestamp falls outside gate hours, so it cannot show a live rejection.",
+        ? { en: "Timestamp falls inside gate hours.", id: "Waktunya masuk jam gate." }
+        : {
+            en: "Timestamp falls outside gate hours, so it cannot show a live rejection.",
+            id: "Waktunya di luar jam gate, jadi tidak mungkin merekam penolakan langsung.",
+          },
     },
     {
       ok: atVenue,
-      label: "Location matches the venue",
-      detail: atVenue ? "Geotag matches the venue." : "No venue geotag on the file.",
+      label: { en: "Location matches the venue", id: "Lokasi cocok dengan venue" },
+      detail: atVenue
+        ? { en: "Geotag matches the venue.", id: "Geotag cocok dengan venue." }
+        : { en: "No venue geotag on the file.", id: "Tidak ada geotag venue di file ini." },
     },
     {
       ok: filedInTime,
-      label: "Filed within 48 hours",
-      detail: filedInTime ? "Filed inside the dispute window." : "Filed after the window closed.",
+      label: { en: "Filed within 48 hours", id: "Diajukan dalam 48 jam" },
+      detail: filedInTime
+        ? { en: "Filed inside the dispute window.", id: "Diajukan dalam masa sengketa." }
+        : { en: "Filed after the window closed.", id: "Diajukan setelah masa sengketa tutup." },
     },
   ];
   return {
@@ -112,18 +125,16 @@ export function checkEvidence(o: Order, ev: DisputeEvidence, filedAtISO: string)
 
 export interface ReasonMeta {
   id: DisputeReason;
-  label: string;
-  /** Indonesian gloss, shown as the secondary line. */
-  sub: string;
+  label: Bi;
   eligible: boolean;
 }
 
 export const DISPUTE_REASONS: ReasonMeta[] = [
-  { id: "GATE_DENIED", label: "Turned away at the gate", sub: "Barcode ditolak scanner", eligible: true },
-  { id: "BARCODE_USED", label: "Barcode already used", sub: "Barcode sudah dipakai orang lain", eligible: true },
-  { id: "NOT_DELIVERED", label: "Ticket never handed over", sub: "Tiket tidak pernah diserahkan", eligible: true },
-  { id: "NOT_AS_LISTED", label: "Ticket differs from the listing", sub: "Tiket beda dari yang diiklankan", eligible: true },
-  { id: "NO_SHOW", label: "I could not attend", sub: "Berhalangan hadir", eligible: false },
+  { id: "GATE_DENIED", label: { en: "Turned away at the gate", id: "Ditolak di gate" }, eligible: true },
+  { id: "BARCODE_USED", label: { en: "Barcode already used", id: "Barcode sudah dipakai" }, eligible: true },
+  { id: "NOT_DELIVERED", label: { en: "Ticket never handed over", id: "Tiket tidak pernah diserahkan" }, eligible: true },
+  { id: "NOT_AS_LISTED", label: { en: "Ticket differs from the listing", id: "Tiket beda dari listing" }, eligible: true },
+  { id: "NO_SHOW", label: { en: "I could not attend", id: "Berhalangan hadir" }, eligible: false },
 ];
 
 export const reasonMeta = (id: DisputeReason) =>
@@ -154,13 +165,30 @@ export function mockEvidenceOptions(o: Order): DisputeEvidence[] {
   ];
 }
 
-/** Default rationale text offered to the arbiter, so verdicts stay consistent. */
-export function suggestedRationale(d: Dispute, check: EvidenceCheck) {
-  if (!check.filedInTime) return "Filed after the 48h window closed.";
+/** Default rationale offered to the arbiter, so verdicts read consistently. */
+export function suggestedRationale(d: Dispute, check: EvidenceCheck): Bi {
+  if (!check.filedInTime)
+    return {
+      en: "Filed after the 48h window closed.",
+      id: "Diajukan setelah masa sengketa 48 jam tutup.",
+    };
   if (check.strength === "STRONG")
-    return "Gate-time evidence is consistent with a denied entry: timestamp and location both check out.";
+    return {
+      en: "Gate-time evidence is consistent with a denied entry: timestamp and location both check out.",
+      id: "Bukti dari gate konsisten dengan penolakan masuk: waktu dan lokasi sama-sama cocok.",
+    };
   if (!check.withinGateWindow)
-    return "Evidence was captured outside gate hours, so it cannot document a live rejection.";
-  if (!check.atVenue) return "Evidence carries no venue location, so entry denial is unverified.";
-  return `Evidence does not substantiate "${reasonMeta(d.reason).label.toLowerCase()}".`;
+    return {
+      en: "Evidence was captured outside gate hours, so it cannot document a live rejection.",
+      id: "Bukti diambil di luar jam gate, jadi tidak bisa merekam penolakan langsung.",
+    };
+  if (!check.atVenue)
+    return {
+      en: "Evidence carries no venue location, so entry denial is unverified.",
+      id: "Bukti tidak punya lokasi venue, jadi penolakan masuk belum terverifikasi.",
+    };
+  return {
+    en: `Evidence does not substantiate "${reasonMeta(d.reason).label.en.toLowerCase()}".`,
+    id: `Bukti tidak mendukung klaim "${reasonMeta(d.reason).label.id.toLowerCase()}".`,
+  };
 }

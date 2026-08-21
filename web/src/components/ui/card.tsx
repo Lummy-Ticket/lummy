@@ -1,6 +1,9 @@
+"use client";
+
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import Image from "next/image";
+import { useCategoryLabel } from "@/lib/i18n";
 import { FaMapMarkerAlt } from "react-icons/fa";
 import { Badge } from "./badge";
 import Link from "next/link";
@@ -20,6 +23,7 @@ type CardEventProps = {
 }
 
 const Event = (({className, image, date, title, location, category, price, redirect, soldOut, ...props}: CardEventProps) => {
+    const categoryLabel = useCategoryLabel();
     const badgeClass = {
         Music: "bg-secondary-pink-soft text-secondary-pink-dark",
         Technology: "bg-secondary-indigo-soft text-secondary-indigo-dark",
@@ -39,7 +43,7 @@ const Event = (({className, image, date, title, location, category, price, redir
                     <Badge.Base className="absolute top-2.5 left-2.5 bg-secondary-pink-dark text-white text-sm xl:text-base">Sold Out</Badge.Base>
                 )}
                 {/* Category rides on the photo, top right, with a shadow so it stays legible */}
-                <Badge.Base className={cn("absolute top-2.5 right-2.5 text-xs h-fit w-fit text-nowrap shadow-sm", badgeClass[category])}>{category}</Badge.Base>
+                <Badge.Base className={cn("absolute top-2.5 right-2.5 text-xs h-fit w-fit text-nowrap shadow-sm", badgeClass[category])}>{categoryLabel(category)}</Badge.Base>
             </div>
 
             <div className="flex flex-col gap-1 px-0.5 sm:px-2">
