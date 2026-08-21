@@ -1,4 +1,7 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 10f0eb2 (feat: add demo rehearsal script for automated testing of app functionality)
 {
   "name": "lummy-web",
   "version": "0.1.0",
@@ -49,6 +52,7 @@
     "typescript": "^5"
   }
 }
+<<<<<<< HEAD
 =======
 {
   "name": "lummy-web",
@@ -100,3 +104,5 @@
   }
 }
 >>>>>>> 9b3257312a1a17c5d906a02a6f8aa55994f7c77c
+=======
+>>>>>>> 10f0eb2 (feat: add demo rehearsal script for automated testing of app functionality)
