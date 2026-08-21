@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils";
 import { useUser, type Role } from "@/lib/mock";
 
 const ROLES: { role: Role; label: string; home: string }[] = [
-  { role: "BUYER", label: "Pembeli", home: "/" },
-  { role: "SELLER", label: "Penjual", home: "/seller" },
+  { role: "BUYER", label: "Buyer", home: "/" },
+  { role: "SELLER", label: "Seller", home: "/seller" },
   { role: "ADMIN", label: "Admin", home: "/admin" },
 ];
 
@@ -41,7 +41,7 @@ export default function DevPanel() {
               <X className="w-4 h-4" />
             </button>
           </div>
-          <p className="text-xs text-neutral-gray mb-3">Mode mock, semua data dummy.</p>
+          <p className="text-xs text-neutral-gray mb-3">Prototype mode. Every record here is sample data.</p>
 
           <div className="text-xs text-neutral-gray mb-1">Persona</div>
           <div className="grid grid-cols-3 gap-1 mb-3">
@@ -66,7 +66,7 @@ export default function DevPanel() {
               onClick={() => (user ? logout() : login("BUYER"))}
               className="flex-1 px-2 py-1.5 rounded-lg text-xs border border-neutral-light-gray-1 text-neutral-gray hover:border-lummy-500 transition cursor-pointer"
             >
-              {user ? "Logout" : "Login"}
+              {user ? "Sign out" : "Sign in"}
             </button>
             <button
               onClick={reset}

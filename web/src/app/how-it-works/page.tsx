@@ -2,38 +2,45 @@ import Link from "next/link";
 import Image from "next/image";
 import { Lock, ScanLine, TrendingUp, Eye, RotateCcw, Repeat, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SubId } from "@/components/common/Bilingual";
 import { cn } from "@/lib/utils";
 
 const sections = [
   {
     Icon: Lock,
-    title: "Dana dikunci escrow",
-    body: "Waktu kamu bayar, uangnya masuk ke smart contract, bukan ke rekening kami atau langsung ke penjual. Dana baru cair ke penjual setelah konser selesai dan serah-terima beres.",
+    title: "Money sits in escrow",
+    sub: "Dana dikunci escrow",
+    body: "When you pay, the money goes into a smart contract, not into our account and not to the seller. It only reaches the seller once the show is over and the handover is done.",
   },
   {
     Icon: ScanLine,
-    title: "AI cek keaslian tiket",
-    body: "Tiap PDF tiket diperiksa berlapis: forensik struktur file (deteksi tiket yang diedit), barcode di-decode dan dicek duplikat, plus skor pemalsuan. Sinyal buat review, bukan gantiin manusia.",
+    title: "AI screens every ticket",
+    sub: "AI cek keaslian tiket",
+    body: "Each ticket PDF gets layered checks: file-structure forensics that catch edited documents, barcode decoding against a duplicate registry, and a forgery score. These are review signals, not a replacement for a human.",
   },
   {
     Icon: TrendingUp,
-    title: "Harga dibatasi",
-    body: "Maksimal 150% dari harga asli. Ini bikin OperTix jadi pasar resale yang wajar, bukan lahan calo.",
+    title: "Prices are capped",
+    sub: "Harga dibatasi",
+    body: "Listings max out at 150% of face value. That keeps Lummy a fair resale market instead of a scalper's playground.",
   },
   {
     Icon: Eye,
-    title: "Transparan, bisa dicek sendiri",
-    body: "Status dana kamu (terkunci / cair / dikembalikan) bisa diverifikasi publik di block explorer. Jangan percaya kami, cek sendiri.",
+    title: "Anyone can audit it",
+    sub: "Transparan, bisa dicek sendiri",
+    body: "The state of your money (locked, released, refunded) is publicly verifiable on a block explorer. Do not take our word for it, read the contract.",
   },
   {
     Icon: RotateCcw,
-    title: "Gagal masuk? Ajukan sengketa",
-    body: "Ditolak di gate karena tiket bermasalah? Ajukan sengketa dengan bukti (foto layar scanner yang nolak) maksimal 48 jam setelah event. Diputus admin, bukan otomatis, jadi yang beneran masuk gak bisa ngaku gagal. Garansinya uang balik, jujur, bukan 'dijamin masuk'.",
+    title: "Turned away? File a dispute",
+    sub: "Gagal masuk? Ajukan sengketa",
+    body: "Refused at the gate? File within 48 hours with evidence recorded there, such as a photo of the rejecting scanner. An arbiter decides, not an automatic switch, so someone who actually walked in cannot claim otherwise. The promise is your money back, not a guaranteed seat.",
   },
   {
     Icon: Repeat,
-    title: "Gak bisa dateng? Jual lagi",
-    body: "Kalau kamu gak jadi hadir, itu bukan alasan refund (tiketnya valid, kamu yang gak dateng, jadi hangus). Tapi sebelum event kamu bisa jual lagi tiketnya di OperTix, balikin nilainya lewat pasar, bukan minta refund.",
+    title: "Cannot make it? Relist it",
+    sub: "Gak bisa dateng? Jual lagi",
+    body: "Changing plans is not a refund reason: the ticket is valid, you simply did not use it. What you can do is relist it before the event and recover the value through the market instead.",
   },
 ];
 
@@ -47,7 +54,10 @@ function StepCard({ s }: { s: (typeof sections)[number] }) {
         <span className="w-9 h-9 rounded-lg bg-secondary-blue-soft text-lummy-500 grid place-items-center shrink-0">
           <s.Icon className="w-5 h-5" />
         </span>
-        <h3 className="font-fredoka font-semibold text-lg text-neutral-black">{s.title}</h3>
+        <div className="min-w-0">
+          <h3 className="font-fredoka font-semibold text-lg text-neutral-black leading-tight">{s.title}</h3>
+          <SubId className="text-xs">{s.sub}</SubId>
+        </div>
       </div>
       <p className="text-neutral-gray text-sm leading-relaxed">{s.body}</p>
     </div>
@@ -61,22 +71,27 @@ export default function HowItWorks() {
         <div className="max-w-3xl mx-auto px-5 text-center flex flex-col items-center">
           <Image src="/assets/images/mascot-powered.svg" alt="" width={110} height={110} className="mb-3 drop-shadow-lg" />
           <h1 className="flex flex-col font-bold leading-[1.05] text-4xl md:text-5xl mt-2">
-            <span className="text-neutral-black">Kenapa resale di OperTix</span>
-            <span className="text-primary-navy">beneran aman</span>
+            <span className="text-neutral-black">Why resale on Lummy</span>
+            <span className="text-primary-navy">is actually safe</span>
           </h1>
-          <p className="text-lg text-neutral-gray mt-4">Blockchain + AI kerja di belakang layar. Kamu cukup beli seperti biasa.</p>
+          <p className="text-lg text-neutral-gray mt-4">Blockchain and AI do the work backstage. You just buy a ticket like anywhere else.</p>
+          <SubId className="mt-1.5">Blockchain + AI kerja di belakang layar, kamu cukup beli seperti biasa.</SubId>
         </div>
       </section>
 
-      {/* Stepper zigzag. Desktop: band tinggi tetap (h-28) -> rhythm nomor rata & rapat;
-          kartu di-center absolut ke node-nya, kiri-kanan beda kolom jadi aman gak nabrak.
-          Spine top-14/bottom-14 = pas di titik node pertama & terakhir. Mobile: satu kolom flow. */}
+      {/* Zigzag stepper. Desktop: fixed-height bands keep the numbers evenly spaced and
+          tight; each card is centred on its own node, and left/right columns cannot
+          collide. The spine is inset so it starts and ends exactly on a node.
+          Mobile: one column, node beside card. */}
       <section className="border-y border-neutral-light-gray-1 py-16 lg:py-20">
         <div className="max-w-4xl mx-auto px-5">
-          <h2 className="text-center font-bold text-2xl md:text-3xl text-neutral-black leading-tight">Enam lapisan yang jaga uangmu</h2>
-          <p className="text-center text-neutral-gray mt-3 mb-12">Nyala di belakang layar, dari klik pertama sampai konser lewat.</p>
+          <h2 className="text-center font-bold text-2xl md:text-3xl text-neutral-black leading-tight">Six layers protecting your money</h2>
+          <SubId className="text-center mt-2 mb-12">Nyala dari klik pertama sampai konser lewat.</SubId>
 
-          {/* Desktop */}
+          {/* Desktop. Invariant: same-side cards sit two bands apart (2 x h-28 = 224px
+              between centres), so each card must stay under ~200px tall or neighbours on
+              the same side start to touch. Current worst case leaves 35px of clearance,
+              so keep the step bodies to roughly four lines. */}
           <div className="relative hidden md:block">
             <div className="absolute top-14 bottom-14 left-1/2 -translate-x-1/2 border-l-2 border-dashed border-lummy-500/50" aria-hidden />
             {sections.map((s, i) => {
@@ -117,9 +132,9 @@ export default function HowItWorks() {
       </section>
 
       <section className="max-w-3xl mx-auto px-5 mt-16 text-center flex flex-col items-center">
-        <h2 className="font-bold text-2xl md:text-3xl text-neutral-black">Sekarang tinggal cari tiketnya</h2>
-        <p className="text-neutral-gray mt-3 mb-6">Ratusan tiket resale terverifikasi, semuanya dijaga escrow.</p>
-        <Link href="/events"><Button.Primary className="flex items-center gap-2">Jelajah event <ArrowRight className="w-4 h-4" /></Button.Primary></Link>
+        <h2 className="font-bold text-2xl md:text-3xl text-neutral-black">Now go find your ticket</h2>
+        <SubId className="mt-2 mb-6">Tiket resale terverifikasi, semuanya dijaga escrow.</SubId>
+        <Link href="/events"><Button.Primary className="flex items-center gap-2">Browse events <ArrowRight className="w-4 h-4" /></Button.Primary></Link>
       </section>
     </div>
   );

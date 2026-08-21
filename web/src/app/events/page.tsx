@@ -9,24 +9,25 @@ import { Card } from "@/components/ui/card";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { getEvents, formatEventDate } from "@/lib/mock";
 import { PageContainer } from "@/components/layout/PageContainer";
+import { SubId } from "@/components/common/Bilingual";
 
 const events = getEvents();
-const categories = ["Semua", ...Array.from(new Set(events.map((e) => e.category)))];
-const cities = ["Semua kota", ...Array.from(new Set(events.map((e) => e.city)))];
+const categories = ["All", ...Array.from(new Set(events.map((e) => e.category)))];
+const cities = ["All cities", ...Array.from(new Set(events.map((e) => e.city)))];
 
 function EventsInner() {
-  // Deep-link dari home: ?q= (search) & ?cat= (kategori).
+  // Deep links from home: ?q= (search) and ?cat= (category).
   const params = useSearchParams();
   const catParam = params.get("cat");
   const [query, setQuery] = useState(params.get("q") ?? "");
-  const [cat, setCat] = useState(catParam && categories.includes(catParam) ? catParam : "Semua");
-  const [city, setCity] = useState("Semua kota");
+  const [cat, setCat] = useState(catParam && categories.includes(catParam) ? catParam : "All");
+  const [city, setCity] = useState("All cities");
 
   const filtered = useMemo(
     () =>
       events.filter((e) => {
-        const matchCat = cat === "Semua" || e.category === cat;
-        const matchCity = city === "Semua kota" || e.city === city;
+        const matchCat = cat === "All" || e.category === cat;
+        const matchCity = city === "All cities" || e.city === city;
         const q = query.toLowerCase().trim();
         const matchQ = !q || e.title.toLowerCase().includes(q) || e.city.toLowerCase().includes(q) || e.venue.toLowerCase().includes(q);
         return matchCat && matchCity && matchQ;
@@ -37,8 +38,8 @@ function EventsInner() {
   return (
     <PageContainer width="wide">
       <div className="mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold text-neutral-black">Jelajah event</h1>
-        <p className="text-neutral-gray mt-2">Tiket resale terverifikasi, dijaga escrow sampai konser selesai.</p>
+        <h1 className="text-3xl md:text-4xl font-bold text-neutral-black">Browse events</h1>
+        <SubId className="mt-2">Tiket resale terverifikasi, dijaga escrow sampai konser selesai.</SubId>
       </div>
 
       {/* Search + filter */}
@@ -49,7 +50,7 @@ function EventsInner() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Cari event, artis, atau kota..."
+              placeholder="Search events, artists, or cities..."
               className="outline-none w-full text-neutral-black placeholder:text-neutral-gray bg-transparent text-sm"
             />
           </div>
@@ -98,7 +99,7 @@ function EventsInner() {
       ) : (
         <div className="flex flex-col items-center text-center py-16 gap-4">
           <Image src="/assets/images/mascot-confused.svg" alt="" width={120} height={120} />
-          <p className="text-neutral-gray">Gak ada event yang cocok. Coba hapus filter atau kata kunci lain.</p>
+          <p className="text-neutral-gray">Nothing matches. Try clearing a filter or a different keyword.</p>
         </div>
       )}
     </PageContainer>
@@ -107,7 +108,7 @@ function EventsInner() {
 
 export default function EventsPage() {
   return (
-    <Suspense fallback={<div className="pt-28 pb-16 text-center text-neutral-gray">Memuat...</div>}>
+    <Suspense fallback={<div className="pt-28 pb-16 text-center text-neutral-gray">Loading...</div>}>
       <EventsInner />
     </Suspense>
   );

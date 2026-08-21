@@ -56,6 +56,6 @@ export const useSellerListings = create<SellerState>()(
           ],
         })),
     }),
-    { name: "opertix:seller" }
+    { name: "lummy:seller" }
   )
 );

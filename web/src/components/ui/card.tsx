@@ -38,7 +38,7 @@ const Event = (({className, image, date, title, location, category, price, redir
                 {soldOut && (
                     <Badge.Base className="absolute top-2.5 left-2.5 bg-secondary-pink-dark text-white text-sm xl:text-base">Sold Out</Badge.Base>
                 )}
-                {/* Kategori nempel di foto (badge di kanan-atas), shadow biar kebaca di atas foto */}
+                {/* Category rides on the photo, top right, with a shadow so it stays legible */}
                 <Badge.Base className={cn("absolute top-2.5 right-2.5 text-xs h-fit w-fit text-nowrap shadow-sm", badgeClass[category])}>{category}</Badge.Base>
             </div>
 

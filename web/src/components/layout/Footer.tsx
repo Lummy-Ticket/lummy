@@ -4,27 +4,27 @@ import { ShieldCheck } from "lucide-react";
 
 const cols: { title: string; links: { label: string; href: string }[] }[] = [
   {
-    title: "Produk",
+    title: "Product",
     links: [
-      { label: "Jelajah event", href: "/events" },
-      { label: "Jual tiket", href: "/sell" },
-      { label: "Cara kerja", href: "/how-it-works" },
+      { label: "Browse events", href: "/events" },
+      { label: "Sell a ticket", href: "/sell" },
+      { label: "How it works", href: "/how-it-works" },
     ],
   },
   {
-    title: "Perusahaan",
+    title: "Company",
     links: [
-      { label: "Tentang", href: "/about" },
-      { label: "Karier", href: "#" },
+      { label: "About", href: "/about" },
+      { label: "Careers", href: "#" },
       { label: "Blog", href: "#" },
     ],
   },
   {
-    title: "Bantuan",
+    title: "Support",
     links: [
-      { label: "Pusat bantuan", href: "#" },
-      { label: "Keamanan & escrow", href: "#" },
-      { label: "Kebijakan privasi", href: "#" },
+      { label: "Help centre", href: "#" },
+      { label: "Safety & escrow", href: "#" },
+      { label: "Privacy policy", href: "#" },
     ],
   },
 ];
@@ -36,11 +36,11 @@ export function Footer() {
         <div className="flex flex-col gap-3">
           <Logo />
           <p className="text-neutral-gray text-sm max-w-xs">
-            Resale tiket konser yang aman untuk Indonesia. Dana dikunci sampai konser selesai,
-            AI jaga dari tiket palsu.
+            Safe concert ticket resale, built for Indonesia. Money stays in escrow until the
+            show is over and AI screens every ticket for forgery.
           </p>
           <span className="mt-1 inline-flex items-center gap-2 text-sm text-primary-navy font-medium">
-            <ShieldCheck className="w-4 h-4" /> Dana dijamin kode, bukan janji.
+            <ShieldCheck className="w-4 h-4" /> Guaranteed by code, not by promises.
           </span>
         </div>
         {cols.map((c) => (
@@ -56,8 +56,8 @@ export function Footer() {
       </div>
       <div className="border-t border-neutral-light-gray-1">
         <div className="max-w-7xl mx-auto px-5 lg:px-10 py-5 flex flex-col sm:flex-row justify-between gap-2 text-xs text-neutral-gray">
-          <span>© 2026 OperTix. Prototype, data dummy.</span>
-          <span>Dibangun untuk Indonesia.</span>
+          <span>© 2026 Lummy Ticket. Prototype, sample data.</span>
+          <span lang="id">Dibangun untuk Indonesia.</span>
         </div>
       </div>
     </footer>

@@ -11,33 +11,33 @@ import { useUser, isDemoMode, type Role } from "@/lib/mock";
 
 type NavLink = { label: string; href: string };
 const GUEST_LINKS: NavLink[] = [
-  { label: "Beranda", href: "/" },
-  { label: "Jelajah", href: "/events" },
-  { label: "Cara Kerja", href: "/how-it-works" },
-  { label: "Tentang", href: "/about" },
+  { label: "Home", href: "/" },
+  { label: "Browse", href: "/events" },
+  { label: "How it works", href: "/how-it-works" },
+  { label: "About", href: "/about" },
 ];
 const ROLE_LINKS: Record<Role, NavLink[]> = {
   BUYER: [
-    { label: "Beranda", href: "/" },
-    { label: "Jelajah", href: "/events" },
-    { label: "Tiket Saya", href: "/tickets" },
-    { label: "Cara Kerja", href: "/how-it-works" },
-    { label: "Tentang", href: "/about" },
+    { label: "Home", href: "/" },
+    { label: "Browse", href: "/events" },
+    { label: "My tickets", href: "/tickets" },
+    { label: "How it works", href: "/how-it-works" },
+    { label: "About", href: "/about" },
   ],
   SELLER: [
-    { label: "Jelajah", href: "/events" },
-    { label: "Jual Tiket", href: "/sell" },
+    { label: "Browse", href: "/events" },
+    { label: "Sell", href: "/sell" },
     { label: "Dashboard", href: "/seller" },
-    { label: "Cara Kerja", href: "/how-it-works" },
+    { label: "How it works", href: "/how-it-works" },
   ],
   ADMIN: [
-    { label: "Jelajah", href: "/events" },
-    { label: "Approval", href: "/admin" },
-    { label: "Cara Kerja", href: "/how-it-works" },
+    { label: "Browse", href: "/events" },
+    { label: "Console", href: "/admin" },
+    { label: "How it works", href: "/how-it-works" },
   ],
 };
 
-const ROLE_LABEL: Record<Role, string> = { BUYER: "Pembeli", SELLER: "Penjual", ADMIN: "Admin" };
+const ROLE_LABEL: Record<Role, string> = { BUYER: "Buyer", SELLER: "Seller", ADMIN: "Admin" };
 const ROLE_HOME: Record<Role, string> = { BUYER: "/", SELLER: "/seller", ADMIN: "/admin" };
 
 function initials(name: string) {
@@ -51,7 +51,7 @@ export function Navbar() {
   const switchPersona = useUser((s) => s.switchPersona);
   const logout = useUser((s) => s.logout);
 
-  // Ganti persona = langsung ke home role itu (jangan nyangkut di page lama).
+  // Switching persona jumps to that role's home, so nobody is left on a page they cannot use.
   const goPersona = (r: Role) => {
     switchPersona(r);
     router.push(ROLE_HOME[r]);
@@ -76,7 +76,7 @@ export function Navbar() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
-  // Tutup dropdown pas klik di luar (bukan hover, biar gak ilang pas mouse pindah ke menu).
+  // Close on outside click rather than hover, so the menu survives the trip to it.
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
       const t = e.target as Node;
@@ -95,7 +95,7 @@ export function Navbar() {
     };
   }, []);
 
-  // Halaman auth: navbar minimal (logo doang), jangan tampilin avatar/persona.
+  // Auth pages get a minimal navbar: logo only, no avatar or persona switch.
   if (pathname.startsWith("/login") || pathname.startsWith("/register")) {
     return (
       <nav className="fixed z-40 top-0 w-full h-20 flex justify-center px-5 lg:px-10 bg-neutral-white border-b border-neutral-light-gray-1">
@@ -139,7 +139,7 @@ export function Navbar() {
                 onClick={() => setRoleOpen((o) => !o)}
                 aria-haspopup="menu"
                 aria-expanded={roleOpen}
-                aria-label="Ganti persona (demo)"
+                aria-label="Switch persona (demo)"
                 className="flex items-center gap-2 px-4 py-2 rounded-2xl border-2 border-lummy-500 bg-neutral-white text-lummy-500 text-sm font-medium hover:bg-pastel-yellow transition cursor-pointer"
               >
                 {ROLE_LABEL[user.role]} <ChevronDown className="w-4 h-4" />
@@ -166,7 +166,7 @@ export function Navbar() {
           {/* Avatar / sign in */}
           {mounted && user ? (
             <div ref={userRef} className="relative hidden lg:block">
-              <button onClick={() => setUserOpen((o) => !o)} aria-haspopup="menu" aria-expanded={userOpen} aria-label="Menu akun" className="flex items-center gap-2 cursor-pointer">
+              <button onClick={() => setUserOpen((o) => !o)} aria-haspopup="menu" aria-expanded={userOpen} aria-label="Account menu" className="flex items-center gap-2 cursor-pointer">
                 <span className="w-10 h-10 rounded-full bg-secondary-blue-light text-lummy-500 font-semibold grid place-items-center border border-lummy-500">
                   {initials(user.name)}
                 </span>
@@ -179,20 +179,20 @@ export function Navbar() {
                     <div className="text-neutral-gray text-xs truncate">{user.email}</div>
                   </div>
                   <Link href="/profile" onClick={() => setUserOpen(false)} className="mt-2 w-full flex items-center gap-2 px-4 py-2.5 text-sm text-neutral-gray hover:bg-secondary-blue-light cursor-pointer">
-                    <UserIcon className="w-4 h-4" /> Profil
+                    <UserIcon className="w-4 h-4" /> Profile
                   </Link>
                   <button
                     onClick={() => { logout(); setUserOpen(false); }}
                     className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-secondary-pink-dark hover:bg-secondary-pink-light cursor-pointer"
                   >
-                    <LogOut className="w-4 h-4" /> Keluar
+                    <LogOut className="w-4 h-4" /> Sign out
                   </button>
                 </div>
               )}
             </div>
           ) : mounted ? (
             <Button.Primary className="hidden lg:flex items-center gap-2 text-sm" onClick={() => useUser.getState().login("BUYER")}>
-              <UserIcon className="w-4 h-4" /> Masuk
+              <UserIcon className="w-4 h-4" /> Sign in
             </Button.Primary>
           ) : null}
 
@@ -228,8 +228,8 @@ export function Navbar() {
                         {ROLE_LABEL[r]}
                       </button>
                     ))}
-                    <Link href="/profile" onClick={() => setMobileOpen(false)} className="block px-3 py-2 rounded-lg text-sm text-neutral-gray hover:bg-secondary-blue-light mt-1 border-t border-dashed border-neutral-light-gray-1 pt-2">Profil</Link>
-                    <button onClick={() => { logout(); setMobileOpen(false); }} className="w-full text-left px-3 py-2 rounded-lg text-sm text-secondary-pink-dark hover:bg-secondary-pink-light cursor-pointer">Keluar</button>
+                    <Link href="/profile" onClick={() => setMobileOpen(false)} className="block px-3 py-2 rounded-lg text-sm text-neutral-gray hover:bg-secondary-blue-light mt-1 border-t border-dashed border-neutral-light-gray-1 pt-2">Profile</Link>
+                    <button onClick={() => { logout(); setMobileOpen(false); }} className="w-full text-left px-3 py-2 rounded-lg text-sm text-secondary-pink-dark hover:bg-secondary-pink-light cursor-pointer">Sign out</button>
                   </div>
                 )}
               </div>

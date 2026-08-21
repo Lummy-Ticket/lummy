@@ -1,16 +1,19 @@
 import Link from "next/link";
-import { Ticket } from "lucide-react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
+// Official Lummy wordmark, shared with the main Lummy app (public/assets/images/logo.png).
 export function Logo({ className, href = "/" }: { className?: string; href?: string }) {
   return (
-    <Link href={href} className={cn("flex items-center gap-2 shrink-0", className)}>
-      <span className="grid place-items-center w-9 h-9 rounded-xl bg-primary-navy text-white -rotate-6 shadow-lummy">
-        <Ticket className="w-5 h-5" />
-      </span>
-      <span className="font-fredoka font-bold text-xl text-primary-navy tracking-tight leading-none">
-        Oper<span className="text-secondary-pink-dark">Tix</span>
-      </span>
+    <Link href={href} aria-label="Lummy" className={cn("flex items-center shrink-0", className)}>
+      <Image
+        src="/assets/images/logo.png"
+        alt="Lummy"
+        width={1100}
+        height={265}
+        priority
+        className="h-8 w-auto"
+      />
     </Link>
   );
 }

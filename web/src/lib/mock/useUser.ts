@@ -19,7 +19,7 @@ export const useUser = create<UserState>()(
       logout: () => set({ user: null }),
       switchPersona: (role) => set({ user: DEMO_USERS[role] }),
     }),
-    { name: "opertix:user" }
+    { name: "lummy:user" }
   )
 );
 

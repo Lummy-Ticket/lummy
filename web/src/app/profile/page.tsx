@@ -46,17 +46,17 @@ export default function ProfilePage() {
     setAcct(useProfile.getState().payoutNumber);
   }, []);
 
-  if (!mounted) return <div className="pt-28 pb-16 text-center text-neutral-gray">Memuat...</div>;
+  if (!mounted) return <div className="pt-28 pb-16 text-center text-neutral-gray">Loading...</div>;
 
   return (
     <PageContainer width="app" className="flex flex-col gap-5">
-      <h1 className="text-2xl md:text-3xl font-bold text-neutral-black">Profil</h1>
+      <h1 className="text-2xl md:text-3xl font-bold text-neutral-black">Profile</h1>
 
-      {/* Info pribadi */}
-      <Section title="Info pribadi">
+      {/* Personal details */}
+      <Section title="Personal details">
         <div className="flex flex-col gap-4">
           <div>
-            <span className="text-xs text-neutral-gray">Nama</span>
+            <span className="text-xs text-neutral-gray">Name</span>
             <div className="mt-1 px-4 py-3 rounded-xl bg-secondary-gray-soft text-sm text-neutral-black">{user?.name ?? "-"}</div>
           </div>
           <div>
@@ -66,68 +66,69 @@ export default function ProfilePage() {
             </div>
           </div>
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs text-neutral-gray">No. WhatsApp</span>
+            <span className="text-xs text-neutral-gray">WhatsApp number</span>
             <div className="flex items-center gap-2 rounded-xl border border-lummy-500 px-4 py-3">
               <Phone className="w-4 h-4 text-neutral-gray" />
               <input value={phoneVal} onChange={(e) => setPhoneVal(e.target.value)} className="w-full outline-none text-sm text-neutral-black" />
             </div>
           </label>
-          <Button.Primary wrapperClass="w-fit" className="text-sm" onClick={() => { setPhone(phoneVal); toast.success("Profil disimpan"); }}>Simpan</Button.Primary>
+          <Button.Primary wrapperClass="w-fit" className="text-sm" onClick={() => { setPhone(phoneVal); toast.success("Profile saved"); }}>Save</Button.Primary>
         </div>
       </Section>
 
-      {/* Identitas / PSrE */}
-      <Section title="Verifikasi identitas">
+      {/* Identity / PSrE */}
+      <Section title="Identity verification">
         {kycVerified ? (
           <div className="flex items-center gap-3">
-            <Badge.Base className="bg-secondary-green-soft text-secondary-green-dark text-sm inline-flex items-center gap-1"><BadgeCheck className="w-4 h-4" /> Terverifikasi</Badge.Base>
+            <Badge.Base className="bg-secondary-green-soft text-secondary-green-dark text-sm inline-flex items-center gap-1"><BadgeCheck className="w-4 h-4" /> Verified</Badge.Base>
             <span className="text-sm text-neutral-gray">via Privy.id (PSrE)</span>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
             <p className="text-sm text-neutral-gray">
-              Verifikasi sekali buat tanda tangan surat kuasa. Foto KTP diproses <b className="text-neutral-black">PSrE berlisensi (Privy.id)</b>, bukan disimpan OperTix.
+              A one-time check so you can e-sign the letter of authorisation. Your ID photo is processed by a
+              <b className="text-neutral-black"> licensed Indonesian e-signature provider (Privy.id)</b>, Lummy never stores it.
             </p>
-            <Button.Primary wrapperClass="w-fit" className="text-sm flex items-center gap-2" onClick={() => { verifyKyc(); toast.success("Identitas terverifikasi (demo)"); }}>
-              <ShieldCheck className="w-4 h-4" /> Verifikasi identitas
+            <Button.Primary wrapperClass="w-fit" className="text-sm flex items-center gap-2" onClick={() => { verifyKyc(); toast.success("Identity verified (demo)"); }}>
+              <ShieldCheck className="w-4 h-4" /> Verify identity
             </Button.Primary>
           </div>
         )}
       </Section>
 
-      {/* Notifikasi */}
-      <Section title="Notifikasi & waitlist">
+      {/* Alerts */}
+      <Section title="Alerts & waitlist">
         <div className="mb-4">
-          <span className="text-xs text-neutral-gray">Dikabari lewat</span>
+          <span className="text-xs text-neutral-gray">Reach me on</span>
           <div className="grid grid-cols-3 gap-2 mt-1.5">
             {CHANNELS.map((c) => (
-              <button key={c.id} onClick={() => { setChannel(c.id); toast.success(`Notif via ${c.label}`); }} className={`px-2 py-2 rounded-lg text-sm border cursor-pointer ${channel === c.id ? "bg-primary-navy text-white border-primary-navy" : "bg-neutral-white text-neutral-gray border-neutral-light-gray-1"}`}>
+              <button key={c.id} onClick={() => { setChannel(c.id); toast.success(`Alerts via ${c.label}`); }} className={`px-2 py-2 rounded-lg text-sm border cursor-pointer ${channel === c.id ? "bg-primary-navy text-white border-primary-navy" : "bg-neutral-white text-neutral-gray border-neutral-light-gray-1"}`}>
                 {c.label}
               </button>
             ))}
           </div>
         </div>
-        <div className="text-xs text-neutral-gray mb-2">Langganan kamu</div>
+        <div className="text-xs text-neutral-gray mb-2">Your subscriptions</div>
         {subs.length === 0 ? (
-          <p className="text-sm text-neutral-gray">Belum ada. Masuk waitlist / minta dikabari dari halaman event.</p>
+          <p className="text-sm text-neutral-gray">Nothing yet. Join a waitlist or ask for alerts from an event page.</p>
         ) : (
           <div className="flex flex-col gap-2">
             {subs.map((s) => (
               <div key={s.id} className="flex items-center justify-between p-3 rounded-xl border border-neutral-light-gray-1">
                 <div className="min-w-0">
                   <div className="text-sm text-neutral-black truncate">{s.eventTitle}</div>
-                  <div className="text-xs text-neutral-gray flex items-center gap-1"><Bell className="w-3 h-3" /> {s.tierName ? `Waitlist ${s.tierName}` : "Notif tiket baru"}</div>
+                  <div className="text-xs text-neutral-gray flex items-center gap-1"><Bell className="w-3 h-3" /> {s.tierName ? `${s.tierName} waitlist` : "New ticket alerts"}</div>
                 </div>
-                <button onClick={() => { unsubscribe(s.id); toast("Dihapus"); }} className="text-neutral-gray hover:text-secondary-pink-dark cursor-pointer shrink-0"><X className="w-4 h-4" /></button>
+                <button onClick={() => { unsubscribe(s.id); toast("Removed"); }} className="text-neutral-gray hover:text-secondary-pink-dark cursor-pointer shrink-0"><X className="w-4 h-4" /></button>
               </div>
             ))}
           </div>
         )}
       </Section>
 
-      {/* Payout (penjual) */}
+      {/* Payout (seller) */}
       {user?.role === "SELLER" && (
-        <Section title="Rekening pencairan">
+        <Section title="Payout account">
           <div className="flex flex-col gap-4">
             <div>
               <span className="text-xs text-neutral-gray">Bank</span>
@@ -138,14 +139,14 @@ export default function ProfilePage() {
               </div>
             </div>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs text-neutral-gray">No. rekening</span>
+              <span className="text-xs text-neutral-gray">Account number</span>
               <div className="flex items-center gap-2 rounded-xl border border-lummy-500 px-4 py-3">
                 <Building2 className="w-4 h-4 text-neutral-gray" />
                 <input value={acct} onChange={(e) => setAcct(e.target.value)} placeholder="1234567890" className="w-full outline-none text-sm text-neutral-black" />
               </div>
             </label>
-            {payoutBank && <p className="text-xs text-secondary-green-dark">Tersimpan: {payoutBank} · {payoutNumber}</p>}
-            <Button.Primary wrapperClass="w-fit" className="text-sm" onClick={() => { setPayout(bank, acct); toast.success("Rekening disimpan"); }}>Simpan rekening</Button.Primary>
+            {payoutBank && <p className="text-xs text-secondary-green-dark">Saved: {payoutBank} · {payoutNumber}</p>}
+            <Button.Primary wrapperClass="w-fit" className="text-sm" onClick={() => { setPayout(bank, acct); toast.success("Payout account saved"); }}>Save account</Button.Primary>
           </div>
         </Section>
       )}

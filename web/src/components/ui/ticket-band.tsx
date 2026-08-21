@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-// Band navy berbentuk tiket (notch di kedua sisi + bingkai perforasi putus-putus).
+// Navy band shaped like a ticket: notches on both edges, dashed perforation frame.
 // Ganti CTA gradient generik. `notchColor` = warna bg di belakang band (buat "gigitan"
 // notch), default putih.
 export function TicketBand({

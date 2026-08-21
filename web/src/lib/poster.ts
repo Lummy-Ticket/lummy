@@ -1,5 +1,6 @@
-// Poster event offline (SVG data-URI). Gak ada host eksternal — anti-gagal pas demo
-// venue Wi-Fi jelek, dan lebih kredibel dari foto stok random. Warna deterministik per key.
+// Offline event poster as an SVG data URI. No external host, so a demo on bad venue
+// Wi-Fi cannot break, and it looks more deliberate than random stock art. Colours are
+// derived from the key, so a given event always renders the same poster.
 const PAIRS: [string, string][] = [
   ["#3A6CB4", "#8FD3F4"], // navy -> sky
   ["#5B7CFA", "#A6C1FF"], // blue -> periwinkle
@@ -16,7 +17,7 @@ function hash(s: string): number {
   return h;
 }
 
-/** Data-URI SVG poster untuk sebuah event. `key` biasanya id/slug event biar konsisten. */
+/** SVG data-URI poster for an event. `key` is usually the event id or slug. */
 export function eventPoster(key: string): string {
   const [c1, c2] = PAIRS[hash(key) % PAIRS.length];
   const svg =

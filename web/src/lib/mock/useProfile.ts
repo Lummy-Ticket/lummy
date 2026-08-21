@@ -24,6 +24,6 @@ export const useProfile = create<ProfileState>()(
       verifyKyc: () => set({ kycVerified: true }),
       setPayout: (payoutBank, payoutNumber) => set({ payoutBank, payoutNumber }),
     }),
-    { name: "opertix:profile" }
+    { name: "lummy:profile" }
   )
 );
