@@ -8,20 +8,15 @@ export const mockTxHash = () =>
 export const explorerTx = (h: string) => `https://testnet.monadexplorer.com/tx/${h}`;
 export const explorerAddr = (a: string) => `https://testnet.monadexplorer.com/address/${a}`;
 
-// Fee model (docs): pass-through materai + platform fee max(5%, Rp25.000).
+// Fee model (docs): pass-through e-stamp + platform fee, max(5%, IDR 25,000).
 export const MATERAI = 12000;
 export const platformFee = (price: number) => Math.max(Math.round(price * 0.05), 25000);
 
 export const shortHash = (h: string, n = 6) => `${h.slice(0, n + 2)}…${h.slice(-4)}`;
 
+// The interface is English-first, so dates render in English while amounts stay
+// in rupiah, which is the currency people actually pay in.
 export const formatDateTime = (iso: string) =>
-  new Date(iso).toLocaleString("id-ID", {
+  new Date(iso).toLocaleString("en-GB", {
     day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
   });
-
-// event date + 2 hari = auto-release window (dispute window 48 jam sesudah event)
-export const releaseDeadline = (eventISO: string) => {
-  const d = new Date(eventISO);
-  d.setDate(d.getDate() + 2);
-  return d.toISOString();
-};

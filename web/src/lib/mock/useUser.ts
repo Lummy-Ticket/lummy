@@ -13,15 +13,16 @@ interface UserState {
 export const useUser = create<UserState>()(
   persist(
     (set) => ({
-      // Mock mulai logged-in sebagai buyer biar navbar + role switcher langsung kelihatan.
+      // The mock starts signed in as a buyer so the navbar and the persona
+      // switcher are both visible immediately.
       user: DEMO_USERS.BUYER,
       login: (role = "BUYER") => set({ user: DEMO_USERS[role] }),
       logout: () => set({ user: null }),
       switchPersona: (role) => set({ user: DEMO_USERS[role] }),
     }),
-    { name: "opertix:user" }
+    { name: "lummy:user" }
   )
 );
 
-// Mock selalu demo mode (persona switcher aktif).
+// The mock is always in demo mode, so the persona switcher stays available.
 export const isDemoMode = () => true;

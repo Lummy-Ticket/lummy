@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { ListingAI } from "./types";
 
-export type SellerListingStatus = "active" | "sold" | "review";
+export type SellerListingStatus = "active" | "sold" | "review" | "rejected";
 
 export interface SellerListing {
   id: string;
@@ -16,6 +16,8 @@ export interface SellerListing {
   views: number;
   ai: ListingAI;
   createdAtISO: string;
+  /** Held because it was listed close to doors, not because the AI flagged it. */
+  lateListing?: boolean;
 }
 
 const SEED: SellerListing[] = [
@@ -42,6 +44,9 @@ const SEED: SellerListing[] = [
 interface SellerState {
   listings: SellerListing[];
   add: (l: Omit<SellerListing, "id" | "createdAtISO" | "views">) => void;
+  /** Staff clearing a held listing. The sell flow promises this queue exists. */
+  approve: (id: string) => void;
+  reject: (id: string) => void;
 }
 
 export const useSellerListings = create<SellerState>()(
@@ -55,7 +60,15 @@ export const useSellerListings = create<SellerState>()(
             ...s.listings,
           ],
         })),
+      approve: (id) =>
+        set((s) => ({
+          listings: s.listings.map((l) => (l.id === id ? { ...l, status: "active" } : l)),
+        })),
+      reject: (id) =>
+        set((s) => ({
+          listings: s.listings.map((l) => (l.id === id ? { ...l, status: "rejected" } : l)),
+        })),
     }),
-    { name: "opertix:seller" }
+    { name: "lummy:seller" }
   )
 );

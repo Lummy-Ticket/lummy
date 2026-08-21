@@ -7,7 +7,7 @@ export interface AlertSub {
   id: string;
   eventId: string;
   eventTitle: string;
-  tierId?: string; // ada = waitlist tier tertentu; kosong = notif tiket baru event
+  tierId?: string; // set = waitlist for that tier; empty = alerts for any new ticket
   tierName?: string;
   createdAtISO: string;
 }
@@ -38,6 +38,6 @@ export const useAlerts = create<AlertState>()(
       },
       unsubscribe: (id) => set((st) => ({ subs: st.subs.filter((x) => x.id !== id) })),
     }),
-    { name: "opertix:alerts" }
+    { name: "lummy:alerts" }
   )
 );

@@ -1,20 +1,21 @@
 import type { EventItem, Listing, User, Role } from "./types";
 import { eventPoster } from "../poster";
 
-// Harga ceiling resale = 150% face value (docs: price cap).
+// Resale ceiling = 150% of face value (docs: price cap).
 export const CAP_PCT = 150;
 export const FLOOR_PCT = 50;
 
 export const DEMO_USERS: Record<Role, User> = {
   BUYER: { id: "u-buyer", name: "Luthfi Hadi", email: "luthfi@demo.id", role: "BUYER" },
   SELLER: { id: "u-seller", name: "Zahra Amelia", email: "zahra@demo.id", role: "SELLER" },
-  ADMIN: { id: "u-admin", name: "Admin OperTix", email: "admin@opertix.id", role: "ADMIN" },
+  ADMIN: { id: "u-admin", name: "Admin Lummy", email: "admin@lummy.id", role: "ADMIN" },
 };
 
-// Foto event lokal di public/assets/events (foto artis asli dari Wikimedia Commons,
-// lisensi CC/PD; timnas = stadion Unsplash) — offline-safe. Fallback ke poster
-// gradient generatif kalau seed belum punya foto. Suffix -hd = versi foto (bump
-// nama file kalau ganti foto, biar cache next/image + browser ke-bust).
+// Local event photos in public/assets/events (real artist shots from Wikimedia
+// Commons under CC/PD; the national-team one is an Unsplash stadium), so the demo
+// works offline. Falls back to a generated gradient poster when a seed has no photo.
+// The -hd suffix is a version marker: rename it when swapping a photo so the
+// next/image and browser caches bust.
 const PHOTOS: Record<string, string> = {
   coldplay: "/assets/events/coldplay-hd.jpg",
   newjeans: "/assets/events/newjeans-hd.jpg",
@@ -96,9 +97,9 @@ export const SEED_EVENTS: EventItem[] = [
 ];
 
 // Beberapa listing resale. Termasuk 1 skor forgery tinggi + 1 barcode duplikat
-// buat mendemokan AI trust layer nanti.
+// so the AI trust layer has something to demonstrate.
 export const SEED_LISTINGS: Listing[] = [
-  // Coldplay: variasi qty biar filter "jumlah tiket" kelihatan
+  // Coldplay: mixed quantities so the "how many tickets" filter has something to do
   {
     id: "ls-1", eventId: "ev-coldplay", tierId: "t-cp-cat1", sellerName: "Zahra A.",
     askPrice: 2_800_000, faceValue: 2_250_000, quantity: 2, splittable: false, status: "active", gateKtp: true,
@@ -119,7 +120,7 @@ export const SEED_LISTINGS: Listing[] = [
     askPrice: 3_900_000, faceValue: 3_500_000, quantity: 4, splittable: true, status: "active", gateKtp: true,
     ai: { autofilled: true, forgeryScore: 10, barcodeDuplicate: false, pdfSuspicious: false },
   },
-  // NewJeans: satu kena flag (buat demo badge "Dalam review", gak bisa dibeli)
+  // NewJeans: one flagged listing, to show the "under review" badge that cannot be bought
   {
     id: "ls-3", eventId: "ev-newjeans", tierId: "t-nj-cat1", sellerName: "Dinda K.",
     askPrice: 1_650_000, faceValue: 1_500_000, quantity: 2, splittable: true, status: "active", gateKtp: true,

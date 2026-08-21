@@ -1,8 +1,8 @@
 import type { LucideIcon } from "lucide-react";
 import { Card } from "./card";
 
-// Feature card bentuk tiket (notch + perforasi putus-putus) dengan icon navy
-// monokrom — identitas OperTix, bukan card generik dengan icon warna-warni.
+// Ticket-shaped feature card (notch + dashed perforation) with a monochrome navy
+// icon. That is the Lummy identity, as opposed to a generic card with rainbow icons.
 export function TicketFeature({ Icon, title, body }: { Icon: LucideIcon; title: string; body: string }) {
   return (
     <Card.Ticket.Small className="w-full h-full" circleClass="bg-white -mr-[2px]">

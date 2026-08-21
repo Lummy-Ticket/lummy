@@ -12,7 +12,7 @@ const Base = ({children, className, ...props}: React.PropsWithChildren<BaseProps
     )
 }
 
-const Icon = ({children, className, ...props}: React.PropsWithChildren<BaseProps>) => {
+const Icon = ({children, className}: React.PropsWithChildren<BaseProps>) => {
     return (
         <div className={cn("rounded-full w-full h-full flex items-center justify-center aspect-square p-2", className)}>
             {children}

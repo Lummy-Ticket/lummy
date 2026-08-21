@@ -10,8 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/common/Modal";
 import {
-  SEED_LISTINGS, getEventById, getTier, formatIDR, formatEventDate, platformFee, MATERAI, useOrders,
+  SEED_LISTINGS, getEventById, getTier, platformFee, MATERAI, useOrders, DISPUTE_WINDOW_H,
 } from "@/lib/mock";
+import { useAccessGuard } from "@/lib/access";
+import { PageGate } from "@/components/layout/PageGate";
+import { useT, useFormatters } from "@/lib/i18n";
 
 function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (
@@ -23,6 +26,9 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
 }
 
 function CheckoutInner() {
+  const t = useT();
+  const ready = useAccessGuard("account");
+  const { formatIDR, formatEventDate } = useFormatters();
   const params = useSearchParams();
   const router = useRouter();
   const listing = SEED_LISTINGS.find((l) => l.id === params.get("listing"));
@@ -36,8 +42,8 @@ function CheckoutInner() {
   if (!listing || !event || !tier) {
     return (
       <div className="max-w-lg mx-auto px-5 pt-28 pb-16 text-center">
-        <p className="text-neutral-gray">Listing gak ketemu.</p>
-        <Link href="/events" className="text-primary-navy font-medium">Balik ke jelajah</Link>
+        <p className="text-neutral-gray">{t("Listing not found.", "Listing tidak ditemukan.")}</p>
+        <Link href="/events" className="text-primary-navy font-medium">{t("Back to browse", "Balik ke jelajah")}</Link>
       </div>
     );
   }
@@ -51,23 +57,25 @@ function CheckoutInner() {
     setProcessing(true);
     setTimeout(() => {
       const id = buy(listing, event, tier, qty);
-      toast.success("Pembayaran berhasil, dana masuk escrow");
+      toast.success(t("Paid. Your money is now in escrow.", "Pembayaran berhasil. Dana kamu sekarang di escrow."));
       router.push(`/tickets/${id}`);
     }, 1800);
   };
 
+  if (!ready) return <PageGate />;
+
   return (
     <div className="max-w-7xl mx-auto w-full px-5 lg:px-10 pt-28 pb-16">
       <Link href={`/events/${event.id}`} className="inline-flex items-center gap-1 text-neutral-gray hover:text-primary-navy text-sm mb-4">
-        <ArrowLeft className="w-4 h-4" /> Kembali
+        <ArrowLeft className="w-4 h-4" /> {t("Back", "Kembali")}
       </Link>
-      <h1 className="text-2xl md:text-3xl font-bold text-neutral-black mb-6">Checkout</h1>
+      <h1 className="text-2xl md:text-3xl font-bold text-neutral-black mb-6">{t("Checkout", "Checkout")}</h1>
 
       <div className="grid lg:grid-cols-[1.5fr_1fr] gap-6">
         {/* Left */}
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-5 min-w-0">
           {/* Item */}
-          <div className="bg-neutral-white rounded-2xl border border-neutral-light-gray-1 p-4 flex gap-4">
+          <div className="bg-neutral-white rounded-2xl border border-neutral-light-gray-1 p-4 flex gap-4 min-w-0">
             <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-neutral-light-gray-1 shrink-0">
               <Image src={event.image} alt={event.title} fill className="object-cover" />
             </div>
@@ -76,30 +84,30 @@ function CheckoutInner() {
               <p className="text-sm text-neutral-gray">{formatEventDate(event.dateISO)} · {event.city}</p>
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <Badge.Base className="bg-secondary-blue-soft text-lummy-500 text-xs">{tier.name}</Badge.Base>
-                <Badge.Base className="bg-secondary-cream-soft text-secondary-brown-dark text-xs">{qty} tiket</Badge.Base>
-                <span className="text-xs text-neutral-gray">Penjual {listing.sellerName}</span>
+                <Badge.Base className="bg-secondary-cream-soft text-secondary-brown-dark text-xs">{t(`${qty} tickets`, `${qty} tiket`)}</Badge.Base>
+                <span className="text-xs text-neutral-gray">{t("Seller", "Penjual")} {listing.sellerName}</span>
               </div>
             </div>
           </div>
 
           {/* Payment method */}
           <div className="bg-neutral-white rounded-2xl border border-neutral-light-gray-1 p-4">
-            <h4 className="font-fredoka font-semibold text-neutral-black mb-3">Metode bayar</h4>
+            <h4 className="font-fredoka font-semibold text-neutral-black mb-3">{t("Payment method", "Metode bayar")}</h4>
             <div className="grid grid-cols-2 gap-3">
               {([
                 { id: "qris", label: "QRIS", desc: "GoPay, OVO, DANA, bank", Icon: QrCode },
-                { id: "usdc", label: "Kripto (demo)", desc: "Stablecoin, opsional", Icon: Coins },
+                { id: "usdc", label: "Crypto (demo)", desc: t("Stablecoin, optional", "Stablecoin, opsional"), Icon: Coins },
               ] as const).map((m) => (
                 <button
                   key={m.id}
                   onClick={() => setMethod(m.id)}
-                  className={`text-left p-3 rounded-xl border-2 transition cursor-pointer ${
+                  className={`text-left p-3 rounded-xl border-2 transition cursor-pointer min-w-0 ${
                     method === m.id ? "border-lummy-500 bg-secondary-blue-light" : "border-neutral-light-gray-1 hover:border-lummy-500"
                   }`}
                 >
                   <m.Icon className="w-5 h-5 text-lummy-500 mb-1" />
                   <div className="font-medium text-sm text-neutral-black">{m.label}</div>
-                  <div className="text-xs text-neutral-gray">{m.desc}</div>
+                  <div className="text-xs text-neutral-gray break-words">{m.desc}</div>
                 </button>
               ))}
             </div>
@@ -107,25 +115,28 @@ function CheckoutInner() {
 
           <div className="flex items-start gap-2 text-sm text-neutral-gray bg-secondary-blue-extra rounded-2xl p-4">
             <Lock className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" />
-            <span>Dana dikunci, bukan ke penjual, sampai <b className="text-neutral-black">event selesai + 48 jam</b>. Kalau tiket bermasalah, ajukan sengketa dengan <b className="text-neutral-black">bukti gagal-masuk</b> — refund diputus admin, bukan otomatis.</span>
+            <span>{t(
+              `Your payment is locked in escrow, not handed to the seller, until the event ends plus ${DISPUTE_WINDOW_H} hours. If the ticket fails at the gate, you file a dispute with evidence recorded there, and an arbiter decides. Refunds are never automatic.`,
+              `Pembayaranmu dikunci di escrow, bukan diserahkan ke penjual, sampai acara selesai plus ${DISPUTE_WINDOW_H} jam. Kalau tiketnya gagal di gate, kamu ajukan sengketa dengan bukti yang direkam di sana, lalu arbiter yang memutuskan. Refund tidak pernah otomatis.`
+            )}</span>
           </div>
         </div>
 
         {/* Right: summary */}
         <div className="lg:sticky lg:top-24 h-fit bg-neutral-white rounded-3xl border border-lummy-500 p-6 flex flex-col gap-4">
-          <h4 className="font-fredoka font-semibold text-neutral-black">Rincian</h4>
+          <h4 className="font-fredoka font-semibold text-neutral-black">{t("Summary", "Rincian")}</h4>
           <div className="flex flex-col gap-2">
-            <Row label={qty > 1 ? `Tiket (${qty} × ${formatIDR(listing.askPrice)})` : "Harga tiket"} value={formatIDR(subtotal)} />
-            <Row label="Biaya layanan (5%, min. Rp25.000)" value={formatIDR(fee)} />
-            <Row label="e-Materai + biaya PSrE" value={formatIDR(MATERAI)} />
+            <Row label={qty > 1 ? t(`Tickets (${qty} × ${formatIDR(listing.askPrice)})`, `Tiket (${qty} × ${formatIDR(listing.askPrice)})`) : t("Ticket price", "Harga tiket")} value={formatIDR(subtotal)} />
+            <Row label={t("Service fee (5%, min. IDR 25,000)", "Biaya layanan (5%, min. IDR 25.000)")} value={formatIDR(fee)} />
+            <Row label={t("e-stamp + e-signature fee", "e-Materai + biaya TTE")} value={formatIDR(MATERAI)} />
             <div className="border-t border-dashed border-neutral-light-gray-1 my-1" />
-            <Row label="Total" value={formatIDR(total)} bold />
+            <Row label={t("Total", "Total")} value={formatIDR(total)} bold />
           </div>
           <Button.Primary wrapperClass="w-full" className="w-full" onClick={pay}>
-            Bayar {formatIDR(total)}
+            {t("Pay", "Bayar")} {formatIDR(total)}
           </Button.Primary>
           <p className="flex items-center gap-1.5 text-xs text-secondary-green-dark justify-center">
-            <ShieldCheck className="w-3.5 h-3.5" /> Dijamin escrow OperTix
+            <ShieldCheck className="w-3.5 h-3.5" /> {t("Protected by Lummy escrow", "Dijamin escrow Lummy")}
           </p>
         </div>
       </div>
@@ -133,8 +144,8 @@ function CheckoutInner() {
       <Modal open={processing} onClose={() => {}}>
         <div className="flex flex-col items-center gap-3 py-4">
           <Loader2 className="w-8 h-8 text-lummy-500 animate-spin" />
-          <p className="font-fredoka font-semibold text-neutral-black">Memproses pembayaran...</p>
-          <p className="text-sm text-neutral-gray text-center">Mengamankan dana kamu di escrow.</p>
+          <p className="font-fredoka font-semibold text-neutral-black">{t("Processing payment...", "Memproses pembayaran...")}</p>
+          <p className="text-sm text-neutral-gray text-center">{t("Securing your money in escrow.", "Mengamankan dana kamu di escrow.")}</p>
         </div>
       </Modal>
     </div>
@@ -142,8 +153,9 @@ function CheckoutInner() {
 }
 
 export default function CheckoutPage() {
+  const t = useT();
   return (
-    <Suspense fallback={<div className="pt-28 pb-16 text-center text-neutral-gray">Memuat...</div>}>
+    <Suspense fallback={<div className="pt-28 pb-16 text-center text-neutral-gray">{t("Loading...", "Memuat...")}</div>}>
       <CheckoutInner />
     </Suspense>
   );

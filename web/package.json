@@ -1,14 +1,15 @@
 {
-  "name": "opertix-web",
+  "name": "lummy-web",
   "version": "0.1.0",
   "private": true,
-  "description": "OperTix, escrow resale marketplace untuk tiket konser name-locked (Indonesia). FE mock.",
+  "description": "Lummy, escrow resale marketplace untuk tiket konser name-locked (Indonesia). FE mock.",
   "scripts": {
     "dev": "next dev --turbo",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "demo-check": "node scripts/demo-rehearsal.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

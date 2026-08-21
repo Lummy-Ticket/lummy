@@ -2,10 +2,10 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Category } from "./types";
 
-// Event baru diminta penjual pertama. Realita (dari tiket asli): PDF penjual cuma
-// nunjukin SATU kategori (kategori dia) + harga dia; kadang malah gak ada harganya.
-// Jadi daftar harga semua tier = admin lengkapi dari SUMBER RESMI ORGANIZER
-// (website / sosmed / poster), bukan di-extract full dari 1 PDF.
+// New events are requested by whoever lists a ticket first. Reality check from real
+// tickets: a seller's PDF only shows THEIR tier and THEIR price, sometimes no price at
+// all. So the full tier table is completed by an admin from the ORGANISER'S OFFICIAL
+// SOURCE (site, socials, poster), not extracted wholesale from one PDF.
 export interface EventRequest {
   id: string;
   submittedBy: string;
@@ -15,8 +15,8 @@ export interface EventRequest {
   city: string;
   category: Category;
   faceValues: { tier: string; value: number }[];
-  pdfTier: string; // satu-satunya tier yang kebaca dari PDF penjual (punya dia)
-  organizerRef: string; // sumber resmi buat verifikasi harga (sosmed/website organizer)
+  pdfTier: string; // the only tier readable from the seller's own PDF
+  organizerRef: string; // official source used to verify prices
   forgeryScore: number;
   pdfSuspicious: boolean;
   status: "pending" | "approved" | "rejected";
@@ -41,7 +41,7 @@ const SEED: EventRequest[] = [
     pdfTier: "VIP", organizerRef: "instagram.com/hindia.official",
     faceValues: [
       { tier: "VIP", value: 850_000 },
-      { tier: "Reguler", value: 450_000 },
+      { tier: "Regular", value: 450_000 },
     ],
   },
 ];
@@ -60,8 +60,8 @@ export const useEventRequests = create<ReqState>()(
       reject: (id) => set((s) => ({ requests: s.requests.map((r) => (r.id === id ? { ...r, status: "rejected" } : r)) })),
     }),
     {
-      name: "opertix:eventreq",
-      // v2: nambah pdfTier + organizerRef ke schema. Reset localStorage lama.
+      name: "lummy:eventreq",
+      // v2 added pdfTier + organizerRef, so older stored state is reset.
       version: 2,
       migrate: () => ({ requests: SEED }),
     }

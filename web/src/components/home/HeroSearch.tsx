@@ -5,13 +5,19 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { Search, TrendingUp } from "lucide-react";
-import { getEvents, formatEventDate } from "@/lib/mock";
+import {
+  getEvents,
+} from "@/lib/mock";
+import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 
 const ALL = getEvents();
 
-// Search-first hero + suggest: fokus = event trending, ketik = hasil live.
-// Tiap item ada foto kecil + judul, bisa klik langsung tanpa harus ke /events.
+// Search-first hero. Focus shows what is trending, typing filters live. Each row
+// carries a thumbnail so people can jump straight to an event without a detour.
 export function HeroSearch({ quickCats }: { quickCats: string[] }) {
+  const t = useT();
+  const { formatEventDate } = useFormatters();
+  const categoryLabel = useCategoryLabel();
   const router = useRouter();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
@@ -55,19 +61,19 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
             value={q}
             onChange={(e) => { setQ(e.target.value); setOpen(true); }}
             onFocus={() => setOpen(true)}
-            placeholder="Cari event, artis, atau venue..."
-            aria-label="Cari event"
+            placeholder={t("Search events, artists, or venues...", "Cari event, artis, atau venue...")}
+            aria-label={t("Search events", "Cari event")}
             className="flex-1 outline-none bg-transparent text-neutral-black placeholder:text-neutral-gray min-w-0"
           />
           <button type="submit" className="shrink-0 bg-primary-navy hover:bg-primary-navy-dark text-white font-fredoka font-medium rounded-xl px-5 py-2.5 text-sm transition cursor-pointer">
-            Cari
+            {t("Search", "Cari")}
           </button>
         </form>
 
         {open && suggestions.length > 0 && (
           <div className="absolute top-full left-0 right-0 mt-2 z-40 rounded-2xl border-2 border-lummy-500 bg-neutral-white shadow-lummy-lg overflow-hidden text-left">
             <div className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium text-neutral-gray border-b border-neutral-light-gray-1">
-              <TrendingUp className="w-3.5 h-3.5 text-lummy-500" /> {query ? "Hasil pencarian" : "Lagi trending"}
+              <TrendingUp className="w-3.5 h-3.5 text-lummy-500" /> {query ? t("Search results", "Hasil pencarian") : t("Trending now", "Lagi trending")}
             </div>
             {suggestions.map((e) => (
               <Link
@@ -91,7 +97,7 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
 
       <div className="flex flex-wrap justify-center lg:justify-start gap-2">
         <Link href="/events" className="px-4 py-1.5 rounded-full text-sm bg-neutral-white/70 border border-lummy-500 text-lummy-500 hover:bg-neutral-white transition">
-          Semua event
+          {t("All events", "Semua event")}
         </Link>
         {quickCats.map((c) => (
           <Link
@@ -99,7 +105,7 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
             href={`/events?cat=${encodeURIComponent(c)}`}
             className="px-4 py-1.5 rounded-full text-sm bg-neutral-white/70 border border-lummy-500 text-lummy-500 hover:bg-neutral-white transition"
           >
-            {c}
+            {categoryLabel(c)}
           </Link>
         ))}
       </div>
