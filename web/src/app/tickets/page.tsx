@@ -7,12 +7,15 @@ import { Ticket, ChevronRight, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EscrowStatusPill } from "@/components/common/EscrowStatusPill";
 import { PageContainer } from "@/components/layout/PageContainer";
+import { useAccessGuard } from "@/lib/access";
+import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters } from "@/lib/i18n";
 import {useOrders, phaseOf, msUntilRelease,
 } from "@/lib/mock";
 
 export default function TicketsPage() {
   const t = useT();
+  const ready = useAccessGuard("account");
   const { formatIDR, formatEventDate, formatCountdown } = useFormatters();
   const orders = useOrders((s) => s.orders);
   const sweepAutoRelease = useOrders((s) => s.sweepAutoRelease);
@@ -27,6 +30,8 @@ export default function TicketsPage() {
     }, 1000);
     return () => clearInterval(t);
   }, [sweepAutoRelease]);
+
+  if (!ready) return <PageGate />;
 
   return (
     <PageContainer width="app">

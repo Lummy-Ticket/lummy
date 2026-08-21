@@ -9,17 +9,23 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/common/Modal";
+import { useAccessGuard } from "@/lib/access";
+import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 import { PageContainer } from "@/components/layout/PageContainer";
 import {
-  useEventRequests, useOrders, checkEvidence, reasonMeta, suggestedRationale, disputeDeadlineISO, type EventRequest, type Order,
+  useEventRequests, useOrders, useSellerListings, getEventById,
+  checkEvidence, reasonMeta, suggestedRationale, disputeDeadlineISO,
+  remedyOptions, suggestedRemedy, sellerPenalty, SELLER_PENALTY_PCT, REMEDY_LABEL,
+  type EventRequest, type Order, type Remedy, type SellerListing,
 } from "@/lib/mock";
+import { Ticket, Scale as ScaleIcon } from "lucide-react";
 
 function EvidencePanel({ order }: { order: Order }) {
   const t = useT();
   const { formatDateTime } = useFormatters();
   const d = order.dispute!;
-  const check = useMemo(() => checkEvidence(order, d.evidence, d.openedAtISO), [order, d]);
+  const check = useMemo(() => checkEvidence(order, d.reason, d.evidence, d.openedAtISO), [order, d]);
   const deadline = disputeDeadlineISO(order);
 
   return (
@@ -33,7 +39,9 @@ function EvidencePanel({ order }: { order: Order }) {
       <div className="p-4">
         <div className="flex items-center gap-2 text-xs text-neutral-black mb-2">
           <Paperclip className="w-3.5 h-3.5 text-neutral-gray shrink-0" />
-          <span className="font-mono truncate">{d.evidence.fileName}</span>
+          <span className="font-mono truncate">
+            {d.evidence?.fileName ?? t("Settled from platform records", "Diputus dari catatan platform")}
+          </span>
           <span className={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${check.strength === "STRONG" ? "bg-secondary-green-soft text-secondary-green-dark" : "bg-secondary-pink-soft text-secondary-pink-dark"}`}>
             {check.strength}
           </span>
@@ -50,7 +58,7 @@ function EvidencePanel({ order }: { order: Order }) {
           ))}
         </div>
         <div className="mt-3 pt-3 border-t border-dashed border-neutral-light-gray-1 flex flex-wrap gap-x-5 gap-y-1 text-xs text-neutral-gray">
-          <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {t("Captured", "Diambil")} {formatDateTime(d.evidence.capturedAtISO)}</span>
+          {d.evidence && <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {t("Captured", "Diambil")} {formatDateTime(d.evidence.capturedAtISO)}</span>}
           <span className="flex items-center gap-1.5"><Gavel className="w-3.5 h-3.5" /> {t("Filed", "Diajukan")} {formatDateTime(d.openedAtISO)}</span>
           {deadline && <span className="flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" /> {t("Window closes", "Masa sengketa tutup")} {formatDateTime(deadline)}</span>}
         </div>
@@ -59,8 +67,109 @@ function EvidencePanel({ order }: { order: Order }) {
   );
 }
 
+function EmptyQueue({ text }: { text: string }) {
+  return (
+    <div className="bg-neutral-white rounded-3xl border border-dashed border-neutral-light-gray-1 p-10 text-center">
+      <p className="text-neutral-gray text-sm">{text}</p>
+    </div>
+  );
+}
+
+/**
+ * Listings the sell flow held back, either because the AI flagged the document
+ * or because they were posted close to doors. The sell flow tells the seller
+ * this queue exists, so it has to actually exist.
+ */
+function ListingQueue({
+  held, onApprove, onReject,
+}: {
+  held: SellerListing[];
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
+}) {
+  const t = useT();
+  const { formatIDR, formatEventDate } = useFormatters();
+
+  if (held.length === 0) {
+    return <EmptyQueue text={t("Nothing held. Every listing cleared on its own.", "Tidak ada yang ditahan. Semua listing lolos sendiri.")} />;
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-sm text-neutral-gray">
+        {t(
+          "These never went live. Clear one only after checking the document by hand: approving puts it in front of buyers.",
+          "Semua ini belum pernah tayang. Loloskan hanya setelah dokumennya dicek manual: menyetujui berarti listing-nya tampil ke pembeli."
+        )}
+      </p>
+      {held.map((l) => {
+        const ev = getEventById(l.eventId);
+        const risky = l.ai.pdfSuspicious || l.ai.forgeryScore >= 60;
+        return (
+          <div key={l.id} className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="font-fredoka font-semibold text-neutral-black truncate">{l.eventTitle}</h3>
+                <div className="text-xs text-neutral-gray mt-1">
+                  {ev ? formatEventDate(ev.dateISO) : ""} · {l.tierName} · {l.quantity}x
+                </div>
+              </div>
+              <span className="font-fredoka font-bold text-lummy-500 text-nowrap">{formatIDR(l.askPrice)}</span>
+            </div>
+
+            <div className="flex flex-wrap gap-2 mt-3">
+              {l.lateListing && (
+                <Badge.Base className="bg-secondary-gold-soft text-secondary-brown-dark text-xs flex items-center gap-1">
+                  <Clock className="w-3 h-3" /> {t("Listed close to doors", "Dipasang mepet acara")}
+                </Badge.Base>
+              )}
+              <Badge.Base className={`text-xs flex items-center gap-1 ${risky ? "bg-secondary-orange-soft text-secondary-orange-dark" : "bg-secondary-green-soft text-secondary-green-dark"}`}>
+                {risky ? <AlertTriangle className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}
+                {t("Forgery score", "Skor pemalsuan")} {l.ai.forgeryScore}/100
+              </Badge.Base>
+              {l.ai.pdfSuspicious && (
+                <Badge.Base className="bg-secondary-orange-soft text-secondary-orange-dark text-xs">
+                  {t("PDF structure suspicious", "Struktur PDF mencurigakan")}
+                </Badge.Base>
+              )}
+            </div>
+
+            <p className="text-xs text-neutral-gray mt-3">
+              {l.lateListing && !risky
+                ? t(
+                    "Held on timing alone: the document reads clean, but last-minute listings are where duplicate-pass fraud concentrates.",
+                    "Ditahan murni karena waktunya: dokumennya bersih, tapi listing menit terakhir adalah tempat penipuan tiket ganda menumpuk."
+                  )
+                : t(
+                    "Held because the document itself looks off. Compare it against the organiser's original before clearing it.",
+                    "Ditahan karena dokumennya sendiri mencurigakan. Bandingkan dengan versi asli organizer sebelum diloloskan."
+                  )}
+            </p>
+
+            <div className="flex gap-3 mt-4">
+              <Button.Primary
+                className="flex items-center gap-2 text-sm"
+                onClick={() => { onApprove(l.id); toast.success(t("Listing cleared, now live", "Listing lolos, sekarang tayang")); }}
+              >
+                <CheckCircle2 className="w-4 h-4" /> {t("Clear listing", "Loloskan listing")}
+              </Button.Primary>
+              <button
+                onClick={() => { onReject(l.id); toast(t("Listing rejected", "Listing ditolak")); }}
+                className="flex items-center gap-2 px-4 py-3 rounded-2xl border-2 border-neutral-light-gray-1 text-neutral-gray text-sm hover:border-secondary-pink-dark hover:text-secondary-pink-dark transition cursor-pointer"
+              >
+                <XCircle className="w-4 h-4" /> {t("Reject", "Tolak")}
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const t = useT();
+  const ready = useAccessGuard("staff");
   const { formatIDR, formatEventDate } = useFormatters();
   const categoryLabel = useCategoryLabel();
   const [mounted, setMounted] = useState(false);
@@ -70,38 +179,78 @@ export default function AdminPage() {
   const reject = useEventRequests((s) => s.reject);
   const orders = useOrders((s) => s.orders);
   const resolveDispute = useOrders((s) => s.resolveDispute);
+  const listings = useSellerListings((s) => s.listings);
+  const approveListing = useSellerListings((s) => s.approve);
+  const rejectListing = useSellerListings((s) => s.reject);
+  const [tab, setTab] = useState<"claims" | "listings" | "events">("claims");
   useEffect(() => setMounted(true), []);
 
   const disputes = orders.filter((o) => o.escrowStatus === "DISPUTED");
+  const held = listings.filter((l) => l.status === "review");
+  const pendingEvents = requests.filter((r) => r.status === "pending");
+
+  // Three queues, each with its own rhythm. Kept apart so a busy day in one
+  // does not bury the others, and so a count is visible before opening any.
+  const TABS = [
+    { id: "claims" as const, en: "Claims", id_: "Klaim", Icon: ScaleIcon, count: disputes.length },
+    { id: "listings" as const, en: "Listings held", id_: "Listing ditahan", Icon: Ticket, count: held.length },
+    { id: "events" as const, en: "New events", id_: "Event baru", Icon: Calendar, count: pendingEvents.length },
+  ];
   const doApprove = (r: EventRequest) => { approve(r.id); toast.success(t("Event approved, tickets can be listed", "Event disetujui, tiketnya boleh dijual")); };
 
-  const doResolve = (o: Order, toSeller: boolean) => {
-    const check = checkEvidence(o, o.dispute!.evidence, o.dispute!.openedAtISO);
-    const rationale = toSeller
-      ? check.strength === "STRONG"
+  const doResolve = (o: Order, remedy: Remedy) => {
+    const check = checkEvidence(o, o.dispute!.reason, o.dispute!.evidence, o.dispute!.openedAtISO);
+    const rationale =
+      remedy === "RELEASE_SELLER" && check.strength === "STRONG"
         ? {
             en: "Arbiter overrode the automated read and released to the seller.",
             id: "Arbiter mengesampingkan pembacaan otomatis dan mencairkan ke penjual.",
           }
-        : suggestedRationale(o.dispute!, check)
-      : {
-          en: "Gate-time evidence is consistent with a denied entry: timestamp and location both check out.",
-          id: "Bukti dari gate konsisten dengan penolakan masuk: waktu dan lokasi sama-sama cocok.",
-        };
-    resolveDispute(o.id, toSeller, rationale);
+        : suggestedRationale(o.dispute!, check);
+    resolveDispute(o.id, remedy, rationale);
     toast.success(
-      toSeller
+      remedy === "RELEASE_SELLER"
         ? t("Closed, funds released to the seller", "Ditutup, dana cair ke penjual")
-        : t("Upheld, buyer refunded", "Dikabulkan, dana pembeli dikembalikan")
+        : t(`Upheld: ${REMEDY_LABEL[remedy].en.toLowerCase()}`, `Dikabulkan: ${REMEDY_LABEL[remedy].id.toLowerCase()}`)
     );
   };
+
+  if (!ready) return <PageGate />;
 
   return (
     <PageContainer width="app">
       <h1 className="text-2xl md:text-3xl font-bold text-neutral-black">{t("Admin console", "Konsol admin")}</h1>
+      <p className="text-neutral-gray text-sm mt-1">
+        {t("Three queues: money in dispute, listings held back, and events waiting to open.",
+           "Tiga antrian: dana yang disengketakan, listing yang ditahan, dan event yang menunggu dibuka.")}
+      </p>
+
+      <div className="flex flex-wrap gap-2 mt-5 mb-6">
+        {TABS.map((x) => (
+          <button
+            key={x.id}
+            onClick={() => setTab(x.id)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm border transition cursor-pointer ${
+              tab === x.id
+                ? "bg-primary-navy text-white border-primary-navy"
+                : "bg-neutral-white text-neutral-gray border-neutral-light-gray-1 hover:border-primary-navy"
+            }`}
+          >
+            <x.Icon className="w-4 h-4" /> {t(x.en, x.id_)}
+            {x.count > 0 && (
+              <span className={`text-xs rounded-full px-1.5 ${tab === x.id ? "bg-white/20" : "bg-secondary-blue-soft text-lummy-500"}`}>
+                {x.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
 
       {/* Arbitration queue: refunds are decided here, never automatically */}
-      {mounted && disputes.length > 0 && (
+      {mounted && tab === "claims" && disputes.length === 0 && (
+        <EmptyQueue text={t("No claims open. Escrow is settling on its own.", "Tidak ada klaim terbuka. Escrow berjalan sendiri.")} />
+      )}
+      {mounted && tab === "claims" && disputes.length > 0 && (
         <div className="mt-6">
           <h2 className="font-fredoka font-bold text-xl text-neutral-black flex items-center gap-2">
             <Scale className="w-5 h-5 text-secondary-orange-dark" /> {t("Arbitration", "Arbitrase")}
@@ -115,8 +264,9 @@ export default function AdminPage() {
           </p>
           <div className="flex flex-col gap-4">
             {disputes.map((o) => {
-              const check = checkEvidence(o, o.dispute!.evidence, o.dispute!.openedAtISO);
-              const strong = check.strength === "STRONG";
+              const check = checkEvidence(o, o.dispute!.reason, o.dispute!.evidence, o.dispute!.openedAtISO);
+              const suggested = suggestedRemedy(o, o.dispute!.reason, check);
+              const penalty = sellerPenalty(o.amount);
               return (
                 <div key={o.id} className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
                   <div className="flex items-start justify-between gap-3">
@@ -133,23 +283,40 @@ export default function AdminPage() {
 
                   <p className="text-xs text-neutral-gray mt-3 flex gap-2">
                     <Gavel className="w-4 h-4 shrink-0 text-neutral-gray mt-0.5" />
-                    <span>{t("Suggested", "Saran")}: <b className="text-neutral-black">{strong ? t("refund the buyer", "kembalikan ke pembeli") : t("release to the seller", "cairkan ke penjual")}</b>. {t(suggestedRationale(o.dispute!, check).en, suggestedRationale(o.dispute!, check).id)}</span>
+                    <span>
+                      {t("Suggested", "Saran")}: <b className="text-neutral-black">{t(REMEDY_LABEL[suggested].en.toLowerCase(), REMEDY_LABEL[suggested].id.toLowerCase())}</b>.{" "}
+                      {t(suggestedRationale(o.dispute!, check).en, suggestedRationale(o.dispute!, check).id)}
+                    </span>
                   </p>
 
-                  <div className="flex flex-col sm:flex-row gap-3 mt-4">
-                    <button
-                      onClick={() => doResolve(o, false)}
-                      className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border-2 text-sm transition cursor-pointer ${strong ? "border-secondary-green-dark text-secondary-green-dark hover:bg-secondary-green-soft" : "border-neutral-light-gray-1 text-neutral-gray hover:border-secondary-green-dark hover:text-secondary-green-dark"}`}
-                    >
-                      <CheckCircle2 className="w-4 h-4" /> {t("Evidence holds, refund buyer", "Bukti kuat, refund pembeli")}
-                    </button>
-                    <button
-                      onClick={() => doResolve(o, true)}
-                      className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border-2 text-sm transition cursor-pointer ${!strong ? "border-primary-navy text-primary-navy hover:bg-secondary-blue-light" : "border-neutral-light-gray-1 text-neutral-gray hover:border-primary-navy hover:text-primary-navy"}`}
-                    >
-                      <XCircle className="w-4 h-4" /> {t("Evidence weak, pay seller", "Bukti lemah, bayar penjual")}
-                    </button>
+                  {/* Remedy ladder: seat them, correct the price, refund, or pay the seller. */}
+                  <div className="grid sm:grid-cols-2 gap-2 mt-4">
+                    {remedyOptions(o, o.dispute!.reason).map((opt) => {
+                      const isSuggested = opt.remedy === suggested;
+                      const pays = opt.remedy !== "RELEASE_SELLER";
+                      return (
+                        <button
+                          key={opt.remedy}
+                          onClick={() => doResolve(o, opt.remedy)}
+                          className={`text-left p-3 rounded-2xl border-2 transition cursor-pointer ${isSuggested ? "border-primary-navy bg-secondary-blue-light" : "border-neutral-light-gray-1 hover:border-primary-navy"}`}
+                        >
+                          <div className="flex items-center gap-2 text-sm font-medium text-neutral-black">
+                            {pays ? <CheckCircle2 className="w-4 h-4 text-secondary-green-dark shrink-0" /> : <XCircle className="w-4 h-4 text-neutral-gray shrink-0" />}
+                            {t(opt.label.en, opt.label.id)}
+                            {opt.amount > 0 && <span className="ml-auto text-xs font-fredoka font-bold text-lummy-500">{formatIDR(opt.amount)}</span>}
+                          </div>
+                          <p className="text-xs text-neutral-gray mt-1">{t(opt.note.en, opt.note.id)}</p>
+                        </button>
+                      );
+                    })}
                   </div>
+
+                  <p className="text-xs text-neutral-gray mt-3">
+                    {t(
+                      `Anything other than paying the seller also charges them ${SELLER_PENALTY_PCT}% of the sale, ${formatIDR(penalty)}, on top of losing it. That is what makes a bad listing cost more than it earns.`,
+                      `Selain mencairkan ke penjual, semua opsi juga membebani penjual ${SELLER_PENALTY_PCT}% dari nilai transaksi, ${formatIDR(penalty)}, di luar kehilangan penjualannya. Itu yang bikin listing bermasalah lebih mahal daripada hasilnya.`
+                    )}
+                  </p>
                 </div>
               );
             })}
@@ -157,7 +324,13 @@ export default function AdminPage() {
         </div>
       )}
 
-      <h2 className="font-fredoka font-bold text-xl text-neutral-black mt-10">{t("Event approvals", "Persetujuan event")}</h2>
+      {mounted && tab === "listings" && (
+        <ListingQueue held={held} onApprove={approveListing} onReject={rejectListing} />
+      )}
+
+      {tab === "events" && (
+      <>
+      <h2 className="font-fredoka font-bold text-xl text-neutral-black">{t("Event approvals", "Persetujuan event")}</h2>
       <div className="flex items-start gap-2 text-sm text-neutral-gray bg-secondary-blue-extra rounded-2xl p-4 mt-3 mb-8">
         <Sparkles className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" />
         <span>{t(
@@ -233,6 +406,9 @@ export default function AdminPage() {
             </div>
           ))}
         </div>
+      )}
+
+      </>
       )}
 
       <Modal open={!!confirmReq} onClose={() => setConfirmReq(null)} title={t("Approve a flagged ticket?", "Setujui tiket ter-flag?")}>

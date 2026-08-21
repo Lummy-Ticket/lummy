@@ -83,17 +83,32 @@ export type EscrowPhase =
   | "RELEASED"
   | "REFUNDED";
 
-// NO_SHOW is listed on purpose: it is the one reason the policy rejects
-// outright. A valid ticket you chose not to use is not a refund case, the
-// remedy is relisting it before the event ("resell, not refund").
+// Every way a ticket can fail has exactly one path here, so nothing falls
+// between the cracks. Two of these are pre-event failures, two are gate
+// failures, one is decided by the organiser, and one is refused outright.
+//
+// NO_SHOW is listed on purpose: it is the one reason the policy rejects. A
+// valid ticket you chose not to use is not a refund case; the remedy is
+// relisting it before the event ("resell, not refund").
 export type DisputeReason =
   | "GATE_DENIED"
   | "BARCODE_USED"
   | "NOT_DELIVERED"
   | "NOT_AS_LISTED"
+  | "EVENT_CANCELLED"
   | "NO_SHOW";
 
-export type EvidenceKind = "SCANNER_PHOTO" | "STAFF_LETTER" | "CHAT_LOG";
+/** Organiser-driven state. A cancelled show refunds without anyone filing. */
+export type EventStatus = "scheduled" | "postponed" | "cancelled";
+
+/**
+ * Remedies in the order a marketplace should reach for them: put the buyer in
+ * the seat first, correct the price second, refund third. Releasing to the
+ * seller is the outcome when a claim does not hold up.
+ */
+export type Remedy = "REPLACEMENT" | "REFUND_PARTIAL" | "REFUND_FULL" | "RELEASE_SELLER";
+
+export type EvidenceKind = "SCANNER_PHOTO" | "STAFF_LETTER" | "CHAT_LOG" | "TICKET_PHOTO" | "SYSTEM_RECORD";
 
 // Evidence carries its own capture metadata (mock EXIF). The whole anti-lying
 // model rests on it: a buyer who actually walked in has no gate-time rejection
@@ -103,10 +118,18 @@ export interface DisputeEvidence {
   kind: EvidenceKind;
   capturedAtISO: string;
   atVenue: boolean; // geotag matched the venue
+  /** Whether this order's barcode is legible in the file. Without it, a photo of
+   *  a stranger being turned away would pass the time and place checks. */
+  showsBarcode?: boolean;
 }
 
 export interface DisputeVerdict {
   toSeller: boolean;
+  remedy: Remedy;
+  /** What actually moved back to the buyer, in rupiah. */
+  refundAmount: number;
+  /** Charged to the seller on an upheld claim, on top of losing the sale. */
+  sellerPenalty: number;
   /** Kept in both languages so a stored verdict still follows the language switch. */
   rationale: { en: string; id: string };
   decidedAtISO: string;
@@ -117,7 +140,8 @@ export interface Dispute {
   /** Free text. Seeded demo notes carry both languages; anything a buyer types
    *  is stored as they wrote it, in whichever language they used. */
   note: { en: string; id: string };
-  evidence: DisputeEvidence;
+  /** Absent for claims the platform settles from its own records. */
+  evidence?: DisputeEvidence;
   openedAtISO: string;
   verdict?: DisputeVerdict;
 }
@@ -153,5 +177,16 @@ export interface Order {
   eventEndedAtISO?: string;
   /** True when the window elapsed in silence and the contract paid out by itself. */
   autoReleased?: boolean;
+  /** Set when the escrow refunded without anyone filing, e.g. a cancelled show. */
+  autoRefundReason?: "EVENT_CANCELLED";
+  /** Organiser state for this order's event, snapshotted at purchase. */
+  eventStatus?: EventStatus;
+  /**
+   * When the buyer actually opened the handover documents. This is the platform's
+   * own record, and it is what settles a "never handed over" claim either way.
+   */
+  docsAccessed?: { letterAtISO?: string; sellerIdAtISO?: string };
+  /** Listed within the high-risk window before doors, so it went through review. */
+  lateListing?: boolean;
   dispute?: Dispute;
 }

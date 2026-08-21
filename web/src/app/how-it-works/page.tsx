@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Lock, ScanLine, TrendingUp, Eye, RotateCcw, Repeat, ArrowRight } from "lucide-react";
+import { Lock, ScanLine, TrendingUp, Eye, RotateCcw, Repeat, ArrowRight, CalendarX, CalendarClock, PackageX, FileWarning, XCircle, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
@@ -51,6 +51,55 @@ const sections: Step[] = [
     id: "Gak bisa dateng? Jual lagi",
     bodyEn: "Changing plans is not a refund reason: the ticket is valid, you simply did not use it. What you can do is relist it before the event and recover the value through the market instead.",
     bodyId: "Berubah rencana bukan alasan refund: tiketnya valid, kamu saja yang gak memakainya. Yang bisa kamu lakukan adalah jual lagi sebelum acara dan balikin nilainya lewat pasar.",
+  },
+];
+
+
+// Every way a ticket can fail, and what the escrow does about it. This is the
+// page's reason to exist: not a brochure, but the policy stated in full, so a
+// buyer can check the promise before they need it.
+const coverage = [
+  {
+    Icon: PackageX,
+    en: "The seller never hands it over", id: "Penjual tidak pernah menyerahkannya",
+    outEn: "Claim it before the show. Our own log of whether you opened the handover documents settles it, so there is nothing for you to prove.",
+    outId: "Ajukan sebelum acara. Catatan kami soal apakah kamu pernah membuka dokumen serah-terima yang menentukan, jadi tidak ada yang perlu kamu buktikan.",
+  },
+  {
+    Icon: FileWarning,
+    en: "It is not the ticket that was listed", id: "Tiketnya beda dari listing",
+    outEn: "If you still got in on a lesser ticket, you are refunded the difference rather than the whole thing.",
+    outId: "Kalau kamu tetap masuk dengan tiket yang lebih rendah, yang dikembalikan selisihnya, bukan seluruhnya.",
+  },
+  {
+    Icon: XCircle,
+    en: "You are turned away at the gate", id: "Kamu ditolak di gate",
+    outEn: "File within 48 hours with a photo taken there. Time, place and the code on screen all have to line up, which is why a claim from someone who walked in cannot stand.",
+    outId: "Ajukan dalam 48 jam dengan foto yang diambil di sana. Waktu, tempat, dan kode di layar harus cocok semua, dan itulah kenapa klaim dari orang yang berhasil masuk tidak akan berdiri.",
+  },
+  {
+    Icon: CalendarX,
+    en: "The organiser cancels", id: "Penyelenggara membatalkan",
+    outEn: "Nobody files anything. The escrow reverses on its own, and the seller is not penalised: no one is at fault.",
+    outId: "Tidak ada yang perlu mengajukan. Escrow membalik sendiri, dan penjual tidak kena penalti: tidak ada yang salah di sini.",
+  },
+  {
+    Icon: CalendarClock,
+    en: "The organiser moves the date", id: "Penyelenggara mengundur tanggal",
+    outEn: "Your ticket stays valid and the money stays held. If the new date does not work, take the refund instead. No arbiter either way.",
+    outId: "Tiketmu tetap berlaku dan dananya tetap ditahan. Kalau tanggal barunya tidak cocok, ambil refund. Dua-duanya tanpa arbiter.",
+  },
+  {
+    Icon: Repeat,
+    en: "You cannot make it", id: "Kamu berhalangan hadir",
+    outEn: "Not a refund. The ticket works; you simply are not using it. Relist it before the show and the market gives you your money back.",
+    outId: "Bukan refund. Tiketnya berfungsi, kamu saja yang tidak memakainya. Jual lagi sebelum acara dan pasar yang mengembalikan uangmu.",
+  },
+  {
+    Icon: Timer,
+    en: "Nothing goes wrong at all", id: "Tidak ada masalah sama sekali",
+    outEn: "You do nothing. Forty-eight hours after the show the contract pays the seller by itself, because silence is what a successful handover looks like.",
+    outId: "Kamu tidak perlu melakukan apa pun. Empat puluh delapan jam setelah acara, kontraknya membayar penjual dengan sendirinya, karena diam adalah bentuk serah-terima yang berhasil.",
   },
 ];
 
@@ -145,6 +194,32 @@ export default function HowItWorks() {
               ))}
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Coverage map: the whole failure surface in one place. */}
+      <section className="max-w-3xl mx-auto px-5 mt-16">
+        <h2 className="text-center font-bold text-2xl md:text-3xl text-neutral-black leading-tight">
+          {t("What happens when it goes wrong", "Kalau ada yang tidak beres")}
+        </h2>
+        <p className="text-center text-neutral-gray mt-2 mb-10">
+          {t(
+            "Each of these has one defined path, and each path names what settles it.",
+            "Masing-masing punya satu jalur yang jelas, dan tiap jalur menyebutkan apa yang menentukannya."
+          )}
+        </p>
+        <div className="flex flex-col divide-y divide-neutral-light-gray-1">
+          {coverage.map((c) => (
+            <div key={c.en} className="flex gap-4 py-5">
+              <span className="w-9 h-9 rounded-lg bg-secondary-blue-soft text-lummy-500 grid place-items-center shrink-0">
+                <c.Icon className="w-4 h-4" />
+              </span>
+              <div className="min-w-0">
+                <h3 className="font-fredoka font-semibold text-neutral-black">{t(c.en, c.id)}</h3>
+                <p className="text-sm text-neutral-gray mt-1 leading-relaxed">{t(c.outEn, c.outId)}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 

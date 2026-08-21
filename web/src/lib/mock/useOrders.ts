@@ -1,8 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Dispute, DisputeEvidence, DisputeReason, EventItem, Listing, Order, Tier } from "./types";
+import type { Dispute, DisputeEvidence, DisputeReason, EventItem, Listing, Order, Remedy, Tier } from "./types";
 import { CONTRACT_ADDRESS, mockTxHash } from "./util";
-import { DISPUTE_WINDOW_H, canFileDispute, disputeDeadlineISO } from "./escrow";
+import { DISPUTE_WINDOW_H, canFileDispute, disputeDeadlineISO, partialAmount, sellerPenalty } from "./escrow";
 
 const H = 3_600_000;
 const ago = (hours: number) => new Date(Date.now() - hours * H).toISOString();
@@ -63,6 +63,7 @@ const seedOrders = (): Order[] => [
         kind: "SCANNER_PHOTO",
         capturedAtISO: ago(29),
         atVenue: true,
+        showsBarcode: true,
       },
       openedAtISO: ago(20),
     },
@@ -87,10 +88,14 @@ const seedOrders = (): Order[] => [
         kind: "STAFF_LETTER",
         capturedAtISO: ago(21 * 24 - 3),
         atVenue: true,
+        showsBarcode: true,
       },
       openedAtISO: ago(21 * 24 - 6),
       verdict: {
         toSeller: false,
+        remedy: "REFUND_FULL",
+        refundAmount: 700_000,
+        sellerPenalty: 280_000,
         rationale: {
           en: "Gate-time evidence is consistent with a denied entry: timestamp and location both check out.",
           id: "Bukti dari gate konsisten dengan penolakan masuk: waktu dan lokasi sama-sama cocok.",
@@ -112,8 +117,17 @@ interface OrderState {
   fastForwardWindow: (id: string) => void;
   /** Pays out every locked order whose window has elapsed in silence. */
   sweepAutoRelease: () => void;
-  openDispute: (id: string, input: { reason: DisputeReason; note: { en: string; id: string }; evidence: DisputeEvidence }) => void;
-  resolveDispute: (id: string, toSeller: boolean, rationale: { en: string; id: string }) => void;
+  openDispute: (id: string, input: { reason: DisputeReason; note: { en: string; id: string }; evidence?: DisputeEvidence }) => void;
+  /** Records that the buyer opened a handover document. This log is what
+   *  settles a later "never handed over" claim, in either direction. */
+  markDocsAccessed: (id: string, which: "letter" | "sellerId") => void;
+  /** Organiser pulled the show. Every locked order for it refunds on its own. */
+  cancelEvent: (eventId: string) => void;
+  /** Organiser moved the date. The buyer chooses: keep the seat or take the money. */
+  postponeEvent: (eventId: string) => void;
+  /** Buyer opting out of a postponed show, which needs no arbiter. */
+  refundPostponed: (id: string) => void;
+  resolveDispute: (id: string, remedy: Remedy, rationale: { en: string; id: string }) => void;
   getById: (id: string) => Order | undefined;
 }
 
@@ -185,19 +199,75 @@ export const useOrders = create<OrderState>()(
           }),
         })),
 
-      // The arbiter decides. Silence and weak evidence both land on the seller.
-      resolveDispute: (id, toSeller, rationale) =>
+      // The arbiter picks a rung on the remedy ladder. Anything other than
+      // releasing to the seller costs the seller the sale plus a penalty.
+      resolveDispute: (id, remedy, rationale) =>
+        set((s) => ({
+          orders: patch(s.orders, id, (o) => {
+            if (o.escrowStatus !== "DISPUTED" || !o.dispute) return o;
+            const toSeller = remedy === "RELEASE_SELLER";
+            const refundAmount =
+              remedy === "REFUND_FULL" ? o.amount
+              : remedy === "REFUND_PARTIAL" ? partialAmount(o, o.dispute.reason)
+              : 0;
+            return {
+              ...o,
+              // A replacement keeps the escrow open on the new seat; the mock
+              // settles it as a full refund so the money is never left in limbo.
+              escrowStatus: toSeller ? "RELEASED" : "REFUNDED",
+              settleTxHash: mockTxHash(),
+              dispute: {
+                ...o.dispute,
+                verdict: {
+                  toSeller,
+                  remedy,
+                  refundAmount: remedy === "REPLACEMENT" ? o.amount : refundAmount,
+                  sellerPenalty: toSeller ? 0 : sellerPenalty(o.amount),
+                  rationale,
+                  decidedAtISO: new Date().toISOString(),
+                },
+              },
+            };
+          }),
+        })),
+
+      markDocsAccessed: (id, which) =>
+        set((s) => ({
+          orders: patch(s.orders, id, (o) => {
+            const key = which === "letter" ? "letterAtISO" : "sellerIdAtISO";
+            if (o.docsAccessed?.[key]) return o; // first open is the one that counts
+            return { ...o, docsAccessed: { ...o.docsAccessed, [key]: new Date().toISOString() } };
+          }),
+        })),
+
+      // A cancelled show is not a dispute: nobody did anything wrong, so the
+      // escrow simply reverses. This is the case that would otherwise pay a
+      // seller for a concert that never happened.
+      cancelEvent: (eventId) =>
+        set((s) => ({
+          orders: s.orders.map((o) => {
+            if (o.eventId !== eventId) return o;
+            if (o.escrowStatus !== "LOCKED") return { ...o, eventStatus: "cancelled" };
+            return {
+              ...o,
+              eventStatus: "cancelled",
+              escrowStatus: "REFUNDED",
+              autoRefundReason: "EVENT_CANCELLED",
+              settleTxHash: mockTxHash(),
+            };
+          }),
+        })),
+
+      postponeEvent: (eventId) =>
+        set((s) => ({
+          orders: s.orders.map((o) => (o.eventId === eventId ? { ...o, eventStatus: "postponed" } : o)),
+        })),
+
+      refundPostponed: (id) =>
         set((s) => ({
           orders: patch(s.orders, id, (o) =>
-            o.escrowStatus === "DISPUTED"
-              ? {
-                  ...o,
-                  escrowStatus: toSeller ? "RELEASED" : "REFUNDED",
-                  settleTxHash: mockTxHash(),
-                  dispute: o.dispute
-                    ? { ...o.dispute, verdict: { toSeller, rationale, decidedAtISO: new Date().toISOString() } }
-                    : o.dispute,
-                }
+            o.escrowStatus === "LOCKED" && o.eventStatus === "postponed"
+              ? { ...o, escrowStatus: "REFUNDED", settleTxHash: mockTxHash() }
               : o
           ),
         })),

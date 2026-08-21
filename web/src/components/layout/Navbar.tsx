@@ -17,10 +17,18 @@ const BROWSE: NavLink = { en: "Browse", id: "Jelajah", href: "/events" };
 const HOW: NavLink = { en: "How it works", id: "Cara kerja", href: "/how-it-works" };
 const ABOUT: NavLink = { en: "About", id: "Tentang", href: "/about" };
 
+const TICKETS: NavLink = { en: "My tickets", id: "Tiket saya", href: "/tickets" };
+const SELL: NavLink = { en: "Sell", id: "Jual", href: "/sell" };
+const DASHBOARD: NavLink = { en: "Dashboard", id: "Dasbor", href: "/seller" };
+
 const GUEST_LINKS: NavLink[] = [HOME, BROWSE, HOW, ABOUT];
+
+// One account buys and sells, so both entries stay reachable in either view.
+// Switching persona changes where you land and what leads, not what you may do.
+// Admin is staff, so it carries neither.
 const ROLE_LINKS: Record<Role, NavLink[]> = {
-  BUYER: [HOME, BROWSE, { en: "My tickets", id: "Tiket saya", href: "/tickets" }, HOW, ABOUT],
-  SELLER: [BROWSE, { en: "Sell", id: "Jual", href: "/sell" }, { en: "Dashboard", id: "Dasbor", href: "/seller" }, HOW],
+  BUYER: [HOME, BROWSE, TICKETS, SELL, HOW],
+  SELLER: [BROWSE, DASHBOARD, SELL, TICKETS, HOW],
   ADMIN: [BROWSE, { en: "Console", id: "Konsol", href: "/admin" }, HOW],
 };
 
@@ -141,6 +149,9 @@ export function Navbar() {
               </button>
               {roleOpen && (
                 <div className="absolute right-0 top-full mt-2 w-40 rounded-2xl border border-lummy-500 bg-neutral-white shadow-lummy-lg overflow-hidden z-50">
+                  <div className="px-4 pt-2 pb-1.5 text-[10px] uppercase tracking-wide text-neutral-gray">
+                    {t("Demo personas", "Persona demo")}
+                  </div>
                   {(Object.keys(ROLE_LABEL) as Role[]).map((r) => (
                     <button
                       key={r}

@@ -12,6 +12,8 @@ import { Modal } from "@/components/common/Modal";
 import {
   SEED_LISTINGS, getEventById, getTier, platformFee, MATERAI, useOrders, DISPUTE_WINDOW_H,
 } from "@/lib/mock";
+import { useAccessGuard } from "@/lib/access";
+import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters } from "@/lib/i18n";
 
 function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
@@ -25,6 +27,7 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
 
 function CheckoutInner() {
   const t = useT();
+  const ready = useAccessGuard("account");
   const { formatIDR, formatEventDate } = useFormatters();
   const params = useSearchParams();
   const router = useRouter();
@@ -58,6 +61,8 @@ function CheckoutInner() {
       router.push(`/tickets/${id}`);
     }, 1800);
   };
+
+  if (!ready) return <PageGate />;
 
   return (
     <div className="max-w-7xl mx-auto w-full px-5 lg:px-10 pt-28 pb-16">

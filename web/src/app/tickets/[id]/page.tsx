@@ -12,10 +12,12 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/common/Modal";
+import { useAccessGuard } from "@/lib/access";
+import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters } from "@/lib/i18n";
 import { EscrowStatusPill } from "@/components/common/EscrowStatusPill";
 import { PageContainer } from "@/components/layout/PageContainer";
-import {useOrders, useUser, explorerTx, explorerAddr, shortHash, phaseOf, msUntilRelease, disputeDeadlineISO, checkEvidence, mockEvidenceOptions, DISPUTE_REASONS, DISPUTE_WINDOW_H, reasonMeta, type DisputeEvidence, type DisputeReason,
+import {useOrders, useUser, explorerTx, explorerAddr, shortHash, phaseOf, msUntilRelease, disputeDeadlineISO, checkEvidence, mockEvidenceOptions, DISPUTE_WINDOW_H, reasonMeta, availableReasons, reasonBlockedNote, canFileDispute, REMEDY_LABEL, type DisputeEvidence, type DisputeReason,
 } from "@/lib/mock";
 
 function ChainRow({ label, value, href, onCopy }: { label: string; value: string; href?: string; onCopy?: () => void }) {
@@ -50,6 +52,7 @@ function CheckRow({ ok, label, detail }: { ok: boolean; label: string; detail: s
 
 export default function OrderDetailPage() {
   const t = useT();
+  const ready = useAccessGuard("account");
   const { formatIDR, formatEventDate, formatDateTime, formatCountdown } = useFormatters();
   const { id } = useParams<{ id: string }>();
   const order = useOrders((s) => s.orders.find((o) => o.id === id));
@@ -57,6 +60,10 @@ export default function OrderDetailPage() {
   const fastForwardWindow = useOrders((s) => s.fastForwardWindow);
   const sweepAutoRelease = useOrders((s) => s.sweepAutoRelease);
   const openDispute = useOrders((s) => s.openDispute);
+  const markDocsAccessed = useOrders((s) => s.markDocsAccessed);
+  const cancelEvent = useOrders((s) => s.cancelEvent);
+  const postponeEvent = useOrders((s) => s.postponeEvent);
+  const refundPostponed = useOrders((s) => s.refundPostponed);
   const user = useUser((s) => s.user);
 
   const [mounted, setMounted] = useState(false);
@@ -86,13 +93,17 @@ export default function OrderDetailPage() {
     return () => clearInterval(t);
   }, [sweepAutoRelease]);
 
-  const evidenceOptions = useMemo(() => (order ? mockEvidenceOptions(order) : []), [order]);
+  // Which files can back this particular claim, and how they read.
+  const evidenceOptions = useMemo(
+    () => (order && reason ? mockEvidenceOptions(order, reason) : []),
+    [order, reason]
+  );
   const check = useMemo(
-    () => (order && evidence ? checkEvidence(order, evidence, new Date(now).toISOString()) : null),
-    [order, evidence, now]
+    () => (order && reason ? checkEvidence(order, reason, evidence, new Date(now).toISOString()) : null),
+    [order, reason, evidence, now]
   );
 
-  if (!mounted) return <div className="pt-28 pb-16 text-center text-neutral-gray">{t("Loading...", "Memuat...")}</div>;
+  if (!ready || !mounted) return <PageGate />;
   if (!order) {
     return (
       <div className="max-w-lg mx-auto px-5 pt-28 pb-16 text-center">
@@ -107,7 +118,12 @@ export default function OrderDetailPage() {
   const deadline = disputeDeadlineISO(order);
   const elapsed = Number.isFinite(left) ? Math.min(1, Math.max(0, 1 - left / (DISPUTE_WINDOW_H * 3_600_000))) : 0;
   const filedReason = order.dispute ? reasonMeta(order.dispute.reason) : null;
-  const filedCheck = order.dispute ? checkEvidence(order, order.dispute.evidence, order.dispute.openedAtISO) : null;
+  const filedCheck = order.dispute
+    ? checkEvidence(order, order.dispute.reason, order.dispute.evidence, order.dispute.openedAtISO)
+    : null;
+  const reasons = availableReasons(order, now);
+  const meta = reason ? reasonMeta(reason) : null;
+  const needsFile = !!meta && meta.proof !== "DOCS" && meta.proof !== "NONE";
 
   const copy = (value: string) => { navigator.clipboard?.writeText(value); toast.success(t("Copied", "Disalin")); };
 
@@ -130,13 +146,14 @@ export default function OrderDetailPage() {
   };
 
   const eligible = reason ? reasonMeta(reason).eligible : false;
-  const canSubmit = eligible && !!evidence && attested;
+  const blocked = reason && meta ? reasonBlockedNote(order, meta, now) : null;
+  const canSubmit = eligible && !blocked && attested && (!needsFile || !!evidence);
   const submitDispute = () => {
-    if (!canSubmit || !reason || !evidence) return;
+    if (!canSubmit || !reason) return;
     setShowDispute(false);
     setActing(true);
     setTimeout(() => {
-      openDispute(order.id, { reason, note: { en: note, id: note }, evidence });
+      openDispute(order.id, { reason, note: { en: note, id: note }, evidence: evidence ?? undefined });
       setActing(false);
       toast.success(t("Dispute filed. A Lummy arbiter will review your evidence.", "Sengketa diajukan. Arbiter Lummy akan meninjau buktimu."));
     }, 1300);
@@ -181,11 +198,48 @@ export default function OrderDetailPage() {
             {phase === "RELEASED" && (order.autoReleased
               ? t("Paid out to the seller. No dispute was filed within 48 hours.", "Sudah cair ke penjual. Tidak ada sengketa dalam 48 jam.")
               : t("Paid out to the seller after the arbiter reviewed the dispute.", "Cair ke penjual setelah arbiter meninjau sengketa."))}
-            {phase === "REFUNDED" && t("Returned to you in full after the arbiter reviewed the evidence.", "Dikembalikan penuh ke kamu setelah arbiter meninjau bukti.")}
+            {phase === "REFUNDED" && (order.autoRefundReason === "EVENT_CANCELLED"
+              ? t("Returned automatically when the organiser cancelled the show.", "Dikembalikan otomatis saat penyelenggara membatalkan acara.")
+              : t("Returned to you after the arbiter reviewed the evidence.", "Dikembalikan ke kamu setelah arbiter meninjau bukti."))}
           </p>
 
+          {/* The organiser's state outranks the clock: a show that will not happen
+              must never pay out just because 48 quiet hours went by. */}
+          {order.eventStatus === "cancelled" && (
+            <div className="mt-4 rounded-2xl bg-secondary-pink-soft p-4">
+              <div className="text-sm font-medium text-secondary-pink-dark flex items-center gap-2">
+                <XCircle className="w-4 h-4 shrink-0" /> {t("Event cancelled by the organiser", "Acara dibatalkan penyelenggara")}
+              </div>
+              <p className="text-xs text-secondary-pink-dark/90 mt-1.5 leading-relaxed">
+                {t(
+                  "Nobody has to file anything. While the money is still in escrow it simply goes back, and the seller is not charged either: no one is at fault here.",
+                  "Tidak ada yang perlu mengajukan apa pun. Selama dananya masih di escrow, uangnya otomatis kembali, dan penjual juga tidak dikenai penalti: di sini tidak ada yang salah."
+                )}
+              </p>
+            </div>
+          )}
+          {order.eventStatus === "postponed" && order.escrowStatus === "LOCKED" && (
+            <div className="mt-4 rounded-2xl bg-secondary-gold-soft p-4">
+              <div className="text-sm font-medium text-secondary-brown-dark flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" /> {t("Event postponed", "Acara diundur")}
+              </div>
+              <p className="text-xs text-secondary-brown-dark/90 mt-1.5 leading-relaxed">
+                {t(
+                  "Your ticket stays valid for the new date and the escrow holds until then. If the new date does not work for you, take the money back instead. No arbiter needed either way.",
+                  "Tiketmu tetap berlaku untuk tanggal baru dan escrow menahan dananya sampai saat itu. Kalau tanggal barunya tidak cocok, ambil uangmu kembali. Dua-duanya tidak perlu arbiter."
+                )}
+              </p>
+              <button
+                onClick={() => { refundPostponed(order.id); toast.success(t("Refunded. The escrow released it back to you.", "Dana dikembalikan. Escrow melepasnya balik ke kamu.")); }}
+                className="mt-2.5 text-xs font-medium text-primary-navy hover:opacity-80 cursor-pointer"
+              >
+                {t("New date does not work, refund me", "Tanggal baru gak cocok, kembalikan dana")}
+              </button>
+            </div>
+          )}
+
           {/* Live countdown while the window runs */}
-          {phase === "WINDOW_OPEN" && (
+          {phase === "WINDOW_OPEN" && order.eventStatus !== "cancelled" && (
             <div className="mt-4 rounded-2xl border-2 border-secondary-gold-dark/40 bg-secondary-gold-soft p-4">
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <span className="text-xs font-medium text-secondary-brown-dark flex items-center gap-1.5">
@@ -247,7 +301,9 @@ export default function OrderDetailPage() {
                 {order.dispute.note && <p className="text-xs text-neutral-gray italic mb-3">&ldquo;{t(order.dispute.note.en, order.dispute.note.id)}&rdquo;</p>}
                 <div className="flex items-center gap-2 text-xs text-neutral-black mb-2">
                   <Paperclip className="w-3.5 h-3.5 text-neutral-gray shrink-0" />
-                  <span className="font-mono truncate">{order.dispute.evidence.fileName}</span>
+                  <span className="font-mono truncate">
+                    {order.dispute.evidence?.fileName ?? t("Settled from our own records", "Diputus dari catatan kami")}
+                  </span>
                   <span className={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${filedCheck?.strength === "STRONG" ? "bg-secondary-green-soft text-secondary-green-dark" : "bg-secondary-pink-soft text-secondary-pink-dark"}`}>
                     {filedCheck?.strength === "STRONG" ? "STRONG" : "WEAK"}
                   </span>
@@ -256,7 +312,12 @@ export default function OrderDetailPage() {
                 {order.dispute.verdict && (
                   <div className="mt-3 pt-3 border-t border-dashed border-neutral-light-gray-1">
                     <div className="text-xs font-semibold text-neutral-black flex items-center gap-1.5">
-                      <Gavel className="w-3.5 h-3.5" /> {t("Verdict", "Putusan")}: {order.dispute.verdict.toSeller ? t("released to seller", "cair ke penjual") : t("refunded to buyer", "dikembalikan ke pembeli")}
+                      <Gavel className="w-3.5 h-3.5" /> {t("Verdict", "Putusan")}: {t(REMEDY_LABEL[order.dispute.verdict.remedy].en.toLowerCase(), REMEDY_LABEL[order.dispute.verdict.remedy].id.toLowerCase())}
+                      {order.dispute.verdict.sellerPenalty > 0 && (
+                        <span className="ml-1 font-normal text-neutral-gray">
+                          · {t("seller charged", "penjual dikenai")} {formatIDR(order.dispute.verdict.sellerPenalty)}
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-neutral-gray mt-1">{t(order.dispute.verdict.rationale.en, order.dispute.verdict.rationale.id)}</p>
                   </div>
@@ -344,16 +405,20 @@ export default function OrderDetailPage() {
             </ol>
           </div>
 
-          {/* Buyer action: only inside the window, and only as a dispute */}
-          {phase === "WINDOW_OPEN" && (
+          {/* A claim is possible from purchase onwards, because a seller can fail
+              you long before the gate does. What differs is the proof it needs. */}
+          {canFileDispute(order, now) && (
             <button
               onClick={() => setShowDispute(true)}
               className="mt-5 w-full px-4 py-3 rounded-2xl border-2 border-secondary-orange-dark text-secondary-orange-dark text-sm font-medium hover:bg-secondary-orange-soft transition cursor-pointer flex items-center justify-center gap-2"
             >
-              <AlertTriangle className="w-4 h-4" /> {t("Something went wrong at the gate", "Ada masalah di gate")}
+              <AlertTriangle className="w-4 h-4" />
+              {phase === "PRE_EVENT"
+                ? t("Problem with this ticket?", "Ada masalah dengan tiket ini?")
+                : t("Something went wrong at the gate", "Ada masalah di gate")}
             </button>
           )}
-          {phase === "PRE_EVENT" && (
+          {false && (
             <p className="mt-5 text-xs text-neutral-gray flex gap-2">
               <Lock className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" />
               <span>{t(
@@ -382,6 +447,20 @@ export default function OrderDetailPage() {
                   {t(`Skip the ${DISPUTE_WINDOW_H}h window`, `Lewati masa ${DISPUTE_WINDOW_H} jam`)}
                 </button>
               </div>
+              <div className="flex flex-col sm:flex-row gap-2 mt-2">
+                <button
+                  onClick={() => { postponeEvent(order.eventId); toast(t("Organiser postponed the event", "Penyelenggara mengundur acara")); }}
+                  className="flex-1 px-3 py-2 rounded-xl border border-neutral-light-gray-1 text-xs text-neutral-black hover:border-lummy-500 transition cursor-pointer"
+                >
+                  {t("Organiser postpones", "Penyelenggara mengundur")}
+                </button>
+                <button
+                  onClick={() => { cancelEvent(order.eventId); toast(t("Organiser cancelled the event", "Penyelenggara membatalkan acara")); }}
+                  className="flex-1 px-3 py-2 rounded-xl border border-neutral-light-gray-1 text-xs text-neutral-black hover:border-lummy-500 transition cursor-pointer"
+                >
+                  {t("Organiser cancels", "Penyelenggara membatalkan")}
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -390,7 +469,7 @@ export default function OrderDetailPage() {
         <div className="flex flex-col gap-4">
           <div className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
             <h4 className="font-fredoka font-semibold text-neutral-black mb-3">{t("Handover documents", "Dokumen serah-terima")}</h4>
-            <button onClick={() => setShowKuasa(true)} className="w-full flex items-center gap-3 p-3 rounded-2xl border border-neutral-light-gray-1 hover:border-lummy-500 transition cursor-pointer text-left">
+            <button onClick={() => { setShowKuasa(true); markDocsAccessed(order.id, "letter"); }} className="w-full flex items-center gap-3 p-3 rounded-2xl border border-neutral-light-gray-1 hover:border-lummy-500 transition cursor-pointer text-left">
               <span className="w-10 h-10 rounded-xl bg-secondary-blue-soft text-lummy-500 grid place-items-center shrink-0"><FileText className="w-5 h-5" /></span>
               <div>
                 <div className="text-sm font-medium text-neutral-black">{t("Letter of authorisation", "Surat kuasa")}</div>
@@ -398,7 +477,7 @@ export default function OrderDetailPage() {
               </div>
             </button>
             {order.gateKtp && (
-              <button onClick={() => setShowKtp(true)} className="mt-3 w-full flex items-center gap-3 p-3 rounded-2xl border border-neutral-light-gray-1 hover:border-lummy-500 transition cursor-pointer text-left">
+              <button onClick={() => { setShowKtp(true); markDocsAccessed(order.id, "sellerId"); }} className="mt-3 w-full flex items-center gap-3 p-3 rounded-2xl border border-neutral-light-gray-1 hover:border-lummy-500 transition cursor-pointer text-left">
                 <span className="w-10 h-10 rounded-xl bg-secondary-pink-soft text-secondary-pink-dark grid place-items-center shrink-0"><CreditCard className="w-5 h-5" /></span>
                 <div>
                   <div className="text-sm font-medium text-neutral-black">{t("Seller ID card (gate check)", "Foto KTP penjual (cek gate)")}</div>
@@ -479,8 +558,17 @@ export default function OrderDetailPage() {
       {/* File a dispute: reason, then evidence that has to survive metadata checks */}
       <Modal open={showDispute} onClose={() => setShowDispute(false)} title={t("Report a problem", "Laporkan masalah")}>
         <div className="rounded-2xl bg-secondary-gold-soft px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
-          <span className="text-xs font-medium text-secondary-brown-dark flex items-center gap-1.5"><Timer className="w-3.5 h-3.5" /> {t("Filing window closes in", "Batas pengajuan tinggal")}</span>
-          <span className="font-mono font-bold text-sm text-neutral-black tabular-nums">{formatCountdown(left)}</span>
+          <span className="text-xs font-medium text-secondary-brown-dark flex items-center gap-1.5">
+            <Timer className="w-3.5 h-3.5" />
+            {phase === "PRE_EVENT"
+              ? t("You can file from now until", "Bisa diajukan dari sekarang sampai")
+              : t("Filing window closes in", "Batas pengajuan tinggal")}
+          </span>
+          <span className="font-mono font-bold text-sm text-neutral-black tabular-nums">
+            {phase === "PRE_EVENT"
+              ? t(`${DISPUTE_WINDOW_H}h after the show`, `${DISPUTE_WINDOW_H} jam setelah acara`)
+              : formatCountdown(left)}
+          </span>
         </div>
         <p className="text-sm text-neutral-gray leading-relaxed mt-3">
           {t(
@@ -491,7 +579,7 @@ export default function OrderDetailPage() {
 
         <div className="mt-4 flex flex-col gap-1.5">
           <span className="text-xs font-medium text-neutral-black">{t("What happened?", "Apa yang terjadi?")}</span>
-          {DISPUTE_REASONS.map((r) => (
+          {reasons.map((r) => (
             <label
               key={r.id}
               className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition ${reason === r.id ? "border-lummy-500 bg-secondary-blue-light" : "border-neutral-light-gray-1 hover:border-lummy-500"}`}
@@ -531,14 +619,11 @@ export default function OrderDetailPage() {
         {eligible && (
           <>
             <div className="mt-4 flex flex-col gap-2">
-              <span className="text-xs font-medium text-neutral-black">{t("Evidence from the gate", "Bukti dari gate")}</span>
-              <p className="text-xs text-neutral-gray -mt-1">
-                {t(
-                  "A photo of the rejecting scanner or a note from staff. We read the file's capture time and location.",
-                  "Foto layar scanner yang menolak atau surat dari petugas. Kami membaca waktu dan lokasi pengambilan file-nya."
-                )}
-              </p>
-              {evidenceOptions.map((ev) => (
+              <span className="text-xs font-medium text-neutral-black">
+                {needsFile ? t("Evidence", "Bukti") : t("What settles this", "Yang menentukan")}
+              </span>
+              <p className="text-xs text-neutral-gray -mt-1">{meta ? t(meta.help.en, meta.help.id) : ""}</p>
+              {needsFile && evidenceOptions.map((ev) => (
                 <button
                   key={ev.fileName}
                   onClick={() => setEvidence(ev)}
@@ -553,7 +638,7 @@ export default function OrderDetailPage() {
             {check && (
               <div className="mt-3 rounded-2xl border border-neutral-light-gray-1 p-4">
                 <div className="flex items-center gap-2 text-xs font-semibold text-neutral-black mb-1">
-                  <MapPin className="w-3.5 h-3.5 text-neutral-gray" /> {t("File metadata", "Metadata file")}
+                  <MapPin className="w-3.5 h-3.5 text-neutral-gray" /> {needsFile ? t("File metadata", "Metadata file") : t("Our records", "Catatan kami")}
                   <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold ${check.strength === "STRONG" ? "bg-secondary-green-soft text-secondary-green-dark" : "bg-secondary-pink-soft text-secondary-pink-dark"}`}>
                     {check.strength}
                   </span>
@@ -561,10 +646,15 @@ export default function OrderDetailPage() {
                 {check.checks.map((c) => <CheckRow key={c.label.en} ok={c.ok} label={t(c.label.en, c.label.id)} detail={t(c.detail.en, c.detail.id)} />)}
                 {check.strength === "WEAK" && (
                   <p className="text-xs text-secondary-pink-dark mt-2">
-                    {t(
-                      "You can still file, but weak evidence usually ends with the funds going to the seller.",
-                      "Kamu tetap boleh mengajukan, tapi bukti lemah biasanya berakhir dengan dana cair ke penjual."
-                    )}
+                    {needsFile
+                      ? t(
+                          "You can still file, but weak evidence usually ends with the funds going to the seller.",
+                          "Kamu tetap boleh mengajukan, tapi bukti lemah biasanya berakhir dengan dana cair ke penjual."
+                        )
+                      : t(
+                          "Our own record works against this claim. You can still file, but expect it to be refused.",
+                          "Catatan kami justru bertentangan dengan klaim ini. Kamu tetap boleh mengajukan, tapi kemungkinan besar ditolak."
+                        )}
                   </p>
                 )}
               </div>
@@ -584,10 +674,20 @@ export default function OrderDetailPage() {
             <label className="flex items-start gap-2.5 mt-4 cursor-pointer">
               <input type="checkbox" checked={attested} onChange={(e) => setAttested(e.target.checked)} className="mt-0.5 accent-[#3A6CB4] cursor-pointer" />
               <span className="text-xs text-neutral-gray leading-relaxed">
-                {t(
-                  "I declare I was refused entry and did not attend. A false claim means a permanent ban and liability for the seller's loss.",
-                  "Saya menyatakan ditolak masuk dan tidak menghadiri acara. Klaim palsu berarti akun diblokir permanen dan menanggung kerugian penjual."
-                )}
+                {reason === "NOT_DELIVERED"
+                  ? t(
+                      "I declare the seller never handed the ticket over to me. A false claim means a permanent ban and liability for the seller's loss.",
+                      "Saya menyatakan penjual tidak pernah menyerahkan tiketnya ke saya. Klaim palsu berarti akun diblokir permanen dan menanggung kerugian penjual."
+                    )
+                  : reason === "NOT_AS_LISTED"
+                  ? t(
+                      "I declare the ticket I received is not what the listing described. A false claim means a permanent ban and liability for the seller's loss.",
+                      "Saya menyatakan tiket yang saya terima tidak sesuai deskripsi listing. Klaim palsu berarti akun diblokir permanen dan menanggung kerugian penjual."
+                    )
+                  : t(
+                      "I declare I was refused entry and did not attend. A false claim means a permanent ban and liability for the seller's loss.",
+                      "Saya menyatakan ditolak masuk dan tidak menghadiri acara. Klaim palsu berarti akun diblokir permanen dan menanggung kerugian penjual."
+                    )}
               </span>
             </label>
           </>

@@ -9,6 +9,8 @@ import {
   useUser, useProfile, useAlerts, type AlertChannel, type PayoutBank,
 } from "@/lib/mock";
 import { PageContainer } from "@/components/layout/PageContainer";
+import { useAccessGuard } from "@/lib/access";
+import { PageGate } from "@/components/layout/PageGate";
 import { useT } from "@/lib/i18n";
 
 const CHANNELS: { id: AlertChannel; label: string }[] = [
@@ -29,6 +31,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function ProfilePage() {
   const t = useT();
+  const ready = useAccessGuard("account");
   const [mounted, setMounted] = useState(false);
   const user = useUser((s) => s.user);
   const { phone, kycVerified, payoutBank, payoutNumber, setPhone, verifyKyc, setPayout } = useProfile();
@@ -49,6 +52,8 @@ export default function ProfilePage() {
   }, []);
 
   if (!mounted) return <div className="pt-28 pb-16 text-center text-neutral-gray">{t("Loading...", "Memuat...")}</div>;
+
+  if (!ready) return <PageGate />;
 
   return (
     <PageContainer width="app" className="flex flex-col gap-5">

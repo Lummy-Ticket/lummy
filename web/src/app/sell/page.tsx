@@ -10,8 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   getEvents, getEventById, getTier, formatIDR, CAP_PCT, FLOOR_PCT, useSellerListings, type ListingAI,
+  isLateListing, LATE_LISTING_H,
 } from "@/lib/mock";
 import { PageContainer } from "@/components/layout/PageContainer";
+import { useAccessGuard } from "@/lib/access";
+import { PageGate } from "@/components/layout/PageGate";
 import { useT } from "@/lib/i18n";
 
 const events = getEvents();
@@ -36,6 +39,7 @@ const STEPS = [
 
 export default function SellPage() {
   const t = useT();
+  const ready = useAccessGuard("account");
   const router = useRouter();
   const addListing = useSellerListings((s) => s.add);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -65,6 +69,9 @@ export default function SellPage() {
   // straight away, it queues for admin review.
   const blocked = !!ai?.barcodeDuplicate;
   const flagged = !!ai && !blocked && (ai.pdfSuspicious || ai.forgeryScore >= 60);
+  // Duplicate-pass fraud clusters in the hours before doors, when buyers are
+  // panicking. Late listings still go live, but a human sees them first.
+  const late = !!event && isLateListing(event.dateISO);
 
   const analyze = () => {
     setAnalyzing(true);
@@ -89,11 +96,14 @@ export default function SellPage() {
     addListing({
       eventId: event.id, eventTitle: event.title, tierName: tier.name,
       askPrice: price, faceValue, quantity: qty, ai: ai!,
-      status: flagged ? "review" : "active",
+      status: flagged || late ? "review" : "active",
+      lateListing: late,
     });
-    toast.success(flagged ? t("Submitted for admin review", "Diajukan untuk review admin") : t("Listing is live, protected by escrow.", "Listing tayang, dijaga escrow."));
+    toast.success(flagged || late ? t("Submitted for admin review", "Diajukan untuk review admin") : t("Listing is live, protected by escrow.", "Listing tayang, dijaga escrow."));
     router.push("/seller");
   };
+
+  if (!ready) return <PageGate />;
 
   return (
     <PageContainer width="form">
@@ -248,6 +258,15 @@ export default function SellPage() {
             )}
           </div>
 
+          {late && !blocked && (
+            <div className="flex items-start gap-2 text-sm text-secondary-brown-dark bg-secondary-gold-soft rounded-2xl p-4">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{t(
+                `This show starts within ${LATE_LISTING_H} hours. Most duplicate-ticket fraud happens in exactly this window, to buyers in a hurry, so last-minute listings are reviewed by a person before they go live.`,
+                `Acaranya mulai dalam ${LATE_LISTING_H} jam. Penipuan tiket ganda paling banyak terjadi persis di rentang ini, ke pembeli yang buru-buru, jadi listing menit terakhir ditinjau manusia dulu sebelum tayang.`
+              )}</span>
+            </div>
+          )}
           {blocked ? (
             <div className="flex items-start gap-2 text-sm text-secondary-pink-dark bg-secondary-pink-soft rounded-2xl p-4">
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -268,7 +287,7 @@ export default function SellPage() {
           <div className="flex gap-3">
             <button onClick={() => setStep(1)} className="px-5 py-3 rounded-2xl border-2 border-neutral-light-gray-1 text-neutral-gray text-sm flex items-center gap-1 cursor-pointer"><ArrowLeft className="w-4 h-4" /> {t("Back", "Kembali")}</button>
             <Button.Primary disabled={blocked} onClick={publish}>
-              {blocked ? t("Blocked (duplicate)", "Diblokir (duplikat)") : flagged ? t("Submit for review", "Ajukan untuk review") : t("Publish listing", "Publish listing")}
+              {blocked ? t("Blocked (duplicate)", "Diblokir (duplikat)") : flagged || late ? t("Submit for review", "Ajukan untuk review") : t("Publish listing", "Publish listing")}
             </Button.Primary>
           </div>
         </div>
