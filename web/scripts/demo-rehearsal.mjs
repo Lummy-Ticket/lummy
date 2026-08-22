@@ -44,6 +44,17 @@ const signIn = (who) =>
     USERS[who]
   );
 
+// Warm every route first. In dev, Next compiles a route on its first request,
+// so a cold server makes the earliest beats time out and report a failure that
+// is really just a slow build. Nobody should have to guess that before a shoot.
+process.stdout.write("warming routes");
+for (const r of ["/", "/events", "/sell", "/checkout?listing=ls-1&qty=2", "/tickets",
+                 "/tickets/or-seed-2", "/seller", "/admin"]) {
+  await page.goto(BASE + r, { waitUntil: "networkidle", timeout: 60000 }).catch(() => {});
+  process.stdout.write(".");
+}
+console.log(" ready\n");
+
 await page.goto(BASE, { waitUntil: "networkidle" });
 
 await beat("0:12  EN -> ID flips the whole page", async () => {

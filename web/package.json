@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "eslint",
     "type-check": "tsc --noEmit",
-    "demo-check": "node scripts/demo-rehearsal.mjs"
+    "demo-check": "node scripts/demo-rehearsal.mjs",
+    "submission-pdf": "node scripts/submission-pdf.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
