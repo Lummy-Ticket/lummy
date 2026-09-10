@@ -357,7 +357,7 @@ export default function OrderDetailPage() {
                   <ChainRow label={order.escrowStatus === "RELEASED" ? t("Release tx", "Tx pencairan") : t("Refund tx", "Tx refund")} value={shortHash(order.settleTxHash)} href={explorerTx(order.settleTxHash)} onCopy={() => copy(order.settleTxHash!)} />
                 )}
                 <ChainRow label={t("Release condition", "Syarat pencairan")} value={t(`Event end + ${DISPUTE_WINDOW_H}h`, `Acara selesai + ${DISPUTE_WINDOW_H} jam`)} />
-                <ChainRow label={t("Network", "Jaringan")} value="Monad testnet (10143)" />
+                <ChainRow label={t("Network", "Jaringan")} value="Arbitrum Sepolia (421614)" />
               </div>
               <p className="flex items-center gap-1.5 text-xs text-neutral-gray mt-3">
                 <ShieldCheck className="w-3.5 h-3.5 text-secondary-green-dark" /> {t("Do not take our word for it, read the contract.", "Jangan percaya kami, baca kontraknya sendiri.")}
