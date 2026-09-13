@@ -26,13 +26,16 @@ export function DualRangeSlider({
     const span = Math.max(1, max - min);
     const minPct = ((valueMin - min) / span) * 100;
     const maxPct = ((valueMax - min) / span) * 100;
+    // A native thumb stops half its width (0.625rem) short of each end, so the
+    // filled track follows the same inset to meet the thumb centres exactly.
+    const edge = (pct: number) => `calc(${pct}% + ${0.625 * (1 - pct / 50)}rem)`;
 
     return (
         <div className={cn("relative h-5 flex items-center", className)}>
             <div className="absolute w-full h-2 bg-neutral-light-gray-2 rounded-full" />
             <div
                 className="absolute h-2 bg-lummy-500 rounded-full"
-                style={{ left: `${minPct}%`, right: `${100 - maxPct}%` }}
+                style={{ left: edge(minPct), right: edge(100 - maxPct) }}
             />
 
             <input

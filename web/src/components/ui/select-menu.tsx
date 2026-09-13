@@ -4,18 +4,31 @@ import { useState, useRef, useEffect, type ReactNode } from "react";
 import { ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Dropdown kustom (bukan native select) — popup rapi, klik-luar nutup.
+// Tombol dan popup dipakai bersama PriceFilter, supaya kontrol di satu toolbar seragam.
+export const MENU_TRIGGER =
+  "w-full h-12 flex items-center gap-2 pl-4 pr-3 rounded-xl border border-lummy-500 bg-neutral-white text-sm text-neutral-black cursor-pointer hover:bg-secondary-blue-light transition";
+// Filter yang sedang dipakai memakai warna opsi terpilih di popup.
+export const MENU_TRIGGER_ACTIVE = "bg-secondary-blue-soft hover:bg-secondary-blue-soft text-lummy-500 font-medium";
+export const MENU_PANEL = "absolute z-40 mt-2 rounded-xl border-2 border-lummy-500 bg-neutral-white shadow-lummy-lg";
+
+// Dropdown kustom (bukan native select), popup rapi, klik-luar nutup.
 export function SelectMenu({
   value,
   options,
   onChange,
   icon,
+  label = (v) => v,
+  active = false,
   className,
 }: {
   value: string;
   options: string[];
   onChange: (v: string) => void;
   icon?: ReactNode;
+  // Teks tampilan per opsi, misalnya untuk menerjemahkan "All cities".
+  label?: (v: string) => string;
+  // Tandai tombol saat filter ini sedang dipakai.
+  active?: boolean;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -41,17 +54,14 @@ export function SelectMenu({
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="w-full flex items-center gap-2 py-3 pl-4 pr-3 rounded-xl border border-lummy-500 bg-neutral-white text-sm text-neutral-black cursor-pointer hover:bg-secondary-blue-light transition"
+        className={cn(MENU_TRIGGER, active && MENU_TRIGGER_ACTIVE)}
       >
         {icon}
-        <span className="flex-1 text-left truncate">{value}</span>
+        <span className="flex-1 text-left truncate">{label(value)}</span>
         <ChevronDown className={cn("w-4 h-4 text-neutral-gray shrink-0 transition-transform", open && "rotate-180")} />
       </button>
       {open && (
-        <div
-          role="listbox"
-          className="absolute z-40 mt-2 min-w-full w-max max-w-[240px] rounded-xl border-2 border-lummy-500 bg-neutral-white shadow-lummy-lg overflow-hidden py-1"
-        >
+        <div role="listbox" className={cn(MENU_PANEL, "min-w-full w-max max-w-[240px] overflow-hidden py-1")}>
           {options.map((opt) => {
             const active = opt === value;
             return (
@@ -67,7 +77,7 @@ export function SelectMenu({
                 )}
               >
                 <Check className={cn("w-3.5 h-3.5 shrink-0", active ? "opacity-100" : "opacity-0")} />
-                <span className="truncate">{opt}</span>
+                <span className="truncate">{label(opt)}</span>
               </button>
             );
           })}

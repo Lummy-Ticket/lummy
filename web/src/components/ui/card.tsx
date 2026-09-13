@@ -10,6 +10,9 @@ import Link from "next/link";
 
 export type CategoryT =  "Music" | "Technology" | "Arts" | "Education" | "Sports" | "Food" | "Movies" | "Theater"
 
+// The card sits in a 1/2/3-column grid, so the browser only needs a card-sized file.
+const CARD_SIZES = "(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw";
+
 type CardEventProps = {
     className?: string,
     image: string,
@@ -19,9 +22,11 @@ type CardEventProps = {
     category: CategoryT,
     redirect: string,
     soldOut?: boolean,
+    // First row of a grid loads right away: it is the largest thing on screen.
+    eager?: boolean,
 }
 
-const Event = (({className, image, date, title, location, category, redirect, soldOut, ...props}: CardEventProps) => {
+const Event = (({className, image, date, title, location, category, redirect, soldOut, eager, ...props}: CardEventProps) => {
     const categoryLabel = useCategoryLabel();
     const badgeClass = {
         Music: "bg-secondary-pink-soft text-secondary-pink-dark",
@@ -37,7 +42,7 @@ const Event = (({className, image, date, title, location, category, redirect, so
   return (
         <Link href={redirect} className={cn("border transition ease-in-out flex flex-col justify-between border-primary-navy rounded-3xl pt-2.5 pb-3 px-2.5 gap-2 sm:pb-4 w-full h-fit shrink-0 hover:-translate-x-1 hover:-translate-y-1 hover:shadow-[4px_4px_0px_#245397]", className)} {...props}>
             <div className="relative w-full aspect-[16/10] h-auto">
-                <Image alt="event" className={cn("rounded-2xl border border-lummy-500 object-cover", soldOut && "grayscale-[35%]")} src={image} fill />
+                <Image alt="event" className={cn("rounded-2xl border border-lummy-500 object-cover", soldOut && "grayscale-[35%]")} src={image} sizes={CARD_SIZES} loading={eager ? "eager" : undefined} fill />
                 {soldOut && (
                     <Badge.Base className="absolute top-2.5 left-2.5 bg-secondary-pink-dark text-white text-sm xl:text-base">Sold Out</Badge.Base>
                 )}
