@@ -1,0 +1,36 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+test = "test"
+script = "script"
+solc = "0.8.28"
+evm_version = "cancun"          # TSTORE/TLOAD untuk ReentrancyGuardTransient, didukung Arbitrum sejak ArbOS 20
+optimizer = true
+optimizer_runs = 200
+bytecode_hash = "none"          # bytecode deterministik, verify di Arbiscan lebih mulus
+remappings = [
+  "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+  "forge-std/=lib/forge-std/src/",
+]
+
+[fuzz]
+runs = 1000
+
+[invariant]
+runs = 256
+depth = 64
+fail_on_revert = true           # handler sudah menyaring aksi yang tidak sah, jadi revert berarti bug
+
+[lint]
+# block-timestamp dimatikan: escrow ini memang berbasis waktu (window 48 jam, deadline 1 jam), dan
+# sequencer Arbitrum cuma bisa menggeser timestamp beberapa detik. Tidak relevan untuk ancaman kita.
+exclude_lints = ["block-timestamp"]
+
+[rpc_endpoints]
+arbitrum_sepolia = "https://sepolia.arbitrum.io/rpc"
+
+# Kampanye panjang: 10.000 urutan aksi acak. Jalankan: FOUNDRY_PROFILE=deep forge test --match-contract Invariant
+[profile.deep.invariant]
+runs = 10000
+depth = 64

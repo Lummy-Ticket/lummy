@@ -1,0 +1,8 @@
+# Artefak build Foundry
+out/
+cache/
+
+# Rekaman broadcast Anvil lokal. Broadcast testnet boleh di-commit sebagai jejak deploy.
+broadcast/*/31337/
+
+.env
