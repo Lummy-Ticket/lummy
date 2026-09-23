@@ -4,6 +4,7 @@ out = "out"
 libs = ["lib"]
 test = "test"
 script = "script"
+fs_permissions = [{ access = "read-write", path = "./deployments" }]  # Deploy.s.sol menulis alamat ke sini
 solc = "0.8.28"
 evm_version = "cancun"          # TSTORE/TLOAD untuk ReentrancyGuardTransient, didukung Arbitrum sejak ArbOS 20
 optimizer = true
@@ -28,7 +29,7 @@ fail_on_revert = true           # handler sudah menyaring aksi yang tidak sah, j
 exclude_lints = ["block-timestamp"]
 
 [rpc_endpoints]
-arbitrum_sepolia = "https://sepolia.arbitrum.io/rpc"
+arbitrum_sepolia = "https://sepolia-rollup.arbitrum.io/rpc"
 
 # Kampanye panjang: 10.000 urutan aksi acak. Jalankan: FOUNDRY_PROFILE=deep forge test --match-contract Invariant
 [profile.deep.invariant]
