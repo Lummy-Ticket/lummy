@@ -10,7 +10,10 @@
     "lint": "eslint",
     "type-check": "tsc --noEmit",
     "demo-check": "node scripts/demo-rehearsal.mjs",
-    "submission-pdf": "node scripts/submission-pdf.mjs"
+    "submission-pdf": "node scripts/submission-pdf.mjs",
+    "chain:abi": "node scripts/export-abi.mjs",
+    "chain:cycle": "tsx scripts/escrow-cycle.ts",
+    "chain:local": "bash scripts/chain-local.sh"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -33,6 +36,7 @@
     "react-icons": "^5.5.0",
     "recharts": "^3.6.0",
     "tailwind-merge": "^3.4.0",
+    "viem": "^2.56.8",
     "zod": "^4.4.3",
     "zustand": "^5.0.9"
   },
@@ -46,6 +50,7 @@
     "eslint-config-next": "16.0.7",
     "playwright-core": "^1.62.1",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }
