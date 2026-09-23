@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {LummyEscrow} from "../../src/LummyEscrow.sol";
 import {MockUSDC} from "../../src/MockUSDC.sol";
 import {Signing} from "./Signing.sol";
@@ -10,6 +11,7 @@ abstract contract EscrowBase is Signing {
     uint64 internal constant WINDOW = 48 hours;
     uint256 internal constant CAP = 5_000e6; // plafon absolut 5.000 USDC
     uint256 internal constant PRICE = 150e6; // kira-kira satu tiket CAT 1
+    bytes32 internal constant HANDOVER = keccak256("paket-serah-terima"); // hash surat kuasa + dokumen
 
     MockUSDC internal usdc;
     LummyEscrow internal escrow;
@@ -28,9 +30,19 @@ abstract contract EscrowBase is Signing {
         usdc.mint(buyer, 10_000e6);
     }
 
+    /// @dev Waktu sekarang sebagai uint40, format `eventEndsAt`.
+    function _now40() internal view returns (uint40) {
+        return SafeCast.toUint40(vm.getBlockTimestamp());
+    }
+
+    /// @dev Listing oleh seller sendiri dengan acara yang sudah selesai, jadi window dihitung dari serah terima.
     function _list(bytes32 id, uint256 price, bytes32 commit) internal {
+        _listWithEvent(id, price, commit, _now40());
+    }
+
+    function _listWithEvent(bytes32 id, uint256 price, bytes32 commit, uint40 eventEndsAt) internal {
         vm.prank(seller);
-        escrow.createListing(id, price, commit);
+        escrow.createListing(id, price, commit, eventEndsAt);
     }
 
     function _fund(bytes32 id, uint256 value) internal {
@@ -38,7 +50,14 @@ abstract contract EscrowBase is Signing {
     }
 
     function _listing(bytes32 id) internal view returns (LummyEscrow.Listing memory L) {
-        (L.seller, L.buyer, L.price, L.handoverAt, L.status, L.disputed, L.barcodeCommit) = escrow.listings(id);
+        (L.seller, L.buyer, L.price, L.handoverAt, L.eventEndsAt, L.status, L.disputed, L.barcodeCommit) =
+            escrow.listings(id);
+    }
+
+    /// @dev Batas window: `disputeWindow` setelah yang terakhir dari serah terima dan acara selesai.
+    function _deadline(bytes32 id) internal view returns (uint256) {
+        LummyEscrow.Listing memory L = _listing(id);
+        return uint256(L.handoverAt > L.eventEndsAt ? L.handoverAt : L.eventEndsAt) + WINDOW;
     }
 
     function _assertStatus(bytes32 id, LummyEscrow.Status want) internal view {

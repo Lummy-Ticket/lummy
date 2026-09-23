@@ -147,6 +147,44 @@ export const escrowAbi = [
         "name": "barcodeCommit",
         "type": "bytes32",
         "internalType": "bytes32"
+      },
+      {
+        "name": "eventEndsAt",
+        "type": "uint40",
+        "internalType": "uint40"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "createListingFor",
+    "inputs": [
+      {
+        "name": "seller",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "id",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "price",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "barcodeCommit",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "eventEndsAt",
+        "type": "uint40",
+        "internalType": "uint40"
       }
     ],
     "outputs": [],
@@ -354,6 +392,11 @@ export const escrowAbi = [
         "internalType": "uint40"
       },
       {
+        "name": "eventEndsAt",
+        "type": "uint40",
+        "internalType": "uint40"
+      },
+      {
         "name": "status",
         "type": "uint8",
         "internalType": "enum LummyEscrow.Status"
@@ -379,6 +422,11 @@ export const escrowAbi = [
         "name": "id",
         "type": "bytes32",
         "internalType": "bytes32"
+      },
+      {
+        "name": "handoverHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
       }
     ],
     "outputs": [],
@@ -402,6 +450,24 @@ export const escrowAbi = [
       }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "postponeEvent",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "newEventEndsAt",
+        "type": "uint40",
+        "internalType": "uint40"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -549,6 +615,19 @@ export const escrowAbi = [
     "stateMutability": "nonpayable"
   },
   {
+    "type": "function",
+    "name": "withdrawFor",
+    "inputs": [
+      {
+        "name": "payee",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
     "type": "event",
     "name": "DisputeRaised",
     "inputs": [
@@ -565,6 +644,25 @@ export const escrowAbi = [
     "type": "event",
     "name": "EIP712DomainChanged",
     "inputs": [],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "EventPostponed",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "eventEndsAt",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
     "anonymous": false
   },
   {
@@ -603,6 +701,12 @@ export const escrowAbi = [
         "internalType": "bytes32"
       },
       {
+        "name": "handoverHash",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      },
+      {
         "name": "disputeDeadline",
         "type": "uint256",
         "indexed": false,
@@ -638,6 +742,12 @@ export const escrowAbi = [
         "type": "bytes32",
         "indexed": false,
         "internalType": "bytes32"
+      },
+      {
+        "name": "eventEndsAt",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -886,6 +996,11 @@ export const escrowAbi = [
   },
   {
     "type": "error",
+    "name": "CannotMoveEventEarlier",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "CommitAlreadyUsed",
     "inputs": []
   },
@@ -902,6 +1017,16 @@ export const escrowAbi = [
   {
     "type": "error",
     "name": "IsDisputed",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NoEventEnd",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NoHandoverProof",
     "inputs": []
   },
   {

@@ -11,16 +11,20 @@ import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/Reentrancy
 import {IERC3009} from "./interfaces/IERC3009.sol";
 
 /// @title LummyEscrow
-/// @notice Escrow resale tiket konser. Dana pembeli dikunci sampai window sengketa lewat, lalu cair
-/// ke seller, atau kembali ke pembeli lewat refund atau putusan sengketa.
-/// @dev Dana cuma pernah dialokasikan ke seller dan/atau pembeli listing itu, dan cuma keluar lewat
-/// `withdraw`. Tidak ada sweep, tidak ada call sembarang, token dikunci saat deploy, dan kontrak
-/// tidak pernah memotong fee. Kalau kunci operator bocor, akibat terburuknya salah waktu, tidak
-/// pernah salah penerima. Keputusan desainnya di docs/09-technical-design.md, "Keputusan terkunci".
+/// @notice Escrow resale tiket konser. Dana pembeli dikunci sampai acara selesai ditambah window
+/// sengketa, lalu cair ke seller, atau kembali ke pembeli lewat refund atau putusan sengketa.
+/// @dev Dana cuma pernah dialokasikan ke seller dan/atau pembeli listing itu, dan cuma keluar ke alamat
+/// itu. Tidak ada sweep, tidak ada call sembarang, token dikunci saat deploy, dan kontrak tidak pernah
+/// memotong fee. Kalau kunci operator bocor, akibat terburuknya salah waktu atau salah bagi di antara
+/// pembeli dan seller selama window masih buka, tidak pernah ke penyerang. Setelah window lewat tanpa
+/// sengketa, tidak ada yang bisa menahan pencairan ke seller, termasuk operator.
+/// Model A: operator boleh mengirim aksi atas nama seller dan pembeli, jadi cuma operator yang butuh
+/// ETH untuk gas. Pengguna yang memegang wallet sendiri tetap bisa memanggil langsung.
+/// Keputusan desainnya di docs/09-technical-design.md, bagian "Keputusan terkunci".
 contract LummyEscrow is AccessControl, EIP712, ReentrancyGuardTransient {
     using SafeERC20 for IERC20;
 
-    /// @notice Kunci panas backend: cuma `refund` dan `resolveDispute`.
+    /// @notice Kunci panas backend: refund, putusan sengketa, jadwal acara, dan aksi atas nama pengguna.
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
 
     /// @notice Niat beli pembeli. Mengikat otorisasi ERC-3009 (lewat `authNonce`) ke satu listing,
@@ -47,6 +51,7 @@ contract LummyEscrow is AccessControl, EIP712, ReentrancyGuardTransient {
         address buyer;
         uint128 price;
         uint40 handoverAt;
+        uint40 eventEndsAt;
         Status status;
         bool disputed;
         bytes32 barcodeCommit;
@@ -60,10 +65,11 @@ contract LummyEscrow is AccessControl, EIP712, ReentrancyGuardTransient {
     mapping(address payee => uint256 amount) public pending;
     mapping(bytes32 commit => bool) public commitUsed;
 
-    event Listed(bytes32 indexed id, address indexed seller, uint256 price, bytes32 barcodeCommit);
+    event Listed(bytes32 indexed id, address indexed seller, uint256 price, bytes32 barcodeCommit, uint256 eventEndsAt);
     event ListingCancelled(bytes32 indexed id);
     event Funded(bytes32 indexed id, address indexed buyer, uint256 price);
-    event HandoverMarked(bytes32 indexed id, uint256 disputeDeadline);
+    event HandoverMarked(bytes32 indexed id, bytes32 handoverHash, uint256 disputeDeadline);
+    event EventPostponed(bytes32 indexed id, uint256 eventEndsAt);
     event DisputeRaised(bytes32 indexed id);
     event Released(bytes32 indexed id, address indexed seller, uint256 amount);
     event Refunded(bytes32 indexed id, address indexed buyer, uint256 amount);
@@ -76,12 +82,15 @@ contract LummyEscrow is AccessControl, EIP712, ReentrancyGuardTransient {
     error BadStatus(Status current);
     error PriceZeroOrAboveCap();
     error ZeroCommit();
+    error NoEventEnd();
     error CommitAlreadyUsed();
     error NotSeller();
     error NotBuyer();
     error ExpiredDeadline();
     error BadSignature();
     error TransferMismatch();
+    error NoHandoverProof();
+    error CannotMoveEventEarlier();
     error WindowNotElapsed();
     error WindowClosed();
     error AlreadyDisputed();
@@ -106,20 +115,19 @@ contract LummyEscrow is AccessControl, EIP712, ReentrancyGuardTransient {
     // Listing
     // ------------------------------------------------------------------
 
-    /// @notice Pasang listing. Komitmen barcode yang sudah terpakai ditolak (keputusan A).
-    function createListing(bytes32 id, uint256 price, bytes32 barcodeCommit) external {
-        Listing storage L = listings[id];
-        if (L.status != Status.None) revert BadStatus(L.status);
-        if (price == 0 || price > priceCap) revert PriceZeroOrAboveCap();
-        if (barcodeCommit == bytes32(0)) revert ZeroCommit();
-        if (commitUsed[barcodeCommit]) revert CommitAlreadyUsed();
+    /// @notice Seller memasang listing sendiri. `eventEndsAt` = waktu acara selesai (unix), dari jadwal
+    /// resmi. Dana paling cepat cair `disputeWindow` setelah waktu itu (keputusan G).
+    function createListing(bytes32 id, uint256 price, bytes32 barcodeCommit, uint40 eventEndsAt) external {
+        _createListing(msg.sender, id, price, barcodeCommit, eventEndsAt);
+    }
 
-        commitUsed[barcodeCommit] = true;
-        L.seller = msg.sender;
-        L.price = SafeCast.toUint128(price);
-        L.status = Status.Listed;
-        L.barcodeCommit = barcodeCommit;
-        emit Listed(id, msg.sender, price, barcodeCommit);
+    /// @notice Model A: operator memasang listing atas nama seller (keputusan F).
+    function createListingFor(address seller, bytes32 id, uint256 price, bytes32 barcodeCommit, uint40 eventEndsAt)
+        external
+        onlyRole(OPERATOR_ROLE)
+    {
+        if (seller == address(0)) revert ZeroAddress();
+        _createListing(seller, id, price, barcodeCommit, eventEndsAt);
     }
 
     /// @notice Tarik listing sebelum ada pembeli. Satu-satunya jalan komitmen barcode dilepas,
@@ -127,7 +135,7 @@ contract LummyEscrow is AccessControl, EIP712, ReentrancyGuardTransient {
     function cancelListing(bytes32 id) external {
         Listing storage L = listings[id];
         if (L.status != Status.Listed) revert BadStatus(L.status);
-        if (msg.sender != L.seller) revert NotSeller();
+        if (!_actsFor(L.seller)) revert NotSeller();
 
         L.status = Status.Cancelled;
         commitUsed[L.barcodeCommit] = false;
@@ -170,32 +178,46 @@ contract LummyEscrow is AccessControl, EIP712, ReentrancyGuardTransient {
     }
 
     // ------------------------------------------------------------------
-    // Serah terima dan sengketa
+    // Serah terima, jadwal, dan sengketa
     // ------------------------------------------------------------------
 
-    /// @notice Mulai window sengketa. Dipanggil seller saat tiket sudah diserahkan atau acara selesai.
-    function markHandover(bytes32 id) external {
+    /// @notice Seller menyerahkan tiket. Hash paket serah terima (surat kuasa dan dokumennya) dicatat di
+    /// event sebagai bukti yang tidak bisa diubah (keputusan H). Boleh sebelum acara: window tetap
+    /// berakhir `disputeWindow` setelah yang terakhir dari serah terima dan acara selesai.
+    function markHandover(bytes32 id, bytes32 handoverHash) external {
         Listing storage L = listings[id];
         if (L.status != Status.Funded) revert BadStatus(L.status);
-        if (msg.sender != L.seller) revert NotSeller();
+        if (!_actsFor(L.seller)) revert NotSeller();
+        if (handoverHash == bytes32(0)) revert NoHandoverProof();
 
         L.status = Status.DisputeWindow;
         L.handoverAt = SafeCast.toUint40(block.timestamp);
-        emit HandoverMarked(id, _deadline(L));
+        emit HandoverMarked(id, handoverHash, _deadline(L));
     }
 
-    /// @notice Pembeli mengajukan sengketa. Boleh sejak dana terkunci (klaim sebelum acara) sampai
-    /// tepat di batas window. Selama `disputed`, `release` ditolak dan cuma operator yang bisa
-    /// menyelesaikan (keputusan B).
-    function raiseDispute(bytes32 id) external {
+    /// @notice Acara diundur. Waktu selesai cuma boleh dimundurkan, tidak pernah dimajukan, jadi kunci
+    /// operator yang bocor bisa menunda pencairan tapi tidak bisa mempercepatnya. Setelah window lewat
+    /// tanpa sengketa, jadwal tidak bisa diubah lagi (keputusan G).
+    function postponeEvent(bytes32 id, uint40 newEventEndsAt) external onlyRole(OPERATOR_ROLE) {
         Listing storage L = listings[id];
-        if (msg.sender != L.buyer) revert NotBuyer();
-        if (L.disputed) revert AlreadyDisputed();
-        if (L.status == Status.DisputeWindow) {
-            if (block.timestamp > _deadline(L)) revert WindowClosed();
-        } else if (L.status != Status.Funded) {
+        if (L.status != Status.Listed && L.status != Status.Funded && L.status != Status.DisputeWindow) {
             revert BadStatus(L.status);
         }
+        if (_windowClosed(L)) revert WindowClosed();
+        if (newEventEndsAt <= L.eventEndsAt) revert CannotMoveEventEarlier();
+
+        L.eventEndsAt = newEventEndsAt;
+        emit EventPostponed(id, newEventEndsAt);
+    }
+
+    /// @notice Pembeli mengajukan sengketa. Boleh sejak dana terkunci (klaim sebelum acara) sampai tepat
+    /// di batas window. Selama `disputed`, `release` ditolak dan cuma operator yang bisa menyelesaikan.
+    function raiseDispute(bytes32 id) external {
+        Listing storage L = listings[id];
+        if (L.status != Status.Funded && L.status != Status.DisputeWindow) revert BadStatus(L.status);
+        if (!_actsFor(L.buyer)) revert NotBuyer();
+        if (L.disputed) revert AlreadyDisputed();
+        if (_windowClosed(L)) revert WindowClosed();
 
         L.disputed = true;
         emit DisputeRaised(id);
@@ -205,8 +227,8 @@ contract LummyEscrow is AccessControl, EIP712, ReentrancyGuardTransient {
     // Penyelesaian
     // ------------------------------------------------------------------
 
-    /// @notice Cairkan ke seller setelah window lewat tanpa sengketa. Siapa pun boleh memanggil, tapi
-    /// dananya cuma bisa ke seller, jadi kalau backend mati seller tetap bisa cair (keputusan B).
+    /// @notice Cairkan ke seller setelah acara selesai dan window lewat tanpa sengketa. Siapa pun boleh
+    /// memanggil, tapi dananya cuma bisa ke seller, jadi kalau backend mati seller tetap bisa cair.
     function release(bytes32 id) external {
         Listing storage L = listings[id];
         if (L.status != Status.DisputeWindow) revert BadStatus(L.status);
@@ -218,11 +240,13 @@ contract LummyEscrow is AccessControl, EIP712, ReentrancyGuardTransient {
         emit Released(id, L.seller, L.price);
     }
 
-    /// @notice Refund penuh ke pembeli sebelum dana cair: seller tidak menyerahkan tiket, acara
-    /// dibatalkan, atau alasan lain yang sudah diputuskan di luar kontrak.
+    /// @notice Refund penuh ke pembeli selama dana belum jadi hak seller: seller tidak menyerahkan tiket,
+    /// acara dibatalkan, atau alasan lain yang sudah diputuskan di luar kontrak. Setelah window lewat
+    /// tanpa sengketa, refund tertutup dan cuma `release` yang tersisa (keputusan G).
     function refund(bytes32 id) external onlyRole(OPERATOR_ROLE) {
         Listing storage L = listings[id];
         if (L.status != Status.Funded && L.status != Status.DisputeWindow) revert BadStatus(L.status);
+        if (_windowClosed(L)) revert WindowClosed();
 
         L.status = Status.Refunded;
         pending[L.buyer] += L.price;
@@ -249,14 +273,15 @@ contract LummyEscrow is AccessControl, EIP712, ReentrancyGuardTransient {
     // Penarikan dan admin
     // ------------------------------------------------------------------
 
-    /// @notice Satu-satunya jalan token keluar dari kontrak.
+    /// @notice Tarik alokasi milik sendiri.
     function withdraw() external nonReentrant {
-        uint256 amount = pending[msg.sender];
-        if (amount == 0) revert NothingToWithdraw();
+        _withdraw(msg.sender);
+    }
 
-        pending[msg.sender] = 0;
-        TOKEN.safeTransfer(msg.sender, amount);
-        emit Withdrawn(msg.sender, amount);
+    /// @notice Kirim alokasi ke pemiliknya. Siapa pun boleh memicu, karena dananya cuma bisa ke `payee`,
+    /// jadi pengguna tidak perlu gas untuk menerima uangnya sendiri (keputusan F).
+    function withdrawFor(address payee) external nonReentrant {
+        _withdraw(payee);
     }
 
     /// @notice Plafon harga absolut, penjaga salah ketik dan penipuan. Batas 150% face value dijaga
@@ -269,6 +294,39 @@ contract LummyEscrow is AccessControl, EIP712, ReentrancyGuardTransient {
     // ------------------------------------------------------------------
     // Internal
     // ------------------------------------------------------------------
+
+    function _createListing(address seller, bytes32 id, uint256 price, bytes32 barcodeCommit, uint40 eventEndsAt)
+        private
+    {
+        Listing storage L = listings[id];
+        if (L.status != Status.None) revert BadStatus(L.status);
+        if (price == 0 || price > priceCap) revert PriceZeroOrAboveCap();
+        if (barcodeCommit == bytes32(0)) revert ZeroCommit();
+        if (eventEndsAt == 0) revert NoEventEnd();
+        if (commitUsed[barcodeCommit]) revert CommitAlreadyUsed();
+
+        commitUsed[barcodeCommit] = true;
+        L.seller = seller;
+        L.price = SafeCast.toUint128(price);
+        L.eventEndsAt = eventEndsAt;
+        L.status = Status.Listed;
+        L.barcodeCommit = barcodeCommit;
+        emit Listed(id, seller, price, barcodeCommit, eventEndsAt);
+    }
+
+    /// @dev Pihak itu sendiri, atau operator yang bertindak atas namanya (Model A).
+    function _actsFor(address party) private view returns (bool) {
+        return msg.sender == party || hasRole(OPERATOR_ROLE, msg.sender);
+    }
+
+    function _withdraw(address payee) private {
+        uint256 amount = pending[payee];
+        if (amount == 0) revert NothingToWithdraw();
+
+        pending[payee] = 0;
+        TOKEN.safeTransfer(payee, amount);
+        emit Withdrawn(payee, amount);
+    }
 
     function _verifyIntent(
         bytes32 id,
@@ -303,7 +361,15 @@ contract LummyEscrow is AccessControl, EIP712, ReentrancyGuardTransient {
         emit PriceCapSet(priceCap_);
     }
 
+    /// @dev Window berakhir `disputeWindow` setelah yang terakhir dari serah terima dan acara selesai.
     function _deadline(Listing storage L) private view returns (uint256) {
-        return uint256(L.handoverAt) + disputeWindow;
+        uint256 start = L.handoverAt > L.eventEndsAt ? L.handoverAt : L.eventEndsAt;
+        return start + disputeWindow;
+    }
+
+    /// @dev Window lewat tanpa sengketa: dana sudah hak seller, dan satu-satunya jalan yang tersisa
+    /// adalah `release`. Refund, sengketa baru, dan perubahan jadwal ditolak.
+    function _windowClosed(Listing storage L) private view returns (bool) {
+        return L.status == Status.DisputeWindow && !L.disputed && block.timestamp > _deadline(L);
     }
 }

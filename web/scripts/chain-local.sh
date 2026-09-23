@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tahap 2: Anvil lokal, deploy, lalu tiga siklus escrow (release, refund, dispute).
+# Tahap 2: Anvil lokal, deploy, lalu empat siklus escrow (release, refund, dispute, acara besok).
 # Pakai dari web/: npm run chain:local
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -35,5 +35,7 @@ node scripts/export-abi.mjs
 for p in release refund dispute; do
   npx tsx scripts/escrow-cycle.ts --chain anvil --path "$p"
 done
+# Serah terima sehari sebelum acara: dana tetap menunggu acara selesai ditambah window.
+npx tsx scripts/escrow-cycle.ts --chain anvil --path release --event-in 86400
 echo ""
-echo "Tahap 2 selesai: tiga siklus escrow jalan di Anvil."
+echo "Tahap 2 selesai: empat siklus escrow jalan di Anvil, semua transaksi dikirim operator."

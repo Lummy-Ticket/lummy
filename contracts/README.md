@@ -11,16 +11,20 @@ forge test
 
 | Berkas | Isi |
 |---|---|
-| `src/LummyEscrow.sol` | Escrow: listing, dana terkunci, window sengketa, rilis, refund, putusan |
+| `src/LummyEscrow.sol` | Escrow: listing, dana terkunci sampai acara selesai + window, bukti serah terima, rilis, refund, putusan. Operator boleh bertindak atas nama pengguna (Model A) |
 | `src/MockUSDC.sol` | USDC tiruan untuk test lokal. Testnet dan produksi memakai USDC asli Circle |
-| `test/LummyEscrow.t.sol` | Enam jalur outcome, window, komitmen barcode, hak akses, tanda tangan, reentrancy |
-| `test/LummyEscrow.invariant.t.sol` | Aksi acak berurutan: saldo selalu sama dengan pembukuan, uang masuk sama dengan uang keluar |
+| `test/LummyEscrow.t.sol` | Enam jalur outcome, Model A, acara selesai dan penundaan, window, bukti serah terima, komitmen barcode, hak akses, tanda tangan, reentrancy |
+| `test/LummyEscrow.invariant.t.sol` | Aksi acak berurutan, termasuk aksi terlarang: saldo selalu sama dengan pembukuan, uang masuk sama dengan uang keluar, operator tidak pernah dapat dana, aksi terlarang selalu ditolak |
 | `test/MockUSDC.t.sol` | Perilaku ERC-3009 yang diandalkan escrow |
+
+Kampanye invariant panjang (10.000 urutan acak, sekitar 3,5 menit): `FOUNDRY_PROFILE=deep forge test --match-contract Invariant`.
 
 ## Deploy dan siklus lokal
 
 ```bash
-cd web && npm run chain:local   # Anvil, deploy, lalu siklus release, refund, dan dispute
+cd web && npm run chain:local   # Anvil, deploy, lalu empat siklus: release, refund, dispute, acara besok
 ```
+
+Semua transaksi siklus dikirim operator, jadi di testnet cuma operator yang butuh ETH. Pembeli simulasi cuma menandatangani dan butuh USDC.
 
 Deploy manual: `ADMIN=0x… OPERATOR=0x… forge script script/Deploy.s.sol --rpc-url <rpc> --private-key <kunci> --broadcast`. Tanpa `TOKEN`, skrip ikut men-deploy MockUSDC. `DISPUTE_WINDOW` default 600 detik untuk demo, dan di Arbitrum One skrip menolak apa pun selain 172800. Alamat hasil deploy tertulis di `deployments/<chainId>.json`, lalu `npm run chain:abi` di `web/` menyalin ABI dan alamat chain publik.

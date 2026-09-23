@@ -26,12 +26,12 @@ contract Reenterer {
         escrow = e;
     }
 
-    function list(bytes32 id, uint256 price, bytes32 commit) external {
-        escrow.createListing(id, price, commit);
+    function list(bytes32 id, uint256 price, bytes32 commit, uint40 eventEndsAt) external {
+        escrow.createListing(id, price, commit, eventEndsAt);
     }
 
-    function handover(bytes32 id) external {
-        escrow.markHandover(id);
+    function handover(bytes32 id, bytes32 handoverHash) external {
+        escrow.markHandover(id, handoverHash);
     }
 
     function withdraw() external {

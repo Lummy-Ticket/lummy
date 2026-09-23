@@ -22,7 +22,7 @@ contract LummyEscrowTest is EscrowBase {
     function _inWindow() internal {
         _funded();
         vm.prank(seller);
-        escrow.markHandover(ID);
+        escrow.markHandover(ID, HANDOVER);
     }
 
     function _dispute() internal {
@@ -41,7 +41,7 @@ contract LummyEscrowTest is EscrowBase {
     /// 1. Masuk lancar: window lewat tanpa sengketa, orang asing pun bisa mencairkan ke seller.
     function test_path1_cleanEntry_autoRelease() public {
         _inWindow();
-        vm.warp(vm.getBlockTimestamp() + WINDOW + 1);
+        vm.warp(_deadline(ID) + 1);
         vm.prank(stranger);
         escrow.release(ID);
         _assertStatus(ID, LummyEscrow.Status.Released);
@@ -104,26 +104,300 @@ contract LummyEscrowTest is EscrowBase {
     }
 
     // ================================================================
+    // Model A: operator bertindak atas nama pengguna (keputusan F)
+    // ================================================================
+
+    /// Satu siklus penuh di mana seller dan pembeli tidak pernah mengirim transaksi sendiri.
+    /// Pembeli cuma menandatangani, jadi yang butuh ETH untuk gas cuma operator.
+    function test_modelA_operatorDrivesWholeCycle() public {
+        vm.startPrank(operator);
+        escrow.createListingFor(seller, ID, PRICE, COMMIT, _now40());
+        _submit(escrow, ID, _signFund(escrow, usdc, ID, PRICE, buyerKey, "n"));
+        escrow.markHandover(ID, HANDOVER);
+        vm.warp(_deadline(ID) + 1);
+        escrow.release(ID);
+        escrow.withdrawFor(seller);
+        vm.stopPrank();
+
+        assertEq(_listing(ID).seller, seller);
+        assertEq(usdc.balanceOf(seller), PRICE);
+        assertEq(escrow.pending(operator), 0);
+    }
+
+    function test_modelA_operatorRaisesDisputeForBuyer() public {
+        _inWindow();
+        vm.prank(operator);
+        escrow.raiseDispute(ID);
+        assertTrue(_listing(ID).disputed);
+    }
+
+    function test_modelA_operatorCancelsForSeller() public {
+        _list(ID, PRICE, COMMIT);
+        vm.prank(operator);
+        escrow.cancelListing(ID);
+        _assertStatus(ID, LummyEscrow.Status.Cancelled);
+        assertFalse(escrow.commitUsed(COMMIT));
+    }
+
+    function test_modelA_createListingForIsOperatorOnly() public {
+        bytes32 role = escrow.OPERATOR_ROLE();
+        vm.prank(stranger);
+        vm.expectRevert(_unauthorized(stranger, role));
+        escrow.createListingFor(stranger, ID, PRICE, COMMIT, _now40());
+    }
+
+    function test_modelA_createListingForRejectsZeroSeller() public {
+        vm.prank(operator);
+        vm.expectRevert(LummyEscrow.ZeroAddress.selector);
+        escrow.createListingFor(address(0), ID, PRICE, COMMIT, _now40());
+    }
+
+    /// Operator tidak bisa mengajukan sengketa untuk listing yang belum punya pembeli.
+    function test_modelA_noDisputeBeforeFunding() public {
+        _list(ID, PRICE, COMMIT);
+        vm.prank(operator);
+        vm.expectRevert(abi.encodeWithSelector(LummyEscrow.BadStatus.selector, LummyEscrow.Status.Listed));
+        escrow.raiseDispute(ID);
+    }
+
+    /// Siapa pun boleh mengirim alokasi ke pemiliknya, dan dananya tidak bisa ke tempat lain.
+    function test_withdrawFor_anyonePushesToPayee() public {
+        test_path4_wrongTier_partialRefund_pendingOnly();
+        uint256 sellerBefore = usdc.balanceOf(seller);
+        vm.prank(stranger);
+        escrow.withdrawFor(seller);
+        assertEq(usdc.balanceOf(seller) - sellerBefore, PRICE / 2);
+        assertEq(usdc.balanceOf(stranger), 0);
+        assertEq(escrow.pending(seller), 0);
+    }
+
+    function test_withdrawFor_nothingToWithdraw() public {
+        vm.prank(stranger);
+        vm.expectRevert(LummyEscrow.NothingToWithdraw.selector);
+        escrow.withdrawFor(seller);
+    }
+
+    /// Jalur 4 tanpa penarikan: dua pihak punya alokasi yang belum ditarik.
+    function test_path4_wrongTier_partialRefund_pendingOnly() public {
+        _inWindow();
+        _dispute();
+        vm.prank(operator);
+        escrow.resolveDispute(ID, PRICE / 2);
+        assertEq(escrow.pending(buyer), PRICE / 2);
+        assertEq(escrow.pending(seller), PRICE - PRICE / 2);
+    }
+
+    // ================================================================
+    // Dana menunggu acara selesai (keputusan G)
+    // ================================================================
+
+    /// Serah terima sebelum acara tidak memulai hitung mundur: window baru dihitung dari acara selesai.
+    function test_eventEnd_releaseWaitsForEvent() public {
+        uint40 eventEnd = _now40() + 30 days;
+        _listWithEvent(ID, PRICE, COMMIT, eventEnd);
+        _fund(ID, PRICE);
+        vm.prank(seller);
+        escrow.markHandover(ID, HANDOVER);
+
+        vm.warp(vm.getBlockTimestamp() + WINDOW + 1);
+        vm.expectRevert(LummyEscrow.WindowNotElapsed.selector);
+        escrow.release(ID);
+
+        vm.warp(uint256(eventEnd) + WINDOW);
+        vm.expectRevert(LummyEscrow.WindowNotElapsed.selector);
+        escrow.release(ID);
+
+        vm.warp(uint256(eventEnd) + WINDOW + 1);
+        escrow.release(ID);
+        _assertStatus(ID, LummyEscrow.Status.Released);
+    }
+
+    function test_eventEnd_disputeOpenUntilEventPlusWindow() public {
+        uint40 eventEnd = _now40() + 30 days;
+        _listWithEvent(ID, PRICE, COMMIT, eventEnd);
+        _fund(ID, PRICE);
+        vm.prank(seller);
+        escrow.markHandover(ID, HANDOVER);
+
+        vm.warp(uint256(eventEnd) + WINDOW + 1);
+        vm.prank(buyer);
+        vm.expectRevert(LummyEscrow.WindowClosed.selector);
+        escrow.raiseDispute(ID);
+
+        vm.warp(uint256(eventEnd) + WINDOW);
+        _dispute();
+        assertTrue(_listing(ID).disputed);
+    }
+
+    function test_eventEnd_zeroRejected() public {
+        vm.prank(seller);
+        vm.expectRevert(LummyEscrow.NoEventEnd.selector);
+        escrow.createListing(ID, PRICE, COMMIT, 0);
+    }
+
+    function test_eventEnd_storedAndEmitted() public {
+        uint40 eventEnd = _now40() + 7 days;
+        vm.expectEmit(address(escrow));
+        emit LummyEscrow.Listed(ID, seller, PRICE, COMMIT, eventEnd);
+        _listWithEvent(ID, PRICE, COMMIT, eventEnd);
+        assertEq(_listing(ID).eventEndsAt, eventEnd);
+    }
+
+    /// Acara diundur: pencairan ikut mundur. Tanpa ini dana cair 48 jam setelah tanggal lama.
+    function test_postpone_movesDeadlineLater() public {
+        uint40 eventEnd = _now40() + 10 days;
+        _listWithEvent(ID, PRICE, COMMIT, eventEnd);
+        _fund(ID, PRICE);
+        vm.prank(seller);
+        escrow.markHandover(ID, HANDOVER);
+
+        uint40 newEnd = eventEnd + 14 days;
+        vm.prank(operator);
+        escrow.postponeEvent(ID, newEnd);
+
+        vm.warp(uint256(eventEnd) + WINDOW + 1);
+        vm.expectRevert(LummyEscrow.WindowNotElapsed.selector);
+        escrow.release(ID);
+
+        vm.warp(uint256(newEnd) + WINDOW + 1);
+        escrow.release(ID);
+        _assertStatus(ID, LummyEscrow.Status.Released);
+    }
+
+    /// Kunci operator yang bocor tidak bisa mempercepat pencairan.
+    function test_postpone_cannotMoveEarlier() public {
+        uint40 eventEnd = _now40() + 10 days;
+        _listWithEvent(ID, PRICE, COMMIT, eventEnd);
+        vm.startPrank(operator);
+        vm.expectRevert(LummyEscrow.CannotMoveEventEarlier.selector);
+        escrow.postponeEvent(ID, eventEnd - 1);
+        vm.expectRevert(LummyEscrow.CannotMoveEventEarlier.selector);
+        escrow.postponeEvent(ID, eventEnd);
+        vm.stopPrank();
+    }
+
+    function test_postpone_operatorOnly() public {
+        _list(ID, PRICE, COMMIT);
+        bytes32 role = escrow.OPERATOR_ROLE();
+        vm.prank(seller);
+        vm.expectRevert(_unauthorized(seller, role));
+        escrow.postponeEvent(ID, _now40() + 1 days);
+    }
+
+    function test_postpone_notAfterSettlement() public {
+        test_path3_neverDelivered_refundBeforeEvent();
+        vm.prank(operator);
+        vm.expectRevert(abi.encodeWithSelector(LummyEscrow.BadStatus.selector, LummyEscrow.Status.Refunded));
+        escrow.postponeEvent(ID, _now40() + 1 days);
+    }
+
+    /// Acara diundur selagi window buka: pembeli masih bisa mengajukan sengketa setelah batas yang lama.
+    function test_postpone_disputeStaysOpenPastOldDeadline() public {
+        uint40 eventEnd = _now40() + 10 days;
+        _listWithEvent(ID, PRICE, COMMIT, eventEnd);
+        _fund(ID, PRICE);
+        vm.prank(seller);
+        escrow.markHandover(ID, HANDOVER);
+        vm.prank(operator);
+        escrow.postponeEvent(ID, eventEnd + 14 days);
+
+        vm.warp(uint256(eventEnd) + WINDOW + 1);
+        _dispute();
+        assertTrue(_listing(ID).disputed);
+    }
+
+    // ================================================================
+    // Setelah window lewat tanpa sengketa, dana hak seller (keputusan G)
+    // ================================================================
+
+    /// Operator tidak bisa mendahului `release` dengan refund begitu window tutup.
+    function test_afterWindow_refundClosed() public {
+        _inWindow();
+        vm.warp(_deadline(ID) + 1);
+        vm.prank(operator);
+        vm.expectRevert(LummyEscrow.WindowClosed.selector);
+        escrow.refund(ID);
+
+        escrow.release(ID);
+        _assertStatus(ID, LummyEscrow.Status.Released);
+    }
+
+    function test_afterWindow_refundStillAllowedAtDeadline() public {
+        _inWindow();
+        vm.warp(_deadline(ID));
+        vm.prank(operator);
+        escrow.refund(ID);
+        _assertStatus(ID, LummyEscrow.Status.Refunded);
+    }
+
+    /// Jadwal tidak bisa dimundurkan untuk membuka lagi window yang sudah tutup.
+    function test_afterWindow_postponeClosed() public {
+        _inWindow();
+        vm.warp(_deadline(ID) + 1);
+        vm.prank(operator);
+        vm.expectRevert(LummyEscrow.WindowClosed.selector);
+        escrow.postponeEvent(ID, _now40() + 30 days);
+    }
+
+    /// Sengketa yang diajukan tepat waktu tetap bisa diselesaikan kapan pun, termasuk dengan refund penuh.
+    function test_afterWindow_disputedStillSettledByOperator() public {
+        _inWindow();
+        _dispute();
+        vm.warp(_deadline(ID) + 30 days);
+        vm.prank(operator);
+        escrow.refund(ID);
+        _assertStatus(ID, LummyEscrow.Status.Refunded);
+    }
+
+    /// Tanpa serah terima dana tidak pernah bisa cair ke seller, jadi refund tidak punya batas waktu.
+    function test_refund_withoutHandoverHasNoDeadline() public {
+        _funded();
+        vm.warp(_deadline(ID) + 365 days);
+        vm.prank(operator);
+        escrow.refund(ID);
+        _withdrawAndCheck(buyer, PRICE);
+    }
+
+    // ================================================================
+    // Bukti serah terima (keputusan H)
+    // ================================================================
+
+    function test_handover_emitsProofHash() public {
+        _funded();
+        vm.expectEmit(address(escrow));
+        emit LummyEscrow.HandoverMarked(ID, HANDOVER, vm.getBlockTimestamp() + WINDOW);
+        vm.prank(seller);
+        escrow.markHandover(ID, HANDOVER);
+    }
+
+    function test_handover_zeroProofRejected() public {
+        _funded();
+        vm.prank(seller);
+        vm.expectRevert(LummyEscrow.NoHandoverProof.selector);
+        escrow.markHandover(ID, bytes32(0));
+    }
+
+    // ================================================================
     // Window sengketa (keputusan B dan D)
     // ================================================================
 
     function test_window_releaseRevertsAtDeadline() public {
         _inWindow();
-        vm.warp(vm.getBlockTimestamp() + WINDOW);
+        vm.warp(_deadline(ID));
         vm.expectRevert(LummyEscrow.WindowNotElapsed.selector);
         escrow.release(ID);
     }
 
     function test_window_disputeAllowedAtDeadline() public {
         _inWindow();
-        vm.warp(vm.getBlockTimestamp() + WINDOW);
+        vm.warp(_deadline(ID));
         _dispute();
         assertTrue(_listing(ID).disputed);
     }
 
     function test_window_disputeClosedOneSecondLater() public {
         _inWindow();
-        vm.warp(vm.getBlockTimestamp() + WINDOW + 1);
+        vm.warp(_deadline(ID) + 1);
         vm.prank(buyer);
         vm.expectRevert(LummyEscrow.WindowClosed.selector);
         escrow.raiseDispute(ID);
@@ -132,7 +406,7 @@ contract LummyEscrowTest is EscrowBase {
     function test_release_blockedWhileDisputed() public {
         _inWindow();
         _dispute();
-        vm.warp(vm.getBlockTimestamp() + WINDOW + 30 days);
+        vm.warp(_deadline(ID) + 30 days);
         vm.expectRevert(LummyEscrow.IsDisputed.selector);
         escrow.release(ID);
     }
@@ -141,8 +415,8 @@ contract LummyEscrowTest is EscrowBase {
         _funded();
         _dispute();
         vm.prank(seller);
-        escrow.markHandover(ID);
-        vm.warp(vm.getBlockTimestamp() + WINDOW + 1);
+        escrow.markHandover(ID, HANDOVER);
+        vm.warp(_deadline(ID) + 1);
         vm.expectRevert(LummyEscrow.IsDisputed.selector);
         escrow.release(ID);
     }
@@ -175,9 +449,19 @@ contract LummyEscrowTest is EscrowBase {
 
     function test_commit_duplicateRejected() public {
         _list(ID, PRICE, COMMIT);
+        uint40 ev = _now40();
         vm.prank(stranger);
         vm.expectRevert(LummyEscrow.CommitAlreadyUsed.selector);
-        escrow.createListing(ID2, PRICE, COMMIT);
+        escrow.createListing(ID2, PRICE, COMMIT, ev);
+    }
+
+    /// Operator pun tidak bisa memakai komitmen yang sama untuk listing lain.
+    function test_commit_duplicateRejectedForOperatorToo() public {
+        _list(ID, PRICE, COMMIT);
+        uint40 ev = _now40();
+        vm.prank(operator);
+        vm.expectRevert(LummyEscrow.CommitAlreadyUsed.selector);
+        escrow.createListingFor(stranger, ID2, PRICE, COMMIT, ev);
     }
 
     function test_commit_freedByCancel() public {
@@ -194,22 +478,25 @@ contract LummyEscrowTest is EscrowBase {
         vm.prank(operator);
         escrow.refund(ID);
         assertTrue(escrow.commitUsed(COMMIT));
+        uint40 ev = _now40();
         vm.prank(seller);
         vm.expectRevert(LummyEscrow.CommitAlreadyUsed.selector);
-        escrow.createListing(ID2, PRICE, COMMIT);
+        escrow.createListing(ID2, PRICE, COMMIT, ev);
     }
 
     function test_commit_zeroRejected() public {
+        uint40 ev = _now40();
         vm.prank(seller);
         vm.expectRevert(LummyEscrow.ZeroCommit.selector);
-        escrow.createListing(ID, PRICE, bytes32(0));
+        escrow.createListing(ID, PRICE, bytes32(0), ev);
     }
 
     function test_listing_idCannotBeReused() public {
         _list(ID, PRICE, COMMIT);
+        uint40 ev = _now40();
         vm.prank(seller);
         vm.expectRevert(abi.encodeWithSelector(LummyEscrow.BadStatus.selector, LummyEscrow.Status.Listed));
-        escrow.createListing(ID, PRICE, COMMIT2);
+        escrow.createListing(ID, PRICE, COMMIT2, ev);
     }
 
     // ================================================================
@@ -217,15 +504,17 @@ contract LummyEscrowTest is EscrowBase {
     // ================================================================
 
     function test_price_zeroRejected() public {
+        uint40 ev = _now40();
         vm.prank(seller);
         vm.expectRevert(LummyEscrow.PriceZeroOrAboveCap.selector);
-        escrow.createListing(ID, 0, COMMIT);
+        escrow.createListing(ID, 0, COMMIT, ev);
     }
 
     function test_price_aboveCapRejected() public {
+        uint40 ev = _now40();
         vm.prank(seller);
         vm.expectRevert(LummyEscrow.PriceZeroOrAboveCap.selector);
-        escrow.createListing(ID, CAP + 1, COMMIT);
+        escrow.createListing(ID, CAP + 1, COMMIT, ev);
     }
 
     function test_price_capLoweredBlocksNewFunding() public {
@@ -247,7 +536,7 @@ contract LummyEscrowTest is EscrowBase {
     // Putusan (keputusan C)
     // ================================================================
 
-    function test_resolve_aboveePriceReverts() public {
+    function test_resolve_abovePriceReverts() public {
         _inWindow();
         _dispute();
         vm.prank(operator);
@@ -313,21 +602,21 @@ contract LummyEscrowTest is EscrowBase {
         escrow.setPriceCap(1);
     }
 
-    function test_access_onlySellerCancels() public {
+    function test_access_onlySellerOrOperatorCancels() public {
         _list(ID, PRICE, COMMIT);
         vm.prank(stranger);
         vm.expectRevert(LummyEscrow.NotSeller.selector);
         escrow.cancelListing(ID);
     }
 
-    function test_access_onlySellerMarksHandover() public {
+    function test_access_onlySellerOrOperatorMarksHandover() public {
         _funded();
         vm.prank(stranger);
         vm.expectRevert(LummyEscrow.NotSeller.selector);
-        escrow.markHandover(ID);
+        escrow.markHandover(ID, HANDOVER);
     }
 
-    function test_access_onlyBuyerDisputes() public {
+    function test_access_onlyBuyerOrOperatorDisputes() public {
         _inWindow();
         vm.prank(seller);
         vm.expectRevert(LummyEscrow.NotBuyer.selector);
@@ -429,22 +718,36 @@ contract LummyEscrowTest is EscrowBase {
 
     /// Token jahat memanggil `withdraw` lagi di tengah transfer: guard menolak, alokasi tetap utuh.
     function test_reentrancy_withdrawGuarded() public {
-        HookToken token = new HookToken();
-        LummyEscrow e = new LummyEscrow(token, admin, operator, CAP, WINDOW);
-        Reenterer attacker = new Reenterer();
-        attacker.setEscrow(e);
-        token.mint(buyer, PRICE);
-
-        attacker.list(ID, PRICE, COMMIT);
-        _submit(e, ID, _signFund(e, token, ID, PRICE, buyerKey, "n"));
-        attacker.handover(ID);
-        vm.warp(vm.getBlockTimestamp() + WINDOW + 1);
-        e.release(ID);
-
-        token.setHookTarget(address(attacker));
+        (HookToken token, LummyEscrow e, Reenterer attacker) = _attackerWithPayout();
         vm.expectRevert(ReentrancyGuardTransient.ReentrancyGuardReentrantCall.selector);
         attacker.withdraw();
         assertEq(e.pending(address(attacker)), PRICE);
         assertEq(token.balanceOf(address(e)), PRICE);
+    }
+
+    /// Sama lewat `withdrawFor`: pemicu dari luar tidak membuka jalan reentrancy.
+    function test_reentrancy_withdrawForGuarded() public {
+        (HookToken token, LummyEscrow e, Reenterer attacker) = _attackerWithPayout();
+        vm.prank(stranger);
+        vm.expectRevert(ReentrancyGuardTransient.ReentrancyGuardReentrantCall.selector);
+        e.withdrawFor(address(attacker));
+        assertEq(e.pending(address(attacker)), PRICE);
+        assertEq(token.balanceOf(address(e)), PRICE);
+    }
+
+    /// Seller jahat yang sudah punya alokasi, dengan token yang memanggilnya balik saat menerima dana.
+    function _attackerWithPayout() internal returns (HookToken token, LummyEscrow e, Reenterer attacker) {
+        token = new HookToken();
+        e = new LummyEscrow(token, admin, operator, CAP, WINDOW);
+        attacker = new Reenterer();
+        attacker.setEscrow(e);
+        token.mint(buyer, PRICE);
+
+        attacker.list(ID, PRICE, COMMIT, _now40());
+        _submit(e, ID, _signFund(e, token, ID, PRICE, buyerKey, "n"));
+        attacker.handover(ID, HANDOVER);
+        vm.warp(vm.getBlockTimestamp() + WINDOW + 1);
+        e.release(ID);
+        token.setHookTarget(address(attacker));
     }
 }
