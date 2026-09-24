@@ -89,49 +89,6 @@ const Event = (({className, image, date, title, location, category, redirect, so
 });
 
 
-type CardTicketProps = {
-    onClick?: React.MouseEventHandler
-    className?: string,
-    children: React.ReactNode
-    wrapperCircleClass?: string
-    circleClass?: string,
-    type?: "header" | null
-    ref?: React.Ref<HTMLDivElement>
-}
-
-const Small = (({className, children, wrapperCircleClass, circleClass, onClick, ref}: CardTicketProps) => {
-    return (
-        <div ref={ref} onClick={onClick} className={cn("w-fit bg-white flex justify-between border border-lummy-500 rounded-3xl py-5 pl-5 sm:py-7 sm:pl-7", className)}>
-            <div className="flex flex-col w-full gap-4 pr-2 min-w-0">
-            {children}
-            </div>
-
-            <div className={cn("flex flex-col justify-center gap-y-7", wrapperCircleClass)}>
-                <div className={cn("z-10 w-3 h-6 -mr-px rounded-l-full border-l border-lummy-500", circleClass)}></div>
-                <div className={cn("z-10 w-3 h-6 -mr-px rounded-l-full border-l border-lummy-500", circleClass)}></div>
-            </div>
-        </div>
-    )
-})
-
-const Large = (({className, children, type, onClick, ref}: CardTicketProps) => {
-    const childrenArray = React.Children.toArray(children);
-
-    return (
-        <div ref={ref} onClick={onClick} className={cn('w-full flex flex-col lg:flex-row lg:justify-between gap-5 lg:gap-0 border border-lummy-500 rounded-3xl p-4', className)}>
-            {childrenArray[0]}
-
-            <div className="hidden lg:flex flex-col justify-between min-h-full">
-                <div className={cn("z-10 bg-white rounded-b-full border border-lummy-500", (type == "header") ? "w-28 h-20 -mt-[17.5px] border-t-white" : "w-16 h-10 -mt-[17.5px] border-t-white")}></div>
-                <div className={cn("border-dashed mx-auto h-full border-l-3 border-neutral-light-gray-1")}></div>
-                <div className={cn("z-10 bg-white rounded-t-full border border-lummy-500", (type == "header") ? "w-28 h-20 -mb-[17.5px] border-b-white" : "w-16 h-10 -mb-[17.5px] border-b-white")}></div>
-            </div>
-
-            {childrenArray[1]}
-        </div>
-    )
-})
-
 type CardBaseProps = {
     className?: string,
     children: React.ReactNode
@@ -147,14 +104,8 @@ const Base = (({className, children, onClick}: CardBaseProps) => {
 })
 
 
-const Ticket = {
-    Small,
-    Large
-}
-
 const Card = {
     Event,
-    Ticket,
     Base
 }
 

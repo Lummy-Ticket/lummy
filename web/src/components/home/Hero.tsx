@@ -5,22 +5,13 @@ import Image from "next/image";
 import { ArrowRight } from "lucide-react";
 import { HeroSearch } from "./HeroSearch";
 import { useT } from "@/lib/i18n";
+import { Notch } from "@/components/ui/notch";
 import { CAP_PCT } from "@/lib/mock";
 
 // Background of the hero section. The notches reuse it so they read as bites taken out
 // of the ticket rather than circles drawn on top of it.
 const BG = "bg-secondary-blue-light";
-
-/** Half a circle cut into the ticket's edge, with the ticket's own outline. */
-function Notch({ className, side }: { className: string; side: "top" | "bottom" | "left" | "right" }) {
-  const clip = {
-    top: "[clip-path:inset(50%_0_0_0)]",
-    bottom: "[clip-path:inset(0_0_50%_0)]",
-    left: "[clip-path:inset(0_0_0_50%)]",
-    right: "[clip-path:inset(0_50%_0_0)]",
-  }[side];
-  return <span aria-hidden className={`absolute z-10 w-9 h-9 rounded-full border-2 border-primary-navy ${BG} ${clip} ${className}`} />;
-}
+const NOTCH = `w-9 h-9 border-2 border-primary-navy ${BG}`;
 
 // The hero is the brand's own object: a ticket. Main part carries the promise and the
 // search; the stub carries the terms, the way a real ticket prints section, row and seat.
@@ -46,7 +37,17 @@ export function Hero({ quickCats }: { quickCats: string[] }) {
             className="hidden lg:block absolute -top-[62px] right-[118px] w-28 h-auto pointer-events-none"
           />
 
-          <div className="relative grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] rounded-[32px] border-2 border-primary-navy bg-neutral-white shadow-[6px_6px_0px_#245397]">
+          {/* The offset shadow is its own layer, so the bottom notch can bite it too. On a
+              phone it only drops straight down: the side notches then have no shadow
+              band to run into. */}
+          <div aria-hidden className="absolute inset-0 rounded-[32px] bg-primary-navy-dark translate-y-1.5 lg:translate-x-1.5">
+            {/* Centred under the ticket's own notch (not shifted with the shadow), so the bite
+                reads as punched straight through. A full circle: its upper half hides under
+                the ticket, and leaving it unclipped avoids a hairline seam at the edge. */}
+            <span className={`hidden lg:block absolute w-9 h-9 rounded-full ${BG} -bottom-[12px] right-[291px]`} />
+          </div>
+
+          <div className="relative grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] rounded-[32px] border-2 border-primary-navy bg-neutral-white">
             {/* Main part */}
             <div className="px-5 py-8 sm:px-10 sm:py-12 lg:px-14 lg:py-14 flex flex-col gap-6">
               {/* Two set lines from tablet up; on a phone the words wrap where they fit */}
@@ -72,12 +73,12 @@ export function Hero({ quickCats }: { quickCats: string[] }) {
 
             {/* Perforation: horizontal on a phone, vertical from desktop up */}
             <div aria-hidden className="relative lg:hidden mx-5 sm:mx-10 border-t-2 border-dashed border-neutral-light-gray-1">
-              <Notch side="left" className="-left-[39px] sm:-left-[59px] -top-[17px]" />
-              <Notch side="right" className="-right-[39px] sm:-right-[59px] -top-[17px]" />
+              <Notch side="left" className={`${NOTCH} -left-[40px] sm:-left-[60px] -top-[17px]`} />
+              <Notch side="right" className={`${NOTCH} -right-[40px] sm:-right-[60px] -top-[17px]`} />
             </div>
             <div aria-hidden className="hidden lg:block absolute top-6 bottom-6 right-[300px] border-l-2 border-dashed border-neutral-light-gray-1" />
-            <Notch side="top" className="hidden lg:block -top-[19px] right-[282px]" />
-            <Notch side="bottom" className="hidden lg:block -bottom-[19px] right-[282px]" />
+            <Notch side="top" className={`${NOTCH} hidden lg:block -top-[20px] right-[283px]`} />
+            <Notch side="bottom" className={`${NOTCH} hidden lg:block -bottom-[20px] right-[283px]`} />
 
             {/* Stub: the terms, printed like section, row and seat */}
             <div className="bg-secondary-cream-light rounded-b-[30px] lg:rounded-bl-none lg:rounded-r-[30px] px-5 py-7 sm:px-10 lg:px-8 lg:py-10 flex flex-col">
