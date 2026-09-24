@@ -1,8 +1,14 @@
-// Dipanggil chain-e2e.sh. Alur pembeli dan admin di browser dengan mode chain menyala: checkout, panel
-// on-chain, sengketa, putusan, dan pencairan setelah window, dicocokkan dengan kontrak di Anvil.
+// Alur pembeli dan admin di browser dengan mode chain menyala: checkout, panel on-chain, sengketa,
+// putusan, dan pencairan setelah window, dicocokkan dengan kontrak.
+//   Dipanggil chain-e2e.sh terhadap Anvil (waktu dilompati), atau
+//   npm run chain:live terhadap Arbitrum Sepolia asli lewat `npm run dev` yang sedang jalan
+//   (menunggu window sungguhan, sekitar 12 menit, memakai 2 USDC testnet dan 1 dikembalikan).
 import { chromium } from "playwright-core";
 
-const { BASE, RPC, DEMO_KEY } = process.env;
+const LIVE = process.env.LIVE === "1";
+const BASE = process.env.BASE ?? "http://127.0.0.1:3000";
+const RPC = process.env.RPC ?? "https://sepolia-rollup.arbitrum.io/rpc";
+const DEMO_KEY = process.env.DEMO_KEY ?? "";
 const EXEC = process.env.CHROME ?? "/opt/google/chrome/chrome";
 const USERS = {
   buyer: { id: "u-buyer", name: "Luthfi Hadi", email: "luthfi@demo.id", role: "BUYER" },
@@ -49,7 +55,7 @@ try {
   await page.goto(BASE, { waitUntil: "networkidle", timeout: 90000 });
   await page.evaluate((key) => {
     localStorage.setItem("lummy:chain-on", "1");
-    localStorage.setItem("lummy:demo-key", key);
+    if (key) localStorage.setItem("lummy:demo-key", key);
     localStorage.setItem("lummy:demo-event-ended", "1");
   }, DEMO_KEY);
   await as("buyer");
@@ -90,16 +96,25 @@ try {
   const refunded = (await page.getByText("Refund tx").isVisible()) && (await page.getByText("Payout tx").first().isVisible());
   check("pesanan Refunded menurut kontrak, dengan tx refund dan tx kirim dana", refunded);
 
-  // Diam berarti beres: window lewat di jam chain, halaman memicu pencairan
+  // Diam berarti beres: window lewat di jam chain, halaman memicu pencairan. Di Anvil waktunya
+  // dilompati; di testnet ditunggu sungguhan.
   await checkout();
-  await rpc("evm_increaseTime", [601]);
-  await rpc("evm_mine");
+  if (!LIVE) {
+    await rpc("evm_increaseTime", [601]);
+    await rpc("evm_mine");
+  } else {
+    console.log("       menunggu window 10 menit di Arbitrum Sepolia...");
+  }
   await page.getByText("Verify it yourself on-chain").click();
-  await page.getByText("Release tx").waitFor({ timeout: 90000 });
+  await page.getByText("Release tx").waitFor({ timeout: LIVE ? 15 * 60_000 : 90000 });
   check("window lewat: kontrak membayar penjual, tx pencairan tampil", true);
   const second = await txLinks();
   const secondOk = await Promise.all(second.map(receiptOk));
   check("semua tx pesanan kedua sukses di chain", second.length >= 5 && secondOk.every(Boolean), second.join(", "));
+  if (LIVE) {
+    console.log("\nTx dari app (Arbiscan):");
+    for (const h of [...first, ...second]) console.log(`  https://sepolia.arbiscan.io/tx/${h}`);
+  }
 } catch (e) {
   check("alur UI selesai tanpa macet", false, e.message.split("\n")[0].slice(0, 160));
 }
