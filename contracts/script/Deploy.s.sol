@@ -13,7 +13,8 @@ import {MockUSDC} from "../src/MockUSDC.sol";
 ///   TOKEN              tidak diset = deploy MockUSDC (lokal dan demo testnet)
 ///   PRICE_CAP          default 5.000 USDC (6 desimal)
 ///   DISPUTE_WINDOW     detik, default 600 (10 menit, demo). Produksi wajib 172800.
-/// Hasilnya ditulis ke deployments/<chainId>.json, lalu `npm run chain:abi` di web menyalinnya.
+///   DEPLOY_NAME        nama berkas hasil, default <chainId>. Gladi di fork memakai fork-<chainId>.
+/// Hasilnya ditulis ke deployments/<DEPLOY_NAME>.json, lalu `npm run chain:abi` di web menyalinnya.
 contract Deploy is Script {
     uint256 internal constant ARBITRUM_ONE = 42_161;
     uint256 internal constant PROD_WINDOW = 48 hours;
@@ -52,7 +53,8 @@ contract Deploy is Script {
         vm.serializeAddress(k, "operator", operator);
         vm.serializeUint(k, "priceCap", priceCap);
         string memory json = vm.serializeUint(k, "disputeWindow", disputeWindow);
-        string memory path = string.concat(vm.projectRoot(), "/deployments/", vm.toString(block.chainid), ".json");
+        string memory name = vm.envOr("DEPLOY_NAME", vm.toString(block.chainid));
+        string memory path = string.concat(vm.projectRoot(), "/deployments/", name, ".json");
         vm.writeJson(json, path);
 
         console.log("escrow :", address(escrow));

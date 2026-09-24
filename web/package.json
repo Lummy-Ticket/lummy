@@ -13,7 +13,8 @@
     "submission-pdf": "node scripts/submission-pdf.mjs",
     "chain:abi": "node scripts/export-abi.mjs",
     "chain:cycle": "tsx scripts/escrow-cycle.ts",
-    "chain:local": "bash scripts/chain-local.sh"
+    "chain:local": "bash scripts/chain-local.sh",
+    "chain:fork": "bash scripts/chain-fork.sh"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

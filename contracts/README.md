@@ -23,6 +23,7 @@ Kampanye invariant panjang (10.000 urutan acak, sekitar 3,5 menit): `FOUNDRY_PRO
 
 ```bash
 cd web && npm run chain:local   # Anvil, deploy, lalu empat siklus: release, refund, dispute, acara besok
+cd web && npm run chain:fork    # gladi testnet: fork Arbitrum Sepolia, USDC asli Circle, tanpa faucet
 ```
 
 Semua transaksi siklus dikirim operator, jadi di testnet cuma operator yang butuh ETH. Pembeli simulasi cuma menandatangani dan butuh USDC.

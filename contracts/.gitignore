@@ -7,8 +7,9 @@ broadcast/*/31337/
 
 .env
 
-# Alamat Anvil berubah tiap jalan. Deployment testnet dan mainnet di-commit.
+# Alamat Anvil dan fork lokal berubah tiap jalan. Deployment testnet dan mainnet di-commit.
 deployments/31337.json
+deployments/fork-*.json
 
 # Rekaman simulasi forge script, bukan deploy sungguhan.
 broadcast/**/dry-run/

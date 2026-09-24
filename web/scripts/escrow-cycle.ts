@@ -1,8 +1,10 @@
 // Satu siklus escrow nyata, semua tx hash dicetak. Jalan di Anvil lokal atau Arbitrum Sepolia.
-//   npm run chain:cycle -- --chain anvil|sepolia --path release|refund|dispute [--price 5] [--event-in 0]
+//   npm run chain:cycle -- --chain anvil|sepolia --path release|refund|dispute [--price 5] [--event-in 0] [--fork]
 // Model A: operator mengirim semua transaksi atas nama seller dan pembeli, jadi cuma operator yang
 // butuh ETH. Pembeli cuma menandatangani (tanpa gas), seller cuma punya alamat.
 // Anvil memakai akun bawaan (mnemonic test publik). Sepolia membaca ~/.lummy/testnet.env.
+// --fork: Anvil yang mem-fork chain itu (npm run chain:fork), jadi lompat waktu tetap dipakai.
+// Kunci bisa dioper lewat env CYCLE_OPERATOR_KEY, CYCLE_BUYER_KEY, dan CYCLE_SELLER (dipakai chain:fork).
 import fs from "fs";
 import os from "os";
 import path from "path";
@@ -38,15 +40,25 @@ function arg(name: string, fallback: string): string {
 }
 
 const chain = arg("chain", "anvil") === "sepolia" ? arbitrumSepolia : foundry;
+const fork = process.argv.includes("--fork");
+const local = chain.id === foundry.id || fork; // node Anvil: akun bawaan, waktu bisa dilompati
 const pathName = arg("path", "release") as PathName;
-const rpcUrl = process.env.RPC_URL ?? RPC_URLS[chain.id];
+const rpcUrl = process.env.RPC_URL ?? (fork ? "http://127.0.0.1:8546" : RPC_URLS[chain.id]);
 const price = parseUnits(arg("price", "5"), USDC_DECIMALS);
 const eventIn = Number(arg("event-in", "0")); // detik dari sekarang sampai acara selesai
 const usdc = (v: bigint) => formatUnits(v, USDC_DECIMALS);
 const short = (h: string) => `${h.slice(0, 10)}…${h.slice(-6)}`;
 
 function loadRoles(): Roles {
-  if (chain.id === foundry.id) {
+  const { CYCLE_OPERATOR_KEY, CYCLE_BUYER_KEY, CYCLE_SELLER } = process.env;
+  if (CYCLE_OPERATOR_KEY && CYCLE_BUYER_KEY && CYCLE_SELLER) {
+    return {
+      operator: privateKeyToAccount(CYCLE_OPERATOR_KEY as Hex),
+      buyer: privateKeyToAccount(CYCLE_BUYER_KEY as Hex),
+      seller: CYCLE_SELLER as Address,
+    };
+  }
+  if (local) {
     const at = (i: number) => mnemonicToAccount(ANVIL_MNEMONIC, { addressIndex: i });
     return { operator: at(1), seller: at(2).address, buyer: at(3) };
   }
@@ -66,8 +78,9 @@ async function main() {
   const actual = await pc.getChainId();
   if (actual !== chain.id) throw new Error(`RPC ${rpcUrl} ada di chain ${actual}, bukan ${chain.id}`);
 
-  const deployFile = path.resolve(__dirname, "../../contracts/deployments", `${chain.id}.json`);
-  if (!fs.existsSync(deployFile)) throw new Error(`belum ada deployment untuk chain ${chain.id}: ${deployFile}`);
+  const deployName = fork ? `fork-${chain.id}` : String(chain.id);
+  const deployFile = path.resolve(__dirname, "../../contracts/deployments", `${deployName}.json`);
+  if (!fs.existsSync(deployFile)) throw new Error(`belum ada deployment ${deployName}: ${deployFile}`);
   const dep = JSON.parse(fs.readFileSync(deployFile, "utf8")) as Deployment;
   const roles = loadRoles();
   const op = escrowAs(pc, roles.operator, chain, rpcUrl, dep.escrow);
@@ -84,13 +97,11 @@ async function main() {
   const balanceOf = (a: Address) =>
     pc.readContract({ address: dep.token, abi: tokenAbi, functionName: "balanceOf", args: [a] });
 
-  if (chain.id !== foundry.id) {
-    if ((await pc.getBalance({ address: roles.operator.address })) === BigInt(0)) {
-      throw new Error(`operator ${roles.operator.address} belum punya ETH testnet untuk gas`);
-    }
-    if (!dep.mockToken && (await balanceOf(roles.buyer.address)) < price) {
-      throw new Error(`pembeli ${roles.buyer.address} kurang USDC, ambil di https://faucet.circle.com`);
-    }
+  if (!local && (await pc.getBalance({ address: roles.operator.address })) === BigInt(0)) {
+    throw new Error(`operator ${roles.operator.address} belum punya ETH testnet untuk gas`);
+  }
+  if (!dep.mockToken && (await balanceOf(roles.buyer.address)) < price) {
+    throw new Error(`pembeli ${roles.buyer.address} kurang USDC, ambil di https://faucet.circle.com`);
   }
 
   const rows: string[] = [];
@@ -128,7 +139,7 @@ async function main() {
   const handoverHash = keccak256(toHex(`surat-kuasa:${tag}`));
   const eventEndsAt = Number((await pc.getBlock()).timestamp) + eventIn;
 
-  console.log(`\nSiklus "${pathName}" di ${chain.name} (${chain.id}), harga ${usdc(price)} USDC`);
+  console.log(`\nSiklus "${pathName}" di ${chain.name} (${chain.id})${fork ? " versi fork lokal" : ""}, harga ${usdc(price)} USDC`);
   console.log(`escrow ${dep.escrow}  window ${dep.disputeWindow} detik  acara selesai +${eventIn} detik\n`);
 
   let n = 1;
@@ -156,7 +167,7 @@ async function main() {
       expectBuyer = -price + back;
     } else {
       const waited = await skipWindow(pc, id, dep);
-      step(n++, "lompat window", chain.id === foundry.id ? "anvil" : "tunggu", undefined, `${waited} detik`);
+      step(n++, "lompat window", local ? "anvil" : "tunggu", undefined, `${waited} detik`);
       const caller = await releaseCaller(roles);
       step(n++, "release", caller.label, await escrowAs(pc, caller.account, chain, rpcUrl, dep.escrow).release(id), "siapa pun boleh memanggil");
       step(n++, "withdrawFor", "operator -> seller", await op.withdrawFor(roles.seller));
@@ -171,7 +182,7 @@ async function main() {
   console.log(`\nStatus akhir: ${L.status}${L.disputed ? " (disengketakan)" : ""}`);
   console.log(`Seller ${sellerDelta >= BigInt(0) ? "+" : ""}${usdc(sellerDelta)} USDC, pembeli ${buyerDelta >= BigInt(0) ? "+" : ""}${usdc(buyerDelta)} USDC -> ${ok ? "COCOK" : "TIDAK COCOK"} dengan yang diharapkan`);
   console.log(`Total gas siklus ini: ${gasTotal.toLocaleString("id-ID")}`);
-  if (chain.id !== foundry.id) console.log("\n" + rows.join("\n"));
+  if (!local) console.log("\n" + rows.join("\n"));
   if (!ok) process.exit(1);
 }
 
@@ -179,8 +190,8 @@ async function main() {
 async function skipWindow(pc: ReturnType<typeof publicClient>, id: Hex, dep: Deployment): Promise<number> {
   const deadline = BigInt(disputeDeadline(await getListing(pc, dep.escrow, id), dep.disputeWindow));
   const start = (await pc.getBlock()).timestamp;
-  if (chain.id === foundry.id) {
-    const test = createTestClient({ mode: "anvil", chain: foundry, transport: http(rpcUrl) });
+  if (local) {
+    const test = createTestClient({ mode: "anvil", chain, transport: http(rpcUrl) });
     const seconds = Number(deadline - start + BigInt(1));
     await test.increaseTime({ seconds });
     await test.mine({ blocks: 1 });
@@ -196,9 +207,9 @@ async function skipWindow(pc: ReturnType<typeof publicClient>, id: Hex, dep: Dep
 
 /** Di Anvil pakai alamat acak supaya terbukti siapa pun bisa. Di testnet pakai operator, yang punya gas. */
 async function releaseCaller(roles: Roles): Promise<{ account: LocalAccount; label: string }> {
-  if (chain.id !== foundry.id) return { account: roles.operator, label: "operator" };
+  if (!local) return { account: roles.operator, label: "operator" };
   const account = privateKeyToAccount(generatePrivateKey());
-  const test = createTestClient({ mode: "anvil", chain: foundry, transport: http(rpcUrl) });
+  const test = createTestClient({ mode: "anvil", chain, transport: http(rpcUrl) });
   await test.setBalance({ address: account.address, value: parseEther("1") });
   return { account, label: "alamat acak" };
 }
