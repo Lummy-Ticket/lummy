@@ -1,8 +1,9 @@
 // Alur pembeli dan admin di browser dengan mode chain menyala: checkout, panel on-chain, sengketa,
 // putusan, dan pencairan setelah window, dicocokkan dengan kontrak.
 //   Dipanggil chain-e2e.sh terhadap Anvil (waktu dilompati), atau
-//   npm run chain:live terhadap Arbitrum Sepolia asli lewat `npm run dev` yang sedang jalan
-//   (menunggu window sungguhan, sekitar 12 menit, memakai 2 USDC testnet dan 1 dikembalikan).
+//   npm run chain:live terhadap Arbitrum Sepolia asli, lewat `npm run dev` yang sedang jalan atau
+//   lummy.id (BASE=https://lummy.id DEMO_KEY=...). Menunggu window sungguhan, sekitar 12 menit,
+//   memakai 2 USDC testnet dan 1 dikembalikan.
 import { chromium } from "playwright-core";
 
 const LIVE = process.env.LIVE === "1";
