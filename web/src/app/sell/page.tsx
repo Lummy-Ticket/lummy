@@ -235,7 +235,7 @@ export default function SellPage() {
           </div>
 
           <div className="flex gap-3">
-            <button onClick={() => setStep(0)} className="px-5 py-3 rounded-2xl border-2 border-neutral-light-gray-1 text-neutral-gray text-sm flex items-center gap-1 cursor-pointer"><ArrowLeft className="w-4 h-4" /> {t("Back", "Kembali")}</button>
+            <Button.Ghost onClick={() => setStep(0)}><ArrowLeft className="w-4 h-4" /> {t("Back", "Kembali")}</Button.Ghost>
             <Button.Primary className="flex items-center gap-2" onClick={() => { setPrice((p) => Math.min(Math.max(p || cap, floor), cap)); setStep(2); }}>{t("Continue to price", "Lanjut ke harga")} <ArrowRight className="w-4 h-4" /></Button.Primary>
           </div>
         </div>
@@ -294,7 +294,7 @@ export default function SellPage() {
           )}
 
           <div className="flex gap-3">
-            <button onClick={() => setStep(1)} className="px-5 py-3 rounded-2xl border-2 border-neutral-light-gray-1 text-neutral-gray text-sm flex items-center gap-1 cursor-pointer"><ArrowLeft className="w-4 h-4" /> {t("Back", "Kembali")}</button>
+            <Button.Ghost onClick={() => setStep(1)}><ArrowLeft className="w-4 h-4" /> {t("Back", "Kembali")}</Button.Ghost>
             <Button.Primary disabled={blocked} onClick={publish}>
               {blocked ? t("Blocked (duplicate)", "Diblokir (duplikat)") : flagged || late ? t("Submit for review", "Ajukan untuk review") : t("Publish listing", "Publish listing")}
             </Button.Primary>

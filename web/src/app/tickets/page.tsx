@@ -93,7 +93,7 @@ export default function TicketsPage() {
                     <Image src={o.eventImage} alt={o.eventTitle} fill sizes="80px" className="object-cover" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="font-fredoka font-semibold text-neutral-black truncate">{o.eventTitle}</h3>
+                    <h3 className="font-fredoka font-semibold text-neutral-black leading-snug line-clamp-2">{o.eventTitle}</h3>
                     <p className="text-xs text-neutral-gray mt-0.5">{formatEventDate(o.eventDateISO)}</p>
                     <p className="text-xs text-neutral-gray">{o.tierName}{o.quantity > 1 ? ` · ${o.quantity} ${t("tickets", "tiket")}` : ""}</p>
                     <div className="mt-2"><EscrowStatusPill phase={phase} /></div>

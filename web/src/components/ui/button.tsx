@@ -41,12 +41,42 @@ const Secondary = React.forwardRef<HTMLButtonElement, AdditionalProps> (({classN
   );
 });
 
+type GhostProps = ButtonProps & {
+  /** neutral: back, cancel. danger: reject, remove. warning: a risky action someone may still take. */
+  tone?: "neutral" | "danger" | "warning"
+}
+
+// The quiet action beside a Primary: same height and radius, no raised shadow.
+// Use it for back, cancel and reject so every screen reads the same way.
+const GHOST_TONE = {
+  neutral: "border-neutral-light-gray-1 text-neutral-gray enabled:hover:border-primary-navy enabled:hover:text-primary-navy",
+  danger: "border-neutral-light-gray-1 text-neutral-gray enabled:hover:border-secondary-pink-dark enabled:hover:text-secondary-pink-dark",
+  warning: "border-secondary-orange-dark text-secondary-orange-dark enabled:hover:bg-secondary-orange-soft",
+} as const;
+
+const Ghost = React.forwardRef<HTMLButtonElement, GhostProps>(({ className, children, tone = "neutral", type = "button", ...props }, ref) => (
+  <button
+    ref={ref}
+    type={type}
+    className={cn(
+      "inline-flex items-center justify-center gap-2 rounded-2xl border-2 bg-neutral-white px-5 py-3.5 font-fredoka font-medium transition enabled:cursor-pointer disabled:opacity-50 -translate-y-0.5",
+      GHOST_TONE[tone],
+      className
+    )}
+    {...props}
+  >
+    {children}
+  </button>
+));
+
 Primary.displayName = "Button.Primary";
 Secondary.displayName = "Button.Secondary";
+Ghost.displayName = "Button.Ghost";
 
 const Button = {
   Primary,
-  Secondary
+  Secondary,
+  Ghost,
 }
 
 export {Button}

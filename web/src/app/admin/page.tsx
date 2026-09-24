@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import {
   CheckCircle2, XCircle, AlertTriangle, Sparkles, Calendar, MapPin, Scale, Paperclip,
-  ExternalLink, Gavel, Clock, Loader2,
+  ExternalLink, Gavel, Clock, Loader2, Ticket,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +33,6 @@ function onchainToBuyer(o: Order, remedy: Remedy): string {
     : 0;
   return ((BigInt(o.chain.price) * BigInt(rupiah)) / BigInt(o.amount)).toString();
 }
-import { Ticket, Scale as ScaleIcon } from "lucide-react";
 
 function EvidencePanel({ order }: { order: Order }) {
   const t = useT();
@@ -186,12 +185,9 @@ function ListingQueue({
               >
                 <CheckCircle2 className="w-4 h-4" /> {t("Clear listing", "Loloskan listing")}
               </Button.Primary>
-              <button
-                onClick={() => { onReject(l.id); toast(t("Listing rejected", "Listing ditolak")); }}
-                className="flex items-center gap-2 px-4 py-3 rounded-2xl border-2 border-neutral-light-gray-1 text-neutral-gray text-sm hover:border-secondary-pink-dark hover:text-secondary-pink-dark transition cursor-pointer"
-              >
+              <Button.Ghost tone="danger" className="text-sm" onClick={() => { onReject(l.id); toast(t("Listing rejected", "Listing ditolak")); }}>
                 <XCircle className="w-4 h-4" /> {t("Reject", "Tolak")}
-              </button>
+              </Button.Ghost>
             </div>
           </div>
         );
@@ -225,7 +221,7 @@ export default function AdminPage() {
   // Three queues, each with its own rhythm. Kept apart so a busy day in one
   // does not bury the others, and so a count is visible before opening any.
   const TABS = [
-    { id: "claims" as const, en: "Claims", id_: "Klaim", Icon: ScaleIcon, count: disputes.length },
+    { id: "claims" as const, en: "Claims", id_: "Klaim", Icon: Scale, count: disputes.length },
     { id: "listings" as const, en: "Listings held", id_: "Listing ditahan", Icon: Ticket, count: held.length },
     { id: "events" as const, en: "New events", id_: "Event baru", Icon: Calendar, count: pendingEvents.length },
   ];
@@ -299,12 +295,8 @@ export default function AdminPage() {
         <EmptyQueue text={t("No claims open. Escrow is settling on its own.", "Tidak ada klaim terbuka. Escrow berjalan sendiri.")} />
       )}
       {mounted && tab === "claims" && disputes.length > 0 && (
-        <div className="mt-6">
-          <h2 className="font-fredoka font-bold text-xl text-neutral-black flex items-center gap-2">
-            <Scale className="w-5 h-5 text-secondary-orange-dark" /> {t("Arbitration", "Arbitrase")}
-            <span className="text-neutral-gray font-normal text-base">({disputes.length})</span>
-          </h2>
-          <p className="text-sm text-neutral-gray mt-1 mb-4">
+        <div>
+          <p className="text-sm text-neutral-gray mb-4">
             {t(
               "Refunds are not automatic. The seller wins by default unless gate-time evidence holds up. The checks below are signals, the call is yours.",
               "Refund tidak otomatis. Default-nya penjual menang, kecuali bukti dari gate kredibel. Pemeriksaan di bawah cuma sinyal, keputusan tetap di kamu."
@@ -386,8 +378,7 @@ export default function AdminPage() {
 
       {tab === "events" && (
       <>
-      <h2 className="font-fredoka font-bold text-xl text-neutral-black">{t("Event approvals", "Persetujuan event")}</h2>
-      <div className="flex items-start gap-2 text-sm text-neutral-gray bg-secondary-blue-extra rounded-2xl p-4 mt-3 mb-8">
+      <div className="flex items-start gap-2 text-sm text-neutral-gray bg-secondary-blue-extra rounded-2xl p-4 mb-6">
         <Sparkles className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" />
         <span>{t(
           "New events are verified before their tickets can be sold. AI pre-fills from the first seller's PDF. Face value is a pre-fill: check it against the official source before approving.",
@@ -444,19 +435,27 @@ export default function AdminPage() {
               </div>
 
               {r.status === "pending" && (
-                <div className="flex gap-3 mt-4">
+                // The recommended call is the raised button; the other one is still there, just quieter.
+                <div className="flex flex-wrap gap-3 mt-4">
                   {r.pdfSuspicious || r.forgeryScore >= 60 ? (
-                    <button onClick={() => setConfirmReq(r)} className="flex items-center gap-2 px-4 py-3 rounded-2xl border-2 border-secondary-orange-dark text-secondary-orange-dark text-sm hover:bg-secondary-orange-soft transition cursor-pointer">
-                      <AlertTriangle className="w-4 h-4" /> {t("Approve (high score)", "Setujui (skor tinggi)")}
-                    </button>
+                    <>
+                      <Button.Primary className="flex items-center gap-2 text-sm" onClick={() => { reject(r.id); toast(t("Event rejected", "Event ditolak")); }}>
+                        <XCircle className="w-4 h-4" /> {t("Reject", "Tolak")}
+                      </Button.Primary>
+                      <Button.Ghost tone="warning" className="text-sm" onClick={() => setConfirmReq(r)}>
+                        <AlertTriangle className="w-4 h-4" /> {t("Approve anyway", "Tetap setujui")}
+                      </Button.Ghost>
+                    </>
                   ) : (
-                    <Button.Primary className="flex items-center gap-2 text-sm" onClick={() => doApprove(r)}>
-                      <CheckCircle2 className="w-4 h-4" /> {t("Approve", "Setujui")}
-                    </Button.Primary>
+                    <>
+                      <Button.Primary className="flex items-center gap-2 text-sm" onClick={() => doApprove(r)}>
+                        <CheckCircle2 className="w-4 h-4" /> {t("Approve", "Setujui")}
+                      </Button.Primary>
+                      <Button.Ghost tone="danger" className="text-sm" onClick={() => { reject(r.id); toast(t("Event rejected", "Event ditolak")); }}>
+                        <XCircle className="w-4 h-4" /> {t("Reject", "Tolak")}
+                      </Button.Ghost>
+                    </>
                   )}
-                  <button onClick={() => { reject(r.id); toast(t("Event rejected", "Event ditolak")); }} className={`flex items-center gap-2 px-4 py-3 rounded-2xl text-sm transition cursor-pointer ${r.pdfSuspicious || r.forgeryScore >= 60 ? "bg-primary-navy text-white hover:bg-primary-navy-dark" : "border-2 border-neutral-light-gray-1 text-neutral-gray hover:border-secondary-pink-dark hover:text-secondary-pink-dark"}`}>
-                    <XCircle className="w-4 h-4" /> {t("Reject", "Tolak")}
-                  </button>
                 </div>
               )}
             </div>
@@ -475,7 +474,7 @@ export default function AdminPage() {
               {t(" Approving lets this ticket be sold. Make sure you checked the document by hand.", " Menyetujui berarti tiket ini boleh dijual. Pastikan kamu sudah cek dokumennya manual.")}
             </p>
             <div className="flex gap-3 mt-5">
-              <button onClick={() => setConfirmReq(null)} className="flex-1 px-4 py-3 rounded-2xl border-2 border-neutral-light-gray-1 text-neutral-gray text-sm cursor-pointer">{t("Cancel", "Batal")}</button>
+              <Button.Ghost className="flex-1 text-sm" onClick={() => setConfirmReq(null)}>{t("Cancel", "Batal")}</Button.Ghost>
               <Button.Primary wrapperClass="flex-1" className="w-full text-sm" onClick={() => { doApprove(confirmReq); setConfirmReq(null); }}>{t("Yes, approve", "Ya, setujui")}</Button.Primary>
             </div>
           </>

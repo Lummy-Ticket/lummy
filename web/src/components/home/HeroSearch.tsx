@@ -54,7 +54,7 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
   };
 
   return (
-    <div ref={ref} className="w-full max-w-xl mx-auto lg:mx-0 flex flex-col gap-3">
+    <div ref={ref} className="w-full max-w-2xl flex flex-col gap-3">
       <div className="relative">
         <form onSubmit={submit} className="flex items-center gap-2 bg-neutral-white rounded-2xl border-2 border-lummy-500 p-2 pl-4 shadow-lummy">
           <Search className="w-5 h-5 text-neutral-gray shrink-0" />
@@ -62,7 +62,7 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
             value={q}
             onChange={(e) => { setQ(e.target.value); setOpen(true); }}
             onFocus={() => setOpen(true)}
-            placeholder={t("Search artist, event or city", "Cari artis, event, atau kota")}
+            placeholder={t("Artist, event or city", "Artis, event, atau kota")}
             aria-label={t("Search events", "Cari event")}
             className="flex-1 outline-none bg-transparent text-neutral-black placeholder:text-neutral-gray min-w-0"
           />
@@ -101,8 +101,8 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
         )}
       </div>
 
-      <div className="flex flex-wrap justify-center lg:justify-start gap-2">
-        <Link href="/events" className="px-3 sm:px-4 py-1.5 rounded-full text-sm bg-neutral-white/70 border border-lummy-500 text-lummy-500 hover:bg-neutral-white transition">
+      <div className="flex flex-wrap gap-2">
+        <Link href="/events" className="hidden sm:inline-block px-4 py-1.5 rounded-full text-sm bg-neutral-white/70 border border-lummy-500 text-lummy-500 hover:bg-neutral-white transition">
           {t("All events", "Semua event")}
         </Link>
         {quickCats.map((c) => (

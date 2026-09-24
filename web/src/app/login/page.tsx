@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Logo } from "@/components/layout/Logo";
+import Image from "next/image";
 import { useUser, type Role } from "@/lib/mock";
 import { useT } from "@/lib/i18n";
 
@@ -31,7 +31,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-5 pt-28 pb-16">
       <div className="w-full max-w-md bg-neutral-white rounded-3xl border border-lummy-500 shadow-lummy-lg p-8">
-        <Logo className="mx-auto mb-6" />
+        <Image src="/assets/images/mascot.png" alt="" width={418} height={401} className="w-[84px] h-auto mx-auto mb-4" priority />
         <h1 className="text-2xl font-bold text-neutral-black text-center">{t("Sign in to Lummy", "Masuk ke Lummy")}</h1>
         <p className="text-neutral-gray text-sm text-center mt-1">{t("Just an email. No wallet, no seed phrase.", "Cukup email. Tanpa wallet, tanpa seed phrase.")}</p>
 
@@ -39,7 +39,7 @@ export default function LoginPage() {
           <span className="text-xs text-neutral-gray">Email</span>
           <div className="flex items-center gap-2 rounded-xl border border-lummy-500 px-4 py-3">
             <Mail className="w-4 h-4 text-neutral-gray" />
-            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" className="w-full outline-none text-sm text-neutral-black" />
+            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="email" placeholder="you@email.com" className="w-full outline-none text-sm text-neutral-black" />
           </div>
         </label>
 

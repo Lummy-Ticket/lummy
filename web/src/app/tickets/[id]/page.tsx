@@ -16,6 +16,7 @@ import { useAccessGuard, useHydrated } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters } from "@/lib/i18n";
 import { EscrowStatusPill } from "@/components/common/EscrowStatusPill";
+import { EscrowSteps } from "@/components/common/EscrowSteps";
 import { PageContainer } from "@/components/layout/PageContainer";
 import {useOrders, useUser, explorerTx, explorerAddr, shortHash, phaseOf, msUntilRelease, disputeDeadlineISO, checkEvidence, mockEvidenceOptions, DISPUTE_WINDOW_H, reasonMeta, availableReasons, reasonBlockedNote, canFileDispute, REMEDY_LABEL, windowMs, windowLabel, type DisputeEvidence, type DisputeReason,
 } from "@/lib/mock";
@@ -237,7 +238,7 @@ export default function OrderDetailPage() {
         <div className="min-w-0">
           <h1 className="text-xl md:text-2xl font-bold text-neutral-black">{order.eventTitle}</h1>
           <p className="text-sm text-neutral-gray">{formatEventDate(order.eventDateISO)} · {order.tierName}{order.quantity > 1 ? ` · ${order.quantity} ${t("tickets", "tiket")}` : ""}</p>
-          <p className="text-xs text-neutral-gray mt-0.5">{t("Seller", "Penjual")} {order.sellerName} · {t("Order", "Order")} <span className="font-mono">{order.id}</span></p>
+          <p className="text-xs text-neutral-gray mt-0.5">{t("Seller", "Penjual")} {order.sellerName} · {t("Order", "Pesanan")} <span className="font-medium tracking-wide text-neutral-black">{order.id.toUpperCase()}</span></p>
         </div>
       </div>
 
@@ -264,6 +265,10 @@ export default function OrderDetailPage() {
               ? t("Returned automatically when the organiser cancelled the show.", "Dikembalikan otomatis saat penyelenggara membatalkan acara.")
               : t("Returned to you after the arbiter reviewed the evidence.", "Dikembalikan ke kamu setelah arbiter meninjau bukti."))}
           </p>
+
+          <div className="mt-6 mb-1">
+            <EscrowSteps order={order} phase={phase} windowText={t(win.en, win.id)} />
+          </div>
 
           {/* The organiser's state outranks the clock: a show that will not happen
               must never pay out just because 48 quiet hours went by. */}
@@ -320,35 +325,6 @@ export default function OrderDetailPage() {
               </p>
             </div>
           )}
-
-          {/* Settlement rules: the policy that makes the guarantee credible */}
-          <div className="mt-5 rounded-2xl bg-secondary-blue-extra border border-neutral-light-gray-1 p-4">
-            <div className="text-xs font-semibold text-neutral-black mb-2.5">{t("How settlement works", "Cara pencairan bekerja")}</div>
-            <ul className="flex flex-col gap-2.5 text-xs text-neutral-gray leading-relaxed">
-              <li className="flex gap-2">
-                <Clock className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" />
-                <span>{t(
-                  "The clock settles this, not a button. There is no \"I got in\" confirmation to fake.",
-                  "Yang menentukan itu waktu, bukan tombol. Tidak ada konfirmasi \"aku sudah masuk\" yang bisa dipalsukan."
-                )}</span>
-              </li>
-              <li className="flex gap-2">
-                <Gavel className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" />
-                <span>{t(
-                  "A refund is a dispute with gate-time proof, reviewed by an arbiter. Never self-serve.",
-                  "Refund itu sengketa dengan bukti dari gate, diputus arbiter. Bukan tombol yang bisa kamu pencet sendiri."
-                )}</span>
-              </li>
-              <li className="flex gap-2">
-                <Repeat className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" />
-                <span>
-                  {t("Not attending is not a refund.", "Gak jadi datang bukan alasan refund.")}{" "}
-                  <Link href="/sell" className="text-primary-navy font-medium">{t("Relist it", "Jual lagi")}</Link>{" "}
-                  {t("before the show instead.", "sebelum acara berlangsung.")}
-                </span>
-              </li>
-            </ul>
-          </div>
 
           {/* Filed dispute + the automated read on its evidence */}
           {order.dispute && (
@@ -503,17 +479,19 @@ export default function OrderDetailPage() {
 
           {/* A claim is possible from purchase onwards, because a seller can fail
               you long before the gate does. What differs is the proof it needs. */}
-          {canFileDispute(order, now) && (
+          {canFileDispute(order, now) && (phase === "PRE_EVENT" ? (
+            <Button.Ghost tone="warning" className="mt-5 w-full text-sm" onClick={() => setShowDispute(true)}>
+              <AlertTriangle className="w-4 h-4" /> {t("Problem with this ticket?", "Ada masalah dengan tiket ini?")}
+            </Button.Ghost>
+          ) : (
             <button
               onClick={() => setShowDispute(true)}
-              className="mt-5 w-full px-4 py-3 rounded-2xl border-2 border-secondary-orange-dark text-secondary-orange-dark text-sm font-medium hover:bg-secondary-orange-soft transition cursor-pointer flex items-center justify-center gap-2"
+              className="mt-5 w-full px-4 py-3.5 rounded-2xl border-2 border-secondary-orange-dark bg-secondary-orange-soft text-secondary-orange-dark font-fredoka font-medium hover:bg-secondary-orange-dark hover:text-white transition cursor-pointer flex items-center justify-center gap-2"
             >
-              <AlertTriangle className="w-4 h-4" />
-              {phase === "PRE_EVENT"
-                ? t("Problem with this ticket?", "Ada masalah dengan tiket ini?")
-                : t("Something went wrong at the gate", "Ada masalah di gate")}
+              <AlertTriangle className="w-4 h-4" /> {t("Something went wrong at the gate", "Ada masalah di gate")}
             </button>
-          )}
+          ))}
+
           {/* On chain there is no clock to bend: the contract's own window decides. */}
           {onchain && order.escrowStatus === "LOCKED" && (
             <div className="mt-5 rounded-2xl border-2 border-dashed border-neutral-light-gray-1 p-4">
@@ -574,7 +552,7 @@ export default function OrderDetailPage() {
         {/* Documents */}
         <div className="flex flex-col gap-4 min-w-0">
           <div className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
-            <h4 className="font-fredoka font-semibold text-neutral-black mb-3">{t("Handover documents", "Dokumen serah-terima")}</h4>
+            <h2 className="font-fredoka font-semibold text-lg text-neutral-black mb-3">{t("Handover documents", "Dokumen serah-terima")}</h2>
             <button onClick={() => { setShowKuasa(true); markDocsAccessed(order.id, "letter"); }} className="w-full flex items-center gap-3 p-3 rounded-2xl border border-neutral-light-gray-1 hover:border-lummy-500 transition cursor-pointer text-left">
               <span className="w-10 h-10 rounded-xl bg-secondary-blue-soft text-lummy-500 grid place-items-center shrink-0"><FileText className="w-5 h-5" /></span>
               <div>
@@ -592,8 +570,36 @@ export default function OrderDetailPage() {
               </button>
             )}
           </div>
-          <div className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5 text-xs text-neutral-gray">
-            {t("Order", "Order")} <span className="font-mono text-neutral-black">{order.id}</span> · {t("placed", "dibuat")} {formatDateTime(order.createdAtISO)}
+          {/* Settlement rules: the policy that makes the guarantee credible */}
+          <div className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
+            <h2 className="font-fredoka font-semibold text-lg text-neutral-black mb-3">{t("How this order settles", "Cara pesanan ini selesai")}</h2>
+            <ul className="flex flex-col gap-3 text-sm text-neutral-gray leading-relaxed">
+              <li className="flex gap-2.5">
+                <Clock className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" />
+                <span>{t(
+                  "The clock settles it, not a button. There is no \"I got in\" confirmation to fake.",
+                  "Yang menentukan itu waktu, bukan tombol. Tidak ada konfirmasi \"aku sudah masuk\" yang bisa dipalsukan."
+                )}</span>
+              </li>
+              <li className="flex gap-2.5">
+                <Gavel className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" />
+                <span>{t(
+                  "A refund is a claim with proof from the gate, decided by an arbiter.",
+                  "Refund itu klaim dengan bukti dari gate, diputus arbiter."
+                )}</span>
+              </li>
+              <li className="flex gap-2.5">
+                <Repeat className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" />
+                <span>
+                  {t("Not attending is not a refund.", "Gak jadi datang bukan alasan refund.")}{" "}
+                  <Link href="/sell" className="text-primary-navy font-medium">{t("Relist it", "Jual lagi")}</Link>{" "}
+                  {t("before the show instead.", "sebelum acara berlangsung.")}
+                </span>
+              </li>
+            </ul>
+            <div className="mt-4 pt-3 border-t border-dashed border-neutral-light-gray-1 text-xs text-neutral-gray">
+              {t("Order", "Pesanan")} <span className="font-medium tracking-wide text-neutral-black">{order.id.toUpperCase()}</span> · {t("placed", "dibuat")} {formatDateTime(order.createdAtISO)}
+            </div>
           </div>
         </div>
       </div>
@@ -741,7 +747,7 @@ export default function OrderDetailPage() {
               ))}
             </div>
 
-            {check && (
+            {check && (!needsFile || evidence) && (
               <div className="mt-3 rounded-2xl border border-neutral-light-gray-1 p-4">
                 <div className="flex items-center gap-2 text-xs font-semibold text-neutral-black mb-1">
                   <MapPin className="w-3.5 h-3.5 text-neutral-gray" /> {needsFile ? t("File metadata", "Metadata file") : t("Our records", "Catatan kami")}
@@ -800,7 +806,7 @@ export default function OrderDetailPage() {
         )}
 
         <div className="flex gap-3 mt-5">
-          <button onClick={() => setShowDispute(false)} className="flex-1 px-4 py-3 rounded-2xl border-2 border-neutral-light-gray-1 text-neutral-gray text-sm cursor-pointer">{t("Cancel", "Batal")}</button>
+          <Button.Ghost className="flex-1 text-sm" onClick={() => setShowDispute(false)}>{t("Cancel", "Batal")}</Button.Ghost>
           <Button.Primary wrapperClass="flex-1" className="w-full text-sm" disabled={!canSubmit} onClick={submitDispute}>{t("File dispute", "Kirim sengketa")}</Button.Primary>
         </div>
       </Modal>

@@ -104,7 +104,7 @@ function ClaimsAgainstYou({ orders }: { orders: Order[] }) {
         {orders.map((o) => {
           const answered = (o.dispute?.replies ?? []).some((r) => r.fromSeller);
           return (
-            <div key={o.id} className="bg-neutral-white rounded-2xl border border-secondary-orange-dark/30 p-4">
+            <div key={o.id} className="bg-neutral-white rounded-2xl border-2 border-secondary-orange-dark/40 p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h4 className="font-fredoka font-semibold text-neutral-black truncate">{o.eventTitle}</h4>
@@ -144,22 +144,19 @@ function ClaimsAgainstYou({ orders }: { orders: Order[] }) {
                       <span className="text-xs font-mono truncate">{ev.fileName}</span>
                     </button>
                   ))}
-                  <div className="flex gap-2 mt-1">
-                    <button onClick={() => { setOpenId(null); setNote(""); setFile(null); }} className="px-3 py-2 rounded-xl border border-neutral-light-gray-1 text-xs text-neutral-gray cursor-pointer">
-                      {t("Cancel", "Batal")}
-                    </button>
-                    <Button.Primary className="text-xs px-4 py-2" disabled={!note.trim()} onClick={() => send(o)}>
+                  <div className="flex gap-3 mt-2">
+                    <Button.Primary className="text-sm" disabled={!note.trim()} onClick={() => send(o)}>
                       {t("Send answer", "Kirim jawaban")}
                     </Button.Primary>
+                    <Button.Ghost className="text-sm" onClick={() => { setOpenId(null); setNote(""); setFile(null); }}>
+                      {t("Cancel", "Batal")}
+                    </Button.Ghost>
                   </div>
                 </div>
               ) : (
-                <button
-                  onClick={() => setOpenId(o.id)}
-                  className="mt-3 text-xs font-medium text-primary-navy hover:opacity-80 cursor-pointer"
-                >
+                <Button.Primary wrapperClass="mt-4" className="text-sm" onClick={() => setOpenId(o.id)}>
                   {t("Answer this claim", "Jawab klaim ini")}
-                </button>
+                </Button.Primary>
               )}
             </div>
           );

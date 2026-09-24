@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, ChevronRight, Lock, X, Check } from "lucide-react";
+import { ArrowRight, ChevronRight, X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { HeroSearch } from "@/components/home/HeroSearch";
-import { HeroTicket } from "@/components/home/HeroTicket";
+import { Hero } from "@/components/home/Hero";
 import { TicketBand } from "@/components/ui/ticket-band";
 import { useT, useFormatters, useActiveLang, EVENT_TZ } from "@/lib/i18n";
 import { getEvents, type EventItem } from "@/lib/mock";
@@ -96,51 +95,7 @@ export default function HomePage() {
 
   return (
     <>
-      <section className="relative overflow-hidden bg-hero-gradient pt-28 lg:pt-32 pb-24 lg:pb-28">
-        {/* Dot grid, faded out towards the bottom, so the hero has texture without noise */}
-        <div
-          aria-hidden
-          className="absolute inset-0 bg-[radial-gradient(#3A6CB41f_1px,transparent_1px)] [background-size:22px_22px] [mask-image:linear-gradient(to_bottom,black,transparent_85%)]"
-        />
-        <div className="relative max-w-7xl mx-auto px-5 lg:px-10 grid lg:grid-cols-[1.05fr_0.95fr] gap-14 lg:gap-8 items-center">
-          <div className="flex flex-col items-center lg:items-start gap-6 text-center lg:text-left">
-            <span className="motion-safe:animate-rise inline-flex items-center gap-2 rounded-full border border-primary-navy/25 bg-neutral-white/70 px-3.5 py-1.5 text-xs font-medium text-primary-navy">
-              <Lock className="w-3.5 h-3.5" /> {t("Escrow-protected ticket resale in Indonesia", "Resale tiket dengan escrow di Indonesia")}
-            </span>
-            <h1 className="motion-safe:animate-rise [animation-delay:60ms] flex flex-col font-bold leading-[1.02] text-[2.6rem] sm:text-6xl xl:text-7xl tracking-tight">
-              <span className="text-neutral-black">{t("Buy resale tickets", "Beli tiket resale")}</span>
-              <span className="text-primary-navy">
-                <span className="bg-[linear-gradient(transparent_68%,#B1E7FF_68%)] px-1 -mx-1">{t("without the fear.", "tanpa takut ketipu.")}</span>
-              </span>
-            </h1>
-            <p className="motion-safe:animate-rise [animation-delay:120ms] text-lg text-neutral-gray max-w-md">
-              {t(
-                "The seller only gets paid after the show. Turned away at the gate with proof? Your money comes back.",
-                "Penjual baru dibayar setelah acara selesai. Ditolak di gate dengan bukti? Uangmu kembali."
-              )}
-            </p>
-            <div className="motion-safe:animate-rise [animation-delay:180ms] w-full">
-              <HeroSearch quickCats={quickCats} />
-            </div>
-            <Link
-              href="/sell"
-              className="motion-safe:animate-rise [animation-delay:240ms] group inline-flex items-center gap-1.5 text-sm text-neutral-gray hover:text-primary-navy transition"
-            >
-              {t("Selling instead?", "Mau jual?")}{" "}
-              <span className="font-semibold text-primary-navy">{t("List a ticket in a few minutes", "Pasang tiket dalam beberapa menit")}</span>
-              <ArrowRight className="w-4 h-4 text-primary-navy transition group-hover:translate-x-0.5" />
-            </Link>
-          </div>
-
-          <HeroTicket />
-        </div>
-
-        {/* Scalloped edge, like the torn side of a ticket */}
-        <div
-          aria-hidden
-          className="absolute bottom-0 inset-x-0 h-3 bg-[radial-gradient(circle_at_12px_12px,#ffffff_7px,transparent_7.5px)] [background-size:24px_12px] bg-repeat-x"
-        />
-      </section>
+      <Hero quickCats={quickCats} />
 
       <section className="reveal max-w-7xl mx-auto px-5 lg:px-10 mt-16">
         <SectionHead title={t("Popular right now", "Lagi banyak dicari")} href="/events" />
