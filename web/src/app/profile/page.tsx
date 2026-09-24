@@ -74,7 +74,7 @@ export default function ProfilePage() {
             <span className="text-xs text-neutral-gray">{t("WhatsApp number", "Nomor WhatsApp")}</span>
             <div className="flex items-center gap-2 rounded-xl border border-lummy-500 px-4 py-3">
               <Phone className="w-4 h-4 text-neutral-gray" />
-              <input value={phoneVal} onChange={(e) => setPhoneDraft(e.target.value)} className="w-full outline-none text-sm text-neutral-black" />
+              <input value={phoneVal} onChange={(e) => setPhoneDraft(e.target.value)} inputMode="tel" placeholder="0812 3456 7890" className="w-full outline-none text-sm text-neutral-black" />
             </div>
           </label>
           <Button.Primary wrapperClass="w-fit" className="text-sm" onClick={() => { setPhone(phoneVal); toast.success(t("Profile saved", "Profil disimpan")); }}>{t("Save", "Simpan")}</Button.Primary>

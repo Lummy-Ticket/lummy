@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -39,6 +39,14 @@ export function useActiveLang(): Lang {
   );
 }
 
+/** Keeps <html lang> in step with the switch, so screen readers pronounce the right language. */
+export function useDocumentLang() {
+  const lang = useActiveLang();
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
+}
+
 /**
  * Inline translator: t("English copy", "Salinan Indonesia").
  *
@@ -49,6 +57,9 @@ export function useT() {
   const lang = useActiveLang();
   return useCallback((en: string, id: string) => (lang === "id" ? id : en), [lang]);
 }
+
+/** Shows happen in Indonesia, so their dates read in Jakarta time wherever the visitor is. */
+export const EVENT_TZ = "Asia/Jakarta";
 
 /**
  * Formatters bound to the active language, so dates and amounts follow the
@@ -62,7 +73,7 @@ export function useFormatters() {
     return {
       formatEventDate: (iso: string) =>
         new Date(iso).toLocaleDateString(locale, {
-          weekday: "short", day: "numeric", month: "short", year: "numeric",
+          weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: EVENT_TZ,
         }),
       formatDateTime: (iso: string) =>
         new Date(iso).toLocaleString(locale, {

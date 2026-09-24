@@ -15,7 +15,7 @@ import {
 } from "@/lib/mock";
 import { useAccessGuard, useHydrated } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
-import { useT, useFormatters } from "@/lib/i18n";
+import { useT, useFormatters, useActiveLang } from "@/lib/i18n";
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
@@ -171,6 +171,7 @@ function ClaimsAgainstYou({ orders }: { orders: Order[] }) {
 
 export default function SellerPage() {
   const t = useT();
+  const lang = useActiveLang();
   const ready = useAccessGuard("account");
   const { formatIDR, formatEventDate } = useFormatters();
   const user = useUser((s) => s.user);
@@ -186,9 +187,12 @@ export default function SellerPage() {
   const active = listings.filter((l) => l.status === "active");
   const sold = listings.filter((l) => l.status === "sold");
   const views = listings.reduce((a, l) => a + l.views, 0);
-  const est = active.reduce((a, l) => a + Math.round(l.askPrice * 0.95), 0);
+  // Fees are paid by the buyer on top of the ticket (docs/09, decision E), so the seller
+  // receives exactly what they asked.
+  const est = active.reduce((a, l) => a + l.askPrice * l.quantity, 0);
   // What an upheld claim would cost across everything currently on sale.
-  const atStake = active.reduce((a, l) => a + l.askPrice + sellerPenalty(l.askPrice), 0);
+  const atStake = active.reduce((a, l) => a + l.askPrice * l.quantity + sellerPenalty(l.askPrice * l.quantity), 0);
+  const upheld = orders.filter((o) => o.sellerName === user?.name && o.dispute?.verdict && !o.dispute.verdict.toSeller).length;
 
   // Payout timing is not a promise we make up: it is the escrow rule applied to
   // this listing's own event date.
@@ -214,8 +218,8 @@ export default function SellerPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
         <Stat label={t("Active listings", "Listing aktif")} value={String(active.length)} />
         <Stat label={t("Sold", "Terjual")} value={String(sold.length)} />
-        <Stat label={t("Total views", "Total dilihat")} value={String(views)} />
-        <Stat label={t("Estimated payout", "Estimasi pendapatan")} value={formatIDR(est)} />
+        <Stat label={t("Total views", "Total dilihat")} value={views.toLocaleString(lang === "id" ? "id-ID" : "en-US")} />
+        <Stat label={t("If everything sells", "Kalau semua terjual")} value={formatIDR(est)} />
       </div>
 
       <ClaimsAgainstYou orders={claims} />
@@ -229,7 +233,7 @@ export default function SellerPage() {
         <div className="flex flex-wrap gap-x-8 gap-y-3 mt-3">
           <div>
             <div className="text-xs text-neutral-gray">{t("Claims upheld", "Klaim dikabulkan")}</div>
-            <div className="font-fredoka font-bold text-xl text-secondary-green-dark">0</div>
+            <div className={`font-fredoka font-bold text-xl ${upheld ? "text-secondary-pink-dark" : "text-secondary-green-dark"}`}>{upheld}</div>
           </div>
           <div>
             <div className="text-xs text-neutral-gray">{t("At stake if a ticket fails", "Risiko kalau tiket gagal")}</div>
@@ -265,7 +269,7 @@ export default function SellerPage() {
                   </Badge.Base>
                 </div>
                 <div className="text-xs text-neutral-gray mt-1 flex items-center gap-3 flex-wrap">
-                  <span>{l.tierName}</span>
+                  <span>{l.tierName}{l.quantity > 1 ? t(` · ${l.quantity} tickets`, ` · ${l.quantity} tiket`) : ""}</span>
                   <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {l.views}</span>
                   {payoutNote(l) && (
                     <span className="flex items-center gap-1 text-lummy-500">
@@ -275,7 +279,7 @@ export default function SellerPage() {
                 </div>
               </div>
               <div className="flex items-center gap-4 shrink-0">
-                <span className="font-fredoka font-bold text-lummy-500">{formatIDR(l.askPrice)}</span>
+                <span className="font-fredoka font-bold text-lummy-500 text-nowrap">{formatIDR(l.askPrice)}{l.quantity > 1 && <span className="text-xs text-neutral-gray font-sans font-normal"> {t("each", "/tiket")}</span>}</span>
                 {l.status === "active" && (
                   <button onClick={() => setPromote(l)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-lummy-500 text-lummy-500 text-sm hover:bg-secondary-blue-light transition cursor-pointer">
                     <Megaphone className="w-4 h-4" /> {t("Promote", "Promosikan")}

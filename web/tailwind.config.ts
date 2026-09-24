@@ -9,8 +9,8 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        "fredoka": ["Fredoka", "system-ui", "sans-serif"],
-        "sans": ["system-ui", "sans-serif"],
+        "fredoka": ["var(--font-fredoka)", "system-ui", "sans-serif"],
+        "sans": ["var(--font-jakarta)", "system-ui", "sans-serif"],
       },
       colors: {
         // Primary Colors
@@ -193,8 +193,14 @@ const config: Config = {
       animation: {
         "fade-in": "fadeIn 0.5s ease-in-out",
         "slide-up": "slideUp 0.6s ease-out",
+        "rise": "slideUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) both",
+        "float": "float 6s ease-in-out infinite",
       },
       keyframes: {
+        float: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-8px)" },
+        },
         fadeIn: {
           "0%": { opacity: "0" },
           "100%": { opacity: "1" },

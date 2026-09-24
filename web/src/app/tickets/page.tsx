@@ -90,7 +90,7 @@ export default function TicketsPage() {
               >
                 <div className="flex gap-4">
                   <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-lummy-500 shrink-0">
-                    <Image src={o.eventImage} alt={o.eventTitle} fill className="object-cover" />
+                    <Image src={o.eventImage} alt={o.eventTitle} fill sizes="80px" className="object-cover" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <h3 className="font-fredoka font-semibold text-neutral-black truncate">{o.eventTitle}</h3>

@@ -1,4 +1,5 @@
 import type { EventItem, Listing, User, Role } from "./types";
+import { EVENT_DURATION_H } from "./escrow";
 import { eventPoster } from "../poster";
 
 // Resale ceiling = 150% of face value (docs: price cap).
@@ -28,11 +29,30 @@ const PHOTOS: Record<string, string> = {
 };
 const img = (seed: string) => PHOTOS[seed] ?? eventPoster(seed);
 
-export const SEED_EVENTS: EventItem[] = [
+const H = 3_600_000;
+const WIB_H = 7;
+
+/**
+ * Tomorrow at `hour` o'clock Jakarta time. One show always sits this close, so the
+ * last-minute listing rule (48h before doors) can be demonstrated on any day.
+ */
+function tomorrowWIB(hour: number) {
+  const wib = new Date(Date.now() + WIB_H * H);
+  return new Date(
+    Date.UTC(wib.getUTCFullYear(), wib.getUTCMonth(), wib.getUTCDate() + 1, hour - WIB_H)
+  ).toISOString();
+}
+
+// Price and listing count are derived from SEED_LISTINGS below, so they are left out here.
+type SeedEvent = Omit<EventItem, "fromPrice" | "listingCount">;
+
+// Fixed dates sit after the October demo window. A show that has ended drops out of
+// the catalogue on its own (see getEvents), instead of staying on sale.
+const EVENTS: SeedEvent[] = [
   {
     id: "ev-coldplay", title: "Coldplay: Music of the Spheres", category: "Music",
     dateISO: "2026-11-14T19:00:00+07:00", venue: "Stadion Utama GBK", city: "Jakarta",
-    image: img("coldplay"), featured: true, fromPrice: 2_400_000, listingCount: 8,
+    image: img("coldplay"), featured: true,
     tiers: [
       { id: "t-cp-fest", name: "Festival", faceValue: 3_500_000 },
       { id: "t-cp-cat1", name: "CAT 1", faceValue: 2_250_000 },
@@ -41,8 +61,8 @@ export const SEED_EVENTS: EventItem[] = [
   },
   {
     id: "ev-newjeans", title: "NewJeans Fan Meeting: Bunnies Jakarta", category: "Music",
-    dateISO: "2026-09-27T18:00:00+07:00", venue: "ICE BSD Hall 10", city: "Tangerang",
-    image: img("newjeans"), featured: true, fromPrice: 1_650_000, listingCount: 5,
+    dateISO: "2026-10-31T18:00:00+07:00", venue: "ICE BSD Hall 10", city: "Tangerang",
+    image: img("newjeans"), featured: true,
     tiers: [
       { id: "t-nj-vip", name: "VIP Soundcheck", faceValue: 2_800_000 },
       { id: "t-nj-cat1", name: "CAT 1", faceValue: 1_500_000 },
@@ -50,8 +70,8 @@ export const SEED_EVENTS: EventItem[] = [
   },
   {
     id: "ev-wtf", title: "We The Fest 2026", category: "Music",
-    dateISO: "2026-08-21T14:00:00+07:00", venue: "JIExpo Kemayoran", city: "Jakarta",
-    image: img("wtf"), featured: true, fromPrice: 950_000, listingCount: 12,
+    dateISO: tomorrowWIB(14), venue: "JIExpo Kemayoran", city: "Jakarta",
+    image: img("wtf"), featured: true,
     tiers: [
       { id: "t-wtf-3day", name: "3-Day Pass", faceValue: 1_850_000 },
       { id: "t-wtf-1day", name: "1-Day Pass", faceValue: 850_000 },
@@ -59,8 +79,8 @@ export const SEED_EVENTS: EventItem[] = [
   },
   {
     id: "ev-tulus", title: "Tulus: Manusia Tour", category: "Music",
-    dateISO: "2026-10-04T20:00:00+07:00", venue: "Sentul International Convention Center", city: "Bogor",
-    image: img("tulus"), fromPrice: 700_000, listingCount: 6,
+    dateISO: "2026-11-07T20:00:00+07:00", venue: "Sentul International Convention Center", city: "Bogor",
+    image: img("tulus"),
     tiers: [
       { id: "t-tl-vip", name: "VIP", faceValue: 1_200_000 },
       { id: "t-tl-reg", name: "Reguler", faceValue: 650_000 },
@@ -69,7 +89,7 @@ export const SEED_EVENTS: EventItem[] = [
   {
     id: "ev-sos", title: "Sheila on 7: Tunggu Aku di Jakarta", category: "Music",
     dateISO: "2026-12-13T19:30:00+07:00", venue: "Stadion Madya GBK", city: "Jakarta",
-    image: img("sheila"), fromPrice: 550_000, listingCount: 9, soldOut: false,
+    image: img("sheila"),
     tiers: [
       { id: "t-sos-fest", name: "Festival", faceValue: 750_000 },
       { id: "t-sos-tribun", name: "Tribun", faceValue: 500_000 },
@@ -77,8 +97,8 @@ export const SEED_EVENTS: EventItem[] = [
   },
   {
     id: "ev-pandji", title: "Pandji Pragiwaksono: Menyala", category: "Theater",
-    dateISO: "2026-09-06T19:00:00+07:00", venue: "Ciputra Artpreneur", city: "Jakarta",
-    image: img("pandji"), fromPrice: 350_000, listingCount: 4,
+    dateISO: "2026-11-28T19:00:00+07:00", venue: "Ciputra Artpreneur", city: "Jakarta",
+    image: img("pandji"),
     tiers: [
       { id: "t-pj-gold", name: "Gold", faceValue: 500_000 },
       { id: "t-pj-silver", name: "Silver", faceValue: 350_000 },
@@ -87,7 +107,7 @@ export const SEED_EVENTS: EventItem[] = [
   {
     id: "ev-timnas", title: "Timnas Indonesia vs Jepang", category: "Sports",
     dateISO: "2026-11-19T19:00:00+07:00", venue: "Stadion Utama GBK", city: "Jakarta",
-    image: img("timnas"), fromPrice: 400_000, listingCount: 15,
+    image: img("timnas"),
     tiers: [
       { id: "t-tn-vip", name: "VIP", faceValue: 900_000 },
       { id: "t-tn-cat1", name: "Kategori 1", faceValue: 500_000 },
@@ -137,11 +157,79 @@ export const SEED_LISTINGS: Listing[] = [
     askPrice: 620_000, faceValue: 500_000, quantity: 3, splittable: true, status: "active", gateKtp: false,
     ai: { autofilled: true, forgeryScore: 9, barcodeDuplicate: false, pdfSuspicious: false },
   },
+  // Clean listings, so every event in the catalogue has something a buyer can pay for
+  // next to the flagged and duplicate ones above.
+  {
+    id: "ls-8", eventId: "ev-newjeans", tierId: "t-nj-cat1", sellerName: "Nadia P.",
+    askPrice: 1_720_000, faceValue: 1_500_000, quantity: 2, splittable: true, status: "active", gateKtp: true,
+    ai: { autofilled: true, forgeryScore: 7, barcodeDuplicate: false, pdfSuspicious: false },
+  },
+  {
+    id: "ls-9", eventId: "ev-newjeans", tierId: "t-nj-vip", sellerName: "Gilang F.",
+    askPrice: 3_300_000, faceValue: 2_800_000, quantity: 1, splittable: false, status: "active", gateKtp: true,
+    ai: { autofilled: true, forgeryScore: 11, barcodeDuplicate: false, pdfSuspicious: false },
+  },
+  {
+    id: "ls-10", eventId: "ev-wtf", tierId: "t-wtf-1day", sellerName: "Putri L.",
+    askPrice: 900_000, faceValue: 850_000, quantity: 2, splittable: true, status: "active", gateKtp: false,
+    ai: { autofilled: true, forgeryScore: 4, barcodeDuplicate: false, pdfSuspicious: false },
+  },
+  {
+    id: "ls-11", eventId: "ev-wtf", tierId: "t-wtf-3day", sellerName: "Reza H.",
+    askPrice: 2_050_000, faceValue: 1_850_000, quantity: 1, splittable: false, status: "active", gateKtp: false,
+    ai: { autofilled: true, forgeryScore: 8, barcodeDuplicate: false, pdfSuspicious: false },
+  },
+  {
+    id: "ls-12", eventId: "ev-tulus", tierId: "t-tl-reg", sellerName: "Salsa M.",
+    askPrice: 720_000, faceValue: 650_000, quantity: 2, splittable: false, status: "active", gateKtp: false,
+    ai: { autofilled: true, forgeryScore: 6, barcodeDuplicate: false, pdfSuspicious: false },
+  },
+  {
+    id: "ls-13", eventId: "ev-tulus", tierId: "t-tl-vip", sellerName: "Dimas R.",
+    askPrice: 1_380_000, faceValue: 1_200_000, quantity: 1, splittable: false, status: "active", gateKtp: false,
+    ai: { autofilled: true, forgeryScore: 10, barcodeDuplicate: false, pdfSuspicious: false },
+  },
+  {
+    id: "ls-14", eventId: "ev-sos", tierId: "t-sos-tribun", sellerName: "Intan D.",
+    askPrice: 560_000, faceValue: 500_000, quantity: 4, splittable: true, status: "active", gateKtp: false,
+    ai: { autofilled: true, forgeryScore: 5, barcodeDuplicate: false, pdfSuspicious: false },
+  },
+  {
+    id: "ls-15", eventId: "ev-sos", tierId: "t-sos-fest", sellerName: "Bima K.",
+    askPrice: 850_000, faceValue: 750_000, quantity: 2, splittable: false, status: "active", gateKtp: false,
+    ai: { autofilled: true, forgeryScore: 9, barcodeDuplicate: false, pdfSuspicious: false },
+  },
+  {
+    id: "ls-16", eventId: "ev-pandji", tierId: "t-pj-silver", sellerName: "Ayu S.",
+    askPrice: 380_000, faceValue: 350_000, quantity: 2, splittable: true, status: "active", gateKtp: false,
+    ai: { autofilled: true, forgeryScore: 7, barcodeDuplicate: false, pdfSuspicious: false },
+  },
+  {
+    id: "ls-17", eventId: "ev-pandji", tierId: "t-pj-gold", sellerName: "Yoga P.",
+    askPrice: 560_000, faceValue: 500_000, quantity: 1, splittable: false, status: "active", gateKtp: false,
+    ai: { autofilled: true, forgeryScore: 12, barcodeDuplicate: false, pdfSuspicious: false },
+  },
 ];
 
+/** A buyer can pay for it: not a known duplicate, and not waiting on a human review. */
+export const isBuyable = (l: Listing) =>
+  !l.ai.barcodeDuplicate && !l.ai.pdfSuspicious && l.ai.forgeryScore < 60;
+
+// The card, the price filter and the event page all read price and count from here,
+// so they cannot drift apart from what is actually on sale.
+export const SEED_EVENTS: EventItem[] = EVENTS.map((e) => {
+  const live = SEED_LISTINGS.filter((l) => l.eventId === e.id && l.status === "active" && isBuyable(l));
+  return { ...e, listingCount: live.length, fromPrice: live.length ? Math.min(...live.map((l) => l.askPrice)) : 0 };
+});
+
+/** True once the show has run its course. Past shows are not for sale. */
+export const isEventOver = (e: EventItem, now: number = Date.now()) =>
+  now >= new Date(e.dateISO).getTime() + EVENT_DURATION_H * H;
+
 // --- selectors ---
-export const getEvents = () => SEED_EVENTS;
-export const getFeaturedEvents = () => SEED_EVENTS.filter((e) => e.featured);
+/** The catalogue: shows that have not ended yet. */
+export const getEvents = (now: number = Date.now()) => SEED_EVENTS.filter((e) => !isEventOver(e, now));
+export const getFeaturedEvents = (now: number = Date.now()) => getEvents(now).filter((e) => e.featured);
 export const getEventById = (id: string) => SEED_EVENTS.find((e) => e.id === id);
 export const getListingsByEvent = (eventId: string) =>
   SEED_LISTINGS.filter((l) => l.eventId === eventId);

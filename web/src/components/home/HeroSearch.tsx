@@ -11,6 +11,7 @@ import {
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 
 const ALL = getEvents();
+const POPULAR = ALL.filter((e) => e.featured).slice(0, 5);
 
 // Search-first hero. Focus shows what is trending, typing filters live. Each row
 // carries a thumbnail so people can jump straight to an event without a detour.
@@ -38,7 +39,7 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
 
   const query = q.trim().toLowerCase();
   const suggestions = useMemo(() => {
-    if (!query) return ALL.filter((e) => e.featured).slice(0, 5);
+    if (!query) return POPULAR;
     return ALL.filter(
       (e) =>
         e.title.toLowerCase().includes(query) ||
@@ -61,7 +62,7 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
             value={q}
             onChange={(e) => { setQ(e.target.value); setOpen(true); }}
             onFocus={() => setOpen(true)}
-            placeholder={t("Search events, artists, or venues...", "Cari event, artis, atau venue...")}
+            placeholder={t("Search artist, event or city", "Cari artis, event, atau kota")}
             aria-label={t("Search events", "Cari event")}
             className="flex-1 outline-none bg-transparent text-neutral-black placeholder:text-neutral-gray min-w-0"
           />
@@ -70,11 +71,16 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
           </button>
         </form>
 
-        {open && suggestions.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-2 z-40 rounded-2xl border-2 border-lummy-500 bg-neutral-white shadow-lummy-lg overflow-hidden text-left">
+        {open && (suggestions.length > 0 || query) && (
+          <div className="absolute top-full left-0 right-0 mt-2 z-40 rounded-2xl border-2 border-lummy-500 bg-neutral-white shadow-lummy-lg overflow-hidden text-left animate-fade-in">
             <div className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium text-neutral-gray border-b border-neutral-light-gray-1">
-              <TrendingUp className="w-3.5 h-3.5 text-lummy-500" /> {query ? t("Search results", "Hasil pencarian") : t("Trending now", "Lagi trending")}
+              <TrendingUp className="w-3.5 h-3.5 text-lummy-500" /> {query ? t("Search results", "Hasil pencarian") : t("Popular right now", "Lagi banyak dicari")}
             </div>
+            {suggestions.length === 0 && (
+              <p className="px-4 py-4 text-sm text-neutral-gray">
+                {t(`Nothing on sale for "${q.trim()}" yet.`, `Belum ada yang dijual untuk "${q.trim()}".`)}
+              </p>
+            )}
             {suggestions.map((e) => (
               <Link
                 key={e.id}
@@ -83,7 +89,7 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
                 className="flex items-center gap-3 px-3 py-2.5 hover:bg-secondary-blue-light transition"
               >
                 <div className="relative w-11 h-11 rounded-lg overflow-hidden border border-neutral-light-gray-1 shrink-0">
-                  <Image src={e.image} alt="" fill className="object-cover" />
+                  <Image src={e.image} alt="" fill sizes="44px" className="object-cover" />
                 </div>
                 <div className="min-w-0">
                   <div className="text-sm font-medium text-neutral-black truncate">{e.title}</div>
@@ -96,14 +102,14 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
       </div>
 
       <div className="flex flex-wrap justify-center lg:justify-start gap-2">
-        <Link href="/events" className="px-4 py-1.5 rounded-full text-sm bg-neutral-white/70 border border-lummy-500 text-lummy-500 hover:bg-neutral-white transition">
+        <Link href="/events" className="px-3 sm:px-4 py-1.5 rounded-full text-sm bg-neutral-white/70 border border-lummy-500 text-lummy-500 hover:bg-neutral-white transition">
           {t("All events", "Semua event")}
         </Link>
         {quickCats.map((c) => (
           <Link
             key={c}
             href={`/events?cat=${encodeURIComponent(c)}`}
-            className="px-4 py-1.5 rounded-full text-sm bg-neutral-white/70 border border-lummy-500 text-lummy-500 hover:bg-neutral-white transition"
+            className="px-3 sm:px-4 py-1.5 rounded-full text-sm bg-neutral-white/70 border border-lummy-500 text-lummy-500 hover:bg-neutral-white transition"
           >
             {categoryLabel(c)}
           </Link>

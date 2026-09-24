@@ -15,15 +15,18 @@ import {
 import { PageContainer } from "@/components/layout/PageContainer";
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 
-const events = getEvents();
+// Soonest first, the way people plan.
+const events = [...getEvents()].sort((a, b) => a.dateISO.localeCompare(b.dateISO));
 const categories = ["All", ...Array.from(new Set(events.map((e) => e.category)))];
 const ALL_CITIES = "All cities";
 const cities = [ALL_CITIES, ...Array.from(new Set(events.map((e) => e.city)))];
 
-// Round the bounds outward so the handles land on tidy numbers.
+// Round the bounds outward so the handles land on tidy numbers. An event with nothing
+// on sale has no price (0), so it does not drag the lower bound down.
 const STEP = 100_000;
-const PRICE_MIN = Math.floor(Math.min(...events.map((e) => e.fromPrice)) / STEP) * STEP;
-const PRICE_MAX = Math.ceil(Math.max(...events.map((e) => e.fromPrice)) / STEP) * STEP;
+const PRICED = events.map((e) => e.fromPrice).filter((p) => p > 0);
+const PRICE_MIN = PRICED.length ? Math.floor(Math.min(...PRICED) / STEP) * STEP : 0;
+const PRICE_MAX = PRICED.length ? Math.ceil(Math.max(...PRICED) / STEP) * STEP : STEP;
 
 function EventsInner() {
   const t = useT();
@@ -43,7 +46,9 @@ function EventsInner() {
     return events.filter((e) => {
       const matchCity = city === ALL_CITIES || e.city === city;
       const matchQ = !q || e.title.toLowerCase().includes(q) || e.city.toLowerCase().includes(q) || e.venue.toLowerCase().includes(q);
-      const matchPrice = e.fromPrice >= price[0] && e.fromPrice <= price[1];
+      // With the full range selected, events with nothing on sale stay visible too.
+      const fullRange = price[0] <= PRICE_MIN && price[1] >= PRICE_MAX;
+      const matchPrice = fullRange || (e.fromPrice >= price[0] && e.fromPrice <= price[1]);
       return matchCity && matchQ && matchPrice;
     });
   }, [query, city, price]);
@@ -66,7 +71,7 @@ function EventsInner() {
     <PageContainer width="wide">
       <div className="mb-6">
         <h1 className="text-3xl md:text-4xl font-bold text-neutral-black">{t("Browse events", "Jelajah event")}</h1>
-        <p className="text-neutral-gray mt-2">{t("Verified resale tickets, held in escrow until the show is over.", "Tiket resale terverifikasi, dijaga escrow sampai konser selesai.")}</p>
+        <p className="text-neutral-gray mt-2">{t("Every ticket here is checked before it goes on sale.", "Semua tiket di sini dicek sebelum dijual.")}</p>
       </div>
 
       {/* Toolbar: search takes the free width, city and price sit beside it as equal dropdowns */}
@@ -154,6 +159,8 @@ function EventsInner() {
               category={e.category}
               redirect={`/events/${e.id}`}
               soldOut={e.soldOut}
+              fromPrice={e.fromPrice}
+              listingCount={e.listingCount}
             />
           ))}
         </div>

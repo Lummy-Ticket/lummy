@@ -2,83 +2,55 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Lock, ScanLine, TrendingUp, Eye, ArrowRight } from "lucide-react";
+import { ArrowRight, IdCard, MessagesSquare, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { TicketFeature } from "@/components/ui/ticket-feature";
 import { TicketBand } from "@/components/ui/ticket-band";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { useT } from "@/lib/i18n";
 
-const pillars = [
+// What resale looks like in Indonesia today. Qualitative on purpose: no numbers we
+// cannot source.
+const problems = [
   {
-    Icon: Lock,
-    en: "Money held in escrow", id: "Dana dikunci escrow",
-    bodyEn: "Funds sit in a smart contract until the show is over. The seller cannot vanish with them, and the buyer cannot be ghosted.",
-    bodyId: "Dana ditahan smart contract sampai konser selesai. Penjual gak bisa kabur bawa uangnya, pembeli gak bisa dighosting.",
+    Icon: IdCard,
+    en: "Tickets carry a name", id: "Tiket atas nama",
+    bodyEn: "Big shows check ID at the gate, so passing a ticket on means a letter of authorisation and the seller's ID card. People make these by hand and get them wrong.",
+    bodyId: "Konser besar cek KTP di gate, jadi mengoper tiket butuh surat kuasa dan KTP penjual. Orang membuatnya manual dan sering salah.",
   },
   {
-    Icon: ScanLine,
-    en: "AI against fake tickets", id: "AI anti tiket palsu",
-    bodyEn: "Every PDF is checked before it goes live: file-structure forensics, duplicate barcodes, and a forgery score.",
-    bodyId: "Tiap PDF diperiksa sebelum tayang: forensik struktur file, barcode duplikat, dan skor pemalsuan.",
+    Icon: MessagesSquare,
+    en: "Resale lives in DMs", id: "Resale terjadi di DM",
+    bodyEn: "On X, in WhatsApp groups and comment sections. The buyer transfers first and hopes the seller does not disappear.",
+    bodyId: "Di X, grup WhatsApp, dan kolom komentar. Pembeli transfer duluan dan berharap penjualnya tidak menghilang.",
   },
   {
-    Icon: TrendingUp,
-    en: "Prices are capped", id: "Harga dibatasi",
-    bodyEn: "Listings max out at 150% of face value. Fair pricing by design, not a free-for-all.",
-    bodyId: "Listing maksimal 150% dari harga asli. Harga wajar sejak desain, bukan pasar liar.",
-  },
-  {
-    Icon: Eye,
-    en: "Auditable on-chain", id: "Transparan on-chain",
-    bodyEn: "Locked, released, or refunded: anyone can verify the state of the money on a block explorer.",
-    bodyId: "Terkunci, cair, atau dikembalikan: siapa pun bisa memverifikasi status dananya di block explorer.",
+    Icon: Copy,
+    en: "One file, many buyers", id: "Satu file, banyak pembeli",
+    bodyEn: "A ticket PDF can be sent to several people. Only the first one through the gate gets in.",
+    bodyId: "PDF tiket bisa dikirim ke beberapa orang. Hanya yang pertama lewat gate yang bisa masuk.",
   },
 ];
 
-const charter = [
+const principles = [
   {
-    en: "Safe by construction", id: "Aman sejak rancangan",
-    bodyEn: "The seller is not paid until the show has passed without a problem. Funds stay in escrow, never in our account.",
-    bodyId: "Penjual belum dibayar sampai konser lewat tanpa masalah. Dana ada di escrow, bukan di rekening kami.",
+    en: "The seller is paid last", id: "Penjual dibayar paling akhir",
+    bodyEn: "Money waits in escrow until the show is over. Cheating stops paying when the payout comes after the gate.",
+    bodyId: "Uang menunggu di escrow sampai acara selesai. Menipu jadi tidak menguntungkan kalau pembayaran datang setelah gate.",
   },
   {
-    en: "Total transparency", id: "Transparansi total",
-    bodyEn: "Face value, markup, and fees are visible before you pay. Every transaction can be verified publicly.",
-    bodyId: "Harga asli, markup, dan biaya kelihatan sebelum kamu bayar. Semua transaksi bisa diverifikasi publik.",
+    en: "No crypto to learn", id: "Tanpa perlu belajar kripto",
+    bodyEn: "Sign in with email and pay with QRIS. The ledger underneath is ours to run, not yours to manage.",
+    bodyId: "Masuk pakai email dan bayar pakai QRIS. Buku besar di belakangnya urusan kami, bukan kamu.",
   },
   {
-    en: "Authenticity screened by AI", id: "Keaslian dijaga AI",
-    bodyEn: "Edited tickets and duplicate barcodes are caught before a listing goes live. Anything doubtful goes to manual review.",
-    bodyId: "Tiket editan dan barcode duplikat ketahan sebelum listing tayang. Yang meragukan masuk review manual.",
+    en: "Fair prices by design", id: "Harga wajar sejak awal",
+    bodyEn: "Face value, markup and fees are shown before you pay, and resale is capped at 150%.",
+    bodyId: "Harga asli, markup, dan biaya terlihat sebelum bayar, dan harga resale maksimal 150%.",
   },
   {
-    en: "Refused entry, money back", id: "Gagal masuk, uang balik",
-    bodyEn: "If the ticket fails at the gate and your evidence holds up, you are refunded in full. That is enforced by code, not goodwill.",
-    bodyId: "Kalau tiket gagal di gate dan buktimu kredibel, dana dikembalikan penuh. Dijamin kode, bukan niat baik.",
-  },
-];
-
-const journey = [
-  {
-    n: 1, en: "Pick and pay", id: "Pilih & bayar",
-    bodyEn: "Choose a resale ticket and pay the normal way. No wallet, no crypto vocabulary.",
-    bodyId: "Pilih tiket resale, bayar seperti biasa. Gak ada wallet, gak ada istilah crypto.",
-  },
-  {
-    n: 2, en: "Escrow locks the money", id: "Escrow mengunci dana",
-    bodyEn: "Your payment sits in a smart contract instead of our bank account, and anyone can verify it.",
-    bodyId: "Pembayaranmu ditahan smart contract, bukan rekening kami, dan siapa pun bisa memverifikasinya.",
-  },
-  {
-    n: 3, en: "Handover, documented", id: "Serah-terima terdokumentasi",
-    bodyEn: "You get a print-ready letter of authorisation straight away, plus gated access to the seller ID near the date.",
-    bodyId: "Kamu langsung dapat surat kuasa siap-print, plus akses terbatas ke KTP penjual mendekati hari-H.",
-  },
-  {
-    n: 4, en: "Show ends, funds release", id: "Konser selesai, dana cair",
-    bodyEn: "Once the event passes without a dispute, the seller is paid. Turned away with proof? You get refunded.",
-    bodyId: "Setelah acara lewat tanpa sengketa, penjual dibayar. Ditolak di gate dengan bukti? Dana kamu balik.",
+    en: "Honest about limits", id: "Jujur soal batasan",
+    bodyEn: "Without the organiser on board we cannot promise you get in. What we promise is your money back when you are turned away with proof.",
+    bodyId: "Tanpa kerja sama penyelenggara, kami tidak bisa menjamin kamu masuk. Yang kami janjikan: uang kembali kalau kamu ditolak dengan bukti.",
   },
 ];
 
@@ -87,23 +59,17 @@ export default function AboutPage() {
   return (
     <PageContainer width="wide">
       {/* Intro */}
-      <div className="rounded-3xl border border-lummy-500 bg-hero-gradient p-6 sm:p-10">
+      <div className="relative overflow-hidden rounded-3xl border border-lummy-500 bg-hero-gradient p-6 sm:p-10">
         <div className="grid lg:grid-cols-[1.4fr_1fr] gap-8 items-center">
-          <div>
-            <h1 className="flex flex-col font-bold leading-[1.05] text-4xl md:text-5xl">
-              <span className="text-neutral-black">{t("Buy and sell tickets", "Beli dan jual tiket")}</span>
-              <span className="text-primary-navy">{t("without the fear.", "tanpa takut ketipu.")}</span>
+          <div className="motion-safe:animate-rise">
+            <h1 className="flex flex-col font-bold leading-[1.05] text-4xl md:text-5xl tracking-tight">
+              <span className="text-neutral-black">{t("Resale, minus the", "Resale, tanpa")}</span>
+              <span className="text-primary-navy">{t("leap of faith.", "untung-untungan.")}</span>
             </h1>
-            <p className="text-neutral-gray mt-4 max-w-xl">
+            <p className="text-lg text-neutral-gray mt-4 max-w-xl">
               {t(
-                "Lummy Ticket started from a real problem: ticket resale in Indonesia runs on scalpers, wild prices, and manual bank transfers to strangers. We stand in the middle, so sellers can price fairly and buyers are not gambling their money on a DM.",
-                "Lummy Ticket lahir dari masalah nyata: pasar resale tiket di Indonesia penuh calo, harga liar, dan transfer manual ke orang asing. Kami berdiri di tengah, supaya penjual bisa pasang harga wajar dan pembeli gak mempertaruhkan uangnya lewat DM."
-              )}
-            </p>
-            <p className="text-neutral-gray mt-3 max-w-xl">
-              {t(
-                "Escrow and AI do the work backstage. Up front it feels like any normal app, with no crypto to learn. Your money is guarded by code, not by a promise.",
-                "Escrow dan AI kerja di belakang layar. Di depan, rasanya seperti aplikasi biasa, tanpa perlu belajar crypto. Dana kamu dijaga kode, bukan sekadar janji."
+                "Lummy Ticket is a resale marketplace for concert tickets in Indonesia. We sit between buyer and seller and hold the money until the show is over, so neither side has to trust a stranger.",
+                "Lummy Ticket adalah marketplace resale tiket konser di Indonesia. Kami berdiri di antara pembeli dan penjual dan menahan uangnya sampai acara selesai, jadi tidak ada yang harus percaya pada orang asing."
               )}
             </p>
             <div className="flex flex-wrap gap-3 mt-6">
@@ -112,60 +78,47 @@ export default function AboutPage() {
             </div>
           </div>
           <div className="hidden lg:flex justify-center">
-            <Image src="/assets/images/mascot.png" alt="Lummy" width={300} height={300} className="object-contain drop-shadow-xl" priority />
+            <Image src="/assets/images/mascot.png" alt="Lummy" width={418} height={401} className="w-[280px] h-auto object-contain drop-shadow-xl motion-safe:animate-float" priority />
           </div>
         </div>
       </div>
 
-      {/* Pillars */}
-      <div className="grid sm:grid-cols-2 gap-5 mt-14">
-        {pillars.map((p) => (
-          <TicketFeature key={p.en} Icon={p.Icon} title={t(p.en, p.id)} body={t(p.bodyEn, p.bodyId)} />
-        ))}
-      </div>
-
-      {/* Journey */}
-      <div className="mt-16">
-        <h2 className="text-2xl md:text-3xl font-bold text-neutral-black text-center">
-          {t("Protected from first click to final song", "Aman dari klik pertama sampai lagu terakhir")}
-        </h2>
-        <p className="text-neutral-gray text-center mt-2">
-          {t("Four steps, with your money guarded by code the whole way.", "Empat langkah, dana dijaga kode sepanjang jalan.")}
-        </p>
-        <div className="grid md:grid-cols-4 gap-5 mt-8">
-          {journey.map((s) => (
-            <div key={s.n} className="bg-neutral-white rounded-3xl border-2 border-lummy-500 p-6">
-              <span className="font-fredoka font-bold text-lg w-10 h-10 rounded-2xl bg-primary-navy text-white grid place-items-center">{s.n}</span>
-              <h3 className="font-fredoka font-semibold text-neutral-black mt-4">{t(s.en, s.id)}</h3>
-              <p className="text-sm text-neutral-gray mt-2">{t(s.bodyEn, s.bodyId)}</p>
+      {/* The problem */}
+      <section className="reveal mt-16">
+        <h2 className="text-2xl md:text-3xl font-bold text-neutral-black">{t("Where we started", "Dari mana kami mulai")}</h2>
+        <div className="grid md:grid-cols-3 gap-5 mt-6">
+          {problems.map((p) => (
+            <div key={p.en} className="rounded-3xl bg-secondary-gray-soft p-6">
+              <span className="w-10 h-10 rounded-xl bg-neutral-white text-primary-navy grid place-items-center border border-neutral-light-gray-1">
+                <p.Icon className="w-5 h-5" />
+              </span>
+              <h3 className="font-fredoka font-semibold text-lg text-neutral-black mt-4">{t(p.en, p.id)}</h3>
+              <p className="text-sm text-neutral-gray mt-1.5 leading-relaxed">{t(p.bodyEn, p.bodyId)}</p>
             </div>
           ))}
         </div>
-      </div>
+      </section>
 
-      {/* Charter */}
-      <div className="mt-16">
-        <h2 className="text-2xl md:text-3xl font-bold text-neutral-black">{t("What we commit to", "Janji kami")}</h2>
-        <div className="grid sm:grid-cols-2 gap-5 mt-6">
-          {charter.map((c) => (
-            <div key={c.en} className="border-l-2 border-lummy-500 pl-4 py-1">
-              <h3 className="font-fredoka font-semibold text-neutral-black">{t(c.en, c.id)}</h3>
-              <p className="text-sm text-neutral-gray mt-1.5">{t(c.bodyEn, c.bodyId)}</p>
+      {/* Principles */}
+      <section className="reveal mt-16">
+        <h2 className="text-2xl md:text-3xl font-bold text-neutral-black">{t("How we run it", "Prinsip kami")}</h2>
+        <div className="grid sm:grid-cols-2 gap-x-10 gap-y-6 mt-6">
+          {principles.map((c, i) => (
+            <div key={c.en} className="flex gap-4">
+              <span className="font-fredoka font-bold text-2xl text-primary-navy/30 leading-none w-8 shrink-0">{String(i + 1).padStart(2, "0")}</span>
+              <div>
+                <h3 className="font-fredoka font-semibold text-neutral-black">{t(c.en, c.id)}</h3>
+                <p className="text-sm text-neutral-gray mt-1.5 leading-relaxed">{t(c.bodyEn, c.bodyId)}</p>
+              </div>
             </div>
           ))}
         </div>
-      </div>
+      </section>
 
       {/* CTA */}
-      <TicketBand className="mt-16">
+      <TicketBand className="reveal mt-16">
         <div className="flex flex-col items-center text-center gap-4">
           <h2 className="text-2xl md:text-3xl font-bold">{t("Ready to find your ticket?", "Siap cari tiketmu?")}</h2>
-          <p className="text-white/85 max-w-lg">
-            {t(
-              "Verified resale tickets, every one of them held in escrow until the show is over.",
-              "Tiket resale terverifikasi, semuanya dijaga escrow sampai konser selesai."
-            )}
-          </p>
           <Link href="/events"><Button.Secondary className="flex items-center gap-2">{t("Browse events", "Jelajah event")} <ArrowRight className="w-4 h-4" /></Button.Secondary></Link>
         </div>
       </TicketBand>

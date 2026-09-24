@@ -8,13 +8,13 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  getEvents, getEventById, getTier, formatIDR, CAP_PCT, FLOOR_PCT, useSellerListings, type ListingAI,
+  getEvents, getEventById, getTier, CAP_PCT, FLOOR_PCT, useSellerListings, type ListingAI,
   isLateListing, LATE_LISTING_H,
 } from "@/lib/mock";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { useAccessGuard } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
-import { useT } from "@/lib/i18n";
+import { useT, useFormatters } from "@/lib/i18n";
 
 const events = getEvents();
 
@@ -38,6 +38,7 @@ const STEPS = [
 
 export default function SellPage() {
   const t = useT();
+  const { formatIDR } = useFormatters();
   const ready = useAccessGuard("account");
   const router = useRouter();
   const addListing = useSellerListings((s) => s.add);
@@ -47,6 +48,7 @@ export default function SellPage() {
   const [fileName, setFileName] = useState<string | null>(null);
   const [sample, setSample] = useState<"good" | "edited" | "dup">("good");
   const [analyzing, setAnalyzing] = useState(false);
+  const [dragging, setDragging] = useState(false);
 
   // extracted / editable
   const [eventId, setEventId] = useState("ev-tulus");
@@ -128,7 +130,15 @@ export default function SellPage() {
           <input ref={fileInput} type="file" accept="application/pdf" hidden onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)} />
           <button
             onClick={() => fileInput.current?.click()}
-            className="border-2 border-dashed border-lummy-500 rounded-3xl py-12 flex flex-col items-center gap-3 text-center hover:bg-secondary-blue-light transition cursor-pointer"
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragging(false);
+              const f = e.dataTransfer.files?.[0];
+              if (f) setFileName(f.name);
+            }}
+            className={`border-2 border-dashed border-lummy-500 rounded-3xl py-12 flex flex-col items-center gap-3 text-center hover:bg-secondary-blue-light transition cursor-pointer ${dragging ? "bg-secondary-blue-light scale-[1.01]" : ""}`}
           >
             <UploadCloud className="w-10 h-10 text-lummy-500" />
             <span className="font-fredoka font-semibold text-neutral-black">{t("Upload your ticket PDF", "Upload PDF tiketmu")}</span>

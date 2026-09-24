@@ -9,7 +9,7 @@ import { Logo } from "./Logo";
 import { Button } from "@/components/ui/button";
 import { useUser, isDemoMode, type Role } from "@/lib/mock";
 import { useHydrated } from "@/lib/access";
-import { useT } from "@/lib/i18n";
+import { useDocumentLang, useT } from "@/lib/i18n";
 import { LangToggle } from "./LangToggle";
 
 type NavLink = { en: string; id: string; href: string };
@@ -46,6 +46,7 @@ function initials(name: string) {
 
 export function Navbar() {
   const t = useT();
+  useDocumentLang();
   const pathname = usePathname();
   const router = useRouter();
   const user = useUser((s) => s.user);

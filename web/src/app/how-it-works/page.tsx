@@ -2,213 +2,180 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Lock, ScanLine, TrendingUp, Eye, RotateCcw, Repeat, ArrowRight, CalendarX, CalendarClock, PackageX, FileWarning, XCircle, Timer } from "lucide-react";
+import { Lock, ScanLine, TrendingUp, Eye, Repeat, ArrowRight, CalendarX, CalendarClock, PackageX, FileWarning, XCircle, Timer, QrCode, FileText, Flag, Banknote } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { TicketFeature } from "@/components/ui/ticket-feature";
 import { useT } from "@/lib/i18n";
+import { CAP_PCT, DISPUTE_WINDOW_H } from "@/lib/mock";
 
-type Step = { Icon: typeof Lock; en: string; id: string; bodyEn: string; bodyId: string };
-
-const sections: Step[] = [
+// The life of the buyer's money, in the order it happens.
+const journey = [
   {
-    Icon: Lock,
-    en: "Money sits in escrow",
-    id: "Dana dikunci escrow",
-    bodyEn: "When you pay, the money goes into a smart contract, not into our account and not to the seller. It only reaches the seller once the show is over and the handover is done.",
-    bodyId: "Waktu kamu bayar, uangnya masuk ke smart contract, bukan ke rekening kami atau langsung ke penjual. Dana baru sampai ke penjual setelah konser selesai dan serah-terima beres.",
+    Icon: QrCode,
+    en: "You pay", id: "Kamu bayar",
+    bodyEn: "With QRIS, like any other app. The money goes into escrow, not to the seller and not to us.",
+    bodyId: "Pakai QRIS, seperti aplikasi lain. Uangnya masuk escrow, bukan ke penjual, bukan juga ke kami.",
   },
   {
-    Icon: ScanLine,
-    en: "AI screens every ticket",
-    id: "AI cek keaslian tiket",
-    bodyEn: "Each ticket PDF gets layered checks: file-structure forensics that catch edited documents, barcode decoding against a duplicate registry, and a forgery score. These are review signals, not a replacement for a human.",
-    bodyId: "Tiap PDF tiket diperiksa berlapis: forensik struktur file untuk menangkap dokumen editan, barcode di-decode dan dicek duplikat, plus skor pemalsuan. Semuanya sinyal buat review, bukan pengganti manusia.",
+    Icon: FileText,
+    en: "You get the paperwork", id: "Dokumen langsung terbit",
+    bodyEn: "A signed letter of authorisation, ready to print. Near the show, access to the seller's ID for the gate.",
+    bodyId: "Surat kuasa bertanda tangan, siap print. Mendekati acara, akses ke KTP penjual untuk di gate.",
   },
   {
-    Icon: TrendingUp,
-    en: "Prices are capped",
-    id: "Harga dibatasi",
-    bodyEn: "Listings max out at 150% of face value. That keeps Lummy a fair resale market instead of a scalper's playground.",
-    bodyId: "Listing maksimal 150% dari harga asli. Ini bikin Lummy jadi pasar resale yang wajar, bukan lahan calo.",
+    Icon: Flag,
+    en: "The show happens", id: "Acaranya berlangsung",
+    bodyEn: `A ${DISPUTE_WINDOW_H}-hour window opens. Got in fine? You do nothing.`,
+    bodyId: `Masa sengketa ${DISPUTE_WINDOW_H} jam dibuka. Berhasil masuk? Kamu tidak perlu apa-apa.`,
   },
   {
-    Icon: Eye,
-    en: "Anyone can audit it",
-    id: "Transparan, bisa dicek sendiri",
-    bodyEn: "The state of your money (locked, released, refunded) is publicly verifiable on a block explorer. Do not take our word for it, read the contract.",
-    bodyId: "Status dana kamu (terkunci, cair, dikembalikan) bisa diverifikasi publik di block explorer. Jangan percaya kami, cek sendiri.",
-  },
-  {
-    Icon: RotateCcw,
-    en: "Turned away? File a dispute",
-    id: "Gagal masuk? Ajukan sengketa",
-    bodyEn: "Refused at the gate? File within 48 hours with evidence recorded there, such as a photo of the rejecting scanner. An arbiter decides, not an automatic switch, so someone who actually walked in cannot claim otherwise. The promise is your money back, not a guaranteed seat.",
-    bodyId: "Ditolak di gate? Ajukan sengketa maksimal 48 jam setelah acara dengan bukti yang direkam di sana, misalnya foto layar scanner yang menolak. Diputus arbiter, bukan otomatis, jadi yang beneran masuk gak bisa ngaku gagal. Garansinya uang balik, bukan dijamin masuk.",
-  },
-  {
-    Icon: Repeat,
-    en: "Cannot make it? Relist it",
-    id: "Gak bisa dateng? Jual lagi",
-    bodyEn: "Changing plans is not a refund reason: the ticket is valid, you simply did not use it. What you can do is relist it before the event and recover the value through the market instead.",
-    bodyId: "Berubah rencana bukan alasan refund: tiketnya valid, kamu saja yang gak memakainya. Yang bisa kamu lakukan adalah jual lagi sebelum acara dan balikin nilainya lewat pasar.",
+    Icon: Banknote,
+    en: "The seller is paid", id: "Penjual dibayar",
+    bodyEn: "When the window closes quietly, the escrow pays the seller by itself.",
+    bodyId: "Kalau masa sengketa lewat tanpa klaim, escrow membayar penjual dengan sendirinya.",
   },
 ];
 
+const checks = [
+  {
+    Icon: ScanLine,
+    en: "AI reads every ticket", id: "AI membaca tiap tiket",
+    bodyEn: "It fills in the listing and looks for signs the PDF was edited. A high score sends it to a person, it never decides alone.",
+    bodyId: "Mengisi data listing dan mencari jejak PDF yang diedit. Skor tinggi dikirim ke manusia, bukan diputus sendiri.",
+  },
+  {
+    Icon: Lock,
+    en: "One barcode, one sale", id: "Satu barcode, satu penjualan",
+    bodyEn: "A barcode that has been sold on Lummy before is blocked outright. That check is exact, not a guess.",
+    bodyId: "Barcode yang pernah dijual di Lummy langsung diblokir. Pengecekannya pasti, bukan tebakan.",
+  },
+  {
+    Icon: TrendingUp,
+    en: `Capped at ${CAP_PCT}%`, id: `Maksimal ${CAP_PCT}%`,
+    bodyEn: "No listing can ask more than one and a half times face value.",
+    bodyId: "Tidak ada listing yang boleh lebih dari satu setengah kali harga asli.",
+  },
+  {
+    Icon: Eye,
+    en: "Open to audit", id: "Bisa diaudit",
+    bodyEn: "Whether money is held, released or refunded is recorded publicly. You can check it yourself.",
+    bodyId: "Status dana (ditahan, cair, dikembalikan) tercatat publik. Kamu bisa cek sendiri.",
+  },
+];
 
-// Every way a ticket can fail, and what the escrow does about it. This is the
-// page's reason to exist: not a brochure, but the policy stated in full, so a
-// buyer can check the promise before they need it.
+// Every way a ticket can fail, and what settles it. The policy in full, so a buyer can
+// check the promise before they need it.
 const coverage = [
   {
     Icon: PackageX,
-    en: "The seller never hands it over", id: "Penjual tidak pernah menyerahkannya",
-    outEn: "Claim it before the show. Our own log of whether you opened the handover documents settles it, so there is nothing for you to prove.",
-    outId: "Ajukan sebelum acara. Catatan kami soal apakah kamu pernah membuka dokumen serah-terima yang menentukan, jadi tidak ada yang perlu kamu buktikan.",
+    en: "The seller never hands it over", id: "Penjual tidak menyerahkan tiket",
+    outEn: "Claim before the show. Our record of whether you opened the handover documents decides it, so there is nothing for you to prove.",
+    outId: "Klaim sebelum acara. Catatan kami soal apakah kamu pernah membuka dokumen serah-terima yang menentukan, jadi tidak ada yang perlu kamu buktikan.",
   },
   {
     Icon: FileWarning,
     en: "It is not the ticket that was listed", id: "Tiketnya beda dari listing",
-    outEn: "If you still got in on a lesser ticket, you are refunded the difference rather than the whole thing.",
-    outId: "Kalau kamu tetap masuk dengan tiket yang lebih rendah, yang dikembalikan selisihnya, bukan seluruhnya.",
+    outEn: "Still got in on a lower tier? You get the difference back, not the full price.",
+    outId: "Tetap masuk dengan tier lebih rendah? Yang kembali selisihnya, bukan harga penuh.",
   },
   {
     Icon: XCircle,
     en: "You are turned away at the gate", id: "Kamu ditolak di gate",
-    outEn: "File within 48 hours with a photo taken there. Time, place and the code on screen all have to line up, which is why a claim from someone who walked in cannot stand.",
-    outId: "Ajukan dalam 48 jam dengan foto yang diambil di sana. Waktu, tempat, dan kode di layar harus cocok semua, dan itulah kenapa klaim dari orang yang berhasil masuk tidak akan berdiri.",
+    outEn: `File within ${DISPUTE_WINDOW_H} hours with a photo taken there. Time, place and the code on screen all have to match, so someone who walked in cannot claim.`,
+    outId: `Ajukan dalam ${DISPUTE_WINDOW_H} jam dengan foto yang diambil di sana. Waktu, tempat, dan kode di layar harus cocok, jadi yang berhasil masuk tidak bisa mengklaim.`,
   },
   {
     Icon: CalendarX,
     en: "The organiser cancels", id: "Penyelenggara membatalkan",
-    outEn: "Nobody files anything. The escrow reverses on its own, and the seller is not penalised: no one is at fault.",
-    outId: "Tidak ada yang perlu mengajukan. Escrow membalik sendiri, dan penjual tidak kena penalti: tidak ada yang salah di sini.",
+    outEn: "Refunded automatically. Nobody files anything and the seller is not penalised.",
+    outId: "Dikembalikan otomatis. Tidak ada yang perlu mengajukan dan penjual tidak kena penalti.",
   },
   {
     Icon: CalendarClock,
     en: "The organiser moves the date", id: "Penyelenggara mengundur tanggal",
-    outEn: "Your ticket stays valid and the money stays held. If the new date does not work, take the refund instead. No arbiter either way.",
-    outId: "Tiketmu tetap berlaku dan dananya tetap ditahan. Kalau tanggal barunya tidak cocok, ambil refund. Dua-duanya tanpa arbiter.",
+    outEn: "Your ticket stays valid and the money stays held. If the new date does not work, take the refund.",
+    outId: "Tiketmu tetap berlaku dan dananya tetap ditahan. Kalau tanggal barunya tidak cocok, ambil refund.",
   },
   {
     Icon: Repeat,
     en: "You cannot make it", id: "Kamu berhalangan hadir",
-    outEn: "Not a refund. The ticket works; you simply are not using it. Relist it before the show and the market gives you your money back.",
-    outId: "Bukan refund. Tiketnya berfungsi, kamu saja yang tidak memakainya. Jual lagi sebelum acara dan pasar yang mengembalikan uangmu.",
+    outEn: "Not a refund, because the ticket works. Relist it before the show and get your money back from the next buyer.",
+    outId: "Bukan refund, karena tiketnya berfungsi. Jual lagi sebelum acara dan uangmu kembali dari pembeli berikutnya.",
   },
   {
     Icon: Timer,
-    en: "Nothing goes wrong at all", id: "Tidak ada masalah sama sekali",
-    outEn: "You do nothing. Forty-eight hours after the show the contract pays the seller by itself, because silence is what a successful handover looks like.",
-    outId: "Kamu tidak perlu melakukan apa pun. Empat puluh delapan jam setelah acara, kontraknya membayar penjual dengan sendirinya, karena diam adalah bentuk serah-terima yang berhasil.",
+    en: "Nothing goes wrong", id: "Tidak ada masalah",
+    outEn: `You do nothing. ${DISPUTE_WINDOW_H} hours after the show, the seller is paid.`,
+    outId: `Kamu tidak perlu apa-apa. ${DISPUTE_WINDOW_H} jam setelah acara, penjual dibayar.`,
   },
 ];
-
-const NODE =
-  "z-10 w-12 h-12 rounded-full bg-primary-navy text-white font-fredoka font-bold text-lg grid place-items-center shadow-[3px_3px_0px_#245397]";
-
-function StepCard({ s }: { s: Step }) {
-  const t = useT();
-  return (
-    <div className="bg-neutral-white rounded-2xl border border-neutral-light-gray-1 p-5">
-      <div className="flex items-center gap-2.5 mb-1.5">
-        <span className="w-9 h-9 rounded-lg bg-secondary-blue-soft text-lummy-500 grid place-items-center shrink-0">
-          <s.Icon className="w-5 h-5" />
-        </span>
-        <h3 className="font-fredoka font-semibold text-lg text-neutral-black leading-tight">{t(s.en, s.id)}</h3>
-      </div>
-      <p className="text-neutral-gray text-sm leading-relaxed">{t(s.bodyEn, s.bodyId)}</p>
-    </div>
-  );
-}
 
 export default function HowItWorks() {
   const t = useT();
   return (
     <div className="pb-10">
-      <section className="bg-hero-gradient pt-28 pb-16">
-        <div className="max-w-3xl mx-auto px-5 text-center flex flex-col items-center">
-          <Image src="/assets/images/mascot-powered.svg" alt="" width={110} height={110} className="mb-3 drop-shadow-lg" />
-          <h1 className="flex flex-col font-bold leading-[1.05] text-4xl md:text-5xl mt-2">
+      <section className="relative overflow-hidden bg-hero-gradient pt-28 pb-20">
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-[radial-gradient(#3A6CB41f_1px,transparent_1px)] [background-size:22px_22px] [mask-image:linear-gradient(to_bottom,black,transparent_85%)]"
+        />
+        <div className="relative max-w-3xl mx-auto px-5 text-center flex flex-col items-center">
+          <Image src="/assets/images/mascot-powered.svg" alt="" width={104} height={104} priority className="mb-2 drop-shadow-lg motion-safe:animate-rise" />
+          <h1 className="motion-safe:animate-rise [animation-delay:60ms] flex flex-col font-bold leading-[1.05] text-4xl md:text-6xl tracking-tight">
             <span className="text-neutral-black">{t("Why resale on Lummy", "Kenapa resale di Lummy")}</span>
             <span className="text-primary-navy">{t("is actually safe", "beneran aman")}</span>
           </h1>
-          <p className="text-lg text-neutral-gray mt-4">
+          <p className="motion-safe:animate-rise [animation-delay:120ms] text-lg text-neutral-gray mt-5 max-w-xl">
             {t(
-              "Blockchain and AI do the work backstage. You just buy a ticket like anywhere else.",
-              "Blockchain dan AI kerja di belakang layar. Kamu cukup beli tiket seperti biasa."
+              "It works like any ticket app. The difference is where your money waits, and what gets checked before a ticket goes on sale.",
+              "Cara pakainya seperti aplikasi tiket biasa. Bedanya ada di mana uangmu menunggu, dan apa yang dicek sebelum tiket dijual."
             )}
           </p>
         </div>
+        <div
+          aria-hidden
+          className="absolute bottom-0 inset-x-0 h-3 bg-[radial-gradient(circle_at_12px_12px,#ffffff_7px,transparent_7.5px)] [background-size:24px_12px] bg-repeat-x"
+        />
       </section>
 
-      {/* Zigzag stepper. Desktop: fixed-height bands keep the numbers evenly spaced and
-          tight; each card is centred on its own node, and left/right columns cannot
-          collide. The spine is inset so it starts and ends exactly on a node.
-          Mobile: one column, node beside card. */}
-      <section className="border-y border-neutral-light-gray-1 py-16 lg:py-20">
-        <div className="max-w-4xl mx-auto px-5">
-          <h2 className="text-center font-bold text-2xl md:text-3xl text-neutral-black leading-tight">
-            {t("Six layers protecting your money", "Enam lapisan yang jaga uangmu")}
-          </h2>
-          <p className="text-center text-neutral-gray mt-2 mb-12">
-            {t("Running from your first click until the show has passed.", "Nyala dari klik pertama sampai konser lewat.")}
-          </p>
+      {/* The money's journey, left to right on desktop, top to bottom on a phone */}
+      <section className="reveal max-w-6xl mx-auto px-5 lg:px-10 mt-16">
+        <h2 className="font-bold text-2xl md:text-3xl text-neutral-black">{t("Where your money goes", "Ke mana uangmu pergi")}</h2>
+        <ol className="relative mt-8 grid md:grid-cols-4 gap-6 md:gap-5">
+          <span aria-hidden className="hidden md:block absolute top-6 left-[12.5%] right-[12.5%] border-t-2 border-dashed border-lummy-500/40" />
+          <span aria-hidden className="md:hidden absolute top-6 bottom-6 left-6 border-l-2 border-dashed border-lummy-500/40" />
+          {journey.map((s, i) => (
+            <li key={s.en} className="relative flex md:flex-col md:items-center md:text-center gap-4 md:gap-3">
+              <span className="z-10 w-12 h-12 shrink-0 rounded-full bg-primary-navy text-white grid place-items-center shadow-[3px_3px_0px_#245397]">
+                <s.Icon className="w-5 h-5" />
+              </span>
+              <div className="min-w-0">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-primary-navy">{t(`Step ${i + 1}`, `Langkah ${i + 1}`)}</div>
+                <h3 className="font-fredoka font-semibold text-lg text-neutral-black mt-0.5">{t(s.en, s.id)}</h3>
+                <p className="text-sm text-neutral-gray mt-1 leading-relaxed">{t(s.bodyEn, s.bodyId)}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
 
-          {/* Desktop. Invariant: same-side cards sit two bands apart (2 x h-28 = 224px
-              between centres), so each card must stay under ~200px tall or neighbours on
-              the same side start to touch. Current worst case leaves 35px of clearance,
-              so keep the step bodies to roughly four lines. */}
-          <div className="relative hidden md:block">
-            <div className="absolute top-14 bottom-14 left-1/2 -translate-x-1/2 border-l-2 border-dashed border-lummy-500/50" aria-hidden />
-            {sections.map((s, i) => {
-              const left = i % 2 === 0;
-              return (
-                <div key={s.en} className="relative h-28">
-                  <span className={cn("absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2", NODE)}>{i + 1}</span>
-                  <span
-                    className={cn(
-                      "absolute top-1/2 -translate-y-1/2 w-8 border-t-2 border-dashed border-lummy-500/50",
-                      left ? "right-1/2 mr-6" : "left-1/2 ml-6"
-                    )}
-                    aria-hidden
-                  />
-                  <div className={cn("absolute top-1/2 -translate-y-1/2 w-[calc(50%-3.5rem)]", left ? "left-0" : "right-0")}>
-                    <StepCard s={s} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Mobile */}
-          <div className="relative md:hidden">
-            <div className="absolute top-6 bottom-6 left-6 border-l-2 border-dashed border-lummy-500/50" aria-hidden />
-            <div className="flex flex-col gap-5">
-              {sections.map((s, i) => (
-                <div key={s.en} className="relative flex gap-4">
-                  <span className={cn("shrink-0", NODE)}>{i + 1}</span>
-                  <div className="flex-1 min-w-0">
-                    <StepCard s={s} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+      <section className="reveal max-w-6xl mx-auto px-5 lg:px-10 mt-20">
+        <h2 className="font-bold text-2xl md:text-3xl text-neutral-black">{t("Checked before it goes on sale", "Dicek sebelum dijual")}</h2>
+        <div className="grid sm:grid-cols-2 gap-5 mt-8">
+          {checks.map((c) => (
+            <TicketFeature key={c.en} Icon={c.Icon} title={t(c.en, c.id)} body={t(c.bodyEn, c.bodyId)} />
+          ))}
         </div>
       </section>
 
       {/* Coverage map: the whole failure surface in one place. */}
-      <section className="max-w-3xl mx-auto px-5 mt-16">
-        <h2 className="text-center font-bold text-2xl md:text-3xl text-neutral-black leading-tight">
-          {t("What happens when it goes wrong", "Kalau ada yang tidak beres")}
-        </h2>
-        <p className="text-center text-neutral-gray mt-2 mb-10">
-          {t(
-            "Each of these has one defined path, and each path names what settles it.",
-            "Masing-masing punya satu jalur yang jelas, dan tiap jalur menyebutkan apa yang menentukannya."
-          )}
+      <section id="coverage" className="reveal max-w-6xl mx-auto px-5 lg:px-10 mt-20 scroll-mt-28">
+        <div className="max-w-3xl">
+        <h2 className="font-bold text-2xl md:text-3xl text-neutral-black">{t("When something goes wrong", "Kalau ada yang tidak beres")}</h2>
+        <p className="text-neutral-gray mt-2">
+          {t("Each case has one path, and each path names what decides it.", "Tiap kasus punya satu jalur, dan tiap jalur menyebut apa yang menentukannya.")}
         </p>
-        <div className="flex flex-col divide-y divide-neutral-light-gray-1">
+        <div className="mt-6 flex flex-col divide-y divide-dashed divide-neutral-light-gray-1 border-y border-neutral-light-gray-1">
           {coverage.map((c) => (
             <div key={c.en} className="flex gap-4 py-5">
               <span className="w-9 h-9 rounded-lg bg-secondary-blue-soft text-lummy-500 grid place-items-center shrink-0">
@@ -221,14 +188,12 @@ export default function HowItWorks() {
             </div>
           ))}
         </div>
+        </div>
       </section>
 
-      <section className="max-w-3xl mx-auto px-5 mt-16 text-center flex flex-col items-center">
+      <section className="reveal max-w-3xl mx-auto px-5 mt-16 text-center flex flex-col items-center">
         <h2 className="font-bold text-2xl md:text-3xl text-neutral-black">{t("Now go find your ticket", "Sekarang tinggal cari tiketnya")}</h2>
-        <p className="text-neutral-gray mt-2 mb-6">
-          {t("Verified resale tickets, every one of them held in escrow.", "Tiket resale terverifikasi, semuanya dijaga escrow.")}
-        </p>
-        <Link href="/events"><Button.Primary className="flex items-center gap-2">{t("Browse events", "Jelajah event")} <ArrowRight className="w-4 h-4" /></Button.Primary></Link>
+        <Link href="/events" className="mt-6"><Button.Primary className="flex items-center gap-2">{t("Browse events", "Jelajah event")} <ArrowRight className="w-4 h-4" /></Button.Primary></Link>
       </section>
     </div>
   );

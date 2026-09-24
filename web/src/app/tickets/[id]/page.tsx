@@ -232,7 +232,7 @@ export default function OrderDetailPage() {
       {/* Event header */}
       <div className="flex items-center gap-4 mb-6">
         <div className="relative w-20 h-20 rounded-2xl overflow-hidden border-2 border-lummy-500 shrink-0">
-          <Image src={order.eventImage} alt={order.eventTitle} fill className="object-cover" />
+          <Image src={order.eventImage} alt={order.eventTitle} fill sizes="80px" className="object-cover" />
         </div>
         <div className="min-w-0">
           <h1 className="text-xl md:text-2xl font-bold text-neutral-black">{order.eventTitle}</h1>
@@ -514,16 +514,6 @@ export default function OrderDetailPage() {
                 : t("Something went wrong at the gate", "Ada masalah di gate")}
             </button>
           )}
-          {false && (
-            <p className="mt-5 text-xs text-neutral-gray flex gap-2">
-              <Lock className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" />
-              <span>{t(
-                "Disputes open once the show is over. Nothing to do until then.",
-                "Sengketa baru bisa diajukan setelah acara selesai. Sampai itu, tidak ada yang perlu kamu lakukan."
-              )}</span>
-            </p>
-          )}
-
           {/* On chain there is no clock to bend: the contract's own window decides. */}
           {onchain && order.escrowStatus === "LOCKED" && (
             <div className="mt-5 rounded-2xl border-2 border-dashed border-neutral-light-gray-1 p-4">
@@ -818,8 +808,10 @@ export default function OrderDetailPage() {
       <Modal open={acting} onClose={() => {}}>
         <div className="flex flex-col items-center gap-3 py-4">
           <Loader2 className="w-8 h-8 text-lummy-500 animate-spin" />
-          <p className="font-fredoka font-semibold text-neutral-black">{t("Sending transaction...", "Mengirim transaksi...")}</p>
-          <p className="text-sm text-neutral-gray">{t("One moment, this is being processed.", "Sebentar, sedang diproses.")}</p>
+          <p className="font-fredoka font-semibold text-neutral-black">
+            {onchain ? t("Sending transaction...", "Mengirim transaksi...") : t("Updating your order...", "Memperbarui pesanan...")}
+          </p>
+          <p className="text-sm text-neutral-gray">{t("One moment.", "Sebentar.")}</p>
         </div>
       </Modal>
     </PageContainer>

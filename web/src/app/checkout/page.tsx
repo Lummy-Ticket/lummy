@@ -5,12 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import toast from "react-hot-toast";
-import { ArrowLeft, Lock, ShieldCheck, Loader2, QrCode, Coins } from "lucide-react";
+import { ArrowLeft, Lock, ShieldCheck, Loader2, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/common/Modal";
 import {
-  SEED_LISTINGS, getEventById, getTier, platformFee, MATERAI, useOrders, DISPUTE_WINDOW_H, EVENT_DURATION_H, type OrderChain,
+  SEED_LISTINGS, getEventById, getTier, isBuyable, isEventOver, platformFee, MATERAI, useOrders, DISPUTE_WINDOW_H, EVENT_DURATION_H, type OrderChain,
 } from "@/lib/mock";
 import { chainCheckoutReady, demoPrefs, openChainOrder, useChainInfo } from "@/lib/chain/client";
 import { useAccessGuard } from "@/lib/access";
@@ -48,19 +48,20 @@ function CheckoutInner() {
   const chainInfo = useChainInfo();
   const onchain = chainCheckoutReady(chainInfo);
 
-  const [method, setMethod] = useState<"qris" | "usdc">("qris");
   const [processing, setProcessing] = useState(false);
 
-  if (!listing || !event || !tier) {
+  // Not found, flagged, duplicate, or for a show that is already over: nothing to pay for.
+  if (!listing || !event || !tier || !isBuyable(listing) || isEventOver(event)) {
     return (
-      <div className="max-w-lg mx-auto px-5 pt-28 pb-16 text-center">
-        <p className="text-neutral-gray">{t("Listing not found.", "Listing tidak ditemukan.")}</p>
-        <Link href="/events" className="text-primary-navy font-medium">{t("Back to browse", "Balik ke jelajah")}</Link>
+      <div className="max-w-lg mx-auto px-5 pt-28 pb-16 text-center flex flex-col items-center gap-3">
+        <p className="text-neutral-gray">{t("This listing is not available to buy.", "Listing ini tidak bisa dibeli.")}</p>
+        <Link href={event ? `/events/${event.id}` : "/events"} className="text-primary-navy font-medium">{t("See other tickets", "Lihat tiket lain")}</Link>
       </div>
     );
   }
 
-  const qty = Math.max(1, Number(params.get("qty")) || 1);
+  // A hand-edited URL cannot buy more seats than the listing holds.
+  const qty = Math.min(listing.quantity, Math.max(1, Number(params.get("qty")) || 1));
   const subtotal = listing.askPrice * qty;
   const fee = platformFee(subtotal);
   const total = subtotal + fee + MATERAI;
@@ -104,7 +105,7 @@ function CheckoutInner() {
           {/* Item */}
           <div className="bg-neutral-white rounded-2xl border border-neutral-light-gray-1 p-4 flex gap-4 min-w-0">
             <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-neutral-light-gray-1 shrink-0">
-              <Image src={event.image} alt={event.title} fill className="object-cover" />
+              <Image src={event.image} alt={event.title} fill sizes="96px" className="object-cover" />
             </div>
             <div className="min-w-0">
               <h3 className="font-fredoka font-semibold text-neutral-black truncate">{event.title}</h3>
@@ -117,41 +118,32 @@ function CheckoutInner() {
             </div>
           </div>
 
-          {/* Payment method */}
+          {/* Payment. QRIS is the one rail: it covers e-wallets and bank apps alike. */}
           <div className="bg-neutral-white rounded-2xl border border-neutral-light-gray-1 p-4">
-            <h4 className="font-fredoka font-semibold text-neutral-black mb-3">{t("Payment method", "Metode bayar")}</h4>
-            <div className="grid grid-cols-2 gap-3">
-              {([
-                { id: "qris", label: "QRIS", desc: "GoPay, OVO, DANA, bank", Icon: QrCode },
-                { id: "usdc", label: "Crypto (demo)", desc: t("Stablecoin, optional", "Stablecoin, opsional"), Icon: Coins },
-              ] as const).map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => setMethod(m.id)}
-                  className={`text-left p-3 rounded-xl border-2 transition cursor-pointer min-w-0 ${
-                    method === m.id ? "border-lummy-500 bg-secondary-blue-light" : "border-neutral-light-gray-1 hover:border-lummy-500"
-                  }`}
-                >
-                  <m.Icon className="w-5 h-5 text-lummy-500 mb-1" />
-                  <div className="font-medium text-sm text-neutral-black">{m.label}</div>
-                  <div className="text-xs text-neutral-gray break-words">{m.desc}</div>
-                </button>
-              ))}
+            <h2 className="font-fredoka font-semibold text-lg text-neutral-black mb-3">{t("Payment", "Pembayaran")}</h2>
+            <div className="flex items-center gap-3 p-3 rounded-xl border-2 border-primary-navy bg-secondary-blue-light">
+              <span className="w-10 h-10 rounded-lg bg-neutral-white text-primary-navy grid place-items-center shrink-0 border border-lummy-500">
+                <QrCode className="w-5 h-5" />
+              </span>
+              <div className="min-w-0">
+                <div className="font-medium text-sm text-neutral-black">QRIS</div>
+                <div className="text-xs text-neutral-gray">{t("Scan with GoPay, OVO, DANA, ShopeePay or any bank app", "Scan pakai GoPay, OVO, DANA, ShopeePay, atau aplikasi bank")}</div>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-start gap-2 text-sm text-neutral-gray bg-secondary-blue-extra rounded-2xl p-4">
+          <div className="flex items-start gap-3 text-sm text-neutral-gray bg-secondary-blue-extra rounded-2xl p-4">
             <Lock className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" />
             <span>{t(
-              `Your payment is locked in escrow, not handed to the seller, until the event ends plus ${DISPUTE_WINDOW_H} hours. If the ticket fails at the gate, you file a dispute with evidence recorded there, and an arbiter decides. Refunds are never automatic.`,
-              `Pembayaranmu dikunci di escrow, bukan diserahkan ke penjual, sampai acara selesai plus ${DISPUTE_WINDOW_H} jam. Kalau tiketnya gagal di gate, kamu ajukan sengketa dengan bukti yang direkam di sana, lalu arbiter yang memutuskan. Refund tidak pernah otomatis.`
+              `Your payment waits in escrow until ${DISPUTE_WINDOW_H} hours after the show. Turned away at the gate? File a claim with a photo from there and an arbiter decides.`,
+              `Pembayaranmu ditahan escrow sampai ${DISPUTE_WINDOW_H} jam setelah acara. Ditolak di gate? Ajukan klaim dengan foto dari sana, lalu arbiter yang memutuskan.`
             )}</span>
           </div>
         </div>
 
         {/* Right: summary */}
         <div className="lg:sticky lg:top-24 h-fit bg-neutral-white rounded-3xl border border-lummy-500 p-6 flex flex-col gap-4">
-          <h4 className="font-fredoka font-semibold text-neutral-black">{t("Summary", "Rincian")}</h4>
+          <h2 className="font-fredoka font-semibold text-lg text-neutral-black">{t("Summary", "Rincian")}</h2>
           <div className="flex flex-col gap-2">
             <Row label={qty > 1 ? t(`Tickets (${qty} × ${formatIDR(listing.askPrice)})`, `Tiket (${qty} × ${formatIDR(listing.askPrice)})`) : t("Ticket price", "Harga tiket")} value={formatIDR(subtotal)} />
             <Row label={t("Service fee (5%, min. IDR 25,000)", "Biaya layanan (5%, min. IDR 25.000)")} value={formatIDR(fee)} />

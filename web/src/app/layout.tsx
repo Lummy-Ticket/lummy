@@ -1,9 +1,17 @@
 import type { Metadata } from "next";
+import { Fredoka, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import DevPanel from "@/components/dev/DevPanel";
+
+// Self-hosted at build time: no request to Google on page load, no flash of the
+// fallback font, and nothing to break on venue Wi-Fi. Fredoka carries the brand in
+// headings, prices and buttons; Plus Jakarta Sans (an Indonesian typeface) keeps
+// body copy readable at small sizes.
+const fredoka = Fredoka({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-fredoka" });
+const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-jakarta" });
 
 export const metadata: Metadata = {
   title: {
@@ -17,7 +25,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className="scroll-smooth">
+    <html lang="en" className={`${fredoka.variable} ${jakarta.variable} scroll-smooth`}>
       <body className="antialiased min-h-screen flex flex-col relative w-full overflow-x-clip">
         <Navbar />
         <main className="flex-1">{children}</main>

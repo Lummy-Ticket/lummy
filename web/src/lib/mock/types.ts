@@ -36,8 +36,8 @@ export interface EventItem {
   city: string;
   image: string;
   tiers: Tier[];
-  fromPrice: number; // lowest active resale ask (IDR), for the card
-  listingCount: number;
+  fromPrice: number; // lowest buyable ask (IDR), 0 when nothing is buyable. Derived in seed.ts
+  listingCount: number; // buyable listings. Derived in seed.ts
   featured?: boolean;
   soldOut?: boolean;
 }
