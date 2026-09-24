@@ -41,11 +41,25 @@ export interface Bi {
 export const scheduledEndISO = (o: Order) =>
   new Date(new Date(o.eventDateISO).getTime() + EVENT_DURATION_H * H).toISOString();
 
-/** Deadline for filing, and for the automatic payout. Undefined until the event is over. */
-export const disputeDeadlineISO = (o: Order) =>
-  o.eventEndedAtISO
-    ? new Date(new Date(o.eventEndedAtISO).getTime() + DISPUTE_WINDOW_H * H).toISOString()
-    : undefined;
+/**
+ * Deadline for filing, and for the automatic payout. Undefined until the event is over.
+ * An on-chain order takes it from the contract, which also counts the handover.
+ */
+export const disputeDeadlineISO = (o: Order) => {
+  if (!o.eventEndedAtISO) return undefined;
+  if (o.chain?.deadline) return new Date(o.chain.deadline * 1000).toISOString();
+  return new Date(new Date(o.eventEndedAtISO).getTime() + DISPUTE_WINDOW_H * H).toISOString();
+};
+
+/** Length of the dispute window. The testnet contract runs a 10-minute demo window. */
+export const windowMs = (o: Order) => (o.chain?.window ? o.chain.window * 1000 : DISPUTE_WINDOW_H * H);
+
+/** The window said in words, so on-chain orders never claim 48 hours they do not have. */
+export function windowLabel(o: Order): Bi {
+  if (!o.chain?.window) return { en: `${DISPUTE_WINDOW_H}h`, id: `${DISPUTE_WINDOW_H} jam` };
+  const min = Math.round(o.chain.window / 60);
+  return { en: `${min} min (testnet demo)`, id: `${min} menit (demo testnet)` };
+}
 
 export function phaseOf(o: Order, now: number = Date.now()): EscrowPhase {
   if (o.escrowStatus === "RELEASED") return "RELEASED";

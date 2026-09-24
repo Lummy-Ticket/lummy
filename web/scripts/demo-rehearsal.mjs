@@ -122,7 +122,10 @@ await beat("1:10  handover doc and on-chain panel open", async () => {
   const doc = await page.getByText("Letter of authorisation").first().isVisible();
   await page.getByText("Verify it yourself on-chain").click();
   await page.waitForTimeout(400);
-  return doc && (await page.getByText("Escrow contract").isVisible());
+  // A sample order says so and links the live contract; a chain-mode order lists its transactions.
+  const sample = await page.getByText("This is a sample order").isVisible();
+  const onchain = await page.getByText("Escrow contract").isVisible();
+  return doc && (sample || onchain);
 });
 
 await page.goto(`${BASE}/tickets/or-seed-2`, { waitUntil: "networkidle" });

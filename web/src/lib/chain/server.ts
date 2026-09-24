@@ -28,8 +28,11 @@ export type Operator = ChainTarget & {
   demoKey?: string;
 };
 
-/** Status yang dikirim ke browser. `price` jadi string karena JSON tidak kenal bigint. */
-export type OnchainListing = Omit<Listing, "price"> & { price: string; disputeWindow: number; deadline: number };
+/**
+ * Status yang dikirim ke browser. `price` jadi string karena JSON tidak kenal bigint. `now` = waktu
+ * blok terbaru: jam kontrak, bukan jam perangkat, yang menentukan kapan window lewat.
+ */
+export type OnchainListing = Omit<Listing, "price"> & { price: string; disputeWindow: number; deadline: number; now: number };
 
 export type SettleAction = "dispute" | "resolve" | "release" | "refund";
 
@@ -115,8 +118,14 @@ export async function readWindow(t: ChainTarget): Promise<number> {
 
 export async function readListing(t: ChainTarget, id: Hex): Promise<OnchainListing> {
   const pc = publicClient(t.chain, t.rpcUrl);
-  const [L, window] = await Promise.all([getListing(pc, t.escrow, id), readWindow(t)]);
-  return { ...L, price: L.price.toString(), disputeWindow: window, deadline: disputeDeadline(L, window) };
+  const [L, window, block] = await Promise.all([getListing(pc, t.escrow, id), readWindow(t), pc.getBlock()]);
+  return {
+    ...L,
+    price: L.price.toString(),
+    disputeWindow: window,
+    deadline: disputeDeadline(L, window),
+    now: Number(block.timestamp),
+  };
 }
 
 /**
@@ -140,7 +149,7 @@ export async function openOrder(op: Operator, eventEndsAt: number) {
     const sig = await signFund({ pc, buyer: op.buyer, escrow: op.escrow, token: op.token, listingId: id, value: op.price });
     const fund = await as.fund(id, sig);
     const handover = await as.markHandover(id, keccak256(toHex(`lummy:surat-kuasa:${id}`)));
-    return { listingId: id, txs: { create: create.hash, fund: fund.hash, handover: handover.hash } };
+    return { listingId: id, price: op.price.toString(), txs: { create: create.hash, fund: fund.hash, handover: handover.hash } };
   });
 }
 

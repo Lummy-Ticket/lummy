@@ -1,9 +1,5 @@
-// Mock on-chain + money helpers.
-
-export const CONTRACT_ADDRESS = "0x7c3F1a4e9B2d5A8c6E0f13B9aD4c2E7f0A9b3C1d";
-
-export const mockTxHash = () =>
-  "0x" + Array.from({ length: 64 }, () => "0123456789abcdef"[Math.floor(Math.random() * 16)]).join("");
+// Explorer links and money helpers. Transaction hashes only ever come from the chain
+// (Order.chain); sample orders have none.
 
 export const explorerTx = (h: string) => `https://sepolia.arbiscan.io/tx/${h}`;
 export const explorerAddr = (a: string) => `https://sepolia.arbiscan.io/address/${a}`;

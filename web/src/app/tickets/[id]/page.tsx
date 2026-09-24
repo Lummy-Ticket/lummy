@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -17,8 +17,15 @@ import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters } from "@/lib/i18n";
 import { EscrowStatusPill } from "@/components/common/EscrowStatusPill";
 import { PageContainer } from "@/components/layout/PageContainer";
-import {useOrders, useUser, explorerTx, explorerAddr, shortHash, phaseOf, msUntilRelease, disputeDeadlineISO, checkEvidence, mockEvidenceOptions, DISPUTE_WINDOW_H, reasonMeta, availableReasons, reasonBlockedNote, canFileDispute, REMEDY_LABEL, type DisputeEvidence, type DisputeReason,
+import {useOrders, useUser, explorerTx, explorerAddr, shortHash, phaseOf, msUntilRelease, disputeDeadlineISO, checkEvidence, mockEvidenceOptions, DISPUTE_WINDOW_H, reasonMeta, availableReasons, reasonBlockedNote, canFileDispute, REMEDY_LABEL, windowMs, windowLabel, type DisputeEvidence, type DisputeReason,
 } from "@/lib/mock";
+import { chainAction, chainWritable, useChainInfo, useChainListing, usdcText } from "@/lib/chain/client";
+import { DEPLOYMENTS } from "@/lib/chain/deployments";
+
+/** The escrow that new on-chain orders go to, shown even on sample orders so anyone can inspect it. */
+const LIVE_ESCROW = DEPLOYMENTS[421614]?.escrow;
+
+const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 function ChainRow({ label, value, href, onCopy }: { label: string; value: string; href?: string; onCopy?: () => void }) {
   const t = useT();
@@ -64,7 +71,14 @@ export default function OrderDetailPage() {
   const cancelEvent = useOrders((s) => s.cancelEvent);
   const postponeEvent = useOrders((s) => s.postponeEvent);
   const refundPostponed = useOrders((s) => s.refundPostponed);
+  const syncChain = useOrders((s) => s.syncChain);
+  const settleChain = useOrders((s) => s.settleChain);
   const user = useUser((s) => s.user);
+
+  // On-chain orders mirror the contract: status, window and deadline come from there.
+  const chainInfo = useChainInfo();
+  const { data: live, refresh: refreshLive } = useChainListing(order?.chain?.listingId);
+  const releaseTried = useRef(0);
 
   const mounted = useHydrated();
   const [now, setNow] = useState(() => Date.now());
@@ -92,6 +106,29 @@ export default function OrderDetailPage() {
     return () => clearInterval(t);
   }, [sweepAutoRelease]);
 
+  // Every fresh read from the contract is mirrored into the order.
+  useEffect(() => {
+    if (order?.chain && live) syncChain(order.id, live);
+  }, [order?.id, order?.chain, live, syncChain]);
+
+  // Silence settles it: once the contract's window has passed without a dispute, the payout goes
+  // out. The contract lets anyone trigger it; here the operator does, one attempt at a time.
+  useEffect(() => {
+    if (!order?.chain || !live || live.status !== "DisputeWindow" || live.disputed) return;
+    // The contract's clock decides, not this device's: a skewed laptop must not fire early.
+    if (live.now <= live.deadline || !chainWritable(chainInfo)) return;
+    if (now - releaseTried.current < 20_000) return;
+    releaseTried.current = now;
+    const orderId = order.id;
+    chainAction(order.chain.listingId, "release")
+      .then((r) => {
+        settleChain(orderId, { escrowStatus: "RELEASED", tx: r.tx, withdrawals: r.withdrawals, autoReleased: true });
+        toast.success(t("The window closed in silence. The contract paid the seller.", "Masa sengketa lewat tanpa klaim. Kontrak membayar penjual."));
+        refreshLive();
+      })
+      .catch((e) => toast.error(`${t("Payout not sent yet", "Pencairan belum terkirim")}: ${errText(e)}`));
+  }, [order, live, now, chainInfo, settleChain, refreshLive, t]);
+
   // Which files can back this particular claim, and how they read.
   const evidenceOptions = useMemo(
     () => (order && reason ? mockEvidenceOptions(order, reason) : []),
@@ -115,7 +152,10 @@ export default function OrderDetailPage() {
   const phase = phaseOf(order, now);
   const left = msUntilRelease(order, now);
   const deadline = disputeDeadlineISO(order);
-  const elapsed = Number.isFinite(left) ? Math.min(1, Math.max(0, 1 - left / (DISPUTE_WINDOW_H * 3_600_000))) : 0;
+  const elapsed = Number.isFinite(left) ? Math.min(1, Math.max(0, 1 - left / windowMs(order))) : 0;
+  const win = windowLabel(order);
+  const onchain = order.chain;
+  const canWrite = chainWritable(chainInfo);
   const filedReason = order.dispute ? reasonMeta(order.dispute.reason) : null;
   const filedCheck = order.dispute
     ? checkEvidence(order, order.dispute.reason, order.dispute.evidence, order.dispute.openedAtISO)
@@ -147,15 +187,38 @@ export default function OrderDetailPage() {
   const eligible = reason ? reasonMeta(reason).eligible : false;
   const blocked = reason && meta ? reasonBlockedNote(order, meta, now) : null;
   const canSubmit = eligible && !blocked && attested && (!needsFile || !!evidence);
-  const submitDispute = () => {
+  const submitDispute = async () => {
     if (!canSubmit || !reason) return;
     setShowDispute(false);
     setActing(true);
-    setTimeout(() => {
+    try {
+      // On chain the dispute is a real flag that freezes the payout, sent by the operator for the buyer.
+      if (onchain) await chainAction(onchain.listingId, "dispute");
+      else await new Promise((r) => setTimeout(r, 1300));
       openDispute(order.id, { reason, note: { en: note, id: note }, evidence: evidence ?? undefined });
-      setActing(false);
+      if (onchain) refreshLive();
       toast.success(t("Dispute filed. A Lummy arbiter will review your evidence.", "Sengketa diajukan. Arbiter Lummy akan meninjau buktimu."));
-    }, 1300);
+    } catch (e) {
+      toast.error(`${t("The contract refused the dispute", "Kontrak menolak sengketa")}: ${errText(e)}`);
+    } finally {
+      setActing(false);
+    }
+  };
+
+  // The organiser pulled the show: on chain that is an operator refund, allowed while the window is open.
+  const cancelOnchain = async () => {
+    if (!onchain) return;
+    setActing(true);
+    try {
+      const r = await chainAction(onchain.listingId, "refund");
+      settleChain(order.id, { escrowStatus: "REFUNDED", tx: r.tx, withdrawals: r.withdrawals, autoRefundReason: "EVENT_CANCELLED" });
+      refreshLive();
+      toast.success(t("Refunded on chain. The money is back with the buyer.", "Refund di chain. Dananya sudah kembali ke pembeli."));
+    } catch (e) {
+      toast.error(`${t("The contract refused the refund", "Kontrak menolak refund")}: ${errText(e)}`);
+    } finally {
+      setActing(false);
+    }
   };
 
   const watermark = `${user?.name ?? t("Buyer", "Pembeli")} · ${new Date().toLocaleDateString("en-GB")} · Lummy`;
@@ -195,7 +258,7 @@ export default function OrderDetailPage() {
             {phase === "WINDOW_CLOSED" && t("The window has elapsed. Releasing to the seller.", "Masa sengketa sudah lewat. Dana sedang dicairkan ke penjual.")}
             {phase === "IN_REVIEW" && t("Frozen while an arbiter reviews the dispute. Nothing moves until there is a verdict.", "Dibekukan selama arbiter meninjau sengketa. Tidak ada yang bergerak sampai ada putusan.")}
             {phase === "RELEASED" && (order.autoReleased
-              ? t("Paid out to the seller. No dispute was filed within 48 hours.", "Sudah cair ke penjual. Tidak ada sengketa dalam 48 jam.")
+              ? t(`Paid out to the seller. No dispute was filed within ${win.en}.`, `Sudah cair ke penjual. Tidak ada sengketa dalam ${win.id}.`)
               : t("Paid out to the seller after the arbiter reviewed the dispute.", "Cair ke penjual setelah arbiter meninjau sengketa."))}
             {phase === "REFUNDED" && (order.autoRefundReason === "EVENT_CANCELLED"
               ? t("Returned automatically when the organiser cancelled the show.", "Dikembalikan otomatis saat penyelenggara membatalkan acara.")
@@ -348,20 +411,40 @@ export default function OrderDetailPage() {
             <ShieldCheck className="w-3.5 h-3.5" /> {showProof ? t("Hide technical details", "Sembunyikan detail teknis") : t("Verify it yourself on-chain", "Cek sendiri on-chain")}
             <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showProof ? "rotate-180" : ""}`} />
           </button>
-          {showProof && (
+          {showProof && onchain && (
             <div className="mt-3">
               <div className="bg-secondary-blue-extra rounded-2xl p-4">
-                <ChainRow label={t("Escrow contract", "Kontrak escrow")} value={shortHash(order.contractAddress)} href={explorerAddr(order.contractAddress)} onCopy={() => copy(order.contractAddress)} />
-                <ChainRow label={t("Funding tx", "Tx pendanaan")} value={shortHash(order.fundTxHash)} href={explorerTx(order.fundTxHash)} onCopy={() => copy(order.fundTxHash)} />
-                {order.settleTxHash && (
-                  <ChainRow label={order.escrowStatus === "RELEASED" ? t("Release tx", "Tx pencairan") : t("Refund tx", "Tx refund")} value={shortHash(order.settleTxHash)} href={explorerTx(order.settleTxHash)} onCopy={() => copy(order.settleTxHash!)} />
+                <ChainRow label={t("Escrow contract", "Kontrak escrow")} value={shortHash(onchain.escrow)} href={explorerAddr(onchain.escrow)} onCopy={() => copy(onchain.escrow)} />
+                <ChainRow label={t("Status on chain", "Status di kontrak")} value={(live?.status ?? onchain.status ?? "…") + (live?.disputed ? t(", disputed", ", disengketakan") : "")} />
+                <ChainRow label={t("Locked in the contract", "Terkunci di kontrak")} value={t(`${usdcText(onchain.price)} (testnet)`, `${usdcText(onchain.price)} (testnet)`)} />
+                <ChainRow label={t("Listing tx", "Tx listing")} value={shortHash(onchain.txs.create)} href={explorerTx(onchain.txs.create)} onCopy={() => copy(onchain.txs.create)} />
+                <ChainRow label={t("Funding tx", "Tx dana dikunci")} value={shortHash(onchain.txs.fund)} href={explorerTx(onchain.txs.fund)} onCopy={() => copy(onchain.txs.fund)} />
+                <ChainRow label={t("Handover proof tx", "Tx bukti serah terima")} value={shortHash(onchain.txs.handover)} href={explorerTx(onchain.txs.handover)} onCopy={() => copy(onchain.txs.handover)} />
+                {onchain.txs.settle && (
+                  <ChainRow label={order.escrowStatus === "RELEASED" ? t("Release tx", "Tx pencairan") : t("Refund tx", "Tx refund")} value={shortHash(onchain.txs.settle)} href={explorerTx(onchain.txs.settle)} onCopy={() => copy(onchain.txs.settle!)} />
                 )}
-                <ChainRow label={t("Release condition", "Syarat pencairan")} value={t(`Event end + ${DISPUTE_WINDOW_H}h`, `Acara selesai + ${DISPUTE_WINDOW_H} jam`)} />
+                {(onchain.txs.withdrawals ?? []).map((w) => (
+                  <ChainRow key={w} label={t("Payout tx", "Tx kirim dana")} value={shortHash(w)} href={explorerTx(w)} onCopy={() => copy(w)} />
+                ))}
+                <ChainRow label={t("Release condition", "Syarat pencairan")} value={t(`Event end + ${win.en}`, `Acara selesai + ${win.id}`)} />
                 <ChainRow label={t("Network", "Jaringan")} value="Arbitrum Sepolia (421614)" />
               </div>
               <p className="flex items-center gap-1.5 text-xs text-neutral-gray mt-3">
                 <ShieldCheck className="w-3.5 h-3.5 text-secondary-green-dark" /> {t("Do not take our word for it, read the contract.", "Jangan percaya kami, baca kontraknya sendiri.")}
               </p>
+            </div>
+          )}
+          {showProof && !onchain && (
+            <div className="mt-3 rounded-2xl bg-secondary-blue-extra p-4 text-xs text-neutral-gray leading-relaxed">
+              {t(
+                "This is a sample order, so it has no transactions on chain. Orders placed with the chain mode on are real escrows in the contract below, on Arbitrum Sepolia.",
+                "Ini pesanan contoh, jadi tidak punya transaksi di chain. Pesanan yang dibuat dengan mode chain aktif jadi escrow sungguhan di kontrak berikut, di Arbitrum Sepolia."
+              )}
+              {LIVE_ESCROW && (
+                <a href={explorerAddr(LIVE_ESCROW)} target="_blank" rel="noreferrer" className="mt-2 flex items-center gap-1.5 font-mono text-primary-navy">
+                  {shortHash(LIVE_ESCROW)} <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              )}
             </div>
           )}
 
@@ -373,14 +456,14 @@ export default function OrderDetailPage() {
                 <span className="absolute -left-[7px] top-1 w-3 h-3 rounded-full bg-lummy-500 border-2 border-neutral-white" />
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm text-neutral-black">{t("Funds locked in escrow", "Dana dikunci di escrow")}</span>
-                  {showProof && <a href={explorerTx(order.fundTxHash)} target="_blank" rel="noreferrer" className="text-xs text-primary-navy flex items-center gap-1 shrink-0">{shortHash(order.fundTxHash, 4)} <ExternalLink className="w-3 h-3" /></a>}
+                  {showProof && onchain && <a href={explorerTx(onchain.txs.fund)} target="_blank" rel="noreferrer" className="text-xs text-primary-navy flex items-center gap-1 shrink-0">{shortHash(onchain.txs.fund, 4)} <ExternalLink className="w-3 h-3" /></a>}
                 </div>
                 <span className="text-xs text-neutral-gray">{formatDateTime(order.createdAtISO)}</span>
               </li>
               {order.eventEndedAtISO && (
                 <li className="pl-4 relative">
                   <span className="absolute -left-[7px] top-1 w-3 h-3 rounded-full bg-lummy-500 border-2 border-neutral-white" />
-                  <span className="text-sm text-neutral-black">{t(`Event finished, ${DISPUTE_WINDOW_H}h window opened`, `Acara selesai, masa sengketa ${DISPUTE_WINDOW_H} jam dibuka`)}</span>
+                  <span className="text-sm text-neutral-black">{t(`Event finished, ${win.en} window opened`, `Acara selesai, masa sengketa ${win.id} dibuka`)}</span>
                   <span className="block text-xs text-neutral-gray">{formatDateTime(order.eventEndedAtISO)}</span>
                 </li>
               )}
@@ -391,7 +474,7 @@ export default function OrderDetailPage() {
                   <span className="block text-xs text-neutral-gray">{formatDateTime(order.dispute.openedAtISO)}</span>
                 </li>
               )}
-              {order.settleTxHash ? (
+              {order.escrowStatus === "RELEASED" || order.escrowStatus === "REFUNDED" ? (
                 <li className="pl-4 relative">
                   <span className={`absolute -left-[7px] top-1 w-3 h-3 rounded-full border-2 border-neutral-white ${order.escrowStatus === "RELEASED" ? "bg-secondary-green-dark" : "bg-neutral-gray"}`} />
                   <div className="flex items-center justify-between gap-2">
@@ -402,7 +485,7 @@ export default function OrderDetailPage() {
                           : t("Released to seller by verdict", "Cair ke penjual lewat putusan")
                         : t("Refunded to buyer", "Dikembalikan ke pembeli")}
                     </span>
-                    {showProof && <a href={explorerTx(order.settleTxHash)} target="_blank" rel="noreferrer" className="text-xs text-primary-navy flex items-center gap-1 shrink-0">{shortHash(order.settleTxHash, 4)} <ExternalLink className="w-3 h-3" /></a>}
+                    {showProof && onchain?.txs.settle && <a href={explorerTx(onchain.txs.settle)} target="_blank" rel="noreferrer" className="text-xs text-primary-navy flex items-center gap-1 shrink-0">{shortHash(onchain.txs.settle, 4)} <ExternalLink className="w-3 h-3" /></a>}
                   </div>
                 </li>
               ) : (
@@ -411,7 +494,7 @@ export default function OrderDetailPage() {
                   <span className="text-sm text-neutral-gray">
                     {deadline
                       ? t(`Auto-release at ${formatDateTime(deadline)}`, `Cair otomatis pada ${formatDateTime(deadline)}`)
-                      : t(`Waiting for the event, then ${DISPUTE_WINDOW_H}h`, `Menunggu acara, lalu ${DISPUTE_WINDOW_H} jam`)}
+                      : t(`Waiting for the event, then ${win.en}`, `Menunggu acara, lalu ${win.id}`)}
                   </span>
                 </li>
               )}
@@ -441,8 +524,28 @@ export default function OrderDetailPage() {
             </p>
           )}
 
+          {/* On chain there is no clock to bend: the contract's own window decides. */}
+          {onchain && order.escrowStatus === "LOCKED" && (
+            <div className="mt-5 rounded-2xl border-2 border-dashed border-neutral-light-gray-1 p-4">
+              <div className="text-xs font-semibold text-neutral-gray flex items-center gap-1.5 mb-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-secondary-green-dark" /> {t("Real escrow on Arbitrum Sepolia", "Escrow sungguhan di Arbitrum Sepolia")}
+              </div>
+              <p className="text-xs text-neutral-gray mb-3">
+                {t(
+                  `No shortcuts here: the contract's clock decides. The payout goes out ${win.en} after the later of the show ending and the handover.`,
+                  `Tidak ada jalan pintas: jam kontrak yang menentukan. Dana cair ${win.id} setelah yang terakhir dari acara selesai dan serah terima.`
+                )}
+              </p>
+              {canWrite && (
+                <button onClick={cancelOnchain} className="w-full px-3 py-2 rounded-xl border border-neutral-light-gray-1 text-xs text-neutral-black hover:border-lummy-500 transition cursor-pointer">
+                  {t("Organiser cancels (refund on chain)", "Penyelenggara membatalkan (refund di chain)")}
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Simulation controls, clearly separated from the product surface */}
-          {order.escrowStatus === "LOCKED" && (
+          {order.escrowStatus === "LOCKED" && !onchain && (
             <div className="mt-5 rounded-2xl border-2 border-dashed border-neutral-light-gray-1 p-4">
               <div className="text-xs font-semibold text-neutral-gray flex items-center gap-1.5 mb-1">
                 <FlaskConical className="w-3.5 h-3.5 text-secondary-pink-dark" /> {t("Prototype controls", "Kontrol prototipe")}
@@ -579,7 +682,7 @@ export default function OrderDetailPage() {
           </span>
           <span className="font-mono font-bold text-sm text-neutral-black tabular-nums">
             {phase === "PRE_EVENT"
-              ? t(`${DISPUTE_WINDOW_H}h after the show`, `${DISPUTE_WINDOW_H} jam setelah acara`)
+              ? t(`${win.en} after the show`, `${win.id} setelah acara`)
               : formatCountdown(left)}
           </span>
         </div>

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import {
   CheckCircle2, XCircle, AlertTriangle, Sparkles, Calendar, MapPin, Scale, Paperclip,
-  ExternalLink, Gavel, Clock,
+  ExternalLink, Gavel, Clock, Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,9 +16,23 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import {
   useEventRequests, useOrders, useSellerListings, getEventById,
   checkEvidence, reasonMeta, suggestedRationale, disputeDeadlineISO,
-  remedyOptions, suggestedRemedy, sellerPenalty, SELLER_PENALTY_PCT, REMEDY_LABEL,
-  type EventRequest, type Order, type Remedy, type SellerListing,
+  remedyOptions, suggestedRemedy, sellerPenalty, SELLER_PENALTY_PCT, REMEDY_LABEL, partialAmount,
+  type ChainSettlement, type EventRequest, type Order, type Remedy, type SellerListing,
 } from "@/lib/mock";
+import { chainAction } from "@/lib/chain/client";
+
+/**
+ * What the buyer gets back on chain, in USDC units: the same share of the locked amount as the
+ * verdict gives in rupiah. Zero pays the seller in full, which the contract records as Released.
+ */
+function onchainToBuyer(o: Order, remedy: Remedy): string {
+  if (!o.chain || !o.dispute) return "0";
+  const rupiah =
+    remedy === "REFUND_FULL" || remedy === "REPLACEMENT" ? o.amount
+    : remedy === "REFUND_PARTIAL" ? partialAmount(o, o.dispute.reason)
+    : 0;
+  return ((BigInt(o.chain.price) * BigInt(rupiah)) / BigInt(o.amount)).toString();
+}
 import { Ticket, Scale as ScaleIcon } from "lucide-react";
 
 function EvidencePanel({ order }: { order: Order }) {
@@ -202,6 +216,7 @@ export default function AdminPage() {
   const approveListing = useSellerListings((s) => s.approve);
   const rejectListing = useSellerListings((s) => s.reject);
   const [tab, setTab] = useState<"claims" | "listings" | "events">("claims");
+  const [sending, setSending] = useState(false);
 
   const disputes = orders.filter((o) => o.escrowStatus === "DISPUTED");
   const held = listings.filter((l) => l.status === "review");
@@ -216,7 +231,7 @@ export default function AdminPage() {
   ];
   const doApprove = (r: EventRequest) => { approve(r.id); toast.success(t("Event approved, tickets can be listed", "Event disetujui, tiketnya boleh dijual")); };
 
-  const doResolve = (o: Order, remedy: Remedy) => {
+  const doResolve = async (o: Order, remedy: Remedy) => {
     const check = checkEvidence(o, o.dispute!.reason, o.dispute!.evidence, o.dispute!.openedAtISO);
     const rationale =
       remedy === "RELEASE_SELLER" && check.strength === "STRONG"
@@ -225,7 +240,22 @@ export default function AdminPage() {
             id: "Arbiter mengesampingkan pembacaan otomatis dan mencairkan ke penjual.",
           }
         : suggestedRationale(o.dispute!, check);
-    resolveDispute(o.id, remedy, rationale);
+    // An on-chain order is only settled once the contract has carried the verdict out.
+    let onchain: ChainSettlement | undefined;
+    if (o.chain) {
+      setSending(true);
+      try {
+        const toBuyer = onchainToBuyer(o, remedy);
+        const r = await chainAction(o.chain.listingId, "resolve", toBuyer);
+        onchain = { escrowStatus: toBuyer === "0" ? "RELEASED" : "REFUNDED", tx: r.tx, withdrawals: r.withdrawals };
+      } catch (e) {
+        toast.error(`${t("The contract refused the verdict", "Kontrak menolak putusan")}: ${e instanceof Error ? e.message : String(e)}`);
+        return;
+      } finally {
+        setSending(false);
+      }
+    }
+    resolveDispute(o.id, remedy, rationale, onchain);
     toast.success(
       remedy === "RELEASE_SELLER"
         ? t("Closed, funds released to the seller", "Ditutup, dana cair ke penjual")
@@ -450,6 +480,14 @@ export default function AdminPage() {
             </div>
           </>
         )}
+      </Modal>
+
+      <Modal open={sending} onClose={() => {}}>
+        <div className="flex flex-col items-center gap-3 py-4">
+          <Loader2 className="w-8 h-8 text-lummy-500 animate-spin" />
+          <p className="font-fredoka font-semibold text-neutral-black">{t("Sending the verdict to the contract...", "Mengirim putusan ke kontrak...")}</p>
+          <p className="text-sm text-neutral-gray text-center">{t("The contract splits the money, then pays each side.", "Kontrak membagi dananya, lalu mengirim ke tiap pihak.")}</p>
+        </div>
       </Modal>
     </PageContainer>
   );

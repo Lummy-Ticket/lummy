@@ -15,7 +15,7 @@
     "chain:cycle": "tsx scripts/escrow-cycle.ts",
     "chain:local": "bash scripts/chain-local.sh",
     "chain:fork": "bash scripts/chain-fork.sh",
-    "chain:api": "bash scripts/chain-api.sh"
+    "chain:e2e": "bash scripts/chain-e2e.sh"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

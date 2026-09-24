@@ -10,11 +10,21 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/common/Modal";
 import {
-  SEED_LISTINGS, getEventById, getTier, platformFee, MATERAI, useOrders, DISPUTE_WINDOW_H,
+  SEED_LISTINGS, getEventById, getTier, platformFee, MATERAI, useOrders, DISPUTE_WINDOW_H, EVENT_DURATION_H, type OrderChain,
 } from "@/lib/mock";
+import { chainCheckoutReady, demoPrefs, openChainOrder, useChainInfo } from "@/lib/chain/client";
 import { useAccessGuard } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters } from "@/lib/i18n";
+
+/**
+ * Unix seconds when the show ends, which is when the contract starts the dispute window. The demo
+ * switch pretends it already has, so the testnet window runs right away.
+ */
+function showEndsAt(dateISO: string) {
+  if (demoPrefs.eventEnded()) return Math.floor(Date.now() / 1000);
+  return Math.floor((new Date(dateISO).getTime() + EVENT_DURATION_H * 3_600_000) / 1000);
+}
 
 function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (
@@ -35,6 +45,8 @@ function CheckoutInner() {
   const event = listing && getEventById(listing.eventId);
   const tier = listing && event ? getTier(event, listing.tierId) : undefined;
   const buy = useOrders((s) => s.buy);
+  const chainInfo = useChainInfo();
+  const onchain = chainCheckoutReady(chainInfo);
 
   const [method, setMethod] = useState<"qris" | "usdc">("qris");
   const [processing, setProcessing] = useState(false);
@@ -53,13 +65,28 @@ function CheckoutInner() {
   const fee = platformFee(subtotal);
   const total = subtotal + fee + MATERAI;
 
-  const pay = () => {
+  const pay = async () => {
     setProcessing(true);
-    setTimeout(() => {
-      const id = buy(listing, event, tier, qty);
-      toast.success(t("Paid. Your money is now in escrow.", "Pembayaran berhasil. Dana kamu sekarang di escrow."));
-      router.push(`/tickets/${id}`);
-    }, 1800);
+    let chain: OrderChain | undefined;
+    if (onchain && chainInfo?.escrow) {
+      const endsAt = showEndsAt(event.dateISO);
+      try {
+        const r = await openChainOrder(endsAt);
+        chain = { listingId: r.listingId, escrow: chainInfo.escrow, price: r.price, eventEndsAt: endsAt, txs: r.txs };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        toast.error(`${t("Chain unavailable, saved as a sample order", "Chain tidak tersedia, pesanan disimpan sebagai contoh")}: ${msg}`);
+      }
+    } else {
+      await new Promise((r) => setTimeout(r, 1800));
+    }
+    const id = buy(listing, event, tier, qty, chain);
+    toast.success(
+      chain
+        ? t("Paid. Your money is locked in the escrow contract on Arbitrum.", "Pembayaran berhasil. Dana kamu dikunci di kontrak escrow di Arbitrum.")
+        : t("Paid. Your money is now in escrow.", "Pembayaran berhasil. Dana kamu sekarang di escrow.")
+    );
+    router.push(`/tickets/${id}`);
   };
 
   if (!ready) return <PageGate />;
@@ -138,6 +165,14 @@ function CheckoutInner() {
           <p className="flex items-center gap-1.5 text-xs text-secondary-green-dark justify-center">
             <ShieldCheck className="w-3.5 h-3.5" /> {t("Protected by Lummy escrow", "Dijamin escrow Lummy")}
           </p>
+          {onchain && (
+            <p className="text-[11px] text-neutral-gray text-center -mt-2">
+              {t(
+                `Chain mode: a real escrow on Arbitrum Sepolia, ${chainInfo?.priceUsdc ?? "1"} test USDC standing in for the rupiah.`,
+                `Mode chain: escrow sungguhan di Arbitrum Sepolia, ${chainInfo?.priceUsdc ?? "1"} USDC testnet mewakili rupiahnya.`
+              )}
+            </p>
+          )}
         </div>
       </div>
 
@@ -145,7 +180,11 @@ function CheckoutInner() {
         <div className="flex flex-col items-center gap-3 py-4">
           <Loader2 className="w-8 h-8 text-lummy-500 animate-spin" />
           <p className="font-fredoka font-semibold text-neutral-black">{t("Processing payment...", "Memproses pembayaran...")}</p>
-          <p className="text-sm text-neutral-gray text-center">{t("Securing your money in escrow.", "Mengamankan dana kamu di escrow.")}</p>
+          <p className="text-sm text-neutral-gray text-center">
+            {onchain
+              ? t("Locking your money in the escrow contract: listing, payment, handover.", "Mengunci dana di kontrak escrow: listing, pembayaran, serah terima.")
+              : t("Securing your money in escrow.", "Mengamankan dana kamu di escrow.")}
+          </p>
         </div>
       </Modal>
     </div>

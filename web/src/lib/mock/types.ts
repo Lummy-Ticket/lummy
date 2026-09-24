@@ -160,14 +160,22 @@ export interface Dispute {
   verdict?: DisputeVerdict;
 }
 
-export interface Escrow {
-  id: string;
+/**
+ * A real escrow on Arbitrum. Orders without it are sample data: they never show a
+ * contract address or transaction hash, because there is none to show.
+ */
+export interface OrderChain {
   listingId: string;
-  amount: number;
-  status: EscrowStatus;
-  txHash: string;
-  contractAddress: string;
-  disputeDeadlineISO: string;
+  escrow: string;
+  /** USDC units (6 decimals) locked on chain, a small testnet stand-in for the rupiah amount. */
+  price: string;
+  /** Unix seconds. The contract starts the window from this or the handover, whichever is later. */
+  eventEndsAt: number;
+  /** Last values read from the contract. */
+  deadline?: number;
+  window?: number;
+  status?: string;
+  txs: { create: string; fund: string; handover: string; settle?: string; withdrawals?: string[] };
 }
 
 export interface Order {
@@ -183,9 +191,7 @@ export interface Order {
   amount: number;
   gateKtp: boolean;
   escrowStatus: EscrowStatus;
-  contractAddress: string;
-  fundTxHash: string;
-  settleTxHash?: string;
+  chain?: OrderChain;
   createdAtISO: string;
   /** Set once the event is confirmed over. This is what starts the 48h clock. */
   eventEndedAtISO?: string;
