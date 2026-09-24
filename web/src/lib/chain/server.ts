@@ -46,11 +46,18 @@ export function chainTarget(): ChainTarget | null {
   return { chain, rpcUrl: process.env.LUMMY_RPC_URL ?? RPC_URLS[chainId], escrow, token };
 }
 
-/** Kunci dari env. Di mesin dev tanpa env, dari ~/.lummy/testnet.env (khusus Arbitrum Sepolia). */
+/** Nilai env pertama yang terisi, tanpa spasi atau newline yang ikut ter-paste. */
+const envOf = (...names: string[]) => names.map((n) => process.env[n]?.trim()).find(Boolean);
+
+/**
+ * Kunci dari env. Nama `LUMMY_*`, atau nama yang sama dengan ~/.lummy/testnet.env supaya file itu bisa
+ * diimpor langsung ke Vercel (tanpa DEPLOYER_PRIVATE_KEY dan SELLER_PRIVATE_KEY, yang tidak dibutuhkan
+ * server). Di mesin dev tanpa env, dibaca dari file itu (khusus Arbitrum Sepolia).
+ */
 function loadKeys(chainId: number) {
-  let operator = process.env.LUMMY_OPERATOR_KEY;
-  let buyer = process.env.LUMMY_BUYER_KEY;
-  let seller = process.env.LUMMY_SELLER_ADDRESS;
+  let operator = envOf("LUMMY_OPERATOR_KEY", "OPERATOR_PRIVATE_KEY");
+  let buyer = envOf("LUMMY_BUYER_KEY", "BUYER_PRIVATE_KEY");
+  let seller = envOf("LUMMY_SELLER_ADDRESS", "SELLER_ADDRESS");
   const file = path.join(os.homedir(), ".lummy", "testnet.env");
   if ((!operator || !buyer || !seller) && process.env.NODE_ENV !== "production" && chainId === 421614 && fs.existsSync(file)) {
     const env: Record<string, string> = {};
@@ -74,8 +81,8 @@ export function operatorSetup(): Operator | null {
     operator: privateKeyToAccount(keys.operator as Hex),
     buyer: privateKeyToAccount(keys.buyer as Hex),
     seller: keys.seller as Address,
-    price: parseUnits(process.env.LUMMY_DEMO_PRICE_USDC ?? "1", USDC_DECIMALS),
-    demoKey: process.env.LUMMY_DEMO_KEY || undefined,
+    price: parseUnits(envOf("LUMMY_DEMO_PRICE_USDC") ?? "1", USDC_DECIMALS),
+    demoKey: envOf("LUMMY_DEMO_KEY"),
   };
 }
 
@@ -93,7 +100,7 @@ export function writeAllowed(req: Request, op: Operator): boolean {
   const mode = writeMode(op);
   if (mode === "open") return true;
   if (mode !== "key" || !op.demoKey) return false;
-  const given = Buffer.from(req.headers.get("x-demo-key") ?? "");
+  const given = Buffer.from((req.headers.get("x-demo-key") ?? "").trim());
   const want = Buffer.from(op.demoKey);
   return given.length === want.length && timingSafeEqual(given, want);
 }
