@@ -198,7 +198,16 @@ async function skipWindow(pc: ReturnType<typeof publicClient>, id: Hex, dep: Dep
     return seconds;
   }
   for (;;) {
-    const now = (await pc.getBlock()).timestamp;
+    // RPC publik kadang timeout. Selama menunggu, satu bacaan gagal cukup diulang, bukan alasan berhenti.
+    const now = await pc
+      .getBlock()
+      .then((b) => b.timestamp)
+      .catch(() => null);
+    if (now === null) {
+      console.log("    RPC gagal membaca blok, coba lagi");
+      await new Promise((r) => setTimeout(r, 5000));
+      continue;
+    }
     if (now > deadline) return Number(now - start);
     console.log(`    menunggu window: ${deadline - now + BigInt(1)} detik lagi`);
     await new Promise((r) => setTimeout(r, Math.min(30, Number(deadline - now) + 2) * 1000));
