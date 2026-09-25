@@ -47,9 +47,9 @@ const Event = (({className, image, date, title, location, category, redirect, so
     const onSale = !soldOut && !!fromPrice;
 
   return (
-        <Link href={redirect} className={cn("group bg-neutral-white border transition ease-out duration-200 flex flex-col border-primary-navy rounded-3xl p-2.5 w-full shrink-0 hover:-translate-x-1 hover:-translate-y-1 hover:shadow-[4px_4px_0px_#245397]", className)} {...props}>
+        <Link href={redirect} className={cn("group bg-neutral-white border transition duration-300 flex flex-col border-primary-navy rounded-3xl p-2.5 w-full shrink-0 hover:-translate-x-1 hover:-translate-y-1 hover:shadow-[4px_4px_0px_#245397] active:translate-x-0 active:translate-y-0 active:shadow-[1px_1px_0px_#245397] active:duration-100", className)} {...props}>
             <div className="relative w-full aspect-[16/10] rounded-2xl overflow-hidden border border-lummy-500">
-                <Image alt="" className={cn("object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]", soldOut && "grayscale-[35%]")} src={image} sizes={CARD_SIZES} loading={eager ? "eager" : undefined} fill />
+                <Image alt="" className={cn("object-cover transition-transform duration-700 group-hover:scale-[1.05]", soldOut && "grayscale-[35%]")} src={image} sizes={CARD_SIZES} loading={eager ? "eager" : undefined} fill />
                 {soldOut && (
                     <Badge.Base className="absolute top-2.5 left-2.5 bg-secondary-pink-dark text-white text-xs font-semibold rounded-full">{t("Sold out", "Habis")}</Badge.Base>
                 )}

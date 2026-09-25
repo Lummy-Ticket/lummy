@@ -76,7 +76,7 @@ export function PriceFilter({
         <div
           role="dialog"
           aria-label={t("Price range", "Rentang harga")}
-          className={cn(MENU_PANEL, "right-0 w-72 max-w-[calc(100vw-2.5rem)] p-4")}
+          className={cn(MENU_PANEL, "right-0 w-72 max-w-[calc(100vw-2.5rem)] p-4 [--origin:top_right]")}
         >
           <div className="flex items-center justify-between gap-3">
             <span className="text-sm font-medium text-neutral-black">{t("Price range", "Rentang harga")}</span>

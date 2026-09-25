@@ -8,6 +8,8 @@ import DevPanel from "@/components/dev/DevPanel";
 import { CatalogueProvider } from "@/lib/catalogue";
 import { AuthSync } from "@/components/auth/AuthSync";
 import { loadCatalogue } from "@/lib/supabase/catalogue";
+import { MotionObserver } from "@/components/motion/MotionObserver";
+import { MOTION_BOOT } from "@/components/motion/boot";
 
 // Self-hosted at build time: no request to Google on page load, no flash of the
 // fallback font, and nothing to break on venue Wi-Fi. Fredoka carries the brand in
@@ -35,10 +37,15 @@ export const dynamic = "force-dynamic";
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const catalogue = await loadCatalogue();
   return (
-    <html lang="en" className={`${fredoka.variable} ${jakarta.variable} scroll-smooth`}>
+    // The boot script sets data-motion on <html> before hydration, hence the suppression
+    <html lang="en" className={`${fredoka.variable} ${jakarta.variable} scroll-smooth`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: MOTION_BOOT }} />
+      </head>
       <body className="antialiased min-h-screen flex flex-col relative w-full overflow-x-clip">
         <CatalogueProvider data={catalogue}>
           <AuthSync />
+          <MotionObserver />
           <Navbar />
           <main className="flex-1">{children}</main>
           <Footer />

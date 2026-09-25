@@ -124,39 +124,116 @@
   background: #64748b;
 }
 
-/* Sections ease in as they scroll into view. Scroll-driven, so there is no script
-   and nothing can get stuck invisible: browsers without support, and anyone who
-   prefers reduced motion, simply see the content. */
-@supports (animation-timeline: view()) {
-  @media (prefers-reduced-motion: no-preference) {
-    .reveal {
-      animation: reveal linear both;
-      animation-timeline: view();
-      animation-range: entry 0% entry 30%;
-    }
-  }
+/* ---------- Motion ----------
+   One set of curves for the whole app, so hovers, menus and reveals feel like the same
+   hand. Only opacity and transform move, which the browser runs off the main thread. */
+@theme {
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.45, 0.64, 1);
+  --default-transition-duration: 200ms;
+  --default-transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
-@keyframes reveal {
-  from { opacity: 0; transform: translateY(24px); }
+
+/* Reveal on scroll. `data-motion` is set on <html> by a tiny script in the layout, only
+   when motion is welcome, so without JavaScript or with reduced motion nothing is ever
+   hidden. Until MotionObserver takes over (data-motion-ready) CSS keeps them hidden;
+   after that it holds and plays them with the Web Animations API.
+     data-reveal            the element rises in
+     data-reveal="stagger"  its children rise in one after another */
+html[data-motion]:not([data-motion-ready]) [data-reveal]:not([data-reveal="stagger"]),
+html[data-motion]:not([data-motion-ready]) [data-reveal="stagger"] > * {
+  opacity: 0;
+}
+@keyframes lm-rise {
+  from { opacity: 0; transform: translateY(22px); }
   to { opacity: 1; transform: none; }
 }
 
+/* The same rise for what is already on screen at load, so it needs no observer and never
+   waits on JavaScript. Stagger with --i, offset with --d. */
+.lm-in {
+  animation: lm-rise 0.8s var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * 70ms + var(--d, 0ms));
+}
+
+/* Page change: a quick fade, opacity only so fixed bars inside the page stay put. */
+.lm-page {
+  animation: lm-fade 0.35s var(--ease-out) backwards;
+}
+@keyframes lm-fade {
+  from { opacity: 0; }
+}
+
+/* Menus, popovers and dialogs pop in from where they open. */
+.lm-pop {
+  animation: lm-pop 0.18s var(--ease-out) backwards;
+  transform-origin: var(--origin, top);
+}
+@keyframes lm-pop {
+  from { opacity: 0; transform: translateY(-4px) scale(0.97); }
+}
+.lm-dialog {
+  animation: lm-dialog 0.32s var(--ease-spring) backwards;
+}
+@keyframes lm-dialog {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+}
+.lm-backdrop {
+  animation: lm-fade 0.25s ease-out backwards;
+}
+
+/* A line of heading that slides up out of its own clip, like type on a flap board. */
+.lm-line {
+  display: block;
+  overflow: clip;
+  overflow-clip-margin: 0.12em;
+  padding-bottom: 0.06em;
+}
+.lm-line > span {
+  display: inline-block;
+  animation: lm-line 0.9s var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * 90ms + 80ms);
+}
+@keyframes lm-line {
+  from { transform: translateY(105%); }
+}
+
+/* A photo that settles into place, a touch zoomed out, as the page opens. */
+.lm-settle {
+  animation: lm-settle 1.4s var(--ease-out) backwards;
+}
+@keyframes lm-settle {
+  from { transform: scale(1.06); opacity: 0.6; }
+}
+
+/* Scanner line over the hero barcode: one pass, then a rest. */
+.lm-scan {
+  opacity: 0;
+  animation: lm-scan 5.5s var(--ease-in-out, cubic-bezier(0.65, 0, 0.35, 1)) 1.4s infinite backwards;
+}
+@keyframes lm-scan {
+  0% { transform: translateX(-4%); opacity: 0; }
+  4% { opacity: 1; }
+  26% { opacity: 1; }
+  30% { transform: translateX(101%); opacity: 0; }
+  100% { transform: translateX(101%); opacity: 0; }
+}
+
+/* Underline that draws in from the left on hover. */
+.lm-underline {
+  background: linear-gradient(currentColor, currentColor) 0 100% / 0 1.5px no-repeat;
+  transition: background-size 0.3s var(--ease-out);
+}
+.lm-underline:hover,
+.lm-underline:focus-visible {
+  background-size: 100% 1.5px;
+}
+
+/* Reduced motion: entrances just appear, loops stand still. Spinners keep turning,
+   they carry meaning. */
 @media (prefers-reduced-motion: reduce) {
-  .motion-reduce-none { animation: none !important; }
-}
-
-/* Smooth animations */
-.lummy-transition {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Card hover effects */
-.lummy-card-hover {
-  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-}
-
-.lummy-card-hover:hover {
-  transform: translateY(-4px);
+  html { scroll-behavior: auto; }
+  .lm-in, .lm-page, .lm-pop, .lm-dialog, .lm-backdrop, .lm-settle, .lm-line > span, .lm-loop { animation: none !important; }
 }
 
 input[type=number]::-webkit-inner-spin-button {

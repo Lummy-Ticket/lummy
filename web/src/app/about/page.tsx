@@ -1,5 +1,6 @@
 "use client";
 
+import type React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, IdCard, MessagesSquare, Copy } from "lucide-react";
@@ -61,18 +62,18 @@ export default function AboutPage() {
       {/* Intro */}
       <div className="relative overflow-hidden rounded-3xl border border-lummy-500 bg-hero-gradient p-6 sm:p-10">
         <div className="grid lg:grid-cols-[1.4fr_1fr] gap-8 items-center">
-          <div className="motion-safe:animate-rise">
-            <h1 className="flex flex-col font-bold leading-[1.05] text-4xl md:text-5xl tracking-tight">
-              <span className="text-neutral-black">{t("Resale, minus the", "Resale, tanpa")}</span>
-              <span className="text-primary-navy">{t("leap of faith.", "untung-untungan.")}</span>
+          <div>
+            <h1 className="font-bold leading-[1.05] text-4xl md:text-5xl tracking-tight">
+              <span className="lm-line text-neutral-black"><span>{t("Resale, minus the", "Resale, tanpa")}</span></span>
+              <span className="lm-line text-primary-navy"><span style={{ "--i": 1 } as React.CSSProperties}>{t("leap of faith.", "untung-untungan.")}</span></span>
             </h1>
-            <p className="text-lg text-neutral-gray mt-4 max-w-xl">
+            <p className="lm-in text-lg text-neutral-gray mt-4 max-w-xl" style={{ "--d": "240ms" } as React.CSSProperties}>
               {t(
                 "Lummy Ticket is a resale marketplace for concert tickets in Indonesia. We sit between buyer and seller and hold the money until the show is over, so neither side has to trust a stranger.",
                 "Lummy Ticket adalah marketplace resale tiket konser di Indonesia. Kami berdiri di antara pembeli dan penjual dan menahan uangnya sampai acara selesai, jadi tidak ada yang harus percaya pada orang asing."
               )}
             </p>
-            <div className="flex flex-wrap gap-3 mt-6">
+            <div className="lm-in flex flex-wrap gap-3 mt-6" style={{ "--d": "320ms" } as React.CSSProperties}>
               <Link href="/events"><Button.Primary className="flex items-center gap-2">{t("Browse events", "Jelajah event")} <ArrowRight className="w-4 h-4" /></Button.Primary></Link>
               <Link href="/how-it-works"><Button.Secondary>{t("How it works", "Cara kerja")}</Button.Secondary></Link>
             </div>
@@ -84,9 +85,9 @@ export default function AboutPage() {
       </div>
 
       {/* The problem */}
-      <section className="reveal mt-16">
-        <h2 className="text-2xl md:text-3xl font-bold text-neutral-black">{t("Where we started", "Dari mana kami mulai")}</h2>
-        <div className="grid md:grid-cols-3 gap-5 mt-6">
+      <section className="mt-16">
+        <h2 data-reveal className="text-2xl md:text-3xl font-bold text-neutral-black">{t("Where we started", "Dari mana kami mulai")}</h2>
+        <div data-reveal="stagger" className="grid md:grid-cols-3 gap-5 mt-6">
           {problems.map((p) => (
             <div key={p.en} className="rounded-3xl bg-secondary-gray-soft p-6">
               <span className="w-10 h-10 rounded-xl bg-neutral-white text-primary-navy grid place-items-center border border-neutral-light-gray-1">
@@ -100,9 +101,9 @@ export default function AboutPage() {
       </section>
 
       {/* Principles */}
-      <section className="reveal mt-16">
-        <h2 className="text-2xl md:text-3xl font-bold text-neutral-black">{t("How we run it", "Prinsip kami")}</h2>
-        <div className="grid sm:grid-cols-2 gap-x-10 gap-y-6 mt-6">
+      <section className="mt-16">
+        <h2 data-reveal className="text-2xl md:text-3xl font-bold text-neutral-black">{t("How we run it", "Prinsip kami")}</h2>
+        <div data-reveal="stagger" className="grid sm:grid-cols-2 gap-x-10 gap-y-6 mt-6">
           {principles.map((c, i) => (
             <div key={c.en} className="flex gap-4">
               <span className="font-fredoka font-bold text-2xl text-primary-navy/30 leading-none w-8 shrink-0">{String(i + 1).padStart(2, "0")}</span>
@@ -116,12 +117,14 @@ export default function AboutPage() {
       </section>
 
       {/* CTA */}
-      <TicketBand className="reveal mt-16">
-        <div className="flex flex-col items-center text-center gap-4">
-          <h2 className="text-2xl md:text-3xl font-bold">{t("Ready to find your ticket?", "Siap cari tiketmu?")}</h2>
-          <Link href="/events"><Button.Secondary className="flex items-center gap-2">{t("Browse events", "Jelajah event")} <ArrowRight className="w-4 h-4" /></Button.Secondary></Link>
-        </div>
-      </TicketBand>
+      <div data-reveal className="mt-16">
+        <TicketBand>
+          <div className="flex flex-col items-center text-center gap-4">
+            <h2 className="text-2xl md:text-3xl font-bold">{t("Ready to find your ticket?", "Siap cari tiketmu?")}</h2>
+            <Link href="/events"><Button.Secondary className="flex items-center gap-2">{t("Browse events", "Jelajah event")} <ArrowRight className="w-4 h-4" /></Button.Secondary></Link>
+          </div>
+        </TicketBand>
+      </div>
     </PageContainer>
   );
 }

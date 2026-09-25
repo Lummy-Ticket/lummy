@@ -1,5 +1,6 @@
 "use client";
 
+import type React from "react";
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -103,7 +104,7 @@ function CheckoutInner() {
 
       <div className="grid lg:grid-cols-[1.5fr_1fr] gap-6">
         {/* Left */}
-        <div className="flex flex-col gap-5 min-w-0">
+        <div data-reveal="stagger" className="flex flex-col gap-5 min-w-0">
           {/* Item */}
           <div className="bg-neutral-white rounded-2xl border border-neutral-light-gray-1 p-4 flex gap-4 min-w-0">
             <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-neutral-light-gray-1 shrink-0">
@@ -144,7 +145,7 @@ function CheckoutInner() {
         </div>
 
         {/* Right: summary */}
-        <div className="lg:sticky lg:top-24 h-fit bg-neutral-white rounded-3xl border border-lummy-500 p-6 flex flex-col gap-4">
+        <div className="lm-in lg:sticky lg:top-24 h-fit bg-neutral-white rounded-3xl border border-lummy-500 p-6 flex flex-col gap-4" style={{ "--d": "140ms" } as React.CSSProperties}>
           <h2 className="font-fredoka font-semibold text-lg text-neutral-black">{t("Summary", "Rincian")}</h2>
           <div className="flex flex-col gap-2">
             <Row label={qty > 1 ? t(`Tickets (${qty} × ${formatIDR(listing.askPrice)})`, `Tiket (${qty} × ${formatIDR(listing.askPrice)})`) : t("Ticket price", "Harga tiket")} value={formatIDR(subtotal)} />

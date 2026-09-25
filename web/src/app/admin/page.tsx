@@ -276,7 +276,7 @@ export default function AdminPage() {
           <button
             key={x.id}
             onClick={() => setTab(x.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm border transition cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm border transition cursor-pointer active:scale-95 ${
               tab === x.id
                 ? "bg-primary-navy text-white border-primary-navy"
                 : "bg-neutral-white text-neutral-gray border-neutral-light-gray-1 hover:border-primary-navy"
@@ -304,7 +304,7 @@ export default function AdminPage() {
               "Refund tidak otomatis. Default-nya penjual menang, kecuali bukti dari gate kredibel. Pemeriksaan di bawah cuma sinyal, keputusan tetap di kamu."
             )}
           </p>
-          <div className="flex flex-col gap-4">
+          <div data-reveal="stagger" className="flex flex-col gap-4">
             {disputes.map((o) => {
               const check = checkEvidence(o, o.dispute!.reason, o.dispute!.evidence, o.dispute!.openedAtISO);
               const suggested = suggestedRemedy(o, o.dispute!.reason, check);
@@ -391,7 +391,7 @@ export default function AdminPage() {
       {!mounted ? (
         <p className="text-neutral-gray text-sm">{t("Loading...", "Memuat...")}</p>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div data-reveal="stagger" className="flex flex-col gap-4">
           {requests.map((r) => (
             <div key={r.id} className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
               <div className="flex items-start justify-between gap-3">

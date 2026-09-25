@@ -77,7 +77,7 @@ export default function TicketsPage() {
           <Link href="/events"><Button.Primary>{t("Browse events", "Jelajah event")}</Button.Primary></Link>
         </div>
       ) : (
-        <div className="grid sm:grid-cols-2 gap-4">
+        <div data-reveal="stagger" className="grid sm:grid-cols-2 gap-4">
           {orders.map((o) => {
             const phase = phaseOf(o, now);
             const left = msUntilRelease(o, now);
@@ -86,7 +86,7 @@ export default function TicketsPage() {
               <Link
                 key={o.id}
                 href={`/tickets/${o.id}`}
-                className="group min-w-0 bg-neutral-white rounded-2xl border-2 border-lummy-500 p-4 flex flex-col transition hover:-translate-x-1 hover:-translate-y-1 hover:shadow-[4px_4px_0px_#245397]"
+                className="group min-w-0 bg-neutral-white rounded-2xl border-2 border-lummy-500 p-4 flex flex-col transition duration-300 hover:-translate-x-1 hover:-translate-y-1 hover:shadow-[4px_4px_0px_#245397] active:translate-x-0 active:translate-y-0 active:shadow-[1px_1px_0px_#245397] active:duration-100"
               >
                 <div className="flex gap-4">
                   <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-lummy-500 shrink-0">

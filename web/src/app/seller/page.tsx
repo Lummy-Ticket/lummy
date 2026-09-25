@@ -214,7 +214,7 @@ export default function SellerPage() {
         <Link href="/sell"><Button.Primary className="flex items-center gap-2 text-sm"><Plus className="w-4 h-4" /> {t("Sell a ticket", "Jual tiket")}</Button.Primary></Link>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+      <div data-reveal="stagger" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
         <Stat label={t("Active listings", "Listing aktif")} value={String(active.length)} />
         <Stat label={t("Sold", "Terjual")} value={String(sold.length)} />
         <Stat label={t("Total views", "Total dilihat")} value={views.toLocaleString(lang === "id" ? "id-ID" : "en-US")} />
@@ -251,9 +251,9 @@ export default function SellerPage() {
       {!mounted ? (
         <p className="text-neutral-gray text-sm">{t("Loading...", "Memuat...")}</p>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div data-reveal="stagger" className="flex flex-col gap-3">
           {listings.map((l) => (
-            <div key={l.id} className="bg-neutral-white rounded-2xl border border-neutral-light-gray-1 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div key={l.id} className="bg-neutral-white rounded-2xl border border-neutral-light-gray-1 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors duration-300 hover:border-lummy-500">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <h4 className="font-fredoka font-semibold text-neutral-black truncate">{l.eventTitle}</h4>

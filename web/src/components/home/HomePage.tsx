@@ -14,11 +14,11 @@ import { useCatalogue } from "@/lib/catalogue";
 function SectionHead({ title, href }: { title: string; href?: string }) {
   const t = useT();
   return (
-    <div className="flex items-end justify-between mb-6 gap-3">
+    <div data-reveal className="flex items-end justify-between mb-6 gap-3">
       <h2 className="text-2xl md:text-3xl font-bold text-neutral-black">{title}</h2>
       {href && (
-        <Link href={href} className="flex items-center gap-1 text-sm font-medium text-primary-navy hover:opacity-80 transition text-nowrap">
-          {t("See all", "Lihat semua")} <ArrowRight className="w-4 h-4" />
+        <Link href={href} className="group flex items-center gap-1 text-sm font-medium text-primary-navy text-nowrap">
+          <span className="lm-underline">{t("See all", "Lihat semua")}</span> <ArrowRight className="w-4 h-4 transition group-hover:translate-x-1" />
         </Link>
       )}
     </div>
@@ -32,18 +32,18 @@ function ComingUp({ events }: { events: EventItem[] }) {
   const { formatIDR } = useFormatters();
   const locale = lang === "id" ? "id-ID" : "en-GB";
   return (
-    <ul className="rounded-3xl border border-primary-navy bg-neutral-white divide-y divide-dashed divide-neutral-light-gray-1 overflow-hidden">
+    <ul data-reveal="stagger" className="rounded-3xl border border-primary-navy bg-neutral-white divide-y divide-dashed divide-neutral-light-gray-1 overflow-hidden">
       {events.map((e) => {
         const d = new Date(e.dateISO);
         return (
           <li key={e.id}>
-            <Link href={`/events/${e.id}`} className="group flex items-center gap-4 px-4 sm:px-5 py-3.5 hover:bg-secondary-blue-extra transition">
+            <Link href={`/events/${e.id}`} className="group flex items-center gap-4 px-4 sm:px-5 py-3.5 hover:bg-secondary-blue-light active:bg-secondary-blue-soft transition-colors">
               <div className="w-12 shrink-0 text-center">
                 <div className="text-[11px] font-semibold uppercase tracking-wide text-primary-navy">{d.toLocaleDateString(locale, { month: "short", timeZone: EVENT_TZ })}</div>
                 <div className="font-fredoka font-bold text-2xl text-neutral-black leading-none mt-0.5">{d.toLocaleDateString(locale, { day: "2-digit", timeZone: EVENT_TZ })}</div>
               </div>
               <div className="relative w-14 h-14 rounded-xl overflow-hidden border border-lummy-500 shrink-0 hidden sm:block">
-                <Image src={e.image} alt="" fill sizes="56px" className="object-cover" />
+                <Image src={e.image} alt="" fill sizes="56px" className="object-cover transition-transform duration-500 group-hover:scale-110" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="font-fredoka font-semibold text-neutral-black truncate">{e.title}</div>
@@ -55,7 +55,7 @@ function ComingUp({ events }: { events: EventItem[] }) {
                   <div className="font-fredoka font-bold text-primary-navy mt-1">{formatIDR(e.fromPrice)}</div>
                 </div>
               )}
-              <ChevronRight className="w-5 h-5 text-neutral-gray shrink-0 transition group-hover:translate-x-0.5 group-hover:text-primary-navy" />
+              <ChevronRight className="w-5 h-5 text-neutral-gray shrink-0 transition group-hover:translate-x-1 group-hover:text-primary-navy" />
             </Link>
           </li>
         );
@@ -98,10 +98,10 @@ export default function HomePage() {
     <>
       <Hero quickCats={quickCats} />
 
-      <section className="reveal max-w-7xl mx-auto px-5 lg:px-10 mt-16">
+      <section className="max-w-7xl mx-auto px-5 lg:px-10 mt-16">
         <SectionHead title={t("Popular right now", "Lagi banyak dicari")} href="/events" />
         {/* A swipeable row on phones, a grid from tablet up */}
-        <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory -mx-5 px-5 pt-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:gap-5 sm:mx-0 sm:px-0 sm:overflow-visible">
+        <div data-reveal="stagger" className="flex gap-4 overflow-x-auto snap-x snap-mandatory -mx-5 px-5 pt-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:gap-5 sm:mx-0 sm:px-0 sm:overflow-visible">
           {featured.map((e, i) => (
             <Card.Event
               key={e.id}
@@ -122,20 +122,20 @@ export default function HomePage() {
       </section>
 
       {upcoming.length > 0 && (
-        <section className="reveal max-w-7xl mx-auto px-5 lg:px-10 mt-16">
+        <section className="max-w-7xl mx-auto px-5 lg:px-10 mt-16">
           <SectionHead title={t("Coming up", "Segera digelar")} />
           <ComingUp events={upcoming} />
         </section>
       )}
 
-      <section className="reveal max-w-7xl mx-auto px-5 lg:px-10 mt-20">
-        <div className="max-w-2xl">
+      <section className="max-w-7xl mx-auto px-5 lg:px-10 mt-20">
+        <div data-reveal className="max-w-2xl">
           <h2 className="text-2xl md:text-3xl font-bold text-neutral-black">{t("Why not just buy from a DM?", "Kenapa gak beli lewat DM aja?")}</h2>
           <p className="text-neutral-gray mt-2">
             {t("Most resale in Indonesia still happens in chats and comment sections. Here is what changes.", "Kebanyakan resale di Indonesia masih lewat chat dan kolom komentar. Ini bedanya.")}
           </p>
         </div>
-        <div className="mt-8 grid md:grid-cols-2 gap-4">
+        <div data-reveal="stagger" className="mt-8 grid md:grid-cols-2 gap-4">
           <div className="rounded-3xl bg-secondary-gray-soft p-6">
             <div className="font-fredoka font-semibold text-neutral-gray mb-4">{t("Buying from a DM", "Beli lewat DM")}</div>
             <ul className="flex flex-col gap-3.5">
@@ -157,14 +157,14 @@ export default function HomePage() {
                 </li>
               ))}
             </ul>
-            <Link href="/how-it-works" className="mt-6 inline-flex items-center gap-1 text-sm font-medium text-primary-navy hover:opacity-80">
-              {t("How the protection works", "Cara perlindungannya bekerja")} <ArrowRight className="w-4 h-4" />
+            <Link href="/how-it-works" className="group mt-6 inline-flex items-center gap-1 text-sm font-medium text-primary-navy">
+              <span className="lm-underline">{t("How the protection works", "Cara perlindungannya bekerja")}</span> <ArrowRight className="w-4 h-4 transition group-hover:translate-x-1" />
             </Link>
           </div>
         </div>
       </section>
 
-      <section className="reveal max-w-7xl mx-auto px-5 lg:px-10 mt-20 mb-4">
+      <section data-reveal className="max-w-7xl mx-auto px-5 lg:px-10 mt-20 mb-4">
         <TicketBand>
           <div className="flex flex-col sm:flex-row items-center justify-between gap-5 text-center sm:text-left">
             <div>

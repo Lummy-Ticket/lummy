@@ -9,7 +9,7 @@ export const MENU_TRIGGER =
   "w-full h-12 flex items-center gap-2 pl-4 pr-3 rounded-xl border border-lummy-500 bg-neutral-white text-sm text-neutral-black cursor-pointer hover:bg-secondary-blue-light transition";
 // Filter yang sedang dipakai memakai warna opsi terpilih di popup.
 export const MENU_TRIGGER_ACTIVE = "bg-secondary-blue-soft hover:bg-secondary-blue-soft text-lummy-500 font-medium";
-export const MENU_PANEL = "absolute z-40 mt-2 rounded-xl border-2 border-lummy-500 bg-neutral-white shadow-lummy-lg";
+export const MENU_PANEL = "lm-pop absolute z-40 mt-2 rounded-xl border-2 border-lummy-500 bg-neutral-white shadow-lummy-lg";
 
 // Dropdown kustom (bukan native select), popup rapi, klik-luar nutup.
 export function SelectMenu({
@@ -58,10 +58,10 @@ export function SelectMenu({
       >
         {icon}
         <span className="flex-1 text-left truncate">{label(value)}</span>
-        <ChevronDown className={cn("w-4 h-4 text-neutral-gray shrink-0 transition-transform", open && "rotate-180")} />
+        <ChevronDown className={cn("w-4 h-4 text-neutral-gray shrink-0 transition-transform duration-300", open && "rotate-180")} />
       </button>
       {open && (
-        <div role="listbox" className={cn(MENU_PANEL, "min-w-full w-max max-w-[240px] overflow-hidden py-1")}>
+        <div role="listbox" className={cn(MENU_PANEL, "min-w-full w-max max-w-[240px] overflow-hidden py-1 [--origin:top_left]")}>
           {options.map((opt) => {
             const active = opt === value;
             return (

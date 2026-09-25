@@ -128,7 +128,7 @@ function EventsInner() {
                 onClick={() => setCat(c)}
                 aria-pressed={on}
                 className={cn(
-                  "shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full text-sm border transition cursor-pointer",
+                  "shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full text-sm border transition cursor-pointer active:scale-95",
                   on
                     ? "bg-primary-navy text-white border-primary-navy"
                     : "bg-neutral-white text-neutral-gray border-neutral-light-gray-1 hover:border-primary-navy"
@@ -155,7 +155,7 @@ function EventsInner() {
       </div>
 
       {filtered.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div data-reveal="stagger" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.map((e, i) => (
             <Card.Event
               key={e.id}

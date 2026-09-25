@@ -1,5 +1,6 @@
 "use client";
 
+import type React from "react";
 import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
@@ -28,7 +29,7 @@ function ListingRow({ event, listing, qty, cheapest }: { event: EventItem; listi
   const highlight = cheapest && buyable;
 
   return (
-    <div className={`relative bg-neutral-white rounded-2xl border p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition ${highlight ? "border-primary-navy border-2" : "border-neutral-light-gray-1"} ${buyable ? "" : "bg-secondary-gray-soft/60"}`}>
+    <div className={`relative bg-neutral-white rounded-2xl border p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition duration-300 ${highlight ? "border-primary-navy border-2" : "border-neutral-light-gray-1"} ${buyable ? "hover:border-primary-navy hover:shadow-[3px_3px_0_#245397] hover:-translate-y-0.5" : ""} ${buyable ? "" : "bg-secondary-gray-soft/60"}`}>
       {highlight && (
         <span className="absolute -top-2.5 left-4 rounded-full bg-primary-navy px-2.5 py-0.5 text-[11px] font-semibold text-white">{t("Cheapest", "Termurah")}</span>
       )}
@@ -123,11 +124,11 @@ export default function EventDetailPage() {
         <div>
           {/* 16:9 photo; the category rides on the image so it never crowds the title */}
           <div className="relative w-full aspect-video rounded-3xl overflow-hidden border border-lummy-500">
-            <Image src={event.image} alt={event.title} fill sizes="(min-width: 1024px) 60vw, 100vw" className="object-cover" priority />
+            <Image src={event.image} alt={event.title} fill sizes="(min-width: 1024px) 60vw, 100vw" className="lm-settle object-cover" priority />
             <span className="absolute top-3 left-3 bg-neutral-white/95 backdrop-blur-sm text-lummy-500 text-xs font-semibold rounded-full px-3 py-1 shadow-sm">{categoryLabel(event.category)}</span>
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold text-neutral-black mt-6 tracking-tight">{event.title}</h1>
-          <div className="flex flex-wrap gap-x-6 gap-y-2 mt-4 text-neutral-gray">
+          <h1 className="lm-in text-3xl md:text-4xl font-bold text-neutral-black mt-6 tracking-tight" style={{ "--d": "120ms" } as React.CSSProperties}>{event.title}</h1>
+          <div className="lm-in flex flex-wrap gap-x-6 gap-y-2 mt-4 text-neutral-gray" style={{ "--d": "180ms" } as React.CSSProperties}>
             <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-primary-navy" /> {formatEventDate(event.dateISO)}</span>
             <span className="flex items-center gap-2"><MapPin className="w-4 h-4 text-primary-navy" /> {event.venue}, {event.city}</span>
           </div>
@@ -149,7 +150,7 @@ export default function EventDetailPage() {
                   key={n}
                   onClick={() => setQty(n)}
                   aria-pressed={qty === n}
-                  className={`w-9 h-9 rounded-full text-sm transition cursor-pointer ${qty === n ? "bg-primary-navy text-white font-medium" : "text-neutral-gray hover:text-primary-navy"}`}
+                  className={`w-9 h-9 rounded-full text-sm transition cursor-pointer active:scale-90 ${qty === n ? "bg-primary-navy text-white font-medium" : "text-neutral-gray hover:text-primary-navy"}`}
                 >
                   {n}{n === 6 ? "+" : ""}
                 </button>
@@ -179,7 +180,7 @@ export default function EventDetailPage() {
               </div>
             )}
           </div>
-          <div className="flex flex-col gap-4">
+          <div data-reveal="stagger" className="flex flex-col gap-4">
             {visibleListings.length > 0 ? (
               visibleListings.map((l) => (
                 <ListingRow key={l.id} event={event} listing={l} qty={qty} cheapest={l.askPrice === cheapest} />
@@ -196,7 +197,7 @@ export default function EventDetailPage() {
         </div>
 
         {/* Sidebar */}
-        <aside className="lg:sticky lg:top-24 h-fit flex flex-col gap-4">
+        <aside className="lm-in lg:sticky lg:top-24 h-fit flex flex-col gap-4" style={{ "--d": "160ms" } as React.CSSProperties}>
           <div className="bg-neutral-white rounded-3xl border border-lummy-500 overflow-hidden">
             <div className="p-6">
               <div className="flex items-center gap-2 text-primary-navy font-fredoka font-semibold">
@@ -207,8 +208,8 @@ export default function EventDetailPage() {
                 <li className="flex gap-2"><CheckCircle2 className="w-4 h-4 text-secondary-green-dark shrink-0 mt-0.5" /> {t("Turned away with proof? Your money comes back", "Ditolak dengan bukti? Uangmu kembali")}</li>
                 <li className="flex gap-2"><CheckCircle2 className="w-4 h-4 text-secondary-green-dark shrink-0 mt-0.5" /> {t(`Every price is at most ${CAP_PCT}% of face value`, `Semua harga maksimal ${CAP_PCT}% dari harga asli`)}</li>
               </ul>
-              <Link href="/how-it-works" className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-primary-navy hover:opacity-80">
-                {t("How this works", "Cara kerjanya")} <ArrowRight className="w-3.5 h-3.5" />
+              <Link href="/how-it-works" className="group mt-4 inline-flex items-center gap-1 text-xs font-medium text-primary-navy">
+                <span className="lm-underline">{t("How this works", "Cara kerjanya")}</span> <ArrowRight className="w-3.5 h-3.5 transition group-hover:translate-x-0.5" />
               </Link>
             </div>
             {/* Price stub: perforation + cream reads as ticket paper */}
