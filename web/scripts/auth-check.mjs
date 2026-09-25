@@ -144,8 +144,8 @@ try {
   await page.waitForTimeout(1500);
   check("pembeli demo (bukan staf) ditolak dari konsol admin", new URL(page.url()).pathname !== "/admin", page.url());
   await page.goto(BASE, { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Switch view" }).click();
-  const views = await page.locator("div.absolute.right-0.top-full button").allInnerTexts();
+  await page.getByRole("button", { name: "Account menu" }).click();
+  const views = await page.getByRole("group", { name: "View as" }).getByRole("button").allInnerTexts();
   check("pilihan tampilan akun biasa tanpa Admin", views.join(",") === "Buyer,Seller", views.join(","));
   await page.keyboard.press("Escape");
 

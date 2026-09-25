@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { Search, TrendingUp } from "lucide-react";
-import { useCatalogue } from "@/lib/catalogue";
+import { useEventSuggestions } from "@/lib/useEventSuggestions";
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 
 // Search-first hero. Focus shows what is trending, typing filters live. Each row
@@ -15,10 +15,10 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
   const { formatEventDate } = useFormatters();
   const categoryLabel = useCategoryLabel();
   const router = useRouter();
-  const { events: all } = useCatalogue();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const { query, suggestions } = useEventSuggestions(q);
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
@@ -33,26 +33,15 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
     };
   }, []);
 
-  const query = q.trim().toLowerCase();
-  const suggestions = useMemo(() => {
-    if (!query) return all.filter((e) => e.featured).slice(0, 5);
-    return all.filter(
-      (e) =>
-        e.title.toLowerCase().includes(query) ||
-        e.city.toLowerCase().includes(query) ||
-        e.venue.toLowerCase().includes(query)
-    ).slice(0, 6);
-  }, [query, all]);
-
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     router.push(q.trim() ? `/events?q=${encodeURIComponent(q.trim())}` : "/events");
   };
 
   return (
-    <div ref={ref} className="w-full max-w-2xl flex flex-col gap-3">
+    <div ref={ref} data-hero-search className="w-full max-w-2xl flex flex-col gap-3">
       <div className="relative">
-        <form onSubmit={submit} className="flex items-center gap-2 bg-neutral-white rounded-2xl border-2 border-lummy-500 p-2 pl-4 shadow-lummy">
+        <form onSubmit={submit} className="flex items-center gap-2 bg-neutral-white rounded-2xl border-2 border-lummy-500 p-2 pl-4 shadow-lummy transition-shadow duration-300 focus-within:shadow-[0_0_0_4px_rgba(177,231,255,0.7)]">
           <Search className="w-5 h-5 text-neutral-gray shrink-0" />
           <input
             value={q}
@@ -62,13 +51,13 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
             aria-label={t("Search events", "Cari event")}
             className="flex-1 outline-none bg-transparent text-neutral-black placeholder:text-neutral-gray min-w-0"
           />
-          <button type="submit" className="shrink-0 bg-primary-navy hover:bg-primary-navy-dark text-white font-fredoka font-medium rounded-xl px-5 py-2.5 text-sm transition cursor-pointer">
+          <button type="submit" className="shrink-0 bg-primary-navy hover:bg-primary-navy-dark active:scale-95 text-white font-fredoka font-medium rounded-xl px-5 py-2.5 text-sm transition cursor-pointer">
             {t("Search", "Cari")}
           </button>
         </form>
 
         {open && (suggestions.length > 0 || query) && (
-          <div className="absolute top-full left-0 right-0 mt-2 z-40 rounded-2xl border-2 border-lummy-500 bg-neutral-white shadow-lummy-lg overflow-hidden text-left animate-fade-in">
+          <div className="absolute top-full left-0 right-0 mt-2 z-40 rounded-2xl border-2 border-lummy-500 bg-neutral-white shadow-lummy-lg overflow-hidden text-left lm-pop">
             <div className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium text-neutral-gray border-b border-neutral-light-gray-1">
               <TrendingUp className="w-3.5 h-3.5 text-lummy-500" /> {query ? t("Search results", "Hasil pencarian") : t("Popular right now", "Lagi banyak dicari")}
             </div>
@@ -82,10 +71,10 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
                 key={e.id}
                 href={`/events/${e.id}`}
                 onClick={() => setOpen(false)}
-                className="flex items-center gap-3 px-3 py-2.5 hover:bg-secondary-blue-light transition"
+                className="group flex items-center gap-3 px-3 py-2.5 hover:bg-secondary-blue-light transition-colors"
               >
                 <div className="relative w-11 h-11 rounded-lg overflow-hidden border border-neutral-light-gray-1 shrink-0">
-                  <Image src={e.image} alt="" fill sizes="44px" className="object-cover" />
+                  <Image src={e.image} alt="" fill sizes="44px" className="object-cover transition-transform duration-500 group-hover:scale-110" />
                 </div>
                 <div className="min-w-0">
                   <div className="text-sm font-medium text-neutral-black truncate">{e.title}</div>
@@ -98,14 +87,14 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Link href="/events" className="hidden sm:inline-block px-4 py-1.5 rounded-full text-sm bg-neutral-white/70 border border-lummy-500 text-lummy-500 hover:bg-neutral-white transition">
+        <Link href="/events" className="hidden sm:inline-block px-4 py-1.5 rounded-full text-sm bg-neutral-white/70 border border-lummy-500 text-lummy-500 hover:bg-neutral-white hover:-translate-y-0.5 active:translate-y-0 transition">
           {t("All events", "Semua event")}
         </Link>
         {quickCats.map((c) => (
           <Link
             key={c}
             href={`/events?cat=${encodeURIComponent(c)}`}
-            className="px-3 sm:px-4 py-1.5 rounded-full text-sm bg-neutral-white/70 border border-lummy-500 text-lummy-500 hover:bg-neutral-white transition"
+            className="px-3 sm:px-4 py-1.5 rounded-full text-sm bg-neutral-white/70 border border-lummy-500 text-lummy-500 hover:bg-neutral-white hover:-translate-y-0.5 active:translate-y-0 transition"
           >
             {categoryLabel(c)}
           </Link>
