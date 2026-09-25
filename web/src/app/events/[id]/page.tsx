@@ -11,9 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { NotifyCard } from "@/components/events/NotifyCard";
 import {
-  getEventById, getListingsByEvent, getTier, isBuyable, isEventOver, CAP_PCT, type Listing, type EventItem,
+  getTier, isBuyable, isEventOver, CAP_PCT, type Listing, type EventItem,
 } from "@/lib/mock";
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
+import { useCatalogue } from "@/lib/catalogue";
 
 function ListingRow({ event, listing, qty, cheapest }: { event: EventItem; listing: Listing; qty: number; cheapest?: boolean }) {
   const t = useT();
@@ -80,13 +81,14 @@ export default function EventDetailPage() {
   const { formatIDR, formatEventDate } = useFormatters();
   const categoryLabel = useCategoryLabel();
   const params = useParams<{ id: string }>();
-  const event = getEventById(params.id);
+  const catalogue = useCatalogue();
+  const event = catalogue.eventById(params.id);
   const [sort, setSort] = useState<SortId>("cheap");
   const [qty, setQty] = useState(2);
 
   // Hooks run before any early return, so the order stays identical on every
   // render even when the event id does not resolve.
-  const listings = useMemo(() => (event ? getListingsByEvent(event.id) : []), [event]);
+  const listings = useMemo(() => (event ? catalogue.listingsByEvent(event.id) : []), [event, catalogue]);
   // Viagogo-style filter: show sets that can satisfy qty (>=N); non-splittable only at exactly N.
   const visibleListings = useMemo(() => {
     const arr = listings.filter((l) => l.quantity >= qty && (l.splittable || l.quantity === qty));

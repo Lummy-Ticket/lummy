@@ -8,7 +8,8 @@ import { Card } from "@/components/ui/card";
 import { Hero } from "@/components/home/Hero";
 import { TicketBand } from "@/components/ui/ticket-band";
 import { useT, useFormatters, useActiveLang, EVENT_TZ } from "@/lib/i18n";
-import { getEvents, type EventItem } from "@/lib/mock";
+import type { EventItem } from "@/lib/mock";
+import { useCatalogue } from "@/lib/catalogue";
 
 function SectionHead({ title, href }: { title: string; href?: string }) {
   const t = useT();
@@ -86,7 +87,7 @@ const COMPARE = [
 export default function HomePage() {
   const t = useT();
   const { formatEventDate } = useFormatters();
-  const all = getEvents();
+  const { events: all } = useCatalogue();
   const featured = all.filter((e) => e.featured).slice(0, 3);
   const upcoming = all
     .filter((e) => !featured.includes(e))

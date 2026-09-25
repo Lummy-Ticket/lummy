@@ -8,6 +8,7 @@ import { useUser, type Role } from "@/lib/mock";
 import { useHydrated } from "@/lib/access";
 import { useT } from "@/lib/i18n";
 import { demoPrefs, useChainInfo } from "@/lib/chain/client";
+import { useCatalogue } from "@/lib/catalogue";
 
 const ROLES: { role: Role; en: string; id: string; home: string }[] = [
   { role: "BUYER", en: "Buyer", id: "Pembeli", home: "/" },
@@ -78,6 +79,7 @@ export default function DevPanel() {
   const switchPersona = useUser((s) => s.switchPersona);
   const login = useUser((s) => s.login);
   const logout = useUser((s) => s.logout);
+  const catalogueSource = useCatalogue().source;
 
   if (!mounted) return null;
 
@@ -98,7 +100,12 @@ export default function DevPanel() {
               <X className="w-4 h-4" />
             </button>
           </div>
-          <p className="text-xs text-neutral-gray mb-3">{t("Prototype mode. Orders are sample data unless chain mode is on.", "Mode prototipe. Pesanan adalah data contoh, kecuali mode chain menyala.")}</p>
+          <p className="text-xs text-neutral-gray mb-1">{t("Prototype mode. Orders are sample data unless chain mode is on.", "Mode prototipe. Pesanan adalah data contoh, kecuali mode chain menyala.")}</p>
+          <p className="text-xs text-neutral-gray mb-3" data-catalogue-source={catalogueSource}>
+            {catalogueSource === "database"
+              ? t("Catalogue: from the database.", "Katalog: dari database.")
+              : t("Catalogue: sample data.", "Katalog: data contoh.")}
+          </p>
 
           <ChainMode />
 

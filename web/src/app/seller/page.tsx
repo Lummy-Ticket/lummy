@@ -10,12 +10,13 @@ import { Modal } from "@/components/common/Modal";
 import { PageContainer } from "@/components/layout/PageContainer";
 import {
   useSellerListings, useOrders, useUser, reasonMeta, mockSellerEvidence,
-  sellerPenalty, SELLER_PENALTY_PCT, getEventById,
+  sellerPenalty, SELLER_PENALTY_PCT,
   EVENT_DURATION_H, DISPUTE_WINDOW_H, type SellerListing, type Order, type DisputeEvidence,
 } from "@/lib/mock";
 import { useAccessGuard, useHydrated } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters, useActiveLang } from "@/lib/i18n";
+import { useCatalogue } from "@/lib/catalogue";
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
@@ -168,6 +169,7 @@ function ClaimsAgainstYou({ orders }: { orders: Order[] }) {
 
 export default function SellerPage() {
   const t = useT();
+  const catalogue = useCatalogue();
   const lang = useActiveLang();
   const ready = useAccessGuard("account");
   const { formatIDR, formatEventDate } = useFormatters();
@@ -195,7 +197,7 @@ export default function SellerPage() {
   // this listing's own event date.
   const payoutNote = (l: SellerListing) => {
     if (l.status !== "sold") return null;
-    const ev = getEventById(l.eventId);
+    const ev = catalogue.eventById(l.eventId);
     if (!ev) return null;
     const due = new Date(new Date(ev.dateISO).getTime() + (EVENT_DURATION_H + DISPUTE_WINDOW_H) * 3_600_000);
     return due.getTime() < now

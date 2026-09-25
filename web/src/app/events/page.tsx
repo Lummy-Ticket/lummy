@@ -9,20 +9,19 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { PriceFilter } from "@/components/events/PriceFilter";
-import {
-  getEvents,
-} from "@/lib/mock";
+import type { EventItem } from "@/lib/mock";
+import { useCatalogue } from "@/lib/catalogue";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 
 const ALL_CITIES = "All cities";
 const STEP = 100_000;
 
-// Built per page visit, not at module load: the catalogue changes with the date, and a
-// server instance can outlive the day it started on.
-function catalogueView() {
+// Derived from what is on sale, never held at module load: the catalogue changes with the
+// date and with every new listing.
+function catalogueView(onSale: EventItem[]) {
   // Soonest first, the way people plan.
-  const events = [...getEvents()].sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+  const events = [...onSale].sort((a, b) => a.dateISO.localeCompare(b.dateISO));
   // Round the bounds outward so the handles land on tidy numbers. An event with nothing
   // on sale has no price (0), so it does not drag the lower bound down.
   const priced = events.map((e) => e.fromPrice).filter((p) => p > 0);
@@ -36,7 +35,8 @@ function catalogueView() {
 }
 
 function EventsInner() {
-  const { events, categories, cities, PRICE_MIN, PRICE_MAX } = useMemo(() => catalogueView(), []);
+  const { events: onSale } = useCatalogue();
+  const { events, categories, cities, PRICE_MIN, PRICE_MAX } = useMemo(() => catalogueView(onSale), [onSale]);
   const t = useT();
   const { formatEventDate } = useFormatters();
   const categoryLabel = useCategoryLabel();

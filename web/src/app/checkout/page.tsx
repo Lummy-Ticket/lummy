@@ -10,8 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/common/Modal";
 import {
-  SEED_LISTINGS, getEventById, getTier, isBuyable, isEventOver, platformFee, MATERAI, useOrders, DISPUTE_WINDOW_H, EVENT_DURATION_H, type OrderChain,
+  getTier, isBuyable, isEventOver, platformFee, MATERAI, useOrders, DISPUTE_WINDOW_H, EVENT_DURATION_H, type OrderChain,
 } from "@/lib/mock";
+import { useCatalogue } from "@/lib/catalogue";
 import { chainCheckoutReady, demoPrefs, openChainOrder, useChainInfo } from "@/lib/chain/client";
 import { useAccessGuard } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
@@ -41,8 +42,9 @@ function CheckoutInner() {
   const { formatIDR, formatEventDate } = useFormatters();
   const params = useSearchParams();
   const router = useRouter();
-  const listing = SEED_LISTINGS.find((l) => l.id === params.get("listing"));
-  const event = listing && getEventById(listing.eventId);
+  const catalogue = useCatalogue();
+  const listing = catalogue.listingById(params.get("listing") ?? "");
+  const event = listing && catalogue.eventById(listing.eventId);
   const tier = listing && event ? getTier(event, listing.tierId) : undefined;
   const buy = useOrders((s) => s.buy);
   const chainInfo = useChainInfo();

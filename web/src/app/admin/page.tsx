@@ -14,12 +14,13 @@ import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 import { PageContainer } from "@/components/layout/PageContainer";
 import {
-  useEventRequests, useOrders, useSellerListings, getEventById,
+  useEventRequests, useOrders, useSellerListings,
   checkEvidence, reasonMeta, suggestedRationale, disputeDeadlineISO,
   remedyOptions, suggestedRemedy, sellerPenalty, SELLER_PENALTY_PCT, REMEDY_LABEL, partialAmount,
   type ChainSettlement, type EventRequest, type Order, type Remedy, type SellerListing,
 } from "@/lib/mock";
 import { chainAction } from "@/lib/chain/client";
+import { useCatalogue } from "@/lib/catalogue";
 
 /**
  * What the buyer gets back on chain, in USDC units: the same share of the locked amount as the
@@ -121,6 +122,7 @@ function ListingQueue({
 }) {
   const t = useT();
   const { formatIDR, formatEventDate } = useFormatters();
+  const catalogue = useCatalogue();
 
   if (held.length === 0) {
     return <EmptyQueue text={t("Nothing held. Every listing cleared on its own.", "Tidak ada yang ditahan. Semua listing lolos sendiri.")} />;
@@ -135,7 +137,7 @@ function ListingQueue({
         )}
       </p>
       {held.map((l) => {
-        const ev = getEventById(l.eventId);
+        const ev = catalogue.eventById(l.eventId);
         const risky = l.ai.pdfSuspicious || l.ai.forgeryScore >= 60;
         return (
           <div key={l.id} className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">

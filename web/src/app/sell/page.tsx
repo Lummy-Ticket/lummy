@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import {
@@ -8,10 +8,11 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  getEvents, getEventById, getTier, CAP_PCT, FLOOR_PCT, useSellerListings, type ListingAI,
+  getTier, CAP_PCT, FLOOR_PCT, useSellerListings, type ListingAI,
   isLateListing, LATE_LISTING_H,
 } from "@/lib/mock";
 import { PageContainer } from "@/components/layout/PageContainer";
+import { useCatalogue } from "@/lib/catalogue";
 import { useAccessGuard } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters } from "@/lib/i18n";
@@ -41,8 +42,8 @@ export default function SellPage() {
   const router = useRouter();
   const addListing = useSellerListings((s) => s.add);
   const fileInput = useRef<HTMLInputElement>(null);
-  // Read per visit, not at module load: the catalogue changes with the date.
-  const events = useMemo(() => getEvents(), []);
+  const catalogue = useCatalogue();
+  const events = catalogue.events;
 
   const [step, setStep] = useState(0);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -65,7 +66,7 @@ export default function SellPage() {
   const ktpInput = useRef<HTMLInputElement>(null);
   const ktpMissing = gateKtp && !ktpFile;
 
-  const event = getEventById(eventId);
+  const event = catalogue.eventById(eventId);
   const tier = event ? getTier(event, tierId) : undefined;
   const faceValue = tier?.faceValue ?? 0;
   const cap = Math.round(faceValue * (CAP_PCT / 100));
@@ -206,7 +207,7 @@ export default function SellPage() {
               <label className="flex flex-col gap-1.5">
                 <span className="text-xs text-neutral-gray">{t("Event", "Event")}</span>
                 <div className="relative">
-                  <select value={eventId} onChange={(e) => { setEventId(e.target.value); const ev = getEventById(e.target.value); setTierId(ev?.tiers[0]?.id ?? ""); }} className="appearance-none w-full rounded-xl border border-lummy-500 px-4 py-3 pr-10 text-sm text-neutral-black bg-neutral-white outline-none cursor-pointer">
+                  <select value={eventId} onChange={(e) => { setEventId(e.target.value); const ev = catalogue.eventById(e.target.value); setTierId(ev?.tiers[0]?.id ?? ""); }} className="appearance-none w-full rounded-xl border border-lummy-500 px-4 py-3 pr-10 text-sm text-neutral-black bg-neutral-white outline-none cursor-pointer">
                     {events.map((ev) => <option key={ev.id} value={ev.id}>{ev.title}</option>)}
                   </select>
                   <ChevronDown className="w-4 h-4 text-neutral-gray absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />

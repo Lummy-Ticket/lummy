@@ -5,9 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { Search, TrendingUp } from "lucide-react";
-import {
-  getEvents,
-} from "@/lib/mock";
+import { useCatalogue } from "@/lib/catalogue";
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 
 // Search-first hero. Focus shows what is trending, typing filters live. Each row
@@ -17,6 +15,7 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
   const { formatEventDate } = useFormatters();
   const categoryLabel = useCategoryLabel();
   const router = useRouter();
+  const { events: all } = useCatalogue();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -36,7 +35,6 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
 
   const query = q.trim().toLowerCase();
   const suggestions = useMemo(() => {
-    const all = getEvents();
     if (!query) return all.filter((e) => e.featured).slice(0, 5);
     return all.filter(
       (e) =>
@@ -44,7 +42,7 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
         e.city.toLowerCase().includes(query) ||
         e.venue.toLowerCase().includes(query)
     ).slice(0, 6);
-  }, [query]);
+  }, [query, all]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
