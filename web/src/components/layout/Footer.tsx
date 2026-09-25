@@ -19,6 +19,7 @@ const cols: { en: string; id: string; links: { en: string; id: string; href: str
     links: [
       { en: "Sell a ticket", id: "Jual tiket", href: "/sell" },
       { en: "Seller dashboard", id: "Dasbor penjual", href: "/seller" },
+      { en: "How selling works", id: "Cara jualan", href: "/how-it-works#selling" },
     ],
   },
   {
