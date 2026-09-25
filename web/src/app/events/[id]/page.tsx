@@ -17,7 +17,7 @@ import {
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 import { useCatalogue } from "@/lib/catalogue";
 
-function ListingRow({ event, listing, qty, cheapest }: { event: EventItem; listing: Listing; qty: number; cheapest?: boolean }) {
+function ListingRow({ event, listing, qty, cheapest, index }: { event: EventItem; listing: Listing; qty: number; cheapest?: boolean; index: number }) {
   const t = useT();
   const { formatIDR } = useFormatters();
   const tier = getTier(event, listing.tierId);
@@ -29,7 +29,9 @@ function ListingRow({ event, listing, qty, cheapest }: { event: EventItem; listi
   const highlight = cheapest && buyable;
 
   return (
-    <div className={`relative bg-neutral-white rounded-2xl border p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition duration-300 ${highlight ? "border-primary-navy border-2" : "border-neutral-light-gray-1"} ${buyable ? "hover:border-primary-navy hover:shadow-[3px_3px_0_#245397] hover:-translate-y-0.5" : ""} ${buyable ? "" : "bg-secondary-gray-soft/60"}`}>
+    // CSS entrance, not data-reveal: the rows are rendered on the server and on screen at load,
+    // so they must not wait for hydration to show (it cost ~0.4s on a slow phone).
+    <div style={{ "--i": index, "--d": "220ms" } as React.CSSProperties} className={`lm-in relative bg-neutral-white rounded-2xl border p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition duration-300 ${highlight ? "border-primary-navy border-2" : "border-neutral-light-gray-1"} ${buyable ? "hover:border-primary-navy hover:shadow-[3px_3px_0_#245397] hover:-translate-y-0.5" : ""} ${buyable ? "" : "bg-secondary-gray-soft/60"}`}>
       {highlight && (
         <span className="absolute -top-2.5 left-4 rounded-full bg-primary-navy px-2.5 py-0.5 text-[11px] font-semibold text-white">{t("Cheapest", "Termurah")}</span>
       )}
@@ -180,10 +182,10 @@ export default function EventDetailPage() {
               </div>
             )}
           </div>
-          <div data-reveal="stagger" className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4">
             {visibleListings.length > 0 ? (
-              visibleListings.map((l) => (
-                <ListingRow key={l.id} event={event} listing={l} qty={qty} cheapest={l.askPrice === cheapest} />
+              visibleListings.map((l, i) => (
+                <ListingRow key={l.id} event={event} listing={l} qty={qty} cheapest={l.askPrice === cheapest} index={i} />
               ))
             ) : (
               <div className="text-center py-10 bg-secondary-gray-soft rounded-2xl">

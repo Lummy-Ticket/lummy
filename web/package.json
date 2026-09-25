@@ -19,7 +19,9 @@
     "chain:recycle": "tsx scripts/recycle-usdc.ts",
     "chain:live": "LIVE=1 node scripts/chain-ui-check.mjs",
     "db:seed-sql": "tsx scripts/export-seed-sql.ts",
-    "auth:check": "node --env-file-if-exists=.env.local scripts/auth-check.mjs"
+    "auth:check": "node --env-file-if-exists=.env.local scripts/auth-check.mjs",
+    "motion:check": "node scripts/motion-check.mjs",
+    "perf:probe": "node scripts/perf-probe.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

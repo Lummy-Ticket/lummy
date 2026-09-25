@@ -1,5 +1,6 @@
 "use client";
 
+import type React from "react";
 import { Suspense, useMemo, useState } from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
@@ -155,10 +156,15 @@ function EventsInner() {
       </div>
 
       {filtered.length > 0 ? (
-        <div data-reveal="stagger" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        // CSS entrance, not data-reveal: the first cards are rendered on the server and on screen
+        // at load, so they must not wait for hydration (about 0.45s on a slow phone). Cards a
+        // filter brings in later rise the same way, since the animation runs on insertion.
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.map((e, i) => (
             <Card.Event
               key={e.id}
+              className="lm-in"
+              style={{ "--i": Math.min(i, 7) } as React.CSSProperties}
               eager={i < 3}
               image={e.image}
               date={formatEventDate(e.dateISO)}

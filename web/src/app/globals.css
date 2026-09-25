@@ -134,16 +134,12 @@
   --default-transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Reveal on scroll. `data-motion` is set on <html> by a tiny script in the layout, only
-   when motion is welcome, so without JavaScript or with reduced motion nothing is ever
-   hidden. Until MotionObserver takes over (data-motion-ready) CSS keeps them hidden;
-   after that it holds and plays them with the Web Animations API.
+/* Reveal on scroll, run by MotionObserver with the Web Animations API. Nothing is hidden
+   by CSS: what is on screen at load shows at once, even before JavaScript, and only what
+   is still below the fold is held and rises in when it arrives.
      data-reveal            the element rises in
-     data-reveal="stagger"  its children rise in one after another */
-html[data-motion]:not([data-motion-ready]) [data-reveal]:not([data-reveal="stagger"]),
-html[data-motion]:not([data-motion-ready]) [data-reveal="stagger"] > * {
-  opacity: 0;
-}
+     data-reveal="stagger"  its children rise in one after another
+   For what is on screen at load, use .lm-in below: a CSS entrance that never waits. */
 @keyframes lm-rise {
   from { opacity: 0; transform: translateY(22px); }
   to { opacity: 1; transform: none; }
