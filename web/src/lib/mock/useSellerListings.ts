@@ -18,6 +18,8 @@ export interface SellerListing {
   createdAtISO: string;
   /** Held because it was listed close to doors, not because the AI flagged it. */
   lateListing?: boolean;
+  /** The venue checks ID, so the seller staged a KTP photo for the buyer at listing time. */
+  gateKtp?: boolean;
 }
 
 const SEED: SellerListing[] = [

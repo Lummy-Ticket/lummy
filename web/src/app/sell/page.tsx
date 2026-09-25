@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import {
-  UploadCloud, FileText, ScanLine, CheckCircle2, AlertTriangle, Loader2, ArrowRight, ArrowLeft, Sparkles, ShieldCheck, ChevronDown, Minus, Plus,
+  UploadCloud, FileText, ScanLine, CheckCircle2, AlertTriangle, Loader2, ArrowRight, ArrowLeft, Sparkles, ShieldCheck, ChevronDown, Minus, Plus, IdCard, Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -58,6 +58,12 @@ export default function SellPage() {
   const [ai, setAi] = useState<ListingAI | null>(null);
   const [price, setPrice] = useState<number>(0);
   const [qty, setQty] = useState(1);
+  // Venues that still check ID want the seller's KTP next to the letter of authorisation.
+  // It is staged now so nobody scrambles for it on the day (docs/02, gate KTP).
+  const [gateKtp, setGateKtp] = useState(false);
+  const [ktpFile, setKtpFile] = useState<string | null>(null);
+  const ktpInput = useRef<HTMLInputElement>(null);
+  const ktpMissing = gateKtp && !ktpFile;
 
   const event = getEventById(eventId);
   const tier = event ? getTier(event, tierId) : undefined;
@@ -93,12 +99,13 @@ export default function SellPage() {
   };
 
   const publish = () => {
-    if (!event || !tier || blocked) return;
+    if (!event || !tier || blocked || ktpMissing) return;
     addListing({
       eventId: event.id, eventTitle: event.title, tierName: tier.name,
       askPrice: price, faceValue, quantity: qty, ai: ai!,
       status: flagged || late ? "review" : "active",
       lateListing: late,
+      gateKtp,
     });
     toast.success(flagged || late ? t("Submitted for admin review", "Diajukan untuk review admin") : t("Listing is live, protected by escrow.", "Listing tayang, dijaga escrow."));
     router.push("/seller");
@@ -267,6 +274,44 @@ export default function SellPage() {
             )}
           </div>
 
+          <div className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-6">
+            <label className="flex items-start justify-between gap-4 cursor-pointer">
+              <span>
+                <span className="block font-fredoka font-semibold text-neutral-black">{t("The venue checks ID at the gate", "Venue cek KTP di gate")}</span>
+                <span className="block text-sm text-neutral-gray mt-0.5">
+                  {t("The buyer will need a photo of your ID card next to the letter of authorisation.", "Pembeli butuh foto KTP kamu di samping surat kuasa.")}
+                </span>
+              </span>
+              <input type="checkbox" checked={gateKtp} onChange={(e) => setGateKtp(e.target.checked)} className="mt-1 w-5 h-5 shrink-0 accent-[#3A6CB4] cursor-pointer" />
+            </label>
+            {gateKtp && (
+              <div className="mt-4 flex flex-col gap-3">
+                <input ref={ktpInput} type="file" accept="image/*" hidden onChange={(e) => setKtpFile(e.target.files?.[0]?.name ?? null)} />
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button.Ghost className="text-sm" onClick={() => ktpInput.current?.click()}>
+                    <IdCard className="w-4 h-4" /> {ktpFile ? t("Replace photo", "Ganti foto") : t("Upload ID card photo", "Upload foto KTP")}
+                  </Button.Ghost>
+                  {ktpFile ? (
+                    <span className="flex items-center gap-1.5 text-sm text-neutral-black min-w-0 break-all">
+                      <CheckCircle2 className="w-4 h-4 shrink-0 text-secondary-green-dark" /> {ktpFile}
+                    </span>
+                  ) : (
+                    <button type="button" onClick={() => setKtpFile("ktp-sample.jpg")} className="text-sm text-primary-navy font-medium hover:opacity-80 cursor-pointer">
+                      {t("Use a sample", "Pakai contoh")}
+                    </button>
+                  )}
+                </div>
+                <p className="flex items-start gap-2 text-xs text-neutral-gray leading-relaxed">
+                  <Lock className="w-3.5 h-3.5 shrink-0 mt-0.5 text-lummy-500" />
+                  {t(
+                    "Stored encrypted and never sent to AI. The buyer can only view it close to the show, with their name watermarked across it, and it is deleted after the event.",
+                    "Disimpan terenkripsi dan tidak pernah dikirim ke AI. Pembeli baru bisa melihatnya mendekati acara, dengan nama mereka sebagai watermark, dan fotonya dihapus setelah acara."
+                  )}
+                </p>
+              </div>
+            )}
+          </div>
+
           {late && !blocked && (
             <div className="flex items-start gap-2 text-sm text-secondary-brown-dark bg-secondary-gold-soft rounded-2xl p-4">
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -295,7 +340,7 @@ export default function SellPage() {
 
           <div className="flex gap-3">
             <Button.Ghost onClick={() => setStep(1)}><ArrowLeft className="w-4 h-4" /> {t("Back", "Kembali")}</Button.Ghost>
-            <Button.Primary disabled={blocked} onClick={publish}>
+            <Button.Primary disabled={blocked || ktpMissing} onClick={publish}>
               {blocked ? t("Blocked (duplicate)", "Diblokir (duplikat)") : flagged || late ? t("Submit for review", "Ajukan untuk review") : t("Publish listing", "Publish listing")}
             </Button.Primary>
           </div>
