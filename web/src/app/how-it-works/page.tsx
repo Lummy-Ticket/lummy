@@ -371,16 +371,16 @@ export default function HowItWorks() {
       Icon: CalendarX,
       q: t("What if the show is cancelled or moved?", "Kalau acaranya batal atau diundur?"),
       a: t(
-        "Cancelled: the buyer is refunded automatically and you are not penalised. Moved: the sale stands and the payout moves with the new date.",
-        "Batal: pembeli dikembalikan otomatis dan kamu tidak kena penalti. Diundur: penjualan tetap jalan dan pencairan ikut tanggal baru."
+        "Cancelled: the buyer is refunded automatically and you are not penalised. Moved: the payout moves with the new date, and if that date does not work for the buyer, they can take a refund instead. No penalty for you either way.",
+        "Batal: pembeli dikembalikan otomatis dan kamu tidak kena penalti. Diundur: pencairan ikut tanggal baru, dan kalau tanggal itu tidak cocok untuk pembeli, pembeli boleh ambil refund. Dua-duanya tanpa penalti untukmu."
       ),
     },
     {
       Icon: ShieldAlert,
       q: t("What if a ticket I sold does not work?", "Kalau tiket yang kujual tidak berfungsi?"),
       a: t(
-        `You lose the sale and are charged ${SELLER_PENALTY_PCT}% of the price. Do it again and you are banned from selling.`,
-        `Penjualan batal dan kamu dikenai ${SELLER_PENALTY_PCT}% dari harga. Kalau terulang, kamu dilarang berjualan.`
+        `You lose the sale and are charged ${SELLER_PENALTY_PCT}% of the price, so selling a ticket that does not work never pays.`,
+        `Penjualan batal dan kamu dikenai ${SELLER_PENALTY_PCT}% dari harga, jadi menjual tiket yang tidak berfungsi tidak pernah untung.`
       ),
     },
   ];
