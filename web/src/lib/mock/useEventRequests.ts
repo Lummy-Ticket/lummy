@@ -22,7 +22,7 @@ export interface EventRequest {
   status: "pending" | "approved" | "rejected";
 }
 
-const SEED: EventRequest[] = [
+export const SEED_EVENT_REQUESTS: EventRequest[] = [
   {
     id: "req-1", status: "pending", submittedBy: "Zahra A.", title: "Bruno Mars Live in Jakarta",
     dateISO: "2027-02-08T20:00:00+07:00", venue: "Stadion Utama GBK", city: "Jakarta",
@@ -55,7 +55,7 @@ interface ReqState {
 export const useEventRequests = create<ReqState>()(
   persist(
     (set) => ({
-      requests: SEED,
+      requests: SEED_EVENT_REQUESTS,
       approve: (id) => set((s) => ({ requests: s.requests.map((r) => (r.id === id ? { ...r, status: "approved" } : r)) })),
       reject: (id) => set((s) => ({ requests: s.requests.map((r) => (r.id === id ? { ...r, status: "rejected" } : r)) })),
     }),
@@ -63,7 +63,7 @@ export const useEventRequests = create<ReqState>()(
       name: "lummy:eventreq",
       // v2 added pdfTier + organizerRef, so older stored state is reset.
       version: 2,
-      migrate: () => ({ requests: SEED }),
+      migrate: () => ({ requests: SEED_EVENT_REQUESTS }),
     }
   )
 );

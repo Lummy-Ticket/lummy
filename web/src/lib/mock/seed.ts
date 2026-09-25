@@ -44,11 +44,14 @@ function tomorrowWIB(hour: number, now: number) {
 }
 
 // Price and listing count are derived from SEED_LISTINGS below, so they are left out here.
-type SeedEvent = Omit<EventItem, "fromPrice" | "listingCount">;
+export type SeedEvent = Omit<EventItem, "fromPrice" | "listingCount">;
+
+/** Shows that are always tomorrow, at this hour Jakarta time. Mirrored as events.rolling_hour. */
+export const ROLLING_HOUR: Record<string, number> = { "ev-wtf": 14 };
 
 // Fixed dates sit after the October demo window. A show that has ended drops out of
 // the catalogue on its own (see getEvents), instead of staying on sale.
-const seedEvents = (now: number): SeedEvent[] => [
+export const seedEvents = (now: number): SeedEvent[] => [
   {
     id: "ev-coldplay", title: "Coldplay: Music of the Spheres", category: "Music",
     dateISO: "2026-11-14T19:00:00+07:00", venue: "Stadion Utama GBK", city: "Jakarta",
@@ -70,7 +73,7 @@ const seedEvents = (now: number): SeedEvent[] => [
   },
   {
     id: "ev-wtf", title: "We The Fest 2026", category: "Music",
-    dateISO: tomorrowWIB(14, now), venue: "JIExpo Kemayoran", city: "Jakarta",
+    dateISO: tomorrowWIB(ROLLING_HOUR["ev-wtf"], now), venue: "JIExpo Kemayoran", city: "Jakarta",
     image: img("wtf"), featured: true,
     tiers: [
       { id: "t-wtf-3day", name: "3-Day Pass", faceValue: 1_850_000 },
