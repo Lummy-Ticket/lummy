@@ -15,20 +15,28 @@ import {
 import { PageContainer } from "@/components/layout/PageContainer";
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 
-// Soonest first, the way people plan.
-const events = [...getEvents()].sort((a, b) => a.dateISO.localeCompare(b.dateISO));
-const categories = ["All", ...Array.from(new Set(events.map((e) => e.category)))];
 const ALL_CITIES = "All cities";
-const cities = [ALL_CITIES, ...Array.from(new Set(events.map((e) => e.city)))];
-
-// Round the bounds outward so the handles land on tidy numbers. An event with nothing
-// on sale has no price (0), so it does not drag the lower bound down.
 const STEP = 100_000;
-const PRICED = events.map((e) => e.fromPrice).filter((p) => p > 0);
-const PRICE_MIN = PRICED.length ? Math.floor(Math.min(...PRICED) / STEP) * STEP : 0;
-const PRICE_MAX = PRICED.length ? Math.ceil(Math.max(...PRICED) / STEP) * STEP : STEP;
+
+// Built per page visit, not at module load: the catalogue changes with the date, and a
+// server instance can outlive the day it started on.
+function catalogueView() {
+  // Soonest first, the way people plan.
+  const events = [...getEvents()].sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+  // Round the bounds outward so the handles land on tidy numbers. An event with nothing
+  // on sale has no price (0), so it does not drag the lower bound down.
+  const priced = events.map((e) => e.fromPrice).filter((p) => p > 0);
+  return {
+    events,
+    categories: ["All", ...Array.from(new Set(events.map((e) => e.category)))],
+    cities: [ALL_CITIES, ...Array.from(new Set(events.map((e) => e.city)))],
+    PRICE_MIN: priced.length ? Math.floor(Math.min(...priced) / STEP) * STEP : 0,
+    PRICE_MAX: priced.length ? Math.ceil(Math.max(...priced) / STEP) * STEP : STEP,
+  };
+}
 
 function EventsInner() {
+  const { events, categories, cities, PRICE_MIN, PRICE_MAX } = useMemo(() => catalogueView(), []);
   const t = useT();
   const { formatEventDate } = useFormatters();
   const categoryLabel = useCategoryLabel();
@@ -51,7 +59,7 @@ function EventsInner() {
       const matchPrice = fullRange || (e.fromPrice >= price[0] && e.fromPrice <= price[1]);
       return matchCity && matchQ && matchPrice;
     });
-  }, [query, city, price]);
+  }, [events, PRICE_MIN, PRICE_MAX, query, city, price]);
   const filtered = cat === "All" ? base : base.filter((e) => e.category === cat);
   const countOf = (c: string) => base.filter((e) => e.category === c).length;
 

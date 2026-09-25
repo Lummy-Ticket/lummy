@@ -4,7 +4,6 @@ export {
   CAP_PCT,
   FLOOR_PCT,
   DEMO_USERS,
-  SEED_EVENTS,
   SEED_LISTINGS,
   getEvents,
   getFeaturedEvents,

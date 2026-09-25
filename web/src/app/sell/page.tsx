@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import {
@@ -15,8 +15,6 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import { useAccessGuard } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters } from "@/lib/i18n";
-
-const events = getEvents();
 
 function Check({ ok, label, detail }: { ok: boolean; label: string; detail: string }) {
   return (
@@ -43,6 +41,8 @@ export default function SellPage() {
   const router = useRouter();
   const addListing = useSellerListings((s) => s.add);
   const fileInput = useRef<HTMLInputElement>(null);
+  // Read per visit, not at module load: the catalogue changes with the date.
+  const events = useMemo(() => getEvents(), []);
 
   const [step, setStep] = useState(0);
   const [fileName, setFileName] = useState<string | null>(null);

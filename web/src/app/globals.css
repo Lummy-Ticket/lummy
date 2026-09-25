@@ -84,7 +84,7 @@
     @apply text-gray-600 text-base;
   }
   /* Native date inputs (e.g. the events/marketplace date filter): keep the
-     dd/mm/yyyy hint and the picker icon visible across devices — Android Chrome
+     dd/mm/yyyy hint and the picker icon visible across devices. Android Chrome
      can otherwise render the format hint nearly invisible. */
   input[type="date"]::-webkit-datetime-edit {
     color: #6b7280;

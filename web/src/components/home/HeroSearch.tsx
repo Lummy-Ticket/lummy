@@ -10,9 +10,6 @@ import {
 } from "@/lib/mock";
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 
-const ALL = getEvents();
-const POPULAR = ALL.filter((e) => e.featured).slice(0, 5);
-
 // Search-first hero. Focus shows what is trending, typing filters live. Each row
 // carries a thumbnail so people can jump straight to an event without a detour.
 export function HeroSearch({ quickCats }: { quickCats: string[] }) {
@@ -39,8 +36,9 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
 
   const query = q.trim().toLowerCase();
   const suggestions = useMemo(() => {
-    if (!query) return POPULAR;
-    return ALL.filter(
+    const all = getEvents();
+    if (!query) return all.filter((e) => e.featured).slice(0, 5);
+    return all.filter(
       (e) =>
         e.title.toLowerCase().includes(query) ||
         e.city.toLowerCase().includes(query) ||

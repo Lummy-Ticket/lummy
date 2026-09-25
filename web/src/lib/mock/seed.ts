@@ -36,8 +36,8 @@ const WIB_H = 7;
  * Tomorrow at `hour` o'clock Jakarta time. One show always sits this close, so the
  * last-minute listing rule (48h before doors) can be demonstrated on any day.
  */
-function tomorrowWIB(hour: number) {
-  const wib = new Date(Date.now() + WIB_H * H);
+function tomorrowWIB(hour: number, now: number) {
+  const wib = new Date(now + WIB_H * H);
   return new Date(
     Date.UTC(wib.getUTCFullYear(), wib.getUTCMonth(), wib.getUTCDate() + 1, hour - WIB_H)
   ).toISOString();
@@ -48,7 +48,7 @@ type SeedEvent = Omit<EventItem, "fromPrice" | "listingCount">;
 
 // Fixed dates sit after the October demo window. A show that has ended drops out of
 // the catalogue on its own (see getEvents), instead of staying on sale.
-const EVENTS: SeedEvent[] = [
+const seedEvents = (now: number): SeedEvent[] => [
   {
     id: "ev-coldplay", title: "Coldplay: Music of the Spheres", category: "Music",
     dateISO: "2026-11-14T19:00:00+07:00", venue: "Stadion Utama GBK", city: "Jakarta",
@@ -70,7 +70,7 @@ const EVENTS: SeedEvent[] = [
   },
   {
     id: "ev-wtf", title: "We The Fest 2026", category: "Music",
-    dateISO: tomorrowWIB(14), venue: "JIExpo Kemayoran", city: "Jakarta",
+    dateISO: tomorrowWIB(14, now), venue: "JIExpo Kemayoran", city: "Jakarta",
     image: img("wtf"), featured: true,
     tiers: [
       { id: "t-wtf-3day", name: "3-Day Pass", faceValue: 1_850_000 },
@@ -217,10 +217,21 @@ export const isBuyable = (l: Listing) =>
 
 // The card, the price filter and the event page all read price and count from here,
 // so they cannot drift apart from what is actually on sale.
-export const SEED_EVENTS: EventItem[] = EVENTS.map((e) => {
+const withPrices = (e: SeedEvent): EventItem => {
   const live = SEED_LISTINGS.filter((l) => l.eventId === e.id && l.status === "active" && isBuyable(l));
   return { ...e, listingCount: live.length, fromPrice: live.length ? Math.min(...live.map((l) => l.askPrice)) : 0 };
-});
+};
+
+// Rebuilt when the Jakarta date changes, not once at module load: a server instance
+// that lives past midnight would otherwise keep yesterday's "tomorrow" and disagree
+// with a fresh browser. Within a day the objects stay the same, so they are stable
+// as React memo dependencies.
+let built: { day: number; events: EventItem[] } | null = null;
+function catalogue(now: number): EventItem[] {
+  const day = Math.floor((now + WIB_H * H) / (24 * H));
+  if (built?.day !== day) built = { day, events: seedEvents(now).map(withPrices) };
+  return built.events;
+}
 
 /** True once the show has run its course. Past shows are not for sale. */
 export const isEventOver = (e: EventItem, now: number = Date.now()) =>
@@ -228,9 +239,9 @@ export const isEventOver = (e: EventItem, now: number = Date.now()) =>
 
 // --- selectors ---
 /** The catalogue: shows that have not ended yet. */
-export const getEvents = (now: number = Date.now()) => SEED_EVENTS.filter((e) => !isEventOver(e, now));
+export const getEvents = (now: number = Date.now()) => catalogue(now).filter((e) => !isEventOver(e, now));
 export const getFeaturedEvents = (now: number = Date.now()) => getEvents(now).filter((e) => e.featured);
-export const getEventById = (id: string) => SEED_EVENTS.find((e) => e.id === id);
+export const getEventById = (id: string, now: number = Date.now()) => catalogue(now).find((e) => e.id === id);
 export const getListingsByEvent = (eventId: string) =>
   SEED_LISTINGS.filter((l) => l.eventId === eventId);
 export const getTier = (event: EventItem, tierId: string) =>
