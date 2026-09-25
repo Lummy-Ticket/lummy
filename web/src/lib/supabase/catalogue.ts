@@ -5,17 +5,12 @@ import { createClient } from "@supabase/supabase-js";
 import { unstable_cache } from "next/cache";
 import type { Category, EventItem, Listing } from "@/lib/mock/types";
 import { eventPoster } from "@/lib/poster";
+import { supabasePublicEnv } from "./env";
 import type { Database } from "./types";
 
 if (typeof window !== "undefined") throw new Error("lib/supabase/catalogue hanya boleh dipakai di server");
 
 export type CatalogueData = { events: EventItem[]; listings: Listing[] };
-
-export function supabasePublicEnv() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
-  return url && key ? { url, key } : null;
-}
 
 async function fetchCatalogue(url: string, key: string): Promise<CatalogueData> {
   const db = createClient<Database>(url, key, { auth: { persistSession: false, autoRefreshToken: false } });

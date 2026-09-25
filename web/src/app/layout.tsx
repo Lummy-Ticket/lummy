@@ -6,6 +6,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import DevPanel from "@/components/dev/DevPanel";
 import { CatalogueProvider } from "@/lib/catalogue";
+import { AuthSync } from "@/components/auth/AuthSync";
 import { loadCatalogue } from "@/lib/supabase/catalogue";
 
 // Self-hosted at build time: no request to Google on page load, no flash of the
@@ -37,6 +38,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     <html lang="en" className={`${fredoka.variable} ${jakarta.variable} scroll-smooth`}>
       <body className="antialiased min-h-screen flex flex-col relative w-full overflow-x-clip">
         <CatalogueProvider data={catalogue}>
+          <AuthSync />
           <Navbar />
           <main className="flex-1">{children}</main>
           <Footer />

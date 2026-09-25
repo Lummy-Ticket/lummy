@@ -1,7 +1,6 @@
 // Operator Model A di sisi server. Kunci cuma dibaca di sini, tidak pernah dikirim ke browser, dan
 // modul ini cuma diimpor route handler di src/app/api/chain/. Tanpa kunci, mode chain mati dan app
 // tetap berjalan dengan data contoh.
-import { timingSafeEqual } from "crypto";
 import fs from "fs";
 import os from "os";
 import path from "path";
@@ -11,6 +10,7 @@ import { escrowAbi, tokenAbi } from "./abi";
 import { signFund } from "./buyer";
 import { CHAINS, RPC_URLS, USDC_DECIMALS } from "./config";
 import { DEPLOYMENTS } from "./deployments";
+import { demoKeyAllowed, demoMode, type DemoMode } from "@/lib/demo-key";
 import { disputeDeadline, escrowAs, getListing, pendingOf, publicClient, type Listing } from "./escrow";
 
 if (typeof window !== "undefined") throw new Error("lib/chain/server hanya boleh dipakai di server");
@@ -25,7 +25,6 @@ export type Operator = ChainTarget & {
   seller: Address;
   /** Nominal USDC testnet per pesanan demo, terpisah dari harga rupiah di app. */
   price: bigint;
-  demoKey?: string;
 };
 
 /**
@@ -82,27 +81,20 @@ export function operatorSetup(): Operator | null {
     buyer: privateKeyToAccount(keys.buyer as Hex),
     seller: keys.seller as Address,
     price: parseUnits(envOf("LUMMY_DEMO_PRICE_USDC") ?? "1", USDC_DECIMALS),
-    demoKey: envOf("LUMMY_DEMO_KEY"),
   };
 }
 
 /**
  * Siapa boleh memicu transaksi. "key": wajib header x-demo-key. "open": tanpa kunci, cuma di mesin dev.
- * "off": tidak ada kunci operator, atau produksi tanpa demo key.
+ * "off": tidak ada kunci operator, atau produksi tanpa demo key. Gerbangnya sama dengan akun demo
+ * (lib/demo-key.ts).
  */
-export function writeMode(op: Operator | null): "off" | "open" | "key" {
-  if (!op) return "off";
-  if (op.demoKey) return "key";
-  return process.env.NODE_ENV === "production" ? "off" : "open";
+export function writeMode(op: Operator | null): DemoMode {
+  return op ? demoMode() : "off";
 }
 
 export function writeAllowed(req: Request, op: Operator): boolean {
-  const mode = writeMode(op);
-  if (mode === "open") return true;
-  if (mode !== "key" || !op.demoKey) return false;
-  const given = Buffer.from((req.headers.get("x-demo-key") ?? "").trim());
-  const want = Buffer.from(op.demoKey);
-  return given.length === want.length && timingSafeEqual(given, want);
+  return writeMode(op) !== "off" && demoKeyAllowed(req);
 }
 
 // Satu antrean per instance server: dua checkout bersamaan tidak berebut nonce operator.

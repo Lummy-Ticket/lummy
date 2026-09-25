@@ -39,7 +39,7 @@ export function useAccessGuard(access: Access) {
   useEffect(() => {
     if (!hydrated || allowed) return;
     // Signed out goes to the door. Signed in at the wrong desk goes home.
-    router.replace(user ? "/" : "/login");
+    router.replace(user ? "/" : `/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
   }, [hydrated, allowed, user, router]);
 
   return hydrated && allowed;

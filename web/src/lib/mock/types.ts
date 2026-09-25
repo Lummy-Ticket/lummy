@@ -19,6 +19,10 @@ export interface User {
   name: string;
   email: string;
   role: Role;
+  /** Signed in with a real Supabase account (a sign-in email or a demo account). Absent on sample personas. */
+  account?: boolean;
+  /** Staff per the database (profiles.role = admin), the only accounts that may take the admin view. */
+  staff?: boolean;
 }
 
 export interface Tier {

@@ -40,6 +40,7 @@ export type ChainActionResult = { tx: string; withdrawals: string[] };
 const KEY_DEMO = "lummy:demo-key";
 const KEY_ON = "lummy:chain-on";
 const KEY_EVENT_ENDED = "lummy:demo-event-ended";
+const KEY_ACCOUNTS = "lummy:demo-accounts";
 
 function read(key: string) {
   try {
@@ -67,6 +68,9 @@ export const demoPrefs = {
   /** Anggap acaranya sudah selesai saat checkout, supaya window testnet langsung berjalan. */
   eventEnded: () => read(KEY_EVENT_ENDED) === "1",
   setEventEnded: (v: boolean) => write(KEY_EVENT_ENDED, v ? "1" : ""),
+  /** Dev Panel personas sign in to the demo accounts in the database, not sample personas. */
+  accountsOn: () => read(KEY_ACCOUNTS) === "1",
+  setAccountsOn: (v: boolean) => write(KEY_ACCOUNTS, v ? "1" : ""),
 };
 
 let infoPromise: Promise<ChainInfo> | null = null;

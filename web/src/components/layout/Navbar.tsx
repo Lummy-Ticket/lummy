@@ -70,6 +70,9 @@ export function Navbar() {
   const mobileRef = useRef<HTMLDivElement>(null);
 
   const links = mounted && user ? ROLE_LINKS[user.role] : GUEST_LINKS;
+  // Sample personas swap person; a real account only swaps view, and admin only for staff.
+  const switchable: Role[] = user?.account && !user.staff ? ["BUYER", "SELLER"] : ["BUYER", "SELLER", "ADMIN"];
+  const switcherTitle = user?.account ? t("View", "Tampilan") : t("Demo personas", "Persona demo");
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -143,7 +146,7 @@ export function Navbar() {
                 onClick={() => setRoleOpen((o) => !o)}
                 aria-haspopup="menu"
                 aria-expanded={roleOpen}
-                aria-label={t("Switch persona (demo)", "Ganti persona (demo)")}
+                aria-label={user.account ? t("Switch view", "Ganti tampilan") : t("Switch persona (demo)", "Ganti persona (demo)")}
                 className="flex items-center gap-2 px-4 py-2 rounded-2xl border-2 border-lummy-500 bg-neutral-white text-lummy-500 text-sm font-medium hover:bg-pastel-yellow transition cursor-pointer"
               >
                 {t(ROLE_LABEL[user.role].en, ROLE_LABEL[user.role].id)} <ChevronDown className="w-4 h-4" />
@@ -151,9 +154,9 @@ export function Navbar() {
               {roleOpen && (
                 <div className="absolute right-0 top-full mt-2 w-40 rounded-2xl border border-lummy-500 bg-neutral-white shadow-lummy-lg overflow-hidden z-50">
                   <div className="px-4 pt-2 pb-1.5 text-[10px] uppercase tracking-wide text-neutral-gray">
-                    {t("Demo personas", "Persona demo")}
+                    {switcherTitle}
                   </div>
-                  {(Object.keys(ROLE_LABEL) as Role[]).map((r) => (
+                  {switchable.map((r) => (
                     <button
                       key={r}
                       onClick={() => { goPersona(r); setRoleOpen(false); }}
@@ -198,7 +201,7 @@ export function Navbar() {
               )}
             </div>
           ) : mounted ? (
-            <Button.Primary className="hidden lg:flex items-center gap-2 text-sm" onClick={() => useUser.getState().login("BUYER")}>
+            <Button.Primary className="hidden lg:flex items-center gap-2 text-sm" onClick={() => router.push("/login")}>
               <UserIcon className="w-4 h-4" /> {t("Sign in", "Masuk")}
             </Button.Primary>
           ) : null}
@@ -228,8 +231,8 @@ export function Navbar() {
                 ))}
                 {mounted && user && (
                   <div className="border-t border-dashed border-neutral-light-gray-1 mt-1 pt-1">
-                    <div className="px-3 py-1 text-xs text-neutral-gray">{t("Persona (demo)", "Persona (demo)")}</div>
-                    {(Object.keys(ROLE_LABEL) as Role[]).map((r) => (
+                    <div className="px-3 py-1 text-xs text-neutral-gray">{switcherTitle}</div>
+                    {switchable.map((r) => (
                       <button
                         key={r}
                         onClick={() => { goPersona(r); setMobileOpen(false); }}

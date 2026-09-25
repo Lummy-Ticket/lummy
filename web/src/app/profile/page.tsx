@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { Mail, Phone, ShieldCheck, BadgeCheck, Bell, X, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import { useAccessGuard, useHydrated } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
 import { useT } from "@/lib/i18n";
+import { supabaseBrowser } from "@/lib/supabase/browser";
 
 const CHANNELS: { id: AlertChannel; label: string }[] = [
   { id: "email", label: "Email" },
@@ -19,6 +20,9 @@ const CHANNELS: { id: AlertChannel; label: string }[] = [
   { id: "telegram", label: "Telegram" },
 ];
 const BANKS: PayoutBank[] = ["BCA", "Mandiri", "BNI", "BRI"];
+
+type DbProfile = { full_name: string; phone: string | null; payout_bank: string | null; payout_number: string | null; kyc: "unverified" | "verified" };
+const PROFILE_COLUMNS = "full_name, phone, payout_bank, payout_number, kyc";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -40,14 +44,89 @@ export default function ProfilePage() {
   const subs = useAlerts((s) => s.subs);
   const unsubscribe = useAlerts((s) => s.unsubscribe);
 
+  // A real account reads and writes its own row in the database (RLS: only itself). A sample
+  // persona keeps these details in this browser.
+  const account = user?.account ? user : null;
+  const accountId = account?.id;
+  const [db, setDb] = useState<DbProfile | null>(null);
+  useEffect(() => {
+    if (!accountId) return;
+    let alive = true;
+    void supabaseBrowser()
+      ?.from("profiles")
+      .select(PROFILE_COLUMNS)
+      .eq("id", accountId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (alive && data) setDb(data);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [accountId]);
+
+  const savedPhone = account ? (db?.phone ?? "") : phone;
+  const savedBank = account ? ((db?.payout_bank as PayoutBank | null) ?? null) : payoutBank;
+  const savedNumber = account ? (db?.payout_number ?? "") : payoutNumber;
+  const verified = account ? db?.kyc === "verified" : kycVerified;
+
   // Drafts are null until the field is touched, so what you see is whatever the
   // store holds, with no second copy to fall out of sync.
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
   const [phoneDraft, setPhoneDraft] = useState<string | null>(null);
   const [bankDraft, setBankDraft] = useState<PayoutBank | null>(null);
   const [acctDraft, setAcctDraft] = useState<string | null>(null);
-  const phoneVal = phoneDraft ?? phone;
-  const bank = bankDraft ?? payoutBank ?? "BCA";
-  const acct = acctDraft ?? payoutNumber;
+  const nameVal = nameDraft ?? (db?.full_name || user?.name || "");
+  const phoneVal = phoneDraft ?? savedPhone;
+  const bank = bankDraft ?? savedBank ?? "BCA";
+  const acct = acctDraft ?? savedNumber;
+
+  const saveRow = async (patch: Partial<DbProfile>) => {
+    const { data, error } = await supabaseBrowser()!
+      .from("profiles")
+      .update(patch)
+      .eq("id", account!.id)
+      .select(PROFILE_COLUMNS)
+      .maybeSingle();
+    if (error || !data) {
+      toast.error(t("Could not save. Try again.", "Gagal menyimpan. Coba lagi."));
+      return null;
+    }
+    setDb(data);
+    return data;
+  };
+
+  const savePersonal = async () => {
+    if (!account) {
+      setPhone(phoneVal);
+      toast.success(t("Profile saved", "Profil disimpan"));
+      return;
+    }
+    const saved = await saveRow({ full_name: nameVal.trim(), phone: phoneVal.trim() || null });
+    if (!saved) return;
+    setNameDraft(null);
+    setPhoneDraft(null);
+    useUser.getState().setAccount({ ...account, name: saved.full_name || account.name });
+    toast.success(t("Profile saved", "Profil disimpan"));
+  };
+
+  const savePayout = async () => {
+    if (!account) {
+      setPayout(bank, acct);
+      toast.success(t("Payout account saved", "Rekening disimpan"));
+      return;
+    }
+    const number = acct.replace(/\s/g, "");
+    if (!/^[0-9]{6,20}$/.test(number)) {
+      toast.error(t("Account number: 6 to 20 digits.", "Nomor rekening: 6 sampai 20 angka."));
+      return;
+    }
+    const saved = await saveRow({ payout_bank: bank, payout_number: number });
+    if (!saved) return;
+    setBankDraft(null);
+    setAcctDraft(null);
+    toast.success(t("Payout account saved", "Rekening disimpan"));
+  };
 
   if (!mounted) return <div className="pt-28 pb-16 text-center text-neutral-gray">{t("Loading...", "Memuat...")}</div>;
 
@@ -60,10 +139,17 @@ export default function ProfilePage() {
       {/* Personal details */}
       <Section title={t("Personal details", "Info pribadi")}>
         <div className="flex flex-col gap-4">
-          <div>
-            <span className="text-xs text-neutral-gray">{t("Name", "Nama")}</span>
-            <div className="mt-1 px-4 py-3 rounded-xl bg-secondary-gray-soft text-sm text-neutral-black">{user?.name ?? "-"}</div>
-          </div>
+          {account ? (
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs text-neutral-gray">{t("Name", "Nama")}</span>
+              <input value={nameVal} onChange={(e) => setNameDraft(e.target.value)} maxLength={120} autoComplete="name" className="rounded-xl border border-lummy-500 px-4 py-3 text-sm text-neutral-black outline-none" />
+            </label>
+          ) : (
+            <div>
+              <span className="text-xs text-neutral-gray">{t("Name", "Nama")}</span>
+              <div className="mt-1 px-4 py-3 rounded-xl bg-secondary-gray-soft text-sm text-neutral-black">{user?.name ?? "-"}</div>
+            </div>
+          )}
           <div>
             <span className="text-xs text-neutral-gray">Email</span>
             <div className="mt-1 flex items-center gap-2 px-4 py-3 rounded-xl bg-secondary-gray-soft text-sm text-neutral-black">
@@ -77,17 +163,24 @@ export default function ProfilePage() {
               <input value={phoneVal} onChange={(e) => setPhoneDraft(e.target.value)} inputMode="tel" placeholder="0812 3456 7890" className="w-full outline-none text-sm text-neutral-black" />
             </div>
           </label>
-          <Button.Primary wrapperClass="w-fit" className="text-sm" onClick={() => { setPhone(phoneVal); toast.success(t("Profile saved", "Profil disimpan")); }}>{t("Save", "Simpan")}</Button.Primary>
+          <Button.Primary wrapperClass="w-fit" className="text-sm" onClick={() => void savePersonal()}>{t("Save", "Simpan")}</Button.Primary>
         </div>
       </Section>
 
       {/* Identity / PSrE */}
       <Section title={t("Identity verification", "Verifikasi identitas")}>
-        {kycVerified ? (
+        {verified ? (
           <div className="flex items-center gap-3">
             <Badge.Base className="bg-secondary-green-soft text-secondary-green-dark text-sm inline-flex items-center gap-1"><BadgeCheck className="w-4 h-4" /> {t("Verified", "Terverifikasi")}</Badge.Base>
             <span className="text-sm text-neutral-gray">via Privy.id (PSrE)</span>
           </div>
+        ) : account ? (
+          <p className="text-sm text-neutral-gray">
+            {t(
+              "A one-time check through a licensed e-signature provider (PSrE), so you can e-sign the letter of authorisation. That connection is not live yet, so accounts stay unverified for now.",
+              "Verifikasi sekali lewat PSrE berlisensi, supaya kamu bisa tanda tangan surat kuasa secara elektronik. Sambungannya belum aktif, jadi akun untuk sementara belum terverifikasi."
+            )}
+          </p>
         ) : (
           <div className="flex flex-col gap-3">
             <p className="text-sm text-neutral-gray">
@@ -152,8 +245,8 @@ export default function ProfilePage() {
                 <input value={acct} onChange={(e) => setAcctDraft(e.target.value)} placeholder="1234567890" className="w-full outline-none text-sm text-neutral-black" />
               </div>
             </label>
-            {payoutBank && <p className="text-xs text-secondary-green-dark">{t("Saved", "Tersimpan")}: {payoutBank} · {payoutNumber}</p>}
-            <Button.Primary wrapperClass="w-fit" className="text-sm" onClick={() => { setPayout(bank, acct); toast.success(t("Payout account saved", "Rekening disimpan")); }}>{t("Save account", "Simpan rekening")}</Button.Primary>
+            {savedBank && <p className="text-xs text-secondary-green-dark">{t("Saved", "Tersimpan")}: {savedBank} · {savedNumber}</p>}
+            <Button.Primary wrapperClass="w-fit" className="text-sm" onClick={() => void savePayout()}>{t("Save account", "Simpan rekening")}</Button.Primary>
           </div>
         </Section>
       )}
