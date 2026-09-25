@@ -4,7 +4,7 @@
 insert into public.events (id, title, category, starts_at, rolling_hour, venue, city, image_url, featured) values
   ('ev-coldplay', 'Coldplay: Music of the Spheres', 'Music', '2026-11-14T19:00:00+07:00', null, 'Stadion Utama GBK', 'Jakarta', '/assets/events/coldplay-hd.jpg', true),
   ('ev-newjeans', 'NewJeans Fan Meeting: Bunnies Jakarta', 'Music', '2026-10-31T18:00:00+07:00', null, 'ICE BSD Hall 10', 'Tangerang', '/assets/events/newjeans-hd.jpg', true),
-  ('ev-wtf', 'We The Fest 2026', 'Music', '2026-01-02T07:00:00.000Z', 14, 'JIExpo Kemayoran', 'Jakarta', '/assets/events/wtf-hd.jpg', true),
+  ('ev-wtf', 'We The Fest 2026', 'Music', '2026-01-02T07:00:00.000Z', 14, 'JIExpo Kemayoran', 'Jakarta', '/assets/events/wtf-crowd.jpg', true),
   ('ev-tulus', 'Tulus: Manusia Tour', 'Music', '2026-11-07T20:00:00+07:00', null, 'Sentul International Convention Center', 'Bogor', '/assets/events/tulus-hd.jpg', false),
   ('ev-sos', 'Sheila on 7: Tunggu Aku di Jakarta', 'Music', '2026-12-13T19:30:00+07:00', null, 'Stadion Madya GBK', 'Jakarta', '/assets/events/sheila-hd.jpg', false),
   ('ev-pandji', 'Pandji Pragiwaksono: Menyala', 'Theater', '2026-11-28T19:00:00+07:00', null, 'Ciputra Artpreneur', 'Jakarta', '/assets/events/pandji-hd.jpg', false),

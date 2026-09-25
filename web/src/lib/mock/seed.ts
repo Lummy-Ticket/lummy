@@ -20,7 +20,7 @@ export const DEMO_USERS: Record<Role, User> = {
 const PHOTOS: Record<string, string> = {
   coldplay: "/assets/events/coldplay-hd.jpg",
   newjeans: "/assets/events/newjeans-hd.jpg",
-  wtf: "/assets/events/wtf-hd.jpg",
+  wtf: "/assets/events/wtf-crowd.jpg",
   tulus: "/assets/events/tulus-hd.jpg",
   sheila: "/assets/events/sheila-hd.jpg",
   pandji: "/assets/events/pandji-hd.jpg",
