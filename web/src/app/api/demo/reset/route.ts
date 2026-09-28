@@ -1,7 +1,8 @@
 // Puts the demo back where a presentation starts: every seed listing on sale again with the seats
-// it started with, and the demo accounts holding one order in every phase (the same five the
-// sample personas see). Presenter only, behind the same gate as the demo accounts. Orders of real
-// accounts are left alone.
+// it started with, the demo accounts holding one order in every phase (the same five the sample
+// personas see), and the demo seller owning the seed listing under her name plus one flagged
+// listing waiting in the admin queue. Presenter only, behind the same gate as the demo accounts.
+// Orders of real accounts are left alone.
 //
 // Escrows that demo orders still hold on chain are closed first, so no test USDC stays locked:
 // a refund while the window is open, a full refund on a claim, a release once the window has
@@ -13,6 +14,7 @@ import { chainError, chainTarget, operatorSetup, readListing, settle } from "@/l
 import { demoKeyAllowed, demoMode } from "@/lib/demo-key";
 import { SEED_LISTINGS } from "@/lib/mock/seed";
 import { seedOrders } from "@/lib/mock/seed-orders";
+import { SAMPLE_SIGNALS, publicSellerName } from "@/lib/listings/rules";
 import { HELD, rowsFromOrder } from "@/lib/orders/map";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { DEMO_ACCOUNTS } from "@/lib/supabase/demo";
@@ -29,6 +31,8 @@ const fail = (status: number, error: string) => NextResponse.json({ error }, { s
 const demoOrderId = (seedId: string) => seedId.replace("or-seed-", "or-demo-");
 /** Chain work stops here, leaving time for the database within the function's limit. */
 const CHAIN_BUDGET_MS = 35_000;
+/** The demo seller's flagged listing, so the review queue has something to clear or reject. */
+const HELD_LISTING_ID = "ls-demo-held";
 
 export async function POST(req: Request) {
   const admin = supabaseAdmin();
@@ -90,6 +94,52 @@ export async function POST(req: Request) {
     );
     const restoreError = restored.find((r) => r.error)?.error;
     if (restoreError) return fail(500, restoreError.message);
+
+    // What the demo seller posted in earlier runs goes. One a real buyer's order still points at
+    // is withdrawn instead, since the order has to keep its listing.
+    const seedIds = SEED_LISTINGS.map((l) => l.id);
+    const posted = await admin.from("listings").select("id").eq("seller_id", seller).not("id", "in", `(${[...seedIds, HELD_LISTING_ID].join(",")})`);
+    if (posted.error) return fail(500, posted.error.message);
+    const postedIds = posted.data.map((l) => l.id);
+    if (postedIds.length) {
+      const referenced = await admin.from("orders").select("listing_id").in("listing_id", postedIds);
+      if (referenced.error) return fail(500, referenced.error.message);
+      const inUse = new Set(referenced.data.map((o) => o.listing_id));
+      const unused = postedIds.filter((id) => !inUse.has(id));
+      const cleared = await Promise.all([
+        unused.length ? admin.from("listings").delete().in("id", unused) : Promise.resolve({ error: null }),
+        inUse.size ? admin.from("listings").update({ status: "cancelled" }).in("id", [...inUse] as string[]) : Promise.resolve({ error: null }),
+      ]);
+      const clearError = cleared.find((r) => r.error)?.error;
+      if (clearError) return fail(500, clearError.message);
+    }
+
+    // The seed listing under her name is hers, so her dashboard shows a real listing, and one
+    // flagged listing of hers waits in the admin queue.
+    const sellerName = publicSellerName(DEMO_ACCOUNTS.SELLER.name);
+    const linked = await admin.from("listings").update({ seller_id: seller }).in("id", seedIds).eq("seller_name", sellerName);
+    if (linked.error) return fail(500, linked.error.message);
+    const flagged = SAMPLE_SIGNALS.edited;
+    const heldListing = await admin.from("listings").upsert({
+      id: HELD_LISTING_ID,
+      event_id: "ev-tulus",
+      tier_id: "t-tl-vip",
+      seller_id: seller,
+      seller_name: sellerName,
+      ask_price: 1_380_000,
+      face_value: 1_200_000,
+      quantity: 1,
+      splittable: false,
+      gate_ktp: false,
+      status: "review",
+      late_listing: false,
+      autofilled: flagged.autofilled,
+      forgery_score: flagged.forgeryScore,
+      pdf_suspicious: flagged.pdfSuspicious,
+      barcode_duplicate: false,
+      extraction: { source: "sample", sample: "edited" },
+    });
+    if (heldListing.error) return fail(500, heldListing.error.message);
 
     // One order in every phase. The claim in review is against the demo seller, and the staff
     // account decided the one already settled.

@@ -332,6 +332,10 @@ try {
   await staff.page.goto(`${BASE}/admin`, { waitUntil: "networkidle" });
   await staff.page.locator('[data-claim="or-demo-4"]').waitFor();
   check("reset: klaim muncul di antrean admin", await staff.page.locator('[data-claim="or-demo-4"]').isVisible());
+  const heldDemo = (await admin.from("listings").select("status, seller_id, pdf_suspicious").eq("id", "ls-demo-held").single()).data;
+  check("reset: satu listing ter-flag penjual demo menunggu review", heldDemo?.status === "review" && heldDemo.seller_id === seller.user.id && heldDemo.pdf_suspicious);
+  const hers = (await admin.from("listings").select("id").eq("id", "ls-1").eq("seller_id", seller.user.id)).data ?? [];
+  check("reset: listing contoh atas nama Zahra jadi milik penjual demo", hers.length === 1);
 
   const again = await fetch(`${BASE}/api/demo/reset`, { method: "POST", headers: DEMO_KEY ? { "x-demo-key": DEMO_KEY } : {} });
   const count = (await admin.from("orders").select("id", { count: "exact", head: true }).eq("buyer_id", buyer.user.id)).count;
@@ -344,10 +348,12 @@ try {
   const listings = await admin.from("listings").delete().in("id", [L1, L2, L3]).select("id");
   const gone = plainUserId ? await admin.auth.admin.deleteUser(plainUserId) : { error: null };
   await admin.from("listings").update({ quantity: 2, status: "active" }).eq("id", SEED_TOUCHED);
+  // The reset may already have removed the listing the demo seller owns, so count what is left.
+  const left = (await admin.from("listings").select("id").in("id", [L1, L2, L3])).data?.length;
   check(
     "data uji dibersihkan",
-    !orders.error && !listings.error && listings.data.length === 3 && !gone.error,
-    orders.error?.message ?? listings.error?.message ?? gone.error?.message
+    !orders.error && !listings.error && left === 0 && !gone.error,
+    orders.error?.message ?? listings.error?.message ?? gone.error?.message ?? `${left} listing uji tersisa`
   );
 }
 

@@ -8,9 +8,11 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  getTier, CAP_PCT, FLOOR_PCT, useSellerListings, type ListingAI,
+  getTier, CAP_PCT, FLOOR_PCT, useSellerListings, useUser, type ListingAI,
   isLateListing, LATE_LISTING_H,
 } from "@/lib/mock";
+import { SAMPLE_SIGNALS, type SampleTicket } from "@/lib/listings/rules";
+import { ListingError, createListing } from "@/lib/listings/client";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { useCatalogue } from "@/lib/catalogue";
 import { useAccessGuard } from "@/lib/access";
@@ -29,6 +31,13 @@ function Check({ ok, label, detail }: { ok: boolean; label: string; detail: stri
   );
 }
 
+/** The sample tickets' file names, as a seller would see them. */
+const SAMPLE_FILES: Record<SampleTicket, string> = {
+  good: "tulus-genuine.pdf",
+  edited: "tulus-edited.pdf",
+  dup: "tulus-duplicate.pdf",
+};
+
 const STEPS = [
   { en: "Upload PDF", id: "Upload PDF" },
   { en: "AI check & details", id: "Cek AI & data" },
@@ -41,13 +50,17 @@ export default function SellPage() {
   const ready = useAccessGuard("account");
   const router = useRouter();
   const addListing = useSellerListings((s) => s.add);
+  // An account's listing goes to the database through the server; a sample persona's stays in
+  // this browser, as before.
+  const account = useUser((s) => !!s.user?.account);
+  const [publishing, setPublishing] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const catalogue = useCatalogue();
   const events = catalogue.events;
 
   const [step, setStep] = useState(0);
   const [fileName, setFileName] = useState<string | null>(null);
-  const [sample, setSample] = useState<"good" | "edited" | "dup">("good");
+  const [sample, setSample] = useState<SampleTicket>("good");
   const [analyzing, setAnalyzing] = useState(false);
   const [dragging, setDragging] = useState(false);
 
@@ -82,14 +95,12 @@ export default function SellPage() {
   const late = !!event && isLateListing(event.dateISO);
 
   const analyze = () => {
+    // An account lists a sample ticket, and one is always picked, so name its file here.
+    if (!fileName) setFileName(SAMPLE_FILES[sample]);
     setAnalyzing(true);
     setTimeout(() => {
-      const result: ListingAI =
-        sample === "good"
-          ? { autofilled: true, forgeryScore: 9, barcodeDuplicate: false, pdfSuspicious: false }
-          : sample === "edited"
-          ? { autofilled: true, forgeryScore: 78, barcodeDuplicate: false, pdfSuspicious: true }
-          : { autofilled: true, forgeryScore: 11, barcodeDuplicate: true, pdfSuspicious: false };
+      // The same table the server uses, so the page shows what the server will decide.
+      const result: ListingAI = SAMPLE_SIGNALS[sample];
       setAi(result);
       setOrderer("Zahra Amelia");
       setBarcode("TIX-8842-7731-2290");
@@ -99,8 +110,24 @@ export default function SellPage() {
     }, 1800);
   };
 
+  const publishAccount = async () => {
+    if (!event || !tier) return;
+    setPublishing(true);
+    try {
+      const res = await createListing({ eventId: event.id, tierId: tier.id, askPrice: price, quantity: qty, splittable: false, gateKtp, sample });
+      toast.success(res.status === "review" ? t("Submitted for admin review", "Diajukan untuk review admin") : t("Listing is live, protected by escrow.", "Listing tayang, dijaga escrow."));
+      router.push("/seller");
+      // The catalogue lives in the root layout: fetch it again so the new listing shows.
+      router.refresh();
+    } catch (e) {
+      setPublishing(false);
+      toast.error(`${t("Not published", "Gagal publish")}: ${e instanceof ListingError || e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+
   const publish = () => {
     if (!event || !tier || blocked || ktpMissing) return;
+    if (account) return void publishAccount();
     addListing({
       eventId: event.id, eventTitle: event.title, tierName: tier.name,
       askPrice: price, faceValue, quantity: qty, ai: ai!,
@@ -135,6 +162,19 @@ export default function SellPage() {
       {/* Step 1: upload */}
       {step === 0 && (
         <div className="flex flex-col gap-5">
+          {account ? (
+            <div data-upload-closed className="border-2 border-dashed border-neutral-light-gray-1 rounded-3xl py-10 px-6 flex flex-col items-center gap-3 text-center bg-secondary-gray-soft/60">
+              <UploadCloud className="w-10 h-10 text-neutral-gray" />
+              <span className="font-fredoka font-semibold text-neutral-black">{t("Uploading your own PDF opens with the AI check", "Upload PDF sendiri dibuka bersama cek AI")}</span>
+              <span className="text-sm text-neutral-gray max-w-md">
+                {t(
+                  "Until the AI reads real files, a listing is made from one of the sample tickets below. Nothing claims to have checked a file it never read.",
+                  "Sampai AI membaca file asli, listing dibuat dari salah satu tiket contoh di bawah. Tidak ada yang mengaku sudah mengecek file yang tidak pernah dibacanya."
+                )}
+              </span>
+            </div>
+          ) : (
+          <>
           <input ref={fileInput} type="file" accept="application/pdf" hidden onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)} />
           <button
             onClick={() => fileInput.current?.click()}
@@ -161,23 +201,32 @@ export default function SellPage() {
               {t("No file handy? Use a sample", "Gak punya file? Pakai contoh")}
             </button>
           )}
+          </>
+          )}
+          {account && fileName && (
+            <div className="flex items-center gap-2 text-sm text-neutral-black bg-secondary-blue-extra rounded-xl p-3">
+              <FileText className="w-4 h-4 text-lummy-500" /> {fileName}
+            </div>
+          )}
 
           <div className="bg-secondary-gray-soft rounded-2xl p-4">
-            <div className="text-xs text-neutral-gray mb-2">{t("Demo: try the analyser on different tickets", "Demo: coba analisa beberapa jenis tiket")}</div>
+            <div className="text-xs text-neutral-gray mb-2">
+              {account ? t("Pick a sample ticket to list", "Pilih tiket contoh untuk dijual") : t("Demo: try the analyser on different tickets", "Demo: coba analisa beberapa jenis tiket")}
+            </div>
             <div className="flex flex-wrap gap-2">
               {([
-                { id: "good", en: "Genuine ticket", id_: "Tiket asli", file: "tulus-genuine.pdf" },
-                { id: "edited", en: "Edited ticket", id_: "Tiket editan", file: "tulus-edited.pdf" },
-                { id: "dup", en: "Duplicate barcode", id_: "Barcode duplikat", file: "tulus-duplicate.pdf" },
+                { id: "good", en: "Genuine ticket", id_: "Tiket asli" },
+                { id: "edited", en: "Edited ticket", id_: "Tiket editan" },
+                { id: "dup", en: "Duplicate barcode", id_: "Barcode duplikat" },
               ] as const).map((s) => (
-                <button key={s.id} onClick={() => { setSample(s.id); setFileName(s.file); }} className={`px-3 py-1.5 rounded-lg text-sm border cursor-pointer ${sample === s.id ? "bg-primary-navy text-white border-primary-navy" : "bg-neutral-white text-neutral-gray border-neutral-light-gray-1"}`}>
+                <button key={s.id} onClick={() => { setSample(s.id); setFileName(SAMPLE_FILES[s.id]); }} className={`px-3 py-1.5 rounded-lg text-sm border cursor-pointer ${sample === s.id ? "bg-primary-navy text-white border-primary-navy" : "bg-neutral-white text-neutral-gray border-neutral-light-gray-1"}`}>
                   {t(s.en, s.id_)}
                 </button>
               ))}
             </div>
           </div>
 
-          <Button.Primary wrapperClass="w-fit" className="flex items-center gap-2" disabled={!fileName} onClick={analyze}>
+          <Button.Primary wrapperClass="w-fit" className="flex items-center gap-2" disabled={!fileName && !account} onClick={analyze}>
             {analyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
             {analyzing ? t("Analysing...", "Menganalisis...") : t("Analyse with AI", "Analisis dengan AI")}
           </Button.Primary>
@@ -289,9 +338,11 @@ export default function SellPage() {
               <div className="mt-4 flex flex-col gap-3">
                 <input ref={ktpInput} type="file" accept="image/*" hidden onChange={(e) => setKtpFile(e.target.files?.[0]?.name ?? null)} />
                 <div className="flex flex-wrap items-center gap-3">
-                  <Button.Ghost className="text-sm" onClick={() => ktpInput.current?.click()}>
-                    <IdCard className="w-4 h-4" /> {ktpFile ? t("Replace photo", "Ganti foto") : t("Upload ID card photo", "Upload foto KTP")}
-                  </Button.Ghost>
+                  {!account && (
+                    <Button.Ghost className="text-sm" onClick={() => ktpInput.current?.click()}>
+                      <IdCard className="w-4 h-4" /> {ktpFile ? t("Replace photo", "Ganti foto") : t("Upload ID card photo", "Upload foto KTP")}
+                    </Button.Ghost>
+                  )}
                   {ktpFile ? (
                     <span className="flex items-center gap-1.5 text-sm text-neutral-black min-w-0 break-all">
                       <CheckCircle2 className="w-4 h-4 shrink-0 text-secondary-green-dark" /> {ktpFile}
@@ -304,10 +355,15 @@ export default function SellPage() {
                 </div>
                 <p className="flex items-start gap-2 text-xs text-neutral-gray leading-relaxed">
                   <Lock className="w-3.5 h-3.5 shrink-0 mt-0.5 text-lummy-500" />
-                  {t(
-                    "Stored encrypted and never sent to AI. The buyer can only view it close to the show, with their name watermarked across it, and it is deleted after the event.",
-                    "Disimpan terenkripsi dan tidak pernah dikirim ke AI. Pembeli baru bisa melihatnya mendekati acara, dengan nama mereka sebagai watermark, dan fotonya dihapus setelah acara."
-                  )}
+                  {account
+                    ? t(
+                        "For now only the sample photo can be staged. Real ID photos are accepted once the protected viewer is live: stored encrypted, never sent to AI, viewable by the buyer only close to the show with their name watermarked across it, and deleted after the event.",
+                        "Untuk sekarang cuma foto contoh yang bisa disiapkan. Foto KTP asli baru diterima setelah penampil terproteksinya siap: disimpan terenkripsi, tidak pernah dikirim ke AI, hanya bisa dilihat pembeli mendekati acara dengan nama mereka sebagai watermark, lalu dihapus setelah acara."
+                      )
+                    : t(
+                        "Stored encrypted and never sent to AI. The buyer can only view it close to the show, with their name watermarked across it, and it is deleted after the event.",
+                        "Disimpan terenkripsi dan tidak pernah dikirim ke AI. Pembeli baru bisa melihatnya mendekati acara, dengan nama mereka sebagai watermark, dan fotonya dihapus setelah acara."
+                      )}
                 </p>
               </div>
             )}
@@ -341,7 +397,7 @@ export default function SellPage() {
 
           <div className="flex gap-3">
             <Button.Ghost onClick={() => setStep(1)}><ArrowLeft className="w-4 h-4" /> {t("Back", "Kembali")}</Button.Ghost>
-            <Button.Primary disabled={blocked || ktpMissing} onClick={publish}>
+            <Button.Primary disabled={blocked || ktpMissing || publishing} onClick={publish}>
               {blocked ? t("Blocked (duplicate)", "Diblokir (duplikat)") : flagged || late ? t("Submit for review", "Ajukan untuk review") : t("Publish listing", "Publish listing")}
             </Button.Primary>
           </div>

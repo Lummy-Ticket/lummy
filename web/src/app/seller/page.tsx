@@ -15,10 +15,11 @@ import {
 } from "@/lib/mock";
 import { useAccessGuard, useHydrated } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
-import { SampleBadge } from "@/components/common/SampleBadge";
 import { useT, useFormatters, useActiveLang } from "@/lib/i18n";
 import { useCatalogue } from "@/lib/catalogue";
 import { orderAction, useAccountOrders } from "@/lib/orders/client";
+import { listingAction, useAccountListings } from "@/lib/listings/client";
+import { useRouter } from "next/navigation";
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
@@ -199,11 +200,34 @@ export default function SellerPage() {
     refreshSales();
   };
   const mounted = useHydrated();
-  const listings = useSellerListings((s) => s.listings);
+  const router = useRouter();
+  // An account's listings come from the database; a sample persona's from this browser.
+  const sampleListings = useSellerListings((s) => s.listings);
+  const { listings: accountListings, refresh: refreshListings } = useAccountListings(account && user ? { seller: user.id } : null);
+  const listings = account ? accountListings ?? [] : sampleListings;
   const [promote, setPromote] = useState<SellerListing | null>(null);
+  // Withdrawing takes a listing off sale for good, so it asks twice.
+  const [confirmWithdraw, setConfirmWithdraw] = useState<string | null>(null);
+  const withdraw = async (l: SellerListing) => {
+    if (confirmWithdraw !== l.id) {
+      setConfirmWithdraw(l.id);
+      setTimeout(() => setConfirmWithdraw((c) => (c === l.id ? null : c)), 4000);
+      return;
+    }
+    setConfirmWithdraw(null);
+    try {
+      await listingAction(l.id, "withdraw");
+      toast.success(t("Listing withdrawn", "Listing ditarik"));
+      refreshListings();
+      router.refresh();
+    } catch (e) {
+      toast.error(`${t("Not withdrawn", "Gagal ditarik")}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
 
   const active = listings.filter((l) => l.status === "active");
   const sold = listings.filter((l) => l.status === "sold");
+  const inReview = listings.filter((l) => l.status === "review");
   const views = listings.reduce((a, l) => a + l.views, 0);
   // Fees are paid by the buyer on top of the ticket (docs/09, decision E), so the seller
   // receives exactly what they asked.
@@ -233,18 +257,15 @@ export default function SellerPage() {
         <Link href="/sell"><Button.Primary className="flex items-center gap-2 text-sm"><Plus className="w-4 h-4" /> {t("Sell a ticket", "Jual tiket")}</Button.Primary></Link>
       </div>
 
-      {/* Listing from an account is not built yet: the sell page still keeps listings in this
-          browser, so for an account the listing numbers below say what they are. */}
-      {account && (
-        <p className="flex flex-wrap items-center gap-2 text-xs text-neutral-gray -mt-3 mb-3">
-          <SampleBadge />
-          {t("Listings, and anything counted from them, are still sample data. Claims come from your account.", "Listing, dan semua yang dihitung darinya, masih data contoh. Klaim berasal dari akunmu.")}
-        </p>
-      )}
       <div data-reveal="stagger" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
         <Stat label={t("Active listings", "Listing aktif")} value={String(active.length)} />
         <Stat label={t("Sold", "Terjual")} value={String(sold.length)} />
-        <Stat label={t("Total views", "Total dilihat")} value={views.toLocaleString(lang === "id" ? "id-ID" : "en-US")} />
+        {/* Views are not counted for real listings yet, and a 0 would say nobody looked. */}
+        {account ? (
+          <Stat label={t("In review", "Direview")} value={String(inReview.length)} />
+        ) : (
+          <Stat label={t("Total views", "Total dilihat")} value={views.toLocaleString(lang === "id" ? "id-ID" : "en-US")} />
+        )}
         <Stat label={t("If everything sells", "Kalau semua terjual")} value={formatIDR(est)} />
       </div>
 
@@ -274,15 +295,18 @@ export default function SellerPage() {
         </p>
       </div>
 
-      <h3 className="font-fredoka font-semibold text-neutral-black mb-3 flex items-center gap-2">
-        {t("Your listings", "Listing kamu")} {account && <SampleBadge />}
-      </h3>
-      {!mounted ? (
+      <h3 className="font-fredoka font-semibold text-neutral-black mb-3">{t("Your listings", "Listing kamu")}</h3>
+      {!mounted || (account && !accountListings) ? (
         <p className="text-neutral-gray text-sm">{t("Loading...", "Memuat...")}</p>
+      ) : listings.length === 0 ? (
+        <p className="text-neutral-gray text-sm">
+          {t("Nothing listed yet.", "Belum ada listing.")}{" "}
+          <Link href="/sell" className="text-primary-navy font-medium">{t("Sell your first ticket", "Jual tiket pertamamu")}</Link>
+        </p>
       ) : (
         <div data-reveal="stagger" className="flex flex-col gap-3">
           {listings.map((l) => (
-            <div key={l.id} className="bg-neutral-white rounded-2xl border border-neutral-light-gray-1 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors duration-300 hover:border-lummy-500">
+            <div key={l.id} data-listing={l.id} className="bg-neutral-white rounded-2xl border border-neutral-light-gray-1 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors duration-300 hover:border-lummy-500">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <h4 className="font-fredoka font-semibold text-neutral-black truncate">{l.eventTitle}</h4>
@@ -298,7 +322,7 @@ export default function SellerPage() {
                 </div>
                 <div className="text-xs text-neutral-gray mt-1 flex items-center gap-3 flex-wrap">
                   <span>{l.tierName}{l.quantity > 1 ? t(` · ${l.quantity} tickets`, ` · ${l.quantity} tiket`) : ""}</span>
-                  <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {l.views}</span>
+                  {!account && <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {l.views}</span>}
                   {l.gateKtp && <span>{t("ID card staged for the gate", "KTP siap untuk gate")}</span>}
                   {payoutNote(l) && (
                     <span className="flex items-center gap-1 text-lummy-500">
@@ -312,6 +336,14 @@ export default function SellerPage() {
                 {l.status === "active" && (
                   <button onClick={() => setPromote(l)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-lummy-500 text-lummy-500 text-sm hover:bg-secondary-blue-light transition cursor-pointer">
                     <Megaphone className="w-4 h-4" /> {t("Promote", "Promosikan")}
+                  </button>
+                )}
+                {account && (l.status === "active" || l.status === "review") && (
+                  <button
+                    onClick={() => void withdraw(l)}
+                    className={`px-3 py-2 rounded-xl border text-sm transition cursor-pointer ${confirmWithdraw === l.id ? "border-secondary-pink-dark text-secondary-pink-dark bg-secondary-pink-light" : "border-neutral-light-gray-1 text-neutral-gray hover:border-secondary-pink-dark hover:text-secondary-pink-dark"}`}
+                  >
+                    {confirmWithdraw === l.id ? t("Sure? Withdraw", "Yakin? Tarik") : t("Withdraw", "Tarik")}
                   </button>
                 )}
               </div>

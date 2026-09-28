@@ -22,6 +22,8 @@ import {
 import { chainAction } from "@/lib/chain/client";
 import { useCatalogue } from "@/lib/catalogue";
 import { orderAction, useAccountOrders } from "@/lib/orders/client";
+import { listingAction, useAccountListings } from "@/lib/listings/client";
+import { useRouter } from "next/navigation";
 import { SampleBadge } from "@/components/common/SampleBadge";
 
 /**
@@ -116,15 +118,25 @@ function EmptyQueue({ text }: { text: string }) {
  * this queue exists, so it has to actually exist.
  */
 function ListingQueue({
-  held, onApprove, onReject,
+  held, onApprove, onReject, sampleFiles,
 }: {
   held: SellerListing[];
-  onApprove: (id: string) => void;
-  onReject: (id: string) => void;
+  onApprove: (id: string) => void | Promise<void>;
+  onReject: (id: string) => void | Promise<void>;
+  /** Listings from accounts carry a sample ticket until the AI reads real PDFs. */
+  sampleFiles?: boolean;
 }) {
   const t = useT();
   const { formatIDR, formatEventDate } = useFormatters();
   const catalogue = useCatalogue();
+  const decide = async (fn: (id: string) => void | Promise<void>, id: string, done: () => void) => {
+    try {
+      await fn(id);
+      done();
+    } catch (e) {
+      toast.error(`${t("Not saved", "Gagal disimpan")}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
 
   if (held.length === 0) {
     return <EmptyQueue text={t("Nothing held. Every listing cleared on its own.", "Tidak ada yang ditahan. Semua listing lolos sendiri.")} />;
@@ -137,12 +149,17 @@ function ListingQueue({
           "These never went live. Clear one only after checking the document by hand: approving puts it in front of buyers.",
           "Semua ini belum pernah tayang. Loloskan hanya setelah dokumennya dicek manual: menyetujui berarti listing-nya tampil ke pembeli."
         )}
+        {sampleFiles &&
+          t(
+            " For now each file is a sample ticket, since the AI does not read real PDFs yet.",
+            " Untuk sekarang tiap file masih tiket contoh, karena AI belum membaca PDF asli."
+          )}
       </p>
       {held.map((l) => {
         const ev = catalogue.eventById(l.eventId);
         const risky = l.ai.pdfSuspicious || l.ai.forgeryScore >= 60;
         return (
-          <div key={l.id} className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
+          <div key={l.id} data-listing={l.id} className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="font-fredoka font-semibold text-neutral-black truncate">{l.eventTitle}</h3>
@@ -185,11 +202,11 @@ function ListingQueue({
             <div className="flex gap-3 mt-4">
               <Button.Primary
                 className="flex items-center gap-2 text-sm"
-                onClick={() => { onApprove(l.id); toast.success(t("Listing cleared, now live", "Listing lolos, sekarang tayang")); }}
+                onClick={() => void decide(onApprove, l.id, () => toast.success(t("Listing cleared, now live", "Listing lolos, sekarang tayang")))}
               >
                 <CheckCircle2 className="w-4 h-4" /> {t("Clear listing", "Loloskan listing")}
               </Button.Primary>
-              <Button.Ghost tone="danger" className="text-sm" onClick={() => { onReject(l.id); toast(t("Listing rejected", "Listing ditolak")); }}>
+              <Button.Ghost tone="danger" className="text-sm" onClick={() => void decide(onReject, l.id, () => toast(t("Listing rejected", "Listing ditolak")))}>
                 <XCircle className="w-4 h-4" /> {t("Reject", "Tolak")}
               </Button.Ghost>
             </div>
@@ -224,7 +241,17 @@ export default function AdminPage() {
   const account = useUser((s) => !!s.user?.account);
   const { orders: openClaims, error: claimsError, refresh: refreshClaims } = useAccountOrders(account ? { openClaims: true } : null);
   const disputes = account ? (openClaims ?? []).filter((o) => o.escrowStatus === "DISPUTED") : orders.filter((o) => o.escrowStatus === "DISPUTED");
-  const held = listings.filter((l) => l.status === "review");
+  // Staff with an account review the listings accounts posted; a sample admin the ones in this browser.
+  const router = useRouter();
+  const { listings: heldListings, refresh: refreshHeld } = useAccountListings(account ? { review: true } : null);
+  const held = account ? heldListings ?? [] : listings.filter((l) => l.status === "review");
+  const decideListing = async (id: string, action: "approve" | "reject") => {
+    if (!account) return action === "approve" ? approveListing(id) : rejectListing(id);
+    await listingAction(id, action);
+    refreshHeld();
+    // A cleared listing goes on sale, and the catalogue sits in the root layout.
+    if (action === "approve") router.refresh();
+  };
   const pendingEvents = requests.filter((r) => r.status === "pending");
 
   // Three queues, each with its own rhythm. Kept apart so a busy day in one
@@ -410,15 +437,23 @@ export default function AdminPage() {
       )}
 
       {/* These two queues still run on sample data; say so to staff signed in with an account. */}
-      {account && tab !== "claims" && (
+      {account && tab === "events" && (
         <p className="flex flex-wrap items-center gap-2 text-xs text-neutral-gray mb-4">
           <SampleBadge />
-          {t("This queue is not in the database yet. Claims are.", "Antrean ini belum di database. Klaim sudah.")}
+          {t("This queue is not in the database yet. Claims and listings are.", "Antrean ini belum di database. Klaim dan listing sudah.")}
         </p>
       )}
 
-      {mounted && tab === "listings" && (
-        <ListingQueue held={held} onApprove={approveListing} onReject={rejectListing} />
+      {mounted && tab === "listings" && account && !heldListings && (
+        <p className="text-neutral-gray text-sm">{t("Loading...", "Memuat...")}</p>
+      )}
+      {mounted && tab === "listings" && (!account || heldListings) && (
+        <ListingQueue
+          held={held}
+          onApprove={(id) => decideListing(id, "approve")}
+          onReject={(id) => decideListing(id, "reject")}
+          sampleFiles={account}
+        />
       )}
 
       {tab === "events" && (
