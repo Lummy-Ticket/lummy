@@ -11,8 +11,9 @@ import { useAccessGuard, useHydrated } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters } from "@/lib/i18n";
 import {
-  useOrders, phaseOf, msUntilRelease, type Order, type EscrowPhase,
+  useOrders, useUser, phaseOf, msUntilRelease, type Order, type EscrowPhase,
 } from "@/lib/mock";
+import { useAccountOrders } from "@/lib/orders/client";
 
 export default function TicketsPage() {
   const t = useT();
@@ -46,7 +47,12 @@ export default function TicketsPage() {
         return { urgent: false, Icon: Hourglass, text: t("Releasing to the seller", "Sedang dicairkan ke penjual") };
     }
   };
-  const orders = useOrders((s) => s.orders);
+  // Data follows who is signed in: an account's orders come from the database, a sample
+  // persona's from this browser.
+  const user = useUser((s) => s.user);
+  const sample = useOrders((s) => s.orders);
+  const { orders: mine, error: loadError, refresh } = useAccountOrders(user?.account ? { buyer: user.id } : null);
+  const orders = user?.account ? mine : sample;
   const sweepAutoRelease = useOrders((s) => s.sweepAutoRelease);
   const mounted = useHydrated();
   const [now, setNow] = useState(() => Date.now());
@@ -66,7 +72,12 @@ export default function TicketsPage() {
       <h1 className="text-2xl md:text-3xl font-bold text-neutral-black">{t("My tickets", "Tiket saya")}</h1>
       <p className="text-neutral-gray text-sm mt-1 mb-6">{t("Everything you bought, with the state of the money.", "Semua yang kamu beli, lengkap dengan status dananya.")}</p>
 
-      {!mounted ? (
+      {mounted && !orders && loadError ? (
+        <div className="flex flex-col items-start gap-2">
+          <p className="text-neutral-gray text-sm">{t("Your tickets could not be loaded. Check your connection.", "Tiketmu gagal dimuat. Cek koneksimu.")}</p>
+          <Button.Ghost className="text-sm" onClick={refresh}>{t("Try again", "Coba lagi")}</Button.Ghost>
+        </div>
+      ) : !mounted || !orders ? (
         <p className="text-neutral-gray text-sm">{t("Loading...", "Memuat...")}</p>
       ) : orders.length === 0 ? (
         <div className="flex flex-col items-center text-center py-16 gap-4">

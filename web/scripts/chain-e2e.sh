@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Uji mode chain dari ujung ke ujung: Anvil lokal, deploy, `next dev` dengan kunci akun bawaan Anvil,
-# lalu tiap route /api/chain dipanggil lewat HTTP dan alur UI dijalankan di Chrome. Pakai dari web/:
+# lalu tiap route /api/chain dipanggil lewat HTTP dan alur UI dijalankan di Chrome. Kalau web/.env.local
+# punya Supabase, pesanan akun demo dengan escrow on-chain ikut diuji (orders-check, CHAIN=1). Pakai
+# dari web/:
 #   npm run chain:e2e
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -57,4 +59,13 @@ if [ -x "${CHROME:-/opt/google/chrome/chrome}" ]; then
   BASE=http://127.0.0.1:$PORT RPC=$RPC DEMO_KEY=uji-lokal node scripts/chain-ui-check.mjs
 else
   echo "Chrome tidak ditemukan (set CHROME=/path/ke/chrome), uji UI dilewati."
+fi
+
+# Pesanan akun: akun demo membeli lewat checkout, klaim dan putusannya dijalankan kontrak di Anvil, dan
+# database mencatat semuanya. Listing, pesanan, dan akun uji dihapus lagi di akhir.
+if [ -x "${CHROME:-/opt/google/chrome/chrome}" ] && grep -q "^SUPABASE_SECRET_KEY=." .env.local 2>/dev/null; then
+  echo ""
+  BASE=http://127.0.0.1:$PORT DEMO_KEY=uji-lokal CHAIN=1 node --env-file-if-exists=.env.local scripts/orders-check.mjs
+else
+  echo "Supabase (SUPABASE_SECRET_KEY di web/.env.local) atau Chrome tidak ada, uji pesanan akun dilewati."
 fi

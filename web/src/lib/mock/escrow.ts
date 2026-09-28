@@ -42,13 +42,24 @@ export const scheduledEndISO = (o: Order) =>
   new Date(new Date(o.eventDateISO).getTime() + EVENT_DURATION_H * H).toISOString();
 
 /**
- * Deadline for filing, and for the automatic payout. Undefined until the event is over.
- * An on-chain order takes it from the contract, which also counts the handover.
+ * When the show ended, if it has: confirmed by hand on a sample order, or the scheduled end
+ * once it has passed on an order that knows it.
+ */
+export function endedAtISO(o: Order, now: number = Date.now()) {
+  if (o.eventEndedAtISO) return o.eventEndedAtISO;
+  if (o.eventEndsAtISO && now >= new Date(o.eventEndsAtISO).getTime()) return o.eventEndsAtISO;
+  return undefined;
+}
+
+/**
+ * Deadline for filing, and for the automatic payout. Undefined until the end of the show is
+ * known. An on-chain order takes it from the contract, which also counts the handover.
  */
 export const disputeDeadlineISO = (o: Order) => {
-  if (!o.eventEndedAtISO) return undefined;
+  const ended = o.eventEndedAtISO ?? o.eventEndsAtISO;
+  if (!ended) return undefined;
   if (o.chain?.deadline) return new Date(o.chain.deadline * 1000).toISOString();
-  return new Date(new Date(o.eventEndedAtISO).getTime() + DISPUTE_WINDOW_H * H).toISOString();
+  return new Date(new Date(ended).getTime() + DISPUTE_WINDOW_H * H).toISOString();
 };
 
 /** Length of the dispute window. The testnet contract runs a 10-minute demo window. */
@@ -65,7 +76,7 @@ export function phaseOf(o: Order, now: number = Date.now()): EscrowPhase {
   if (o.escrowStatus === "RELEASED") return "RELEASED";
   if (o.escrowStatus === "REFUNDED") return "REFUNDED";
   if (o.escrowStatus === "DISPUTED") return "IN_REVIEW";
-  if (!o.eventEndedAtISO) return "PRE_EVENT";
+  if (!endedAtISO(o, now)) return "PRE_EVENT";
   const deadline = disputeDeadlineISO(o);
   return deadline && now >= new Date(deadline).getTime() ? "WINDOW_CLOSED" : "WINDOW_OPEN";
 }

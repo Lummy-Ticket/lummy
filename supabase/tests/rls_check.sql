@@ -1,6 +1,7 @@
 -- Who can reach what, checked as each role: anon, a buyer, the seller, a stranger, an admin.
--- Run the whole file in one go (Supabase SQL editor, or MCP execute_sql). Everything it
--- creates is rolled back at the end. Every line of the output should start with "ok".
+-- Run the whole file in one go (Supabase SQL editor, or MCP execute_sql). The report comes
+-- back as an error on purpose: raising it is what rolls back everything the file created,
+-- whichever client runs it. Every line of the report should start with "ok".
 begin;
 create temp table t_out (n serial, line text) on commit drop;
 grant insert, select on t_out to anon, authenticated;
@@ -50,14 +51,14 @@ select pg_temp.probe('anon', null, 'anon: ktp_assets', 'select count(*)::text fr
 select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: own order visible', 'select count(*)::text from public.orders', '1');
 select pg_temp.probe('authenticated', '22222222-2222-2222-2222-222222222222', 'seller: order visible', 'select count(*)::text from public.orders', '1');
 select pg_temp.probe('authenticated', '33333333-3333-3333-3333-333333333333', 'stranger: no orders', 'select count(*)::text from public.orders', '0');
-select pg_temp.probe('authenticated', '44444444-4444-4444-4444-444444444444', 'admin: order visible', 'select count(*)::text from public.orders', '1');
+select pg_temp.probe('authenticated', '44444444-4444-4444-4444-444444444444', 'admin: order visible', $q$select count(*)::text from public.orders where id = 'or-test'$q$, '1');
 select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: dispute visible', 'select count(*)::text from public.disputes', '1');
 select pg_temp.probe('authenticated', '33333333-3333-3333-3333-333333333333', 'stranger: no disputes', 'select count(*)::text from public.disputes', '0');
 select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: cannot see seller review listing', $q$select count(*)::text from public.listings where id = 'ls-review'$q$, '0');
 select pg_temp.probe('authenticated', '22222222-2222-2222-2222-222222222222', 'seller: sees own review listing', $q$select count(*)::text from public.listings where id = 'ls-review'$q$, '1');
 select pg_temp.probe('authenticated', '44444444-4444-4444-4444-444444444444', 'admin: sees review listing', $q$select count(*)::text from public.listings where id = 'ls-review'$q$, '1');
 select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: sees only own profile', 'select count(*)::text from public.profiles', '1');
-select pg_temp.probe('authenticated', '44444444-4444-4444-4444-444444444444', 'admin: sees all 4 profiles', 'select count(*)::text from public.profiles', '4');
+select pg_temp.probe('authenticated', '44444444-4444-4444-4444-444444444444', 'admin: sees all 4 test profiles', $q$select count(*)::text from public.profiles where id in ('11111111-1111-1111-1111-111111111111','22222222-2222-2222-2222-222222222222','33333333-3333-3333-3333-333333333333','44444444-4444-4444-4444-444444444444')$q$, '4');
 select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: make self admin', $q$update public.profiles set role = 'admin' where id = '11111111-1111-1111-1111-111111111111' returning id::text$q$, 'DENIED');
 select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: mark self KYC verified', $q$update public.profiles set kyc = 'verified' returning id::text$q$, 'DENIED');
 select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: edit own phone', $q$with u as (update public.profiles set phone = '0812' returning 1) select count(*)::text from u$q$, '1');
@@ -69,10 +70,12 @@ select pg_temp.probe('authenticated', '22222222-2222-2222-2222-222222222222', 's
 select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: add own alert', $q$insert into public.alert_subscriptions (event_id) values ('ev-sos') returning event_id$q$, 'ev-sos');
 select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: add alert for someone else', $q$insert into public.alert_subscriptions (user_id, event_id) values ('22222222-2222-2222-2222-222222222222','ev-sos') returning event_id$q$, 'DENIED');
 select pg_temp.probe('authenticated', '22222222-2222-2222-2222-222222222222', 'seller: sees no one else alerts', 'select count(*)::text from public.alert_subscriptions', '0');
+-- Seats are claimed and handed back by the server only, after it has checked the buyer.
+select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: claim seats directly', $q$select (public.claim_listing('ls-2', 1)).id$q$, 'DENIED');
+select pg_temp.probe('anon', null, 'anon: release seats directly', $q$select public.release_listing('ls-2', 1)::text$q$, 'DENIED');
 
 insert into t_out(line)
   select (case when role = 'member' then 'ok    ' else 'FAIL  ' end) || 'signup metadata cannot set role -> ' || role::text
   from public.profiles where id = '22222222-2222-2222-2222-222222222222';
 
-select string_agg(line, E'\n' order by n) as result from t_out;
-rollback;
+do $$ begin raise exception E'RLS CHECK\n%', (select string_agg(line, E'\n' order by n) from t_out); end $$;

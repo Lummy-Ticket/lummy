@@ -154,6 +154,29 @@ interface OrderState {
   getById: (id: string) => Order | undefined;
 }
 
+/** An on-chain order as the contract reports it: status, window and deadline come from there. */
+export function withChainSnapshot(o: Order, snap: ChainSnapshot, now: number = Date.now()): Order {
+  if (!o.chain) return o;
+  const settled = snap.status === "Released" ? "RELEASED" : snap.status === "Refunded" ? "REFUNDED" : null;
+  // A dispute only shows as one when its details were filed here; the contract flag alone has no reason attached.
+  const escrowStatus: EscrowStatus = settled ?? (snap.disputed && o.dispute ? "DISPUTED" : "LOCKED");
+  const ended = snap.eventEndsAt * 1000 <= now ? new Date(snap.eventEndsAt * 1000).toISOString() : undefined;
+  const unchanged =
+    o.escrowStatus === escrowStatus &&
+    o.eventEndedAtISO === (ended ?? o.eventEndedAtISO) &&
+    o.chain.deadline === snap.deadline &&
+    o.chain.window === snap.disputeWindow &&
+    o.chain.status === snap.status;
+  if (unchanged) return o; // polling every few seconds must not rewrite storage each time
+  return {
+    ...o,
+    escrowStatus,
+    eventEndedAtISO: ended ?? o.eventEndedAtISO,
+    autoReleased: o.autoReleased || (settled === "RELEASED" && !o.dispute),
+    chain: { ...o.chain, deadline: snap.deadline, window: snap.disputeWindow, status: snap.status },
+  };
+}
+
 /** On-chain orders keep their transactions next to the order, so the UI can link each one. */
 const withSettlement = (o: Order, s?: ChainSettlement): Order =>
   o.chain && s ? { ...o, chain: { ...o.chain, txs: { ...o.chain.txs, settle: s.tx, withdrawals: s.withdrawals } } } : o;
@@ -219,29 +242,7 @@ export const useOrders = create<OrderState>()(
       },
 
       syncChain: (id, snap) =>
-        set((s) => ({
-          orders: patch(s.orders, id, (o) => {
-            if (!o.chain) return o;
-            const settled = snap.status === "Released" ? "RELEASED" : snap.status === "Refunded" ? "REFUNDED" : null;
-            // A dispute only shows as one when its details were filed here; the contract flag alone has no reason attached.
-            const escrowStatus: EscrowStatus = settled ?? (snap.disputed && o.dispute ? "DISPUTED" : "LOCKED");
-            const ended = snap.eventEndsAt * 1000 <= Date.now() ? new Date(snap.eventEndsAt * 1000).toISOString() : undefined;
-            const unchanged =
-              o.escrowStatus === escrowStatus &&
-              o.eventEndedAtISO === (ended ?? o.eventEndedAtISO) &&
-              o.chain.deadline === snap.deadline &&
-              o.chain.window === snap.disputeWindow &&
-              o.chain.status === snap.status;
-            if (unchanged) return o; // polling every few seconds must not rewrite storage each time
-            return {
-              ...o,
-              escrowStatus,
-              eventEndedAtISO: ended ?? o.eventEndedAtISO,
-              autoReleased: o.autoReleased || (settled === "RELEASED" && !o.dispute),
-              chain: { ...o.chain, deadline: snap.deadline, window: snap.disputeWindow, status: snap.status },
-            };
-          }),
-        })),
+        set((s) => ({ orders: patch(s.orders, id, (o) => withChainSnapshot(o, snap)) })),
 
       settleChain: (id, st) =>
         set((s) => ({

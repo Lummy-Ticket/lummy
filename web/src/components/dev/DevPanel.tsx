@@ -93,7 +93,12 @@ function Panel({ onClose, accounts }: { onClose: () => void; accounts: DemoAccou
           <X className="w-4 h-4" />
         </button>
       </div>
-      <p className="text-xs text-neutral-gray mb-1">{t("Prototype mode. Orders are sample data unless chain mode is on.", "Mode prototipe. Pesanan adalah data contoh, kecuali mode chain menyala.")}</p>
+      <p className="text-xs text-neutral-gray mb-1">
+        {t(
+          "Sample personas keep orders in this browser. Accounts save them to the database; chain mode makes the escrow real on testnet.",
+          "Persona contoh menyimpan pesanan di browser ini. Akun menyimpannya di database; mode chain membuat escrow-nya sungguhan di testnet."
+        )}
+      </p>
       <p className="text-xs text-neutral-gray mb-3" data-catalogue-source={catalogueSource}>
         {catalogueSource === "database"
           ? t("Catalogue: from the database.", "Katalog: dari database.")
@@ -139,7 +144,7 @@ function Panel({ onClose, accounts }: { onClose: () => void; accounts: DemoAccou
             <p className="text-[11px] text-neutral-gray">
               {chainReady
                 ? t("New checkouts lock test USDC in the escrow on Arbitrum Sepolia.", "Checkout baru mengunci USDC testnet di escrow Arbitrum Sepolia.")
-                : t("Chain off: new checkouts are sample orders.", "Chain mati: checkout baru jadi pesanan contoh.")}
+                : t("Chain off: payments are simulated.", "Chain mati: pembayaran disimulasikan.")}
             </p>
           )}
         </div>

@@ -18,10 +18,11 @@ import { useT, useFormatters } from "@/lib/i18n";
 import { EscrowStatusPill } from "@/components/common/EscrowStatusPill";
 import { EscrowSteps } from "@/components/common/EscrowSteps";
 import { PageContainer } from "@/components/layout/PageContainer";
-import {useOrders, useUser, explorerTx, explorerAddr, shortHash, phaseOf, msUntilRelease, disputeDeadlineISO, checkEvidence, mockEvidenceOptions, DISPUTE_WINDOW_H, reasonMeta, availableReasons, reasonBlockedNote, canFileDispute, REMEDY_LABEL, windowMs, windowLabel, type DisputeEvidence, type DisputeReason,
+import {useOrders, useUser, explorerTx, explorerAddr, shortHash, phaseOf, msUntilRelease, disputeDeadlineISO, endedAtISO, checkEvidence, mockEvidenceOptions, DISPUTE_WINDOW_H, reasonMeta, availableReasons, reasonBlockedNote, canFileDispute, REMEDY_LABEL, windowMs, windowLabel, withChainSnapshot, type DisputeEvidence, type DisputeReason,
 } from "@/lib/mock";
 import { chainAction, chainWritable, useChainInfo, useChainListing, usdcText } from "@/lib/chain/client";
 import { DEPLOYMENTS } from "@/lib/chain/deployments";
+import { OrderError, orderAction, useAccountOrders } from "@/lib/orders/client";
 
 /** The escrow that new on-chain orders go to, shown even on sample orders so anyone can inspect it. */
 const LIVE_ESCROW = DEPLOYMENTS[421614]?.escrow;
@@ -63,7 +64,13 @@ export default function OrderDetailPage() {
   const ready = useAccessGuard("account");
   const { formatIDR, formatEventDate, formatDateTime, formatCountdown } = useFormatters();
   const { id } = useParams<{ id: string }>();
-  const order = useOrders((s) => s.orders.find((o) => o.id === id));
+  const user = useUser((s) => s.user);
+  // An account's order comes from the database and changes only through the server; a sample
+  // persona's lives in this browser.
+  const account = !!user?.account;
+  const sampleOrder = useOrders((s) => s.orders.find((o) => o.id === id));
+  const { orders: fetched, error: loadError, refresh: refreshOrder } = useAccountOrders(account ? { id } : null);
+  const stored = account ? fetched?.[0] : sampleOrder;
   const markEventFinished = useOrders((s) => s.markEventFinished);
   const fastForwardWindow = useOrders((s) => s.fastForwardWindow);
   const sweepAutoRelease = useOrders((s) => s.sweepAutoRelease);
@@ -74,11 +81,12 @@ export default function OrderDetailPage() {
   const refundPostponed = useOrders((s) => s.refundPostponed);
   const syncChain = useOrders((s) => s.syncChain);
   const settleChain = useOrders((s) => s.settleChain);
-  const user = useUser((s) => s.user);
 
-  // On-chain orders mirror the contract: status, window and deadline come from there.
+  // On-chain orders mirror the contract: status, window and deadline come from there. A sample
+  // order stores what it said; an account's order shows it over what the database holds.
   const chainInfo = useChainInfo();
-  const { data: live, refresh: refreshLive } = useChainListing(order?.chain?.listingId);
+  const { data: live, refresh: refreshLive } = useChainListing(stored?.chain?.listingId);
+  const order = useMemo(() => (account && stored && live ? withChainSnapshot(stored, live) : stored), [account, stored, live]);
   const releaseTried = useRef(0);
 
   const mounted = useHydrated();
@@ -107,15 +115,15 @@ export default function OrderDetailPage() {
     return () => clearInterval(t);
   }, [sweepAutoRelease]);
 
-  // Every fresh read from the contract is mirrored into the order.
+  // Every fresh read from the contract is mirrored into a sample order.
   useEffect(() => {
-    if (order?.chain && live) syncChain(order.id, live);
-  }, [order?.id, order?.chain, live, syncChain]);
+    if (!account && sampleOrder?.chain && live) syncChain(sampleOrder.id, live);
+  }, [account, sampleOrder?.id, sampleOrder?.chain, live, syncChain]);
 
   // Silence settles it: once the contract's window has passed without a dispute, the payout goes
   // out. The contract lets anyone trigger it; here the operator does, one attempt at a time.
   useEffect(() => {
-    if (!order?.chain || !live || live.status !== "DisputeWindow" || live.disputed) return;
+    if (account || !order?.chain || !live || live.status !== "DisputeWindow" || live.disputed) return;
     // The contract's clock decides, not this device's: a skewed laptop must not fire early.
     if (live.now <= live.deadline || !chainWritable(chainInfo)) return;
     if (now - releaseTried.current < 20_000) return;
@@ -128,7 +136,33 @@ export default function OrderDetailPage() {
         refreshLive();
       })
       .catch((e) => toast.error(`${t("Payout not sent yet", "Pencairan belum terkirim")}: ${errText(e)}`));
-  }, [order, live, now, chainInfo, settleChain, refreshLive, t]);
+  }, [account, order, live, now, chainInfo, settleChain, refreshLive, t]);
+
+  // The same rule for an account's order, carried out by the server: it checks the window on its
+  // own clock (or the contract's), so asking early changes nothing.
+  useEffect(() => {
+    if (!account || !stored || stored.escrowStatus !== "LOCKED") return;
+    const settledOnChain = !!live && (live.status === "Released" || live.status === "Refunded");
+    const due = stored.chain
+      ? settledOnChain || (!!live && live.status === "DisputeWindow" && !live.disputed && live.now > live.deadline)
+      : phaseOf(stored, now) === "WINDOW_CLOSED";
+    if (!due || now - releaseTried.current < 20_000) return;
+    releaseTried.current = now;
+    orderAction(stored.id, { action: "settle" })
+      .then(() => {
+        if (!settledOnChain)
+          toast.success(
+            stored.chain
+              ? t("The window closed in silence. The contract paid the seller.", "Masa sengketa lewat tanpa klaim. Kontrak membayar penjual.")
+              : t("The window closed in silence. The escrow released the payment to the seller.", "Masa sengketa lewat tanpa klaim. Escrow mencairkan pembayaran ke penjual.")
+          );
+        refreshOrder();
+        refreshLive();
+      })
+      .catch((e) => {
+        if (!(e instanceof OrderError && e.status === 409)) toast.error(`${t("Payout not sent yet", "Pencairan belum terkirim")}: ${errText(e)}`);
+      });
+  }, [account, stored, live, now, refreshOrder, refreshLive, t]);
 
   // Which files can back this particular claim, and how they read.
   const evidenceOptions = useMemo(
@@ -140,7 +174,15 @@ export default function OrderDetailPage() {
     [order, reason, evidence, now]
   );
 
-  if (!ready || !mounted) return <PageGate />;
+  if (account && !fetched && loadError) {
+    return (
+      <div className="max-w-lg mx-auto px-5 pt-28 pb-16 text-center flex flex-col items-center gap-3">
+        <p className="text-neutral-gray">{t("This ticket could not be loaded. Check your connection.", "Tiket ini gagal dimuat. Cek koneksimu.")}</p>
+        <Button.Ghost className="text-sm" onClick={refreshOrder}>{t("Try again", "Coba lagi")}</Button.Ghost>
+      </div>
+    );
+  }
+  if (!ready || !mounted || (account && !fetched)) return <PageGate />;
   if (!order) {
     return (
       <div className="max-w-lg mx-auto px-5 pt-28 pb-16 text-center">
@@ -153,6 +195,7 @@ export default function OrderDetailPage() {
   const phase = phaseOf(order, now);
   const left = msUntilRelease(order, now);
   const deadline = disputeDeadlineISO(order);
+  const endedAt = endedAtISO(order, now);
   const elapsed = Number.isFinite(left) ? Math.min(1, Math.max(0, 1 - left / windowMs(order))) : 0;
   const win = windowLabel(order);
   const onchain = order.chain;
@@ -193,17 +236,31 @@ export default function OrderDetailPage() {
     setShowDispute(false);
     setActing(true);
     try {
-      // On chain the dispute is a real flag that freezes the payout, sent by the operator for the buyer.
-      if (onchain) await chainAction(onchain.listingId, "dispute");
-      else await new Promise((r) => setTimeout(r, 1300));
-      openDispute(order.id, { reason, note: { en: note, id: note }, evidence: evidence ?? undefined });
+      if (account) {
+        // The server files it, and on a chain order raises the flag in the contract as well.
+        await orderAction(order.id, { action: "dispute", reason, note, evidence: evidence?.fileName });
+        refreshOrder();
+      } else {
+        // On chain the dispute is a real flag that freezes the payout, sent by the operator for the buyer.
+        if (onchain) await chainAction(onchain.listingId, "dispute");
+        else await new Promise((r) => setTimeout(r, 1300));
+        openDispute(order.id, { reason, note: { en: note, id: note }, evidence: evidence ?? undefined });
+      }
       if (onchain) refreshLive();
       toast.success(t("Dispute filed. A Lummy arbiter will review your evidence.", "Sengketa diajukan. Arbiter Lummy akan meninjau buktimu."));
     } catch (e) {
-      toast.error(`${t("The contract refused the dispute", "Kontrak menolak sengketa")}: ${errText(e)}`);
+      const what = onchain ? t("The contract refused the dispute", "Kontrak menolak sengketa") : t("The claim was not filed", "Klaim gagal diajukan");
+      toast.error(`${what}: ${errText(e)}`);
     } finally {
       setActing(false);
     }
+  };
+
+  // The platform's own record of the handover: the first open is the one that counts.
+  const openDoc = (which: "letter" | "sellerId") => {
+    if (!account) return markDocsAccessed(order.id, which);
+    if (order.docsAccessed?.[which === "letter" ? "letterAtISO" : "sellerIdAtISO"]) return;
+    orderAction(order.id, { action: "docs", which }).then(refreshOrder, () => undefined);
   };
 
   // The organiser pulled the show: on chain that is an operator refund, allowed while the window is open.
@@ -296,12 +353,14 @@ export default function OrderDetailPage() {
                   "Tiketmu tetap berlaku untuk tanggal baru dan escrow menahan dananya sampai saat itu. Kalau tanggal barunya tidak cocok, ambil uangmu kembali. Dua-duanya tidak perlu arbiter."
                 )}
               </p>
-              <button
-                onClick={() => { refundPostponed(order.id); toast.success(t("Refunded. The escrow released it back to you.", "Dana dikembalikan. Escrow melepasnya balik ke kamu.")); }}
-                className="mt-2.5 text-xs font-medium text-primary-navy hover:opacity-80 cursor-pointer"
-              >
-                {t("New date does not work, refund me", "Tanggal baru gak cocok, kembalikan dana")}
-              </button>
+              {!account && (
+                <button
+                  onClick={() => { refundPostponed(order.id); toast.success(t("Refunded. The escrow released it back to you.", "Dana dikembalikan. Escrow melepasnya balik ke kamu.")); }}
+                  className="mt-2.5 text-xs font-medium text-primary-navy hover:opacity-80 cursor-pointer"
+                >
+                  {t("New date does not work, refund me", "Tanggal baru gak cocok, kembalikan dana")}
+                </button>
+              )}
             </div>
           )}
 
@@ -412,10 +471,15 @@ export default function OrderDetailPage() {
           )}
           {showProof && !onchain && (
             <div className="mt-3 rounded-2xl bg-secondary-blue-extra p-4 text-xs text-neutral-gray leading-relaxed">
-              {t(
-                "This is a sample order, so it has no transactions on chain. Orders placed with the chain mode on are real escrows in the contract below, on Arbitrum Sepolia.",
-                "Ini pesanan contoh, jadi tidak punya transaksi di chain. Pesanan yang dibuat dengan mode chain aktif jadi escrow sungguhan di kontrak berikut, di Arbitrum Sepolia."
-              )}
+              {account
+                ? t(
+                    "The payment for this order was simulated, so nothing is locked on chain. Orders placed with the chain mode on are real escrows in the contract below, on Arbitrum Sepolia.",
+                    "Pembayaran pesanan ini simulasi, jadi tidak ada yang dikunci di chain. Pesanan yang dibuat dengan mode chain aktif jadi escrow sungguhan di kontrak berikut, di Arbitrum Sepolia."
+                  )
+                : t(
+                    "This is a sample order, so it has no transactions on chain. Orders placed with the chain mode on are real escrows in the contract below, on Arbitrum Sepolia.",
+                    "Ini pesanan contoh, jadi tidak punya transaksi di chain. Pesanan yang dibuat dengan mode chain aktif jadi escrow sungguhan di kontrak berikut, di Arbitrum Sepolia."
+                  )}
               {LIVE_ESCROW && (
                 <a href={explorerAddr(LIVE_ESCROW)} target="_blank" rel="noreferrer" className="mt-2 flex items-center gap-1.5 font-mono text-primary-navy">
                   {shortHash(LIVE_ESCROW)} <ExternalLink className="w-3.5 h-3.5" />
@@ -436,11 +500,11 @@ export default function OrderDetailPage() {
                 </div>
                 <span className="text-xs text-neutral-gray">{formatDateTime(order.createdAtISO)}</span>
               </li>
-              {order.eventEndedAtISO && (
+              {endedAt && (
                 <li className="pl-4 relative">
                   <span className="absolute -left-[7px] top-1 w-3 h-3 rounded-full bg-lummy-500 border-2 border-neutral-white" />
                   <span className="text-sm text-neutral-black">{t(`Event finished, ${win.en} window opened`, `Acara selesai, masa sengketa ${win.id} dibuka`)}</span>
-                  <span className="block text-xs text-neutral-gray">{formatDateTime(order.eventEndedAtISO)}</span>
+                  <span className="block text-xs text-neutral-gray">{formatDateTime(endedAt)}</span>
                 </li>
               )}
               {order.dispute && (
@@ -504,7 +568,8 @@ export default function OrderDetailPage() {
                   `Tidak ada jalan pintas: jam kontrak yang menentukan. Dana cair ${win.id} setelah yang terakhir dari acara selesai dan serah terima.`
                 )}
               </p>
-              {canWrite && (
+              {/* Sample orders only: an account's order is cancelled from the event, not from this page. */}
+              {canWrite && !account && (
                 <button onClick={cancelOnchain} className="w-full px-3 py-2 rounded-xl border border-neutral-light-gray-1 text-xs text-neutral-black hover:border-lummy-500 transition cursor-pointer">
                   {t("Organiser cancels (refund on chain)", "Penyelenggara membatalkan (refund di chain)")}
                 </button>
@@ -512,8 +577,9 @@ export default function OrderDetailPage() {
             </div>
           )}
 
-          {/* Simulation controls, clearly separated from the product surface */}
-          {order.escrowStatus === "LOCKED" && !onchain && (
+          {/* Simulation controls, clearly separated from the product surface. Sample orders only:
+              an account's order runs on the real schedule. */}
+          {order.escrowStatus === "LOCKED" && !onchain && !account && (
             <div className="mt-5 rounded-2xl border-2 border-dashed border-neutral-light-gray-1 p-4">
               <div className="text-xs font-semibold text-neutral-gray flex items-center gap-1.5 mb-1">
                 <FlaskConical className="w-3.5 h-3.5 text-secondary-pink-dark" /> {t("Prototype controls", "Kontrol prototipe")}
@@ -553,7 +619,7 @@ export default function OrderDetailPage() {
         <div className="flex flex-col gap-4 min-w-0">
           <div className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
             <h2 className="font-fredoka font-semibold text-lg text-neutral-black mb-3">{t("Handover documents", "Dokumen serah-terima")}</h2>
-            <button onClick={() => { setShowKuasa(true); markDocsAccessed(order.id, "letter"); }} className="w-full flex items-center gap-3 p-3 rounded-2xl border border-neutral-light-gray-1 hover:border-lummy-500 transition cursor-pointer text-left">
+            <button onClick={() => { setShowKuasa(true); openDoc("letter"); }} className="w-full flex items-center gap-3 p-3 rounded-2xl border border-neutral-light-gray-1 hover:border-lummy-500 transition cursor-pointer text-left">
               <span className="w-10 h-10 rounded-xl bg-secondary-blue-soft text-lummy-500 grid place-items-center shrink-0"><FileText className="w-5 h-5" /></span>
               <div>
                 <div className="text-sm font-medium text-neutral-black">{t("Letter of authorisation", "Surat kuasa")}</div>
@@ -561,7 +627,7 @@ export default function OrderDetailPage() {
               </div>
             </button>
             {order.gateKtp && (
-              <button onClick={() => { setShowKtp(true); markDocsAccessed(order.id, "sellerId"); }} className="mt-3 w-full flex items-center gap-3 p-3 rounded-2xl border border-neutral-light-gray-1 hover:border-lummy-500 transition cursor-pointer text-left">
+              <button onClick={() => { setShowKtp(true); openDoc("sellerId"); }} className="mt-3 w-full flex items-center gap-3 p-3 rounded-2xl border border-neutral-light-gray-1 hover:border-lummy-500 transition cursor-pointer text-left">
                 <span className="w-10 h-10 rounded-xl bg-secondary-pink-soft text-secondary-pink-dark grid place-items-center shrink-0"><CreditCard className="w-5 h-5" /></span>
                 <div>
                   <div className="text-sm font-medium text-neutral-black">{t("Seller ID card (gate check)", "Foto KTP penjual (cek gate)")}</div>

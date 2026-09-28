@@ -699,7 +699,44 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      claim_listing: {
+        Args: { p_listing_id: string; p_quantity: number }
+        Returns: {
+          ask_price: number
+          autofilled: boolean
+          barcode_duplicate: boolean
+          barcode_hmac: string | null
+          created_at: string
+          event_id: string
+          extraction: Json | null
+          face_value: number
+          forensics: Json | null
+          forgery_score: number
+          gate_ktp: boolean
+          id: string
+          late_listing: boolean
+          pdf_suspicious: boolean
+          quantity: number
+          seller_id: string | null
+          seller_name: string
+          splittable: boolean
+          status: Database["public"]["Enums"]["listing_status"]
+          ticket_path: string | null
+          ticket_sha256: string | null
+          tier_id: string
+          views: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "listings"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      release_listing: {
+        Args: { p_listing_id: string; p_quantity: number }
+        Returns: undefined
+      }
     }
     Enums: {
       alert_channel: "email" | "whatsapp" | "telegram"

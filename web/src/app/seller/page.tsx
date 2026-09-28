@@ -15,8 +15,10 @@ import {
 } from "@/lib/mock";
 import { useAccessGuard, useHydrated } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
+import { SampleBadge } from "@/components/common/SampleBadge";
 import { useT, useFormatters, useActiveLang } from "@/lib/i18n";
 import { useCatalogue } from "@/lib/catalogue";
+import { orderAction, useAccountOrders } from "@/lib/orders/client";
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
@@ -73,20 +75,27 @@ function PromoteModal({ listing, onClose }: { listing: SellerListing | null; onC
  * Claims filed against this seller. Deciding on the buyer's word alone would
  * make a false claim cheap, so the seller answers here before staff rules.
  */
-function ClaimsAgainstYou({ orders }: { orders: Order[] }) {
+function ClaimsAgainstYou({ orders, onReply }: { orders: Order[]; onReply: (o: Order, note: string, file: DisputeEvidence | null) => Promise<void> }) {
   const t = useT();
   const { formatIDR, formatDateTime } = useFormatters();
-  const reply = useOrders((s) => s.replyToDispute);
   const [openId, setOpenId] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [file, setFile] = useState<DisputeEvidence | null>(null);
+  const [sending, setSending] = useState(false);
 
   if (orders.length === 0) return null;
 
-  const send = (o: Order) => {
-    reply(o.id, { fromSeller: true, note: { en: note, id: note }, evidence: file ?? undefined });
-    setOpenId(null); setNote(""); setFile(null);
-    toast.success(t("Your answer was added to the claim", "Jawabanmu ditambahkan ke klaim"));
+  const send = async (o: Order) => {
+    setSending(true);
+    try {
+      await onReply(o, note, file);
+      setOpenId(null); setNote(""); setFile(null);
+      toast.success(t("Your answer was added to the claim", "Jawabanmu ditambahkan ke klaim"));
+    } catch (e) {
+      toast.error(`${t("Your answer was not sent", "Jawabanmu gagal dikirim")}: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -105,7 +114,7 @@ function ClaimsAgainstYou({ orders }: { orders: Order[] }) {
         {orders.map((o) => {
           const answered = (o.dispute?.replies ?? []).some((r) => r.fromSeller);
           return (
-            <div key={o.id} className="bg-neutral-white rounded-2xl border-2 border-secondary-orange-dark/40 p-5">
+            <div key={o.id} data-claim={o.id} className="bg-neutral-white rounded-2xl border-2 border-secondary-orange-dark/40 p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h4 className="font-fredoka font-semibold text-neutral-black truncate">{o.eventTitle}</h4>
@@ -146,7 +155,7 @@ function ClaimsAgainstYou({ orders }: { orders: Order[] }) {
                     </button>
                   ))}
                   <div className="flex gap-3 mt-2">
-                    <Button.Primary className="text-sm" disabled={!note.trim()} onClick={() => send(o)}>
+                    <Button.Primary className="text-sm" disabled={!note.trim() || sending} onClick={() => send(o)}>
                       {t("Send answer", "Kirim jawaban")}
                     </Button.Primary>
                     <Button.Ghost className="text-sm" onClick={() => { setOpenId(null); setNote(""); setFile(null); }}>
@@ -174,11 +183,21 @@ export default function SellerPage() {
   const ready = useAccessGuard("account");
   const { formatIDR, formatEventDate } = useFormatters();
   const user = useUser((s) => s.user);
-  const orders = useOrders((s) => s.orders);
+  const account = !!user?.account;
+  const sampleOrders = useOrders((s) => s.orders);
+  const replyToDispute = useOrders((s) => s.replyToDispute);
+  // An account's sales come from the database, where the seller is the account on the order.
+  // A sample persona's claims land on the seller whose name is on the sale.
+  const { orders: sales, refresh: refreshSales } = useAccountOrders(account && user ? { seller: user.id } : null);
+  const mine = account ? sales ?? [] : sampleOrders.filter((o) => o.sellerName === user?.name);
   // One reading of the clock per render, so the same list cannot disagree with itself.
   const [now] = useState(() => Date.now());
-  // Claims land on the seller whose name is on the sale.
-  const claims = orders.filter((o) => o.escrowStatus === "DISPUTED" && o.sellerName === user?.name);
+  const claims = mine.filter((o) => o.escrowStatus === "DISPUTED");
+  const reply = async (o: Order, note: string, file: DisputeEvidence | null) => {
+    if (!account) return replyToDispute(o.id, { fromSeller: true, note: { en: note, id: note }, evidence: file ?? undefined });
+    await orderAction(o.id, { action: "reply", note, evidence: file?.fileName });
+    refreshSales();
+  };
   const mounted = useHydrated();
   const listings = useSellerListings((s) => s.listings);
   const [promote, setPromote] = useState<SellerListing | null>(null);
@@ -191,7 +210,7 @@ export default function SellerPage() {
   const est = active.reduce((a, l) => a + l.askPrice * l.quantity, 0);
   // What an upheld claim would cost across everything currently on sale.
   const atStake = active.reduce((a, l) => a + l.askPrice * l.quantity + sellerPenalty(l.askPrice * l.quantity), 0);
-  const upheld = orders.filter((o) => o.sellerName === user?.name && o.dispute?.verdict && !o.dispute.verdict.toSeller).length;
+  const upheld = mine.filter((o) => o.dispute?.verdict && !o.dispute.verdict.toSeller).length;
 
   // Payout timing is not a promise we make up: it is the escrow rule applied to
   // this listing's own event date.
@@ -214,6 +233,14 @@ export default function SellerPage() {
         <Link href="/sell"><Button.Primary className="flex items-center gap-2 text-sm"><Plus className="w-4 h-4" /> {t("Sell a ticket", "Jual tiket")}</Button.Primary></Link>
       </div>
 
+      {/* Listing from an account is not built yet: the sell page still keeps listings in this
+          browser, so for an account the listing numbers below say what they are. */}
+      {account && (
+        <p className="flex flex-wrap items-center gap-2 text-xs text-neutral-gray -mt-3 mb-3">
+          <SampleBadge />
+          {t("Listings, and anything counted from them, are still sample data. Claims come from your account.", "Listing, dan semua yang dihitung darinya, masih data contoh. Klaim berasal dari akunmu.")}
+        </p>
+      )}
       <div data-reveal="stagger" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
         <Stat label={t("Active listings", "Listing aktif")} value={String(active.length)} />
         <Stat label={t("Sold", "Terjual")} value={String(sold.length)} />
@@ -221,7 +248,7 @@ export default function SellerPage() {
         <Stat label={t("If everything sells", "Kalau semua terjual")} value={formatIDR(est)} />
       </div>
 
-      <ClaimsAgainstYou orders={claims} />
+      <ClaimsAgainstYou orders={claims} onReply={reply} />
 
       {/* The whole model rests on cheating costing more than it earns. That is
           only credible if a seller can see the number before they list. */}
@@ -247,7 +274,9 @@ export default function SellerPage() {
         </p>
       </div>
 
-      <h3 className="font-fredoka font-semibold text-neutral-black mb-3">{t("Your listings", "Listing kamu")}</h3>
+      <h3 className="font-fredoka font-semibold text-neutral-black mb-3 flex items-center gap-2">
+        {t("Your listings", "Listing kamu")} {account && <SampleBadge />}
+      </h3>
       {!mounted ? (
         <p className="text-neutral-gray text-sm">{t("Loading...", "Memuat...")}</p>
       ) : (

@@ -11,10 +11,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/common/Modal";
 import {
-  getTier, isBuyable, isEventOver, platformFee, MATERAI, useOrders, DISPUTE_WINDOW_H, EVENT_DURATION_H, type OrderChain,
+  getTier, isBuyable, isEventOver, platformFee, MATERAI, useOrders, useUser, DISPUTE_WINDOW_H, EVENT_DURATION_H, type OrderChain,
 } from "@/lib/mock";
 import { useCatalogue } from "@/lib/catalogue";
 import { chainCheckoutReady, demoPrefs, openChainOrder, useChainInfo } from "@/lib/chain/client";
+import { OrderError, placeOrder } from "@/lib/orders/client";
 import { useAccessGuard } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters } from "@/lib/i18n";
@@ -48,6 +49,9 @@ function CheckoutInner() {
   const event = listing && catalogue.eventById(listing.eventId);
   const tier = listing && event ? getTier(event, listing.tierId) : undefined;
   const buy = useOrders((s) => s.buy);
+  // A real account buys through the server and keeps the order in the database. A sample
+  // persona keeps it in this browser, as before.
+  const account = useUser((s) => !!s.user?.account);
   const chainInfo = useChainInfo();
   const onchain = chainCheckoutReady(chainInfo);
 
@@ -69,7 +73,31 @@ function CheckoutInner() {
   const fee = platformFee(subtotal);
   const total = subtotal + fee + MATERAI;
 
+  const payAccount = async () => {
+    setProcessing(true);
+    try {
+      // The "show is over" switch lives under chain mode in the Dev Panel, so it only counts with it.
+      const { id } = await placeOrder({ listingId: listing.id, quantity: qty, chain: onchain, demoEnded: onchain && demoPrefs.eventEnded() });
+      toast.success(
+        onchain
+          ? t("Paid. Your money is locked in the escrow contract on Arbitrum.", "Pembayaran berhasil. Dana kamu dikunci di kontrak escrow di Arbitrum.")
+          : t("Order saved to your account. The payment was simulated; the escrow rules are real.", "Pesanan tersimpan di akunmu. Pembayarannya simulasi, aturan escrow-nya sungguhan.")
+      );
+      router.push(`/tickets/${id}`);
+      // The catalogue lives in the root layout, which a client navigation keeps: fetch it again so
+      // the seats just bought are no longer on sale when the buyer looks back.
+      router.refresh();
+    } catch (e) {
+      setProcessing(false);
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error(`${t("Payment failed", "Pembayaran gagal")}: ${msg}`);
+      // Someone else got the seats first: show what is left instead.
+      if (e instanceof OrderError && e.status === 409) router.refresh();
+    }
+  };
+
   const pay = async () => {
+    if (account) return payAccount();
     setProcessing(true);
     let chain: OrderChain | undefined;
     if (onchain && chainInfo?.escrow) {
@@ -160,13 +188,22 @@ function CheckoutInner() {
           <p className="flex items-center gap-1.5 text-xs text-secondary-green-dark justify-center">
             <ShieldCheck className="w-3.5 h-3.5" /> {t("Protected by Lummy escrow", "Dijamin escrow Lummy")}
           </p>
-          {onchain && (
+          {onchain ? (
             <p className="text-[11px] text-neutral-gray text-center -mt-2">
               {t(
                 `Chain mode: a real escrow on Arbitrum Sepolia, ${chainInfo?.priceUsdc ?? "1"} test USDC standing in for the rupiah.`,
                 `Mode chain: escrow sungguhan di Arbitrum Sepolia, ${chainInfo?.priceUsdc ?? "1"} USDC testnet mewakili rupiahnya.`
               )}
             </p>
+          ) : (
+            account && (
+              <p data-simulated-payment className="text-[11px] text-neutral-gray text-center -mt-2">
+                {t(
+                  "Simulated payment: no money moves yet. The order and its escrow rules are saved to your account.",
+                  "Pembayaran simulasi: belum ada uang yang berpindah. Pesanan dan aturan escrow-nya tersimpan di akunmu."
+                )}
+              </p>
+            )
           )}
         </div>
       </div>
@@ -178,6 +215,8 @@ function CheckoutInner() {
           <p className="text-sm text-neutral-gray text-center">
             {onchain
               ? t("Locking your money in the escrow contract: listing, payment, handover.", "Mengunci dana di kontrak escrow: listing, pembayaran, serah terima.")
+              : account
+              ? t("Saving your order.", "Menyimpan pesananmu.")
               : t("Securing your money in escrow.", "Mengamankan dana kamu di escrow.")}
           </p>
         </div>

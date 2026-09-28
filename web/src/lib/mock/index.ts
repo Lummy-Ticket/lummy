@@ -15,7 +15,7 @@ export {
 } from "./seed";
 export * from "./util";
 export * from "./escrow";
-export { useOrders, type ChainSnapshot, type ChainSettlement } from "./useOrders";
+export { useOrders, withChainSnapshot, type ChainSnapshot, type ChainSettlement } from "./useOrders";
 export { useSellerListings, type SellerListing } from "./useSellerListings";
 export { useEventRequests, type EventRequest } from "./useEventRequests";
 export { useAlerts, type AlertChannel, type AlertSub } from "./useAlerts";

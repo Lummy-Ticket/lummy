@@ -199,6 +199,14 @@ export interface Order {
   createdAtISO: string;
   /** Set once the event is confirmed over. This is what starts the 48h clock. */
   eventEndedAtISO?: string;
+  /**
+   * When the show is scheduled to end. Orders kept in the database know it from the start, so
+   * their window opens on time without anyone marking the show over.
+   */
+  eventEndsAtISO?: string;
+  /** The two accounts on an order kept in the database. Absent on sample orders. */
+  buyerId?: string;
+  sellerId?: string;
   /** True when the window elapsed in silence and the contract paid out by itself. */
   autoReleased?: boolean;
   /** Set when the escrow refunded without anyone filing, e.g. a cancelled show. */

@@ -14,13 +14,15 @@ import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 import { PageContainer } from "@/components/layout/PageContainer";
 import {
-  useEventRequests, useOrders, useSellerListings,
+  useEventRequests, useOrders, useSellerListings, useUser,
   checkEvidence, reasonMeta, suggestedRationale, disputeDeadlineISO,
   remedyOptions, suggestedRemedy, sellerPenalty, SELLER_PENALTY_PCT, REMEDY_LABEL, partialAmount,
   type ChainSettlement, type EventRequest, type Order, type Remedy, type SellerListing,
 } from "@/lib/mock";
 import { chainAction } from "@/lib/chain/client";
 import { useCatalogue } from "@/lib/catalogue";
+import { orderAction, useAccountOrders } from "@/lib/orders/client";
+import { SampleBadge } from "@/components/common/SampleBadge";
 
 /**
  * What the buyer gets back on chain, in USDC units: the same share of the locked amount as the
@@ -214,9 +216,14 @@ export default function AdminPage() {
   const approveListing = useSellerListings((s) => s.approve);
   const rejectListing = useSellerListings((s) => s.reject);
   const [tab, setTab] = useState<"claims" | "listings" | "events">("claims");
-  const [sending, setSending] = useState(false);
+  // The order whose verdict is on its way, so the wait says what is actually happening.
+  const [sending, setSending] = useState<Order | null>(null);
 
-  const disputes = orders.filter((o) => o.escrowStatus === "DISPUTED");
+  // Staff signed in with an account rule on the claims in the database; a sample admin on the
+  // sample orders in this browser.
+  const account = useUser((s) => !!s.user?.account);
+  const { orders: openClaims, error: claimsError, refresh: refreshClaims } = useAccountOrders(account ? { openClaims: true } : null);
+  const disputes = account ? (openClaims ?? []).filter((o) => o.escrowStatus === "DISPUTED") : orders.filter((o) => o.escrowStatus === "DISPUTED");
   const held = listings.filter((l) => l.status === "review");
   const pendingEvents = requests.filter((r) => r.status === "pending");
 
@@ -229,7 +236,29 @@ export default function AdminPage() {
   ];
   const doApprove = (r: EventRequest) => { approve(r.id); toast.success(t("Event approved, tickets can be listed", "Event disetujui, tiketnya boleh dijual")); };
 
+  const toastVerdict = (remedy: Remedy) =>
+    toast.success(
+      remedy === "RELEASE_SELLER"
+        ? t("Closed, funds released to the seller", "Ditutup, dana cair ke penjual")
+        : t(`Upheld: ${REMEDY_LABEL[remedy].en.toLowerCase()}`, `Dikabulkan: ${REMEDY_LABEL[remedy].id.toLowerCase()}`)
+    );
+
   const doResolve = async (o: Order, remedy: Remedy) => {
+    // The server rules on an account's claim: it writes the rationale from the same evidence
+    // checks and, on a chain order, has the contract split the money first.
+    if (account) {
+      setSending(o);
+      try {
+        await orderAction(o.id, { action: "verdict", remedy });
+        toastVerdict(remedy);
+      } catch (e) {
+        toast.error(`${t("The verdict was not recorded", "Putusan gagal dicatat")}: ${e instanceof Error ? e.message : String(e)}`);
+      } finally {
+        setSending(null);
+        refreshClaims();
+      }
+      return;
+    }
     const check = checkEvidence(o, o.dispute!.reason, o.dispute!.evidence, o.dispute!.openedAtISO);
     const rationale =
       remedy === "RELEASE_SELLER" && check.strength === "STRONG"
@@ -241,7 +270,7 @@ export default function AdminPage() {
     // An on-chain order is only settled once the contract has carried the verdict out.
     let onchain: ChainSettlement | undefined;
     if (o.chain) {
-      setSending(true);
+      setSending(o);
       try {
         const toBuyer = onchainToBuyer(o, remedy);
         const r = await chainAction(o.chain.listingId, "resolve", toBuyer);
@@ -250,15 +279,11 @@ export default function AdminPage() {
         toast.error(`${t("The contract refused the verdict", "Kontrak menolak putusan")}: ${e instanceof Error ? e.message : String(e)}`);
         return;
       } finally {
-        setSending(false);
+        setSending(null);
       }
     }
     resolveDispute(o.id, remedy, rationale, onchain);
-    toast.success(
-      remedy === "RELEASE_SELLER"
-        ? t("Closed, funds released to the seller", "Ditutup, dana cair ke penjual")
-        : t(`Upheld: ${REMEDY_LABEL[remedy].en.toLowerCase()}`, `Dikabulkan: ${REMEDY_LABEL[remedy].id.toLowerCase()}`)
-    );
+    toastVerdict(remedy);
   };
 
   if (!ready) return <PageGate />;
@@ -293,7 +318,17 @@ export default function AdminPage() {
       </div>
 
       {/* Arbitration queue: refunds are decided here, never automatically */}
-      {mounted && tab === "claims" && disputes.length === 0 && (
+      {mounted && tab === "claims" && account && !openClaims && (
+        claimsError ? (
+          <div className="flex flex-col items-start gap-2">
+            <p className="text-neutral-gray text-sm">{t("Claims could not be loaded. Check your connection.", "Klaim gagal dimuat. Cek koneksimu.")}</p>
+            <Button.Ghost className="text-sm" onClick={refreshClaims}>{t("Try again", "Coba lagi")}</Button.Ghost>
+          </div>
+        ) : (
+          <p className="text-neutral-gray text-sm">{t("Loading...", "Memuat...")}</p>
+        )
+      )}
+      {mounted && tab === "claims" && (!account || openClaims) && disputes.length === 0 && (
         <EmptyQueue text={t("No claims open. Escrow is settling on its own.", "Tidak ada klaim terbuka. Escrow berjalan sendiri.")} />
       )}
       {mounted && tab === "claims" && disputes.length > 0 && (
@@ -310,7 +345,7 @@ export default function AdminPage() {
               const suggested = suggestedRemedy(o, o.dispute!.reason, check);
               const penalty = sellerPenalty(o.amount);
               return (
-                <div key={o.id} className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
+                <div key={o.id} data-claim={o.id} className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h3 className="font-fredoka font-semibold text-neutral-black truncate">{o.eventTitle}</h3>
@@ -372,6 +407,14 @@ export default function AdminPage() {
             })}
           </div>
         </div>
+      )}
+
+      {/* These two queues still run on sample data; say so to staff signed in with an account. */}
+      {account && tab !== "claims" && (
+        <p className="flex flex-wrap items-center gap-2 text-xs text-neutral-gray mb-4">
+          <SampleBadge />
+          {t("This queue is not in the database yet. Claims are.", "Antrean ini belum di database. Klaim sudah.")}
+        </p>
       )}
 
       {mounted && tab === "listings" && (
@@ -483,11 +526,15 @@ export default function AdminPage() {
         )}
       </Modal>
 
-      <Modal open={sending} onClose={() => {}}>
+      <Modal open={!!sending} onClose={() => {}}>
         <div className="flex flex-col items-center gap-3 py-4">
           <Loader2 className="w-8 h-8 text-lummy-500 animate-spin" />
-          <p className="font-fredoka font-semibold text-neutral-black">{t("Sending the verdict to the contract...", "Mengirim putusan ke kontrak...")}</p>
-          <p className="text-sm text-neutral-gray text-center">{t("The contract splits the money, then pays each side.", "Kontrak membagi dananya, lalu mengirim ke tiap pihak.")}</p>
+          <p className="font-fredoka font-semibold text-neutral-black">
+            {sending?.chain ? t("Sending the verdict to the contract...", "Mengirim putusan ke kontrak...") : t("Recording the verdict...", "Mencatat putusan...")}
+          </p>
+          <p className="text-sm text-neutral-gray text-center">
+            {sending?.chain ? t("The contract splits the money, then pays each side.", "Kontrak membagi dananya, lalu mengirim ke tiap pihak.") : t("One moment.", "Sebentar.")}
+          </p>
         </div>
       </Modal>
     </PageContainer>
