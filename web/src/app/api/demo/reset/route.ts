@@ -1,0 +1,123 @@
+// Puts the demo back where a presentation starts: every seed listing on sale again with the seats
+// it started with, and the demo accounts holding one order in every phase (the same five the
+// sample personas see). Presenter only, behind the same gate as the demo accounts. Orders of real
+// accounts are left alone.
+//
+// Escrows that demo orders still hold on chain are closed first, so no test USDC stays locked:
+// a refund while the window is open, a full refund on a claim, a release once the window has
+// passed. An escrow the contract will not close keeps its order, so it can still be found.
+import type { Hex } from "viem";
+import { revalidateTag } from "next/cache";
+import { NextResponse } from "next/server";
+import { chainError, chainTarget, operatorSetup, readListing, settle } from "@/lib/chain/server";
+import { demoKeyAllowed, demoMode } from "@/lib/demo-key";
+import { SEED_LISTINGS } from "@/lib/mock/seed";
+import { seedOrders } from "@/lib/mock/seed-orders";
+import { HELD, rowsFromOrder } from "@/lib/orders/map";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import { DEMO_ACCOUNTS } from "@/lib/supabase/demo";
+import { ensureDemoAccount } from "@/lib/supabase/demo-accounts";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
+const noStore = { "Cache-Control": "private, no-store" };
+const fail = (status: number, error: string) => NextResponse.json({ error }, { status, headers: noStore });
+
+/** Stable ids, so a presenter's links keep working across resets. */
+const demoOrderId = (seedId: string) => seedId.replace("or-seed-", "or-demo-");
+/** Chain work stops here, leaving time for the database within the function's limit. */
+const CHAIN_BUDGET_MS = 35_000;
+
+export async function POST(req: Request) {
+  const admin = supabaseAdmin();
+  if (!admin || demoMode() === "off") return fail(503, "akun demo tidak tersedia di server ini");
+  if (!demoKeyAllowed(req)) return fail(401, "demo key salah atau belum diisi");
+
+  try {
+    const [buyer, seller, staff] = await Promise.all(
+      (["BUYER", "SELLER", "ADMIN"] as const).map((persona) => ensureDemoAccount(admin, persona))
+    );
+    const demoIds = [buyer, seller, staff];
+
+    // Escrows the demo accounts still hold on chain.
+    const held = await admin
+      .from("orders")
+      .select("id, onchain_listing_id")
+      .in("buyer_id", demoIds)
+      .in("escrow_status", HELD)
+      .not("onchain_listing_id", "is", null);
+    if (held.error) return fail(500, held.error.message);
+    const kept: string[] = [];
+    let closed = 0;
+    const until = Date.now() + CHAIN_BUDGET_MS;
+    const op = held.data.length ? operatorSetup() : null;
+    const target = held.data.length ? chainTarget() : null;
+    for (const o of held.data) {
+      try {
+        if (!op || !target) throw new Error("mode chain mati: kunci operator belum diset");
+        if (Date.now() > until) throw new Error("waktu habis, coba reset lagi");
+        const id = o.onchain_listing_id as Hex;
+        const live = await readListing(target, id);
+        if (live.status === "Funded" || live.status === "DisputeWindow") {
+          if (live.disputed) await settle(op, id, "resolve", BigInt(live.price));
+          else if (live.now <= live.deadline) await settle(op, id, "refund");
+          else await settle(op, id, "release");
+        }
+        closed++;
+      } catch (e) {
+        kept.push(o.id);
+        console.error("[demo reset] escrow left open:", o.id, chainError(e));
+      }
+    }
+
+    // The demo accounts' orders, and whatever an earlier reset seeded. Their claims go with them.
+    const keep = kept.length ? `(${kept.join(",")})` : null;
+    let bought = admin.from("orders").delete().in("buyer_id", demoIds);
+    let seeded = admin.from("orders").delete().like("id", "or-demo-%");
+    if (keep) {
+      bought = bought.not("id", "in", keep);
+      seeded = seeded.not("id", "in", keep);
+    }
+    const removed = await Promise.all([bought.select("id"), seeded.select("id")]);
+    const removeError = removed.find((r) => r.error)?.error;
+    if (removeError) return fail(500, removeError.message);
+
+    // Every seed listing on sale again, with the seats it started with.
+    const restored = await Promise.all(
+      SEED_LISTINGS.map((l) => admin.from("listings").update({ quantity: l.quantity, status: l.status }).eq("id", l.id).select("id"))
+    );
+    const restoreError = restored.find((r) => r.error)?.error;
+    if (restoreError) return fail(500, restoreError.message);
+
+    // One order in every phase. The claim in review is against the demo seller, and the staff
+    // account decided the one already settled.
+    const [events, listings] = await Promise.all([
+      admin.from("events").select("id"),
+      admin.from("listings").select("id").in("id", SEED_LISTINGS.map((l) => l.id)),
+    ]);
+    if (events.error || listings.error) return fail(500, (events.error ?? listings.error)!.message);
+    const eventIds = new Set(events.data.map((e) => e.id));
+    const listingIds = new Set(listings.data.map((l) => l.id));
+    const rows = seedOrders().map((o) =>
+      rowsFromOrder(
+        { ...o, id: demoOrderId(o.id) },
+        { buyerId: buyer, sellerId: o.sellerName === DEMO_ACCOUNTS.SELLER.name ? seller : null, decidedBy: staff, eventIds, listingIds }
+      )
+    );
+    const ordersIn = await admin.from("orders").insert(rows.map((r) => r.order));
+    if (ordersIn.error) return fail(500, ordersIn.error.message);
+    const claims = rows.flatMap((r) => (r.dispute ? [r.dispute] : []));
+    const claimsIn = await admin.from("disputes").insert(claims);
+    if (claimsIn.error) return fail(500, claimsIn.error.message);
+
+    revalidateTag("catalogue", { expire: 0 });
+    return NextResponse.json(
+      { ok: true, orders: rows.length, listings: restored.filter((r) => r.data?.length).length, escrowsClosed: closed, escrowsKept: kept.length },
+      { headers: noStore }
+    );
+  } catch (e) {
+    return fail(500, e instanceof Error ? e.message : String(e));
+  }
+}

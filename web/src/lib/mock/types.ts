@@ -21,7 +21,7 @@ export interface User {
   role: Role;
   /** Signed in with a real Supabase account (a sign-in email or a demo account). Absent on sample personas. */
   account?: boolean;
-  /** Staff per the database (profiles.role = admin), the only accounts that may take the admin view. */
+  /** Staff per the database (profiles.role = admin), the only accounts that may open the admin console. */
   staff?: boolean;
 }
 

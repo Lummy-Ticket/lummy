@@ -2,7 +2,8 @@
 // demo account, the order read back under RLS, one set of seats for two buyers pressing Pay at
 // once, the catalogue updated, the handover log, a claim with the seller's answer and the staff
 // verdict, the payout once the window has passed, who may read or act on an order, and the cap
-// on open orders for an ordinary account while payment is simulated. Needs a running app with
+// on open orders for an ordinary account while payment is simulated, then the presenter's reset
+// (demo accounts back to one order in every phase, the seed catalogue whole again). Needs a running app with
 // Supabase env and demo accounts, plus SUPABASE_SECRET_KEY (web/.env.local) to set up its own
 // listings and a throwaway account. Everything it makes is deleted at the end, even when a check
 // fails. CHAIN=1 also pays the checkout through the escrow contract the server points at (the
@@ -37,6 +38,8 @@ const run = Date.now().toString(36);
 const L1 = `ls-check-${run}-a`;
 const L2 = `ls-check-${run}-b`;
 const L3 = `ls-check-${run}-c`;
+// A seed listing the reset must put back on sale (quantity 2, active in the seed).
+const SEED_TOUCHED = "ls-12";
 // An ordinary account for that limit. Created without sending any email and deleted at the end.
 const PLAIN_EMAIL = `orders-check-${run}@example.com`;
 let plainUserId = null;
@@ -101,7 +104,7 @@ try {
   const made = await admin.from("listings").insert([
     { ...base, id: L1, seller_id: seller.user.id, seller_name: seller.user.name, quantity: 2, splittable: true },
     { ...base, id: L2, seller_id: null, seller_name: "Lummy test", quantity: 1, splittable: false },
-    { ...base, id: L3, seller_id: null, seller_name: "Lummy test", quantity: 4, splittable: true },
+    { ...base, id: L3, seller_id: null, seller_name: "Lummy test", quantity: 6, splittable: true },
   ]);
   check("listing uji dibuat", !made.error, made.error?.message);
 
@@ -261,9 +264,78 @@ try {
   check("akun biasa: tiga pesanan berjalan boleh", firstThree.every((c) => c === 200), firstThree.join(","));
   const fourth = await plainBuy();
   check("akun biasa: pesanan keempat ditolak 429", fourth.status() === 429, String(fourth.status()));
-  check("yang ditolak tidak mengambil kursi", JSON.stringify(await listingOf(L3)) === JSON.stringify({ quantity: 1, status: "active" }));
+  check("yang ditolak tidak mengambil kursi", JSON.stringify(await listingOf(L3)) === JSON.stringify({ quantity: 3, status: "active" }));
   check("akun demo tidak kena batas itu", (await buyer.buy({ listingId: L3, quantity: 1 })).status() === 200);
   await plain.close();
+
+  // --- The presenter's reset. A seed listing that sold out comes back, and (in chain mode) an
+  // escrow a demo order still holds is closed instead of left locked.
+  const mode = (await (await fetch(`${BASE}/api/demo/session`)).json()).mode;
+  if (mode === "key") check("reset tanpa demo key ditolak 401", (await fetch(`${BASE}/api/demo/reset`, { method: "POST" })).status === 401);
+  await admin.from("listings").update({ status: "sold" }).eq("id", SEED_TOUCHED);
+  // One more purchase by the demo buyer, which also expires the catalogue cache. In chain mode it
+  // is an escrow still holding money when the reset comes.
+  let heldEscrow = null;
+  const extra = await buyer.context.request.post(`${BASE}/api/orders`, {
+    data: { listingId: L3, quantity: 1, chain: CHAIN },
+    headers: CHAIN ? { "x-demo-key": DEMO_KEY } : {},
+  });
+  if (CHAIN) {
+    const extraId = extra.ok() ? (await extra.json()).id : "";
+    const held = (await orderOf(L3)).find((o) => o.id === extraId);
+    heldEscrow = held?.onchain_listing_id ?? null;
+    check("pesanan chain yang masih menahan dana dibuat", !!heldEscrow);
+  }
+  check("sebelum reset: listing seed yang habis hilang dari katalog", extra.ok() && !(await (await fetch(`${BASE}/events/ev-tulus`)).text()).includes(SEED_TOUCHED));
+
+  // From the Dev Panel, as a presenter would: two clicks, then the page loads again.
+  await buyer.page.evaluate((key) => {
+    localStorage.setItem("lummy:demo-accounts", "1");
+    if (key) localStorage.setItem("lummy:demo-key", key);
+  }, DEMO_KEY);
+  await buyer.page.goto(`${BASE}/tickets`, { waitUntil: "networkidle" });
+  await buyer.page.getByRole("button", { name: /^Dev panel$/ }).click();
+  await buyer.page.getByRole("button", { name: "Reset demo accounts" }).click();
+  const reloaded = buyer.page.waitForEvent("load", { timeout: CHAIN ? 90000 : 30000 });
+  await buyer.page.getByRole("button", { name: "Sure? Deletes the demo accounts' orders" }).click();
+  await reloaded;
+  await buyer.page.waitForLoadState("networkidle");
+
+  const demoOrders = (await admin.from("orders").select("id, escrow_status, disputed, seller_id, event_ends_at, disputes(*)").eq("buyer_id", buyer.user.id).order("id")).data ?? [];
+  const seededIds = demoOrders.map((o) => o.id).join(",");
+  check("reset: pembeli demo punya tepat lima pesanan, satu di tiap fase", seededIds === "or-demo-1,or-demo-2,or-demo-3,or-demo-4,or-demo-5", seededIds);
+  const byId = Object.fromEntries(demoOrders.map((o) => [o.id, o]));
+  const inReview = byId["or-demo-4"];
+  check("reset: klaim yang sedang ditinjau ditujukan ke penjual demo", inReview?.disputed && inReview.seller_id === seller.user.id && claimOf(inReview)?.reason === "BARCODE_USED" && !claimOf(inReview)?.decided_at);
+  check("reset: putusan lama tercatat atas nama staf demo", claimOf(byId["or-demo-5"])?.decided_by === staff.user.id && byId["or-demo-5"]?.escrow_status === "Refunded");
+  const windowLeft = new Date(byId["or-demo-2"]?.event_ends_at).getTime() + 48 * 3_600_000 - Date.now();
+  check("reset: masa sengketa satu pesanan sedang berjalan", windowLeft > 40 * 3_600_000 && windowLeft < 43 * 3_600_000, String(windowLeft));
+  check("reset: listing seed yang habis dijual lagi", JSON.stringify(await listingOf(SEED_TOUCHED)) === JSON.stringify({ quantity: 2, status: "active" }));
+  check("reset: katalog langsung ikut", (await (await fetch(`${BASE}/events/ev-tulus`)).text()).includes(SEED_TOUCHED));
+  if (CHAIN) {
+    const live = await (await fetch(`${BASE}/api/chain/listing/${heldEscrow}`)).json();
+    check("reset: escrow yang masih terkunci dikembalikan ke pembeli di kontrak", live.status === "Refunded", live.status ?? live.error);
+  }
+
+  const links2 = await buyer.page.locator('a[href^="/tickets/or-"]').evaluateAll((as) => as.map((a) => a.getAttribute("href")));
+  check("reset: tiket saya menampilkan kelima pesanan", links2.filter((h) => h.startsWith("/tickets/or-demo-")).length === 5, links2.join(" "));
+  await buyer.page.goto(`${BASE}/tickets/or-demo-2`, { waitUntil: "networkidle" });
+  check("reset: hitung mundur masa sengketa tampil", await buyer.page.getByText("Auto-releases to the seller in").isVisible());
+
+  await seller.page.goto(`${BASE}/seller`, { waitUntil: "networkidle" });
+  await seller.page.locator('[data-claim="or-demo-4"]').waitFor();
+  check("reset: klaim muncul di dasbor penjual demo", await seller.page.locator('[data-claim="or-demo-4"]').isVisible());
+  await seller.page.getByRole("button", { name: "Account menu" }).click();
+  const menuItem = await seller.page.getByRole("menuitem", { name: /Seller dashboard/ }).innerText();
+  check("menu akun memberi tahu ada klaim yang perlu dijawab", menuItem.includes("1"), menuItem);
+  await seller.page.keyboard.press("Escape");
+  await staff.page.goto(`${BASE}/admin`, { waitUntil: "networkidle" });
+  await staff.page.locator('[data-claim="or-demo-4"]').waitFor();
+  check("reset: klaim muncul di antrean admin", await staff.page.locator('[data-claim="or-demo-4"]').isVisible());
+
+  const again = await fetch(`${BASE}/api/demo/reset`, { method: "POST", headers: DEMO_KEY ? { "x-demo-key": DEMO_KEY } : {} });
+  const count = (await admin.from("orders").select("id", { count: "exact", head: true }).eq("buyer_id", buyer.user.id)).count;
+  check("reset kedua kali tetap lima pesanan", again.ok && count === 5, `${again.status} ${count}`);
 } catch (e) {
   check("alur pesanan selesai tanpa macet", false, e.message.split("\n")[0].slice(0, 200));
 } finally {
@@ -271,6 +343,7 @@ try {
   const orders = await admin.from("orders").delete().in("listing_id", [L1, L2, L3]).select("id");
   const listings = await admin.from("listings").delete().in("id", [L1, L2, L3]).select("id");
   const gone = plainUserId ? await admin.auth.admin.deleteUser(plainUserId) : { error: null };
+  await admin.from("listings").update({ quantity: 2, status: "active" }).eq("id", SEED_TOUCHED);
   check(
     "data uji dibersihkan",
     !orders.error && !listings.error && listings.data.length === 3 && !gone.error,

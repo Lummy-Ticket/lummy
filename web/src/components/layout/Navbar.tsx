@@ -5,21 +5,23 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  ChevronDown, LayoutDashboard, LogOut, Menu, Plus, Search, ShieldCheck, Ticket, User as UserIcon, X, type LucideIcon,
+  ChevronDown, Globe, LayoutDashboard, LogOut, Menu, Plus, Search, ShieldCheck, Ticket, User as UserIcon, X, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "./Logo";
 import { Button } from "@/components/ui/button";
-import { useUser, isDemoMode, type Role } from "@/lib/mock";
-import { useHydrated, ROLE_HOME } from "@/lib/access";
+import { useOrders, useUser, type User } from "@/lib/mock";
+import { isStaff, useHydrated } from "@/lib/access";
+import { useAccountOrders } from "@/lib/orders/client";
 import { useDocumentLang, useFormatters, useT } from "@/lib/i18n";
 import { useEventSuggestions } from "@/lib/useEventSuggestions";
 import { LangToggle } from "./LangToggle";
 
 // The layout follows resale marketplaces people already know (Tixel, viagogo, StubHub):
-// finding a show on the left, a standing way to sell, and your own things (tickets,
-// dashboard, account) together on the right. One account menu holds the rest, including
-// the buyer/seller view, so there is a single dropdown instead of two side by side.
+// finding a show on the left, a standing way to sell, and your own things on the right.
+// One account both buys and sells, so there is no buyer or seller mode to switch: the
+// account menu lists your tickets and your seller dashboard side by side, and says when a
+// claim against you is waiting for an answer. Staff get a bar of their own in the console.
 
 type NavItem = { en: string; id: string; href: string; Icon?: LucideIcon };
 
@@ -35,22 +37,12 @@ const DASHBOARD: NavItem = { en: "Seller dashboard", id: "Dasbor penjual", href:
 const PROFILE: NavItem = { en: "Profile", id: "Profil", href: "/profile", Icon: UserIcon };
 const CONSOLE: NavItem = { en: "Admin console", id: "Konsol admin", href: "/admin", Icon: ShieldCheck };
 
-// The one place each view keeps coming back to, kept in the bar.
-const HUB: Record<Role, NavItem> = {
-  BUYER: TICKETS,
-  SELLER: { ...DASHBOARD, en: "Dashboard", id: "Dasbor" },
-  ADMIN: { ...CONSOLE, en: "Console", id: "Konsol" },
-};
-
-const ROLE_LABEL: Record<Role, { en: string; id: string }> = {
-  BUYER: { en: "Buyer", id: "Pembeli" },
-  SELLER: { en: "Seller", id: "Penjual" },
-  ADMIN: { en: "Admin", id: "Admin" },
-};
-
 function initials(name: string) {
   return name.split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("");
 }
+
+/** What the account button says: a first name, not a mode. */
+const firstName = (name: string) => name.trim().split(/\s+/)[0] || name;
 
 const isActive = (pathname: string, href: string) => pathname === href || pathname.startsWith(href + "/");
 
@@ -69,6 +61,18 @@ function useDismiss(ref: RefObject<HTMLElement | null>, open: boolean, close: ()
       document.removeEventListener("keydown", onKey);
     };
   }, [ref, open, close]);
+}
+
+/**
+ * Claims against this person as a seller that still wait for their answer. The account menu
+ * shows the count, so someone who mostly buys cannot miss one on a ticket they once sold.
+ */
+function useClaimsToAnswer(me: User | null) {
+  const sample = useOrders((s) => s.orders);
+  const { orders } = useAccountOrders(me?.account ? { seller: me.id } : null);
+  if (!me) return 0;
+  const mine = me.account ? (orders ?? []) : sample.filter((o) => o.sellerName === me.name);
+  return mine.filter((o) => o.escrowStatus === "DISPUTED" && !(o.dispute?.replies ?? []).some((r) => r.fromSeller)).length;
 }
 
 /** A text link whose underline draws in on hover and stays drawn on the current page. */
@@ -96,40 +100,13 @@ function BarLink({ item, active }: { item: NavItem; active: boolean }) {
   );
 }
 
-/**
- * Segmented control for the account's view. The highlight slides between options rather
- * than jumping, so the switch reads as one control changing state.
- */
-function ViewSwitch({ current, options, onPick }: { current: Role; options: Role[]; onPick: (r: Role) => void }) {
-  const t = useT();
-  const at = Math.max(0, options.indexOf(current));
+/** How many things wait on this person, next to where they are handled. */
+function Count({ n, label }: { n: number; label: string }) {
+  if (!n) return null;
   return (
-    <div
-      role="group"
-      aria-label={t("View as", "Lihat sebagai")}
-      className="relative grid rounded-xl bg-secondary-blue-light p-1"
-      style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
-    >
-      <span
-        aria-hidden
-        className="absolute top-1 bottom-1 left-1 rounded-lg bg-neutral-white border border-lummy-500 shadow-sm transition-transform duration-300 ease-spring"
-        style={{ width: `calc((100% - 0.5rem) / ${options.length})`, transform: `translateX(${at * 100}%)` }}
-      />
-      {options.map((r) => (
-        <button
-          key={r}
-          type="button"
-          aria-pressed={current === r}
-          onClick={() => current !== r && onPick(r)}
-          className={cn(
-            "relative z-10 py-1.5 text-sm rounded-lg transition-colors cursor-pointer",
-            current === r ? "text-primary-navy font-semibold" : "text-neutral-gray hover:text-neutral-black"
-          )}
-        >
-          {t(ROLE_LABEL[r].en, ROLE_LABEL[r].id)}
-        </button>
-      ))}
-    </div>
+    <span aria-label={label} className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-secondary-orange-dark text-white text-[11px] font-semibold grid place-items-center">
+      {n}
+    </span>
   );
 }
 
@@ -199,24 +176,100 @@ function NavSearch({ className, onDone }: { className?: string; onDone?: () => v
   );
 }
 
+/** One dropdown with everything that is yours. */
+function AccountMenu({
+  me, links, claims, pathname, onSignOut, className,
+}: {
+  me: User;
+  links: NavItem[];
+  claims: number;
+  pathname: string;
+  onSignOut: () => void;
+  className?: string;
+}) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const close = () => setOpen(false);
+  useDismiss(ref, open, close);
+
+  return (
+    <div ref={ref} className={cn("relative", className)}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={t("Account menu", "Menu akun")}
+        className={cn(
+          "flex items-center gap-2 h-11 pl-1 pr-3 rounded-full border transition cursor-pointer",
+          open ? "border-lummy-500 bg-neutral-white" : "border-neutral-light-gray-1 bg-neutral-white/80 hover:border-lummy-500"
+        )}
+      >
+        <span className="relative w-9 h-9 rounded-full bg-secondary-blue-light text-lummy-500 text-sm font-semibold grid place-items-center border border-lummy-500">
+          {initials(me.name)}
+          {claims > 0 && <span aria-hidden className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-secondary-orange-dark border-2 border-neutral-white" />}
+        </span>
+        <span className="hidden sm:inline text-sm font-medium text-neutral-black max-w-32 truncate">{firstName(me.name)}</span>
+        <ChevronDown className={cn("w-4 h-4 text-neutral-gray transition-transform duration-300", open && "rotate-180")} />
+      </button>
+
+      {open && (
+        <div role="menu" className="lm-pop [--origin:top_right] absolute right-0 top-full mt-2 w-72 rounded-2xl border border-lummy-500 bg-neutral-white shadow-lummy-lg z-50 overflow-hidden">
+          <div className="flex items-center gap-3 px-4 pt-4 pb-3">
+            <span className="w-10 h-10 rounded-full bg-secondary-blue-light text-lummy-500 font-semibold grid place-items-center border border-lummy-500 shrink-0">
+              {initials(me.name)}
+            </span>
+            <div className="min-w-0">
+              <div className="font-semibold text-neutral-black text-sm truncate">{me.name}</div>
+              <div className="text-neutral-gray text-xs truncate">{me.email}</div>
+            </div>
+          </div>
+          <div className="border-t border-dashed border-neutral-light-gray-1 py-1.5">
+            {links.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                role="menuitem"
+                onClick={close}
+                className={cn(
+                  "group flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors",
+                  isActive(pathname, l.href) ? "text-primary-navy font-medium bg-secondary-blue-extra" : "text-neutral-black hover:bg-secondary-blue-light"
+                )}
+              >
+                {l.Icon && <l.Icon className="w-4 h-4 text-neutral-gray group-hover:text-primary-navy transition-colors" />}
+                {t(l.en, l.id)}
+                {l.href === DASHBOARD.href && <Count n={claims} label={t(`${claims} ${claims === 1 ? "claim" : "claims"} to answer`, `${claims} klaim perlu dijawab`)} />}
+              </Link>
+            ))}
+          </div>
+          <div className="border-t border-dashed border-neutral-light-gray-1 py-1.5">
+            <button
+              role="menuitem"
+              onClick={() => { close(); onSignOut(); }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-secondary-pink-dark hover:bg-secondary-pink-light transition-colors cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" /> {t("Sign out", "Keluar")}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Navbar() {
   const t = useT();
   useDocumentLang();
   const pathname = usePathname();
   const router = useRouter();
   const user = useUser((s) => s.user);
-  const switchPersona = useUser((s) => s.switchPersona);
   const logout = useUser((s) => s.logout);
   const mounted = useHydrated();
 
   const [scrolled, setScrolled] = useState(false);
   // On home the hero has its own search; the bar only offers one once that has scrolled away.
   const [heroSearchGone, setHeroSearchGone] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const closeMenu = () => setMenuOpen(false);
-  useDismiss(menuRef, menuOpen, closeMenu);
 
   useEffect(() => {
     const onScroll = () => {
@@ -244,23 +297,14 @@ export function Navbar() {
 
   // Read the persisted user only after hydration, so the server and first client render agree
   const me = mounted ? user : null;
-  const role: Role = me?.role ?? "BUYER";
-  // Sample personas swap person; a real account only swaps view, and admin only for staff.
-  const views: Role[] = me?.account && !me.staff ? ["BUYER", "SELLER"] : ["BUYER", "SELLER", "ADMIN"];
-  const showViews = !!me && isDemoMode();
-  const accountLinks = [TICKETS, DASHBOARD, PROFILE, ...(role === "ADMIN" ? [CONSOLE] : [])];
+  const staff = isStaff(me);
+  const claims = useClaimsToAnswer(me);
+  const accountLinks = [TICKETS, DASHBOARD, PROFILE, ...(staff ? [CONSOLE] : [])];
+  // The one place each person keeps coming back to, kept in the bar.
+  const hub = staff ? CONSOLE : TICKETS;
   const showSearch = pathname !== "/events" && (pathname !== "/" || heroSearchGone);
-
-  // Switching view jumps to that view's home, so nobody is left on a page they cannot use.
-  const pickView = (r: Role) => {
-    switchPersona(r);
-    setMenuOpen(false);
-    setSheetOpen(false);
-    router.push(ROLE_HOME[r]);
-  };
   const signOut = () => {
     logout();
-    setMenuOpen(false);
     setSheetOpen(false);
   };
 
@@ -276,10 +320,32 @@ export function Navbar() {
     );
   }
 
+  // Inside the console, staff work: no browsing, selling or explainer links, just the way back
+  // to the site and the account menu.
+  if (me && staff && isActive(pathname, CONSOLE.href)) {
+    return (
+      <nav data-bar="staff" className="fixed z-50 top-0 w-full h-20 flex justify-center px-5 lg:px-10 bg-neutral-white border-b border-neutral-light-gray-1">
+        <div className="max-w-7xl w-full flex items-center gap-3">
+          <Logo />
+          <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-secondary-blue-light border border-lummy-500 text-primary-navy text-sm font-medium">
+            <ShieldCheck className="w-4 h-4" /> {t("Staff", "Staf")}
+          </span>
+          <div className="ml-auto flex items-center gap-2 sm:gap-4">
+            <Link href="/" aria-label={t("View site", "Lihat situs")} className="inline-flex items-center gap-1.5 text-sm text-neutral-gray hover:text-neutral-black transition-colors">
+              <Globe className="w-4 h-4" /> <span className="hidden sm:inline">{t("View site", "Lihat situs")}</span>
+            </Link>
+            <LangToggle />
+            <AccountMenu me={me} links={accountLinks} claims={claims} pathname={pathname} onSignOut={signOut} />
+          </div>
+        </div>
+      </nav>
+    );
+  }
 
   return (
     <>
       <nav
+        data-bar="site"
         className={cn(
           "fixed z-50 top-0 w-full h-20 flex justify-center px-5 lg:px-10 border-b transition-[background-color,border-color,backdrop-filter] duration-300",
           // Solid under the sheet, so the dimmed page does not show through the bar
@@ -308,24 +374,22 @@ export function Navbar() {
 
           <div className="ml-auto xl:ml-0 flex items-center gap-2 sm:gap-3">
             {/* Selling is half the marketplace, so it stays one click away */}
-            {role !== "ADMIN" && (
-              <Link
-                href={SELL.href}
-                className={cn(
-                  "group hidden lg:inline-flex items-center gap-1.5 h-10 px-4 rounded-full border-2 font-fredoka font-medium text-[15px] transition active:scale-95",
-                  isActive(pathname, SELL.href)
-                    ? "bg-primary-navy border-primary-navy text-white"
-                    : "border-primary-navy text-primary-navy hover:bg-primary-navy hover:text-white"
-                )}
-              >
-                <Plus className="w-4 h-4 transition-transform duration-300 group-hover:rotate-90" />
-                {t(SELL.en, SELL.id)}
-              </Link>
-            )}
+            <Link
+              href={SELL.href}
+              className={cn(
+                "group hidden lg:inline-flex items-center gap-1.5 h-10 px-4 rounded-full border-2 font-fredoka font-medium text-[15px] transition active:scale-95",
+                isActive(pathname, SELL.href)
+                  ? "bg-primary-navy border-primary-navy text-white"
+                  : "border-primary-navy text-primary-navy hover:bg-primary-navy hover:text-white"
+              )}
+            >
+              <Plus className="w-4 h-4 transition-transform duration-300 group-hover:rotate-90" />
+              {t(SELL.en, SELL.id)}
+            </Link>
 
             {me && (
               <span className="hidden lg:inline-flex px-1">
-                <BarLink item={HUB[role]} active={isActive(pathname, HUB[role].href)} />
+                <BarLink item={hub} active={isActive(pathname, hub.href)} />
               </span>
             )}
 
@@ -333,75 +397,7 @@ export function Navbar() {
 
             {/* Account menu, or the way in */}
             {me ? (
-              <div ref={menuRef} className="relative hidden lg:block">
-                <button
-                  onClick={() => setMenuOpen((o) => !o)}
-                  aria-haspopup="menu"
-                  aria-expanded={menuOpen}
-                  aria-label={t("Account menu", "Menu akun")}
-                  className={cn(
-                    "flex items-center gap-2 h-11 pl-1 pr-3 rounded-full border transition cursor-pointer",
-                    menuOpen ? "border-lummy-500 bg-neutral-white" : "border-neutral-light-gray-1 bg-neutral-white/80 hover:border-lummy-500"
-                  )}
-                >
-                  <span className="w-9 h-9 rounded-full bg-secondary-blue-light text-lummy-500 text-sm font-semibold grid place-items-center border border-lummy-500">
-                    {initials(me.name)}
-                  </span>
-                  {/* The current view stays visible: presenters switch it mid-demo */}
-                  <span className="text-sm font-medium text-neutral-black">{t(ROLE_LABEL[role].en, ROLE_LABEL[role].id)}</span>
-                  <ChevronDown className={cn("w-4 h-4 text-neutral-gray transition-transform duration-300", menuOpen && "rotate-180")} />
-                </button>
-
-                {menuOpen && (
-                  <div role="menu" className="lm-pop [--origin:top_right] absolute right-0 top-full mt-2 w-72 rounded-2xl border border-lummy-500 bg-neutral-white shadow-lummy-lg z-50 overflow-hidden">
-                    <div className="flex items-center gap-3 px-4 pt-4 pb-3">
-                      <span className="w-10 h-10 rounded-full bg-secondary-blue-light text-lummy-500 font-semibold grid place-items-center border border-lummy-500 shrink-0">
-                        {initials(me.name)}
-                      </span>
-                      <div className="min-w-0">
-                        <div className="font-semibold text-neutral-black text-sm truncate">{me.name}</div>
-                        <div className="text-neutral-gray text-xs truncate">{me.email}</div>
-                      </div>
-                    </div>
-
-                    {showViews && (
-                      <div className="px-4 pb-3">
-                        <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-gray mb-1.5">
-                          {me.account ? t("View as", "Lihat sebagai") : t("Demo persona", "Persona demo")}
-                        </div>
-                        <ViewSwitch current={role} options={views} onPick={pickView} />
-                      </div>
-                    )}
-
-                    <div className="border-t border-dashed border-neutral-light-gray-1 py-1.5">
-                      {accountLinks.map((l) => (
-                        <Link
-                          key={l.href}
-                          href={l.href}
-                          role="menuitem"
-                          onClick={closeMenu}
-                          className={cn(
-                            "group flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors",
-                            isActive(pathname, l.href) ? "text-primary-navy font-medium bg-secondary-blue-extra" : "text-neutral-black hover:bg-secondary-blue-light"
-                          )}
-                        >
-                          {l.Icon && <l.Icon className="w-4 h-4 text-neutral-gray group-hover:text-primary-navy transition-colors" />}
-                          {t(l.en, l.id)}
-                        </Link>
-                      ))}
-                    </div>
-                    <div className="border-t border-dashed border-neutral-light-gray-1 py-1.5">
-                      <button
-                        role="menuitem"
-                        onClick={signOut}
-                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-secondary-pink-dark hover:bg-secondary-pink-light transition-colors cursor-pointer"
-                      >
-                        <LogOut className="w-4 h-4" /> {t("Sign out", "Keluar")}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <AccountMenu me={me} links={accountLinks} claims={claims} pathname={pathname} onSignOut={signOut} className="hidden lg:block" />
             ) : mounted ? (
               <Link
                 href="/login"
@@ -421,6 +417,7 @@ export function Navbar() {
             >
               <Menu className={cn("absolute w-6 h-6 transition duration-300", sheetOpen ? "opacity-0 rotate-90 scale-75" : "opacity-100")} />
               <X className={cn("absolute w-6 h-6 transition duration-300", sheetOpen ? "opacity-100" : "opacity-0 -rotate-90 scale-75")} />
+              {claims > 0 && !sheetOpen && <span aria-hidden className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-secondary-orange-dark border-2 border-neutral-white" />}
             </button>
           </div>
         </div>
@@ -449,11 +446,9 @@ export function Navbar() {
                 ))}
               </div>
 
-              {role !== "ADMIN" && (
-                <Link href={SELL.href} onClick={() => setSheetOpen(false)} className="flex items-center justify-center gap-2 h-12 rounded-2xl border-2 border-primary-navy text-primary-navy font-fredoka font-medium active:scale-[0.98] transition">
-                  <Plus className="w-4 h-4" /> {t(SELL.en, SELL.id)}
-                </Link>
-              )}
+              <Link href={SELL.href} onClick={() => setSheetOpen(false)} className="flex items-center justify-center gap-2 h-12 rounded-2xl border-2 border-primary-navy text-primary-navy font-fredoka font-medium active:scale-[0.98] transition">
+                <Plus className="w-4 h-4" /> {t(SELL.en, SELL.id)}
+              </Link>
 
               {me ? (
                 <div className="rounded-2xl border border-neutral-light-gray-1 overflow-hidden">
@@ -466,11 +461,6 @@ export function Navbar() {
                       <div className="text-neutral-gray text-xs truncate">{me.email}</div>
                     </div>
                   </div>
-                  {showViews && (
-                    <div className="px-4 pt-3">
-                      <ViewSwitch current={role} options={views} onPick={pickView} />
-                    </div>
-                  )}
                   <div className="py-1.5">
                     {accountLinks.map((l) => (
                       <Link
@@ -484,6 +474,7 @@ export function Navbar() {
                       >
                         {l.Icon && <l.Icon className="w-4 h-4 text-neutral-gray" />}
                         {t(l.en, l.id)}
+                        {l.href === DASHBOARD.href && <Count n={claims} label={t(`${claims} ${claims === 1 ? "claim" : "claims"} to answer`, `${claims} klaim perlu dijawab`)} />}
                       </Link>
                     ))}
                     <button onClick={signOut} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-secondary-pink-dark cursor-pointer">

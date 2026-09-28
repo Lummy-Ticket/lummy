@@ -139,14 +139,27 @@ try {
   await pickPersona("Admin", "/admin");
   await page.waitForTimeout(1500);
   check("admin demo membuka konsol admin", new URL(page.url()).pathname === "/admin");
+  const staffBar = page.locator('nav[data-bar="staff"]');
+  check(
+    "konsol admin memakai bar staf, tanpa tautan jelajah dan jual",
+    (await staffBar.isVisible()) &&
+      (await staffBar.getByRole("link", { name: "How it works" }).count()) === 0 &&
+      (await staffBar.getByRole("link", { name: /Sell a ticket/ }).count()) === 0
+  );
   await pickPersona("Buyer", "/");
   await page.goto(`${BASE}/admin`, { waitUntil: "networkidle" });
   await page.waitForTimeout(1500);
   check("pembeli demo (bukan staf) ditolak dari konsol admin", new URL(page.url()).pathname !== "/admin", page.url());
   await page.goto(BASE, { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Account menu" }).click();
-  const views = await page.getByRole("group", { name: "View as" }).getByRole("button").allInnerTexts();
-  check("pilihan tampilan akun biasa tanpa Admin", views.join(",") === "Buyer,Seller", views.join(","));
+  // One account buys and sells: both hubs sit in the same menu, with no mode to switch.
+  const items = await page.getByRole("menu").getByRole("menuitem").allInnerTexts();
+  check(
+    "menu akun biasa: tiket dan dasbor penjual sekaligus, tanpa konsol admin",
+    items.some((x) => x.startsWith("My tickets")) && items.some((x) => x.startsWith("Seller dashboard")) && !items.some((x) => x.includes("Admin console")),
+    items.join(" | ")
+  );
+  check("tidak ada lagi pilihan tampilan pembeli atau penjual", (await page.getByRole("group", { name: "View as" }).count()) === 0);
   await page.keyboard.press("Escape");
 
   // --- Sign out, then sample personas still work

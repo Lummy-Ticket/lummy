@@ -28,6 +28,22 @@ export function useDemoAccounts() {
 type DemoSession = { id: string; email: string; name: string; staff: boolean };
 
 /**
+ * Puts the catalogue and the demo accounts back where a presentation starts. Escrows the contract
+ * would not close keep their orders; the count comes back so the presenter knows.
+ */
+export async function resetDemoAccounts(): Promise<{ ok: true; escrowsKept: number } | { ok: false; error: string }> {
+  const key = demoPrefs.key();
+  try {
+    const r = await fetch("/api/demo/reset", { method: "POST", headers: key ? { "x-demo-key": key } : {} });
+    const json = (await r.json().catch(() => ({}))) as { error?: string; escrowsKept?: number };
+    if (!r.ok) return { ok: false, error: json.error ?? `HTTP ${r.status}` };
+    return { ok: true, escrowsKept: json.escrowsKept ?? 0 };
+  } catch {
+    return { ok: false, error: "network" };
+  }
+}
+
+/**
  * Signs this browser in to a demo account and records the picked view (buyer, seller or admin),
  * which AuthSync keeps once it sees the same account. The caller reloads so the new session
  * cookies are picked up.

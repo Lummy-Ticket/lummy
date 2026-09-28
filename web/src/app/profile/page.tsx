@@ -9,7 +9,7 @@ import {
   useUser, useProfile, useAlerts, type AlertChannel, type PayoutBank,
 } from "@/lib/mock";
 import { PageContainer } from "@/components/layout/PageContainer";
-import { useAccessGuard, useHydrated } from "@/lib/access";
+import { isStaff, useAccessGuard, useHydrated } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
 import { useT } from "@/lib/i18n";
 import { supabaseBrowser } from "@/lib/supabase/browser";
@@ -226,8 +226,8 @@ export default function ProfilePage() {
         )}
       </Section>
 
-      {/* Payout (seller) */}
-      {user?.role === "SELLER" && (
+      {/* Payout: every account can sell, so every customer has somewhere for the money to go. */}
+      {user && !isStaff(user) && (
         <Section title={t("Payout account", "Rekening pencairan")}>
           <div className="flex flex-col gap-4">
             <div>

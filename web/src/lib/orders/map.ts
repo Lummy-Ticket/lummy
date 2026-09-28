@@ -1,9 +1,11 @@
 // Orders kept in the database, in the shape the pages already render. Shared by the browser
 // (reads under RLS) and the order routes (which check every action against the same escrow
 // rules), so both sides agree on what state an order is in.
+import { DISPUTE_WINDOW_H, EVENT_DURATION_H } from "@/lib/mock/escrow";
 import type { Dispute, DisputeEvidence, EscrowStatus, Order } from "@/lib/mock/types";
+import { MATERAI, platformFee } from "@/lib/mock/util";
 import { eventPoster } from "@/lib/poster";
-import type { Database, Json, Tables } from "@/lib/supabase/types";
+import type { Database, Json, Tables, TablesInsert } from "@/lib/supabase/types";
 
 /** One order with its claim thread. */
 export const ORDER_SELECT = "*, disputes(*, dispute_replies(*))";
@@ -101,4 +103,69 @@ export function orderFromRow(r: OrderRow): Order {
     buyerId: r.buyer_id,
     sellerId: r.seller_id ?? undefined,
   };
+}
+
+const H = 3_600_000;
+
+/**
+ * The other direction, for orders the server writes whole: the demo accounts' seed. Links to an
+ * event or listing are kept only when that row exists (past tour stops have none). Payment on
+ * these is simulated, so the chain columns stay empty.
+ */
+export function rowsFromOrder(
+  o: Order,
+  who: { buyerId: string; sellerId: string | null; decidedBy: string | null; eventIds: Set<string>; listingIds: Set<string> }
+) {
+  const endsAt = o.eventEndedAtISO ?? new Date(new Date(o.eventDateISO).getTime() + EVENT_DURATION_H * H).toISOString();
+  const order: TablesInsert<"orders"> = {
+    id: o.id,
+    listing_id: who.listingIds.has(o.listingId) ? o.listingId : null,
+    event_id: who.eventIds.has(o.eventId) ? o.eventId : null,
+    buyer_id: who.buyerId,
+    seller_id: who.sellerId,
+    event_title: o.eventTitle,
+    event_image: o.eventImage,
+    event_date: o.eventDateISO,
+    tier_name: o.tierName,
+    seller_name: o.sellerName,
+    quantity: o.quantity,
+    amount: o.amount,
+    fee: platformFee(o.amount),
+    materai: MATERAI,
+    gate_ktp: o.gateKtp,
+    late_listing: !!o.lateListing,
+    escrow_status: o.escrowStatus === "RELEASED" ? "Released" : o.escrowStatus === "REFUNDED" ? "Refunded" : "Funded",
+    disputed: !!o.dispute,
+    event_status: o.eventStatus ?? "scheduled",
+    event_ends_at: endsAt,
+    dispute_deadline: new Date(new Date(endsAt).getTime() + DISPUTE_WINDOW_H * H).toISOString(),
+    auto_released: !!o.autoReleased,
+    auto_refund_reason: o.autoRefundReason ?? null,
+    created_at: o.createdAtISO,
+  };
+  const d = o.dispute;
+  const v = d?.verdict;
+  const dispute: TablesInsert<"disputes"> | null = d
+    ? {
+        order_id: o.id,
+        reason: d.reason,
+        note_en: d.note.en,
+        note_id: d.note.id,
+        evidence: d.evidence ? (d.evidence as unknown as Json) : null,
+        opened_at: d.openedAtISO,
+        ...(v
+          ? {
+              verdict_remedy: v.remedy,
+              verdict_to_seller: v.toSeller,
+              refund_amount: v.refundAmount,
+              seller_penalty: v.sellerPenalty,
+              rationale_en: v.rationale.en,
+              rationale_id: v.rationale.id,
+              decided_at: v.decidedAtISO,
+              decided_by: who.decidedBy,
+            }
+          : {}),
+      }
+    : null;
+  return { order, dispute };
 }

@@ -1,5 +1,5 @@
 export * from "./types";
-export { useUser, isDemoMode } from "./useUser";
+export { useUser } from "./useUser";
 export {
   CAP_PCT,
   FLOOR_PCT,

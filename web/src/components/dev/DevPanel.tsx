@@ -3,13 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { FlaskConical, Loader2, RotateCcw, X } from "lucide-react";
+import { Database, FlaskConical, Loader2, RotateCcw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser, type Role } from "@/lib/mock";
 import { useHydrated } from "@/lib/access";
 import { useT } from "@/lib/i18n";
 import { demoPrefs, useChainInfo } from "@/lib/chain/client";
-import { openDemoAccount, useDemoAccounts, type DemoAccountsInfo } from "@/lib/demo-client";
+import { openDemoAccount, resetDemoAccounts, useDemoAccounts, type DemoAccountsInfo } from "@/lib/demo-client";
 import { useCatalogue } from "@/lib/catalogue";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
@@ -49,6 +49,8 @@ function Panel({ onClose, accounts }: { onClose: () => void; accounts: DemoAccou
   const [accountsOn, setAccountsOn] = useState(() => demoPrefs.accountsOn());
   const [key, setKey] = useState(() => demoPrefs.key());
   const [busy, setBusy] = useState<Role | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const chainShown = !!chain?.readable && chain.writeMode !== "off";
   const accountsShown = !!accounts?.available;
@@ -81,6 +83,28 @@ function Panel({ onClose, accounts }: { onClose: () => void; accounts: DemoAccou
     await supabaseBrowser()?.auth.signOut().catch(() => undefined);
     localStorage.clear();
     window.location.reload();
+  };
+
+  // Two clicks, because it deletes the demo accounts' orders for every presenter using them.
+  const resetAccounts = async () => {
+    if (!confirmReset) {
+      setConfirmReset(true);
+      setTimeout(() => setConfirmReset(false), 4000);
+      return;
+    }
+    setResetting(true);
+    const res = await resetDemoAccounts();
+    setResetting(false);
+    setConfirmReset(false);
+    if (!res.ok) {
+      toast.error(res.error);
+      return;
+    }
+    toast.success(t("Demo reset: catalogue restored, one order in every phase.", "Demo direset: katalog pulih, satu pesanan di tiap fase."));
+    if (res.escrowsKept)
+      toast.error(t(`Escrows the contract would not close: ${res.escrowsKept}. Their orders stay.`, `Escrow yang tidak bisa ditutup kontrak: ${res.escrowsKept}. Pesanannya dibiarkan.`));
+    // Open pages still hold the old orders and catalogue; a fresh load shows the reset.
+    setTimeout(() => window.location.reload(), 900);
   };
 
   return (
@@ -140,6 +164,21 @@ function Panel({ onClose, accounts }: { onClose: () => void; accounts: DemoAccou
               className="w-full rounded-lg border border-neutral-light-gray-1 focus:border-lummy-500 px-2 py-1 text-xs outline-none"
             />
           )}
+          {accountsReady && (
+            <button
+              onClick={() => void resetAccounts()}
+              disabled={resetting}
+              className={cn(
+                "w-full px-2 py-1.5 rounded-lg text-[11px] border transition cursor-pointer flex items-center justify-center gap-1 disabled:opacity-60",
+                confirmReset
+                  ? "border-secondary-pink-dark text-secondary-pink-dark bg-secondary-pink-light"
+                  : "border-neutral-light-gray-1 text-neutral-gray hover:border-lummy-500"
+              )}
+            >
+              {resetting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Database className="w-3 h-3" />}
+              {confirmReset ? t("Sure? Deletes the demo accounts' orders", "Yakin? Pesanan akun demo dihapus") : t("Reset demo accounts", "Reset akun demo")}
+            </button>
+          )}
           {chainShown && (
             <p className="text-[11px] text-neutral-gray">
               {chainReady
@@ -190,7 +229,7 @@ function Panel({ onClose, accounts }: { onClose: () => void; accounts: DemoAccou
           onClick={() => void reset()}
           className="flex-1 px-2 py-1.5 rounded-lg text-xs border border-neutral-light-gray-1 text-neutral-gray hover:border-lummy-500 transition cursor-pointer flex items-center justify-center gap-1"
         >
-          <RotateCcw className="w-3 h-3" /> {t("Reset", "Reset")}
+          <RotateCcw className="w-3 h-3" /> {t("Reset browser", "Reset browser")}
         </button>
       </div>
     </div>
