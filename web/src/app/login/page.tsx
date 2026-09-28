@@ -33,8 +33,8 @@ function LoginInner() {
   const [error, setError] = useState<string | null>(
     params.get("error") === "link"
       ? t(
-          "That sign-in link did not work. It may have expired, been used already, or been opened in another browser. Ask for a new one below.",
-          "Link masuk itu tidak berlaku. Mungkin sudah kedaluwarsa, sudah dipakai, atau dibuka di browser lain. Minta link baru di bawah."
+          "That sign-in link did not work. It may have expired or been used already. Ask for a new one below.",
+          "Link masuk itu tidak berlaku. Mungkin sudah kedaluwarsa atau sudah dipakai. Minta link baru di bawah."
         )
       : null
   );
@@ -102,8 +102,8 @@ function LoginInner() {
               <p className="font-fredoka font-semibold text-neutral-black mt-2">{t("Check your inbox", "Cek email kamu")}</p>
               <p className="text-sm text-neutral-gray mt-1">
                 {t(
-                  `We sent a sign-in link to ${sentTo}. Open it on this device, in this browser. It works once and expires in an hour.`,
-                  `Link masuk sudah dikirim ke ${sentTo}. Buka di perangkat ini, di browser ini. Link hanya berlaku sekali dan kedaluwarsa dalam satu jam.`
+                  `We sent a sign-in link to ${sentTo}. Open it on any device; it works once and expires in an hour. Not there in a minute? Check your spam folder.`,
+                  `Link masuk sudah dikirim ke ${sentTo}. Bisa dibuka di perangkat mana pun; link hanya berlaku sekali dan kedaluwarsa dalam satu jam. Belum masuk dalam semenit? Cek folder spam.`
                 )}
               </p>
               <button onClick={() => { setSentTo(null); setEmail(""); }} className="mt-3 text-sm text-primary-navy font-medium cursor-pointer">
