@@ -17,10 +17,11 @@ import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters } from "@/lib/i18n";
 import { EscrowStatusPill } from "@/components/common/EscrowStatusPill";
 import { EscrowSteps } from "@/components/common/EscrowSteps";
+import { EscrowTimeline } from "@/components/common/EscrowTimeline";
 import { PageContainer } from "@/components/layout/PageContainer";
 import {useOrders, useUser, explorerTx, explorerAddr, shortHash, phaseOf, msUntilRelease, disputeDeadlineISO, endedAtISO, checkEvidence, mockEvidenceOptions, DISPUTE_WINDOW_H, reasonMeta, availableReasons, reasonBlockedNote, canFileDispute, REMEDY_LABEL, windowMs, windowLabel, withChainSnapshot, type DisputeEvidence, type DisputeReason,
 } from "@/lib/mock";
-import { chainAction, chainWritable, useChainInfo, useChainListing, usdcText } from "@/lib/chain/client";
+import { chainAction, chainWritable, useChainHistory, useChainInfo, useChainListing, usdcText } from "@/lib/chain/client";
 import { DEPLOYMENTS } from "@/lib/chain/deployments";
 import { OrderError, orderAction, useAccountOrders } from "@/lib/orders/client";
 
@@ -87,6 +88,12 @@ export default function OrderDetailPage() {
   const chainInfo = useChainInfo();
   const { data: live, refresh: refreshLive } = useChainListing(stored?.chain?.listingId);
   const order = useMemo(() => (account && stored && live ? withChainSnapshot(stored, live) : stored), [account, stored, live]);
+  // The same escrow told from the contract's own events, for the history below and the public proof page.
+  const { data: history, refresh: refreshHistory } = useChainHistory(stored?.chain?.listingId);
+  const liveStep = live ? `${live.status}:${live.disputed}` : "";
+  useEffect(() => {
+    if (liveStep) refreshHistory();
+  }, [liveStep, refreshHistory]);
   const releaseTried = useRef(0);
 
   const mounted = useHydrated();
@@ -488,58 +495,75 @@ export default function OrderDetailPage() {
             </div>
           )}
 
-          {/* History */}
-          <div className="mt-5">
-            <div className="text-xs text-neutral-gray mb-2">{t("History", "Riwayat")}</div>
-            <ol className="relative border-l-2 border-dashed border-neutral-light-gray-1 ml-1.5 flex flex-col gap-4">
-              <li className="pl-4 relative">
-                <span className="absolute -left-[7px] top-1 w-3 h-3 rounded-full bg-lummy-500 border-2 border-neutral-white" />
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm text-neutral-black">{t("Funds locked in escrow", "Dana dikunci di escrow")}</span>
-                  {showProof && onchain && <a href={explorerTx(onchain.txs.fund)} target="_blank" rel="noreferrer" className="text-xs text-primary-navy flex items-center gap-1 shrink-0">{shortHash(onchain.txs.fund, 4)} <ExternalLink className="w-3 h-3" /></a>}
-                </div>
-                <span className="text-xs text-neutral-gray">{formatDateTime(order.createdAtISO)}</span>
-              </li>
-              {endedAt && (
+          {/* History: a chain order reads it from the contract's events, anything else from our records. */}
+          {onchain && history ? (
+            <div className="mt-5">
+              <EscrowTimeline history={history} live={live} />
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+                <Link href={`/proof/${onchain.listingId}`} className="inline-flex items-center gap-1.5 text-primary-navy font-medium hover:opacity-80">
+                  <ShieldCheck className="w-3.5 h-3.5" /> {t("Open the public proof page", "Buka halaman bukti publik")}
+                </Link>
+                <button
+                  onClick={() => copy(`${window.location.origin}/proof/${onchain.listingId}`)}
+                  className="inline-flex items-center gap-1.5 text-neutral-gray hover:text-primary-navy cursor-pointer"
+                >
+                  <Copy className="w-3.5 h-3.5" /> {t("Copy the link to share", "Salin tautan untuk dibagikan")}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-5">
+              <div className="text-xs text-neutral-gray mb-2">{t("History", "Riwayat")}</div>
+              <ol className="relative border-l-2 border-dashed border-neutral-light-gray-1 ml-1.5 flex flex-col gap-4">
                 <li className="pl-4 relative">
                   <span className="absolute -left-[7px] top-1 w-3 h-3 rounded-full bg-lummy-500 border-2 border-neutral-white" />
-                  <span className="text-sm text-neutral-black">{t(`Event finished, ${win.en} window opened`, `Acara selesai, masa sengketa ${win.id} dibuka`)}</span>
-                  <span className="block text-xs text-neutral-gray">{formatDateTime(endedAt)}</span>
-                </li>
-              )}
-              {order.dispute && (
-                <li className="pl-4 relative">
-                  <span className="absolute -left-[7px] top-1 w-3 h-3 rounded-full bg-secondary-orange-dark border-2 border-neutral-white" />
-                  <span className="text-sm text-neutral-black">{t("Dispute filed with evidence", "Sengketa diajukan dengan bukti")}</span>
-                  <span className="block text-xs text-neutral-gray">{formatDateTime(order.dispute.openedAtISO)}</span>
-                </li>
-              )}
-              {order.escrowStatus === "RELEASED" || order.escrowStatus === "REFUNDED" ? (
-                <li className="pl-4 relative">
-                  <span className={`absolute -left-[7px] top-1 w-3 h-3 rounded-full border-2 border-neutral-white ${order.escrowStatus === "RELEASED" ? "bg-secondary-green-dark" : "bg-neutral-gray"}`} />
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm text-neutral-black">
-                      {order.escrowStatus === "RELEASED"
-                        ? order.autoReleased
-                          ? t("Auto-released to seller", "Cair otomatis ke penjual")
-                          : t("Released to seller by verdict", "Cair ke penjual lewat putusan")
-                        : t("Refunded to buyer", "Dikembalikan ke pembeli")}
-                    </span>
-                    {showProof && onchain?.txs.settle && <a href={explorerTx(onchain.txs.settle)} target="_blank" rel="noreferrer" className="text-xs text-primary-navy flex items-center gap-1 shrink-0">{shortHash(onchain.txs.settle, 4)} <ExternalLink className="w-3 h-3" /></a>}
+                    <span className="text-sm text-neutral-black">{t("Funds locked in escrow", "Dana dikunci di escrow")}</span>
+                    {showProof && onchain && <a href={explorerTx(onchain.txs.fund)} target="_blank" rel="noreferrer" className="text-xs text-primary-navy flex items-center gap-1 shrink-0">{shortHash(onchain.txs.fund, 4)} <ExternalLink className="w-3 h-3" /></a>}
                   </div>
+                  <span className="text-xs text-neutral-gray">{formatDateTime(order.createdAtISO)}</span>
                 </li>
-              ) : (
-                <li className="pl-4 relative">
-                  <span className="absolute -left-[7px] top-1 w-3 h-3 rounded-full bg-neutral-light-gray-1 border-2 border-neutral-white" />
-                  <span className="text-sm text-neutral-gray">
-                    {deadline
-                      ? t(`Auto-release at ${formatDateTime(deadline)}`, `Cair otomatis pada ${formatDateTime(deadline)}`)
-                      : t(`Waiting for the event, then ${win.en}`, `Menunggu acara, lalu ${win.id}`)}
-                  </span>
-                </li>
-              )}
-            </ol>
-          </div>
+                {endedAt && (
+                  <li className="pl-4 relative">
+                    <span className="absolute -left-[7px] top-1 w-3 h-3 rounded-full bg-lummy-500 border-2 border-neutral-white" />
+                    <span className="text-sm text-neutral-black">{t(`Event finished, ${win.en} window opened`, `Acara selesai, masa sengketa ${win.id} dibuka`)}</span>
+                    <span className="block text-xs text-neutral-gray">{formatDateTime(endedAt)}</span>
+                  </li>
+                )}
+                {order.dispute && (
+                  <li className="pl-4 relative">
+                    <span className="absolute -left-[7px] top-1 w-3 h-3 rounded-full bg-secondary-orange-dark border-2 border-neutral-white" />
+                    <span className="text-sm text-neutral-black">{t("Dispute filed with evidence", "Sengketa diajukan dengan bukti")}</span>
+                    <span className="block text-xs text-neutral-gray">{formatDateTime(order.dispute.openedAtISO)}</span>
+                  </li>
+                )}
+                {order.escrowStatus === "RELEASED" || order.escrowStatus === "REFUNDED" ? (
+                  <li className="pl-4 relative">
+                    <span className={`absolute -left-[7px] top-1 w-3 h-3 rounded-full border-2 border-neutral-white ${order.escrowStatus === "RELEASED" ? "bg-secondary-green-dark" : "bg-neutral-gray"}`} />
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm text-neutral-black">
+                        {order.escrowStatus === "RELEASED"
+                          ? order.autoReleased
+                            ? t("Auto-released to seller", "Cair otomatis ke penjual")
+                            : t("Released to seller by verdict", "Cair ke penjual lewat putusan")
+                          : t("Refunded to buyer", "Dikembalikan ke pembeli")}
+                      </span>
+                      {showProof && onchain?.txs.settle && <a href={explorerTx(onchain.txs.settle)} target="_blank" rel="noreferrer" className="text-xs text-primary-navy flex items-center gap-1 shrink-0">{shortHash(onchain.txs.settle, 4)} <ExternalLink className="w-3 h-3" /></a>}
+                    </div>
+                  </li>
+                ) : (
+                  <li className="pl-4 relative">
+                    <span className="absolute -left-[7px] top-1 w-3 h-3 rounded-full bg-neutral-light-gray-1 border-2 border-neutral-white" />
+                    <span className="text-sm text-neutral-gray">
+                      {deadline
+                        ? t(`Auto-release at ${formatDateTime(deadline)}`, `Cair otomatis pada ${formatDateTime(deadline)}`)
+                        : t(`Waiting for the event, then ${win.en}`, `Menunggu acara, lalu ${win.id}`)}
+                    </span>
+                  </li>
+                )}
+              </ol>
+            </div>
+          )}
 
           {/* A claim is possible from purchase onwards, because a seller can fail
               you long before the gate does. What differs is the proof it needs. */}

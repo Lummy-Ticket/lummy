@@ -74,6 +74,24 @@ try {
   const firstOk = await Promise.all(first.map(receiptOk));
   check("tautan panel = tiga tx asli yang sukses di chain", first.length >= 3 && firstOk.every(Boolean), first.join(", "));
 
+  // Riwayat dari event kontrak, lalu halaman bukti publik yang bisa dibagikan
+  await page.getByText("The buyer's money is locked in escrow").waitFor({ timeout: 60000 });
+  check("riwayat escrow dari event kontrak tampil di halaman tiket", await page.getByText("Recorded on the blockchain").first().isVisible());
+  await page.getByText("Open the public proof page").click();
+  await page.waitForURL(/\/proof\/0x[0-9a-fA-F]{64}$/);
+  await page.getByText("Rules the contract enforces").waitFor({ timeout: 60000 });
+  await page.getByText("Handover recorded").waitFor();
+  const proofText = await page.locator("main").innerText();
+  check(
+    "halaman bukti publik tampil tanpa data pribadi",
+    !proofText.includes(USERS.buyer.name) && !proofText.includes(USERS.buyer.email) && !proofText.includes("Coldplay"),
+    proofText.slice(0, 120),
+  );
+  // Balik ke tiket: panel teknis tertutup lagi setelah halaman dimuat ulang, jadi dibuka lagi.
+  await page.goto(orderUrl, { waitUntil: "networkidle" });
+  await page.getByText("Verify it yourself on-chain").click();
+  await page.getByText("Handover proof tx").waitFor();
+
   // Sengketa masuk ke kontrak
   await page.getByText("Something went wrong at the gate").click();
   await page.getByText("Turned away at the gate").click();
@@ -96,6 +114,8 @@ try {
   await page.getByText("Refunded").first().waitFor();
   const refunded = (await page.getByText("Refund tx").isVisible()) && (await page.getByText("Payout tx").first().isVisible());
   check("pesanan Refunded menurut kontrak, dengan tx refund dan tx kirim dana", refunded);
+  await page.getByText("Claim decided").waitFor({ timeout: 60000 });
+  check("putusan tercatat di riwayat escrow", true);
 
   // Diam berarti beres: window lewat di jam chain, halaman memicu pencairan. Di Anvil waktunya
   // dilompati; di testnet ditunggu sungguhan.

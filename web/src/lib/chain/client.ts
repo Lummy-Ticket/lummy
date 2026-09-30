@@ -3,7 +3,7 @@
 // Mode chain di browser: baca info dan status listing lewat /api/chain, kirim aksi dengan demo key.
 // Tidak ada kunci di sini. Checkout baru jadi transaksi sungguhan kalau server sanggup menulis DAN
 // perangkat ini memilih mode chain di panel dev, jadi pengunjung biasa dan demo-check tetap di data contoh.
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export type WriteMode = "off" | "open" | "key";
 
@@ -145,4 +145,69 @@ export function useChainListing(listingId: string | undefined, intervalMs = 5000
     };
   }, [listingId, intervalMs, nonce]);
   return { data, refresh: () => setNonce((n) => n + 1) };
+}
+
+export type ChainHistoryKind =
+  | "Listed" | "ListingCancelled" | "Funded" | "HandoverMarked" | "EventPostponed" | "DisputeRaised" | "Resolved" | "Released" | "Refunded";
+
+/** Satu event kontrak untuk listing ini. Bentuknya sama dengan HistoryEvent di lib/chain/history. */
+export type ChainHistoryEvent = {
+  kind: ChainHistoryKind;
+  tx: string;
+  block: number;
+  /** Waktu blok, unix detik. */
+  at: number;
+  amount?: string;
+  toBuyer?: string;
+  toSeller?: string;
+  deadline?: number;
+  eventEndsAt?: number;
+};
+
+export type ChainHistory = { listingId: string; chainId: number; escrow: string; events: ChainHistoryEvent[]; live: ChainListing };
+
+export const chainSettled = (s: ChainStatus | undefined) => s === "Released" || s === "Refunded" || s === "Cancelled";
+
+/**
+ * Riwayat escrow dari event kontrak, diperbarui berkala sampai escrow selesai. "missing": kontrak tidak
+ * mengenal id ini. "failed": chain belum bisa dibaca dan belum ada data sebelumnya.
+ */
+export function useChainHistory(listingId: string | undefined, intervalMs = 15000) {
+  const [data, setData] = useState<ChainHistory | null>(null);
+  const [state, setState] = useState<"loading" | "ok" | "missing" | "failed">("loading");
+  const [nonce, setNonce] = useState(0);
+  const settled = chainSettled(data?.live.status);
+  useEffect(() => {
+    if (!listingId) return;
+    let alive = true;
+    const load = () =>
+      fetch(`/api/chain/history/${listingId}`)
+        .then(async (r) => {
+          if (r.ok) {
+            const j = (await r.json()) as ChainHistory;
+            if (!alive) return;
+            setData(j);
+            setState("ok");
+          } else if (alive) {
+            setState((s) => (s === "ok" ? s : r.status === 404 || r.status === 400 ? "missing" : "failed"));
+          }
+        })
+        .catch(() => {
+          if (alive) setState((s) => (s === "ok" ? s : "failed"));
+        });
+    load();
+    if (settled) {
+      return () => {
+        alive = false;
+      };
+    }
+    const timer = setInterval(load, intervalMs);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [listingId, intervalMs, nonce, settled]);
+  // Stabil antar render, supaya aman dipakai sebagai dependensi effect.
+  const refresh = useCallback(() => setNonce((n) => n + 1), []);
+  return { data, state, refresh };
 }
