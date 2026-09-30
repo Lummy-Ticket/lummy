@@ -7,9 +7,10 @@ import {
   UploadCloud, FileText, ScanLine, CheckCircle2, AlertTriangle, Loader2, ArrowRight, ArrowLeft, Sparkles, ShieldCheck, ChevronDown, Minus, Plus, IdCard, Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TransferPolicyNote } from "@/components/common/TransferPolicyNote";
 import {
   getTier, CAP_PCT, FLOOR_PCT, useSellerListings, useUser, type ListingAI,
-  isLateListing, LATE_LISTING_H,
+  isLateListing, LATE_LISTING_H, resaleAllowed,
 } from "@/lib/mock";
 import { SAMPLE_SIGNALS, type SampleTicket } from "@/lib/listings/rules";
 import { ListingError, createListing } from "@/lib/listings/client";
@@ -93,6 +94,9 @@ export default function SellPage() {
   // Duplicate-pass fraud clusters in the hours before doors, when buyers are
   // panicking. Late listings still go live, but a human sees them first.
   const late = !!event && isLateListing(event.dateISO);
+  // The organiser's rule for this show: closed to resale, or a name the gate checks.
+  const closed = !!event && !resaleAllowed(event.transferPolicy);
+  const nameChecked = event?.transferPolicy === "letter" || event?.transferPolicy === "id_match";
 
   const analyze = () => {
     // An account lists a sample ticket, and one is always picked, so name its file here.
@@ -126,7 +130,7 @@ export default function SellPage() {
   };
 
   const publish = () => {
-    if (!event || !tier || blocked || ktpMissing) return;
+    if (!event || !tier || blocked || ktpMissing || closed) return;
     if (account) return void publishAccount();
     addListing({
       eventId: event.id, eventTitle: event.title, tierName: tier.name,
@@ -291,9 +295,11 @@ export default function SellPage() {
             </div>
           </div>
 
+          {event && <TransferPolicyNote policy={event.transferPolicy} audience="seller" />}
+
           <div className="flex gap-3">
             <Button.Ghost onClick={() => setStep(0)}><ArrowLeft className="w-4 h-4" /> {t("Back", "Kembali")}</Button.Ghost>
-            <Button.Primary className="flex items-center gap-2" onClick={() => { setPrice((p) => Math.min(Math.max(p || cap, floor), cap)); setStep(2); }}>{t("Continue to price", "Lanjut ke harga")} <ArrowRight className="w-4 h-4" /></Button.Primary>
+            <Button.Primary className="flex items-center gap-2" disabled={closed} onClick={() => { setPrice((p) => Math.min(Math.max(p || cap, floor), cap)); setStep(2); }}>{t("Continue to price", "Lanjut ke harga")} <ArrowRight className="w-4 h-4" /></Button.Primary>
           </div>
         </div>
       )}
@@ -334,6 +340,15 @@ export default function SellPage() {
               </span>
               <input type="checkbox" checked={gateKtp} onChange={(e) => setGateKtp(e.target.checked)} className="mt-1 w-5 h-5 shrink-0 accent-[#3A6CB4] cursor-pointer" />
             </label>
+            {nameChecked && !gateKtp && (
+              <p className="mt-3 flex items-start gap-2 text-xs text-secondary-orange-dark">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                {t(
+                  "This show checks names at the gate. Without your ID card staged, a refusal over the name counts as a failed ticket, with the seller penalty.",
+                  "Acara ini mengecek nama di gate. Tanpa KTP yang disiapkan, penolakan karena nama dihitung sebagai tiket gagal, lengkap dengan penalti penjual."
+                )}
+              </p>
+            )}
             {gateKtp && (
               <div className="mt-4 flex flex-col gap-3">
                 <input ref={ktpInput} type="file" accept="image/*" hidden onChange={(e) => setKtpFile(e.target.files?.[0]?.name ?? null)} />
@@ -397,7 +412,7 @@ export default function SellPage() {
 
           <div className="flex gap-3">
             <Button.Ghost onClick={() => setStep(1)}><ArrowLeft className="w-4 h-4" /> {t("Back", "Kembali")}</Button.Ghost>
-            <Button.Primary disabled={blocked || ktpMissing || publishing} onClick={publish}>
+            <Button.Primary disabled={blocked || ktpMissing || publishing || closed} onClick={publish}>
               {blocked ? t("Blocked (duplicate)", "Diblokir (duplikat)") : flagged || late ? t("Submit for review", "Ajukan untuk review") : t("Publish listing", "Publish listing")}
             </Button.Primary>
           </div>

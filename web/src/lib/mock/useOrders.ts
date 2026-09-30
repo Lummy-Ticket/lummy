@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import type {
   Dispute, DisputeEvidence, DisputeReason, DisputeReply, EscrowStatus, EventItem, Listing, Order, OrderChain, Remedy, Tier,
 } from "./types";
-import { DISPUTE_WINDOW_H, canFileDispute, disputeDeadlineISO, partialAmount, sellerPenalty } from "./escrow";
+import { DISPUTE_WINDOW_H, canFileDispute, disputeDeadlineISO, partialAmount, penaltyFor } from "./escrow";
 import { seedOrders } from "./seed-orders";
 
 /** What the contract reports for an on-chain order, as read through /api/chain/listing. */
@@ -198,7 +198,7 @@ export const useOrders = create<OrderState>()(
                   toSeller,
                   remedy,
                   refundAmount: remedy === "REPLACEMENT" ? o.amount : refundAmount,
-                  sellerPenalty: toSeller ? 0 : sellerPenalty(o.amount),
+                  sellerPenalty: penaltyFor(o.dispute.reason, toSeller, o.amount),
                   rationale,
                   decidedAtISO: new Date().toISOString(),
                 },

@@ -40,6 +40,7 @@ async function fetchCatalogue(url: string, key: string): Promise<CatalogueData> 
           fromPrice: e.from_price ?? 0,
           listingCount: e.listing_count ?? 0,
           featured: !!e.featured,
+          transferPolicy: e.transfer_policy,
         }]
       : []
   );

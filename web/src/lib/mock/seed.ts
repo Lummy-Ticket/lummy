@@ -55,7 +55,7 @@ export const seedEvents = (now: number): SeedEvent[] => [
   {
     id: "ev-coldplay", title: "Coldplay: Music of the Spheres", category: "Music",
     dateISO: "2026-11-14T19:00:00+07:00", venue: "Stadion Utama GBK", city: "Jakarta",
-    image: img("coldplay"), featured: true,
+    image: img("coldplay"), featured: true, transferPolicy: "letter",
     tiers: [
       { id: "t-cp-fest", name: "Festival", faceValue: 3_500_000 },
       { id: "t-cp-cat1", name: "CAT 1", faceValue: 2_250_000 },
@@ -65,7 +65,7 @@ export const seedEvents = (now: number): SeedEvent[] => [
   {
     id: "ev-newjeans", title: "NewJeans Fan Meeting: Bunnies Jakarta", category: "Music",
     dateISO: "2026-10-31T18:00:00+07:00", venue: "ICE BSD Hall 10", city: "Tangerang",
-    image: img("newjeans"), featured: true,
+    image: img("newjeans"), featured: true, transferPolicy: "id_match",
     tiers: [
       { id: "t-nj-vip", name: "VIP Soundcheck", faceValue: 2_800_000 },
       { id: "t-nj-cat1", name: "CAT 1", faceValue: 1_500_000 },
@@ -74,7 +74,7 @@ export const seedEvents = (now: number): SeedEvent[] => [
   {
     id: "ev-wtf", title: "We The Fest 2026", category: "Music",
     dateISO: tomorrowWIB(ROLLING_HOUR["ev-wtf"], now), venue: "JIExpo Kemayoran", city: "Jakarta",
-    image: img("wtf"), featured: true,
+    image: img("wtf"), featured: true, transferPolicy: "open",
     tiers: [
       { id: "t-wtf-3day", name: "3-Day Pass", faceValue: 1_850_000 },
       { id: "t-wtf-1day", name: "1-Day Pass", faceValue: 850_000 },
@@ -83,7 +83,7 @@ export const seedEvents = (now: number): SeedEvent[] => [
   {
     id: "ev-tulus", title: "Tulus: Manusia Tour", category: "Music",
     dateISO: "2026-11-07T20:00:00+07:00", venue: "Sentul International Convention Center", city: "Bogor",
-    image: img("tulus"),
+    image: img("tulus"), transferPolicy: "letter",
     tiers: [
       { id: "t-tl-vip", name: "VIP", faceValue: 1_200_000 },
       { id: "t-tl-reg", name: "Reguler", faceValue: 650_000 },
@@ -92,7 +92,7 @@ export const seedEvents = (now: number): SeedEvent[] => [
   {
     id: "ev-sos", title: "Sheila on 7: Tunggu Aku di Jakarta", category: "Music",
     dateISO: "2026-12-13T19:30:00+07:00", venue: "Stadion Madya GBK", city: "Jakarta",
-    image: img("sheila"),
+    image: img("sheila"), transferPolicy: "letter",
     tiers: [
       { id: "t-sos-fest", name: "Festival", faceValue: 750_000 },
       { id: "t-sos-tribun", name: "Tribun", faceValue: 500_000 },
@@ -101,7 +101,7 @@ export const seedEvents = (now: number): SeedEvent[] => [
   {
     id: "ev-pandji", title: "Pandji Pragiwaksono: Menyala", category: "Theater",
     dateISO: "2026-11-28T19:00:00+07:00", venue: "Ciputra Artpreneur", city: "Jakarta",
-    image: img("pandji"),
+    image: img("pandji"), transferPolicy: "open",
     tiers: [
       { id: "t-pj-gold", name: "Gold", faceValue: 500_000 },
       { id: "t-pj-silver", name: "Silver", faceValue: 350_000 },
@@ -110,7 +110,7 @@ export const seedEvents = (now: number): SeedEvent[] => [
   {
     id: "ev-timnas", title: "Timnas Indonesia vs Jepang", category: "Sports",
     dateISO: "2026-11-19T19:00:00+07:00", venue: "Stadion Utama GBK", city: "Jakarta",
-    image: img("timnas"),
+    image: img("timnas"), transferPolicy: "id_match",
     tiers: [
       { id: "t-tn-vip", name: "VIP", faceValue: 900_000 },
       { id: "t-tn-cat1", name: "Kategori 1", faceValue: 500_000 },

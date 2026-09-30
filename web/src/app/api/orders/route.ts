@@ -8,6 +8,7 @@ import { NextResponse } from "next/server";
 import { chainError, openOrder, operatorSetup, readListing, writeAllowed } from "@/lib/chain/server";
 import { demoKeyAllowed, demoMode } from "@/lib/demo-key";
 import { DISPUTE_WINDOW_H, EVENT_DURATION_H } from "@/lib/mock/escrow";
+import { resaleAllowed } from "@/lib/mock/transfer";
 import { MATERAI, platformFee } from "@/lib/mock/util";
 import { HELD } from "@/lib/orders/map";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -66,7 +67,7 @@ export async function POST(req: Request) {
   if (listing.seller_id === user.id) return fail(400, "tidak bisa membeli listing sendiri");
 
   const [ev, tier] = await Promise.all([
-    admin.from("catalogue_events").select("title, starts_at, status, image_url").eq("id", listing.event_id).maybeSingle(),
+    admin.from("catalogue_events").select("title, starts_at, status, image_url, transfer_policy").eq("id", listing.event_id).maybeSingle(),
     admin.from("tiers").select("name").eq("id", listing.tier_id).maybeSingle(),
   ]);
   if (ev.error || tier.error) return fail(500, (ev.error ?? tier.error)!.message);
@@ -74,6 +75,8 @@ export async function POST(req: Request) {
   if (!event?.title || !event.starts_at || !tier.data) return fail(409, "acara untuk listing ini tidak ditemukan");
   const scheduledEnd = new Date(event.starts_at).getTime() + EVENT_DURATION_H * H;
   if (event.status === "cancelled" || Date.now() >= scheduledEnd) return fail(409, "acara ini sudah lewat atau dibatalkan");
+  // A listing that went up before the organiser's rule was recorded still cannot be bought.
+  if (!resaleAllowed(event.transfer_policy)) return fail(409, "penyelenggara acara ini melarang tiketnya dijual ulang");
 
   const claim = await admin.rpc("claim_listing", { p_listing_id: listingId, p_quantity: quantity });
   if (claim.error) return fail(500, claim.error.message);

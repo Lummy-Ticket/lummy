@@ -257,6 +257,7 @@ export type Database = {
           starts_at: string
           status: Database["public"]["Enums"]["event_status"]
           title: string
+          transfer_policy: Database["public"]["Enums"]["transfer_policy"] | null
           venue: string
         }
         Insert: {
@@ -270,6 +271,9 @@ export type Database = {
           starts_at: string
           status?: Database["public"]["Enums"]["event_status"]
           title: string
+          transfer_policy?:
+            | Database["public"]["Enums"]["transfer_policy"]
+            | null
           venue: string
         }
         Update: {
@@ -283,6 +287,9 @@ export type Database = {
           starts_at?: string
           status?: Database["public"]["Enums"]["event_status"]
           title?: string
+          transfer_policy?:
+            | Database["public"]["Enums"]["transfer_policy"]
+            | null
           venue?: string
         }
         Relationships: []
@@ -693,6 +700,7 @@ export type Database = {
           starts_at: string | null
           status: Database["public"]["Enums"]["event_status"] | null
           title: string | null
+          transfer_policy: Database["public"]["Enums"]["transfer_policy"] | null
           venue: string | null
         }
         Relationships: []
@@ -743,6 +751,7 @@ export type Database = {
       dispute_reason:
         | "GATE_DENIED"
         | "BARCODE_USED"
+        | "NAME_MISMATCH"
         | "NOT_DELIVERED"
         | "NOT_AS_LISTED"
         | "EVENT_CANCELLED"
@@ -763,6 +772,7 @@ export type Database = {
         | "REFUND_FULL"
         | "RELEASE_SELLER"
       seed_status: "pending" | "approved" | "rejected"
+      transfer_policy: "open" | "letter" | "id_match" | "no_resale"
       user_role: "member" | "admin"
     }
     CompositeTypes: {
@@ -895,6 +905,7 @@ export const Constants = {
       dispute_reason: [
         "GATE_DENIED",
         "BARCODE_USED",
+        "NAME_MISMATCH",
         "NOT_DELIVERED",
         "NOT_AS_LISTED",
         "EVENT_CANCELLED",
@@ -918,6 +929,7 @@ export const Constants = {
         "RELEASE_SELLER",
       ],
       seed_status: ["pending", "approved", "rejected"],
+      transfer_policy: ["open", "letter", "id_match", "no_resale"],
       user_role: ["member", "admin"],
     },
   },

@@ -141,6 +141,15 @@ export const DISPUTE_REASONS: ReasonMeta[] = [
     },
   },
   {
+    id: "NAME_MISMATCH",
+    label: { en: "Turned away over the name", id: "Ditolak karena nama tidak cocok" },
+    eligible: true, window: "POST", proof: "GATE",
+    help: {
+      en: "A photo at the gate showing the ID check that refused you, with this order's ticket in view.",
+      id: "Foto di gate yang memperlihatkan pemeriksaan KTP yang menolakmu, dengan tiket order ini terlihat.",
+    },
+  },
+  {
     id: "NOT_DELIVERED",
     label: { en: "Ticket never handed over", id: "Tiket tidak pernah diserahkan" },
     eligible: true, window: "BOTH", proof: "DOCS",
@@ -187,6 +196,9 @@ export function availableReasons(o: Order, now: number = Date.now()): ReasonMeta
   const pre = phase === "PRE_EVENT";
   return DISPUTE_REASONS.filter((r) => {
     if (r.id === "EVENT_CANCELLED") return false; // never filed by hand
+    // A refusal over the name only counts as nobody's fault when the seller staged their ID card
+    // for the gate. Without it, the refusal is theirs and goes through "Turned away at the gate".
+    if (r.id === "NAME_MISMATCH" && !o.gateKtp) return false;
     if (!r.eligible) return true; // shown so the policy can refuse it out loud
     if (r.window === "BOTH") return true;
     return pre ? r.window === "PRE" : r.window === "POST";
@@ -334,6 +346,16 @@ export function partialAmount(o: Order, reason: DisputeReason) {
 
 export const sellerPenalty = (amount: number) => Math.round((amount * SELLER_PENALTY_PCT) / 100);
 
+/**
+ * Refusals that are nobody's fault: the ticket was genuine and the rules at the door stopped it.
+ * The buyer is still refunded, but the seller is not charged on top.
+ */
+const NO_FAULT: DisputeReason[] = ["NAME_MISMATCH", "EVENT_CANCELLED"];
+
+/** What a verdict charges the seller: nothing when they are paid, nothing when the refusal was not their doing. */
+export const penaltyFor = (reason: DisputeReason, toSeller: boolean, amount: number) =>
+  toSeller || NO_FAULT.includes(reason) ? 0 : sellerPenalty(amount);
+
 export interface RemedyOption {
   remedy: Remedy;
   amount: number;
@@ -418,6 +440,11 @@ export function suggestedRationale(d: Dispute, check: EvidenceCheck): Bi {
         en: "Our own access log shows the handover documents were never opened, which supports the claim.",
         id: "Catatan akses kami menunjukkan dokumen serah-terima tidak pernah dibuka, dan itu mendukung klaimnya.",
       };
+    if (d.reason === "NAME_MISMATCH")
+      return {
+        en: "Gate-time evidence shows a genuine ticket refused over the name. The seller staged their ID card, so the refund carries no penalty.",
+        id: "Bukti dari gate menunjukkan tiket asli yang ditolak karena nama. Penjual sudah menyiapkan KTP, jadi refund-nya tanpa penalti.",
+      };
     if (d.reason === "NOT_AS_LISTED")
       return {
         en: "The ticket received does not match the tier that was sold.",
@@ -444,6 +471,24 @@ export function suggestedRationale(d: Dispute, check: EvidenceCheck): Bi {
 export function mockEvidenceOptions(o: Order, reason: DisputeReason): DisputeEvidence[] {
   const start = new Date(o.eventDateISO).getTime();
   if (reason === "NOT_DELIVERED") return [];
+  if (reason === "NAME_MISMATCH") {
+    return [
+      {
+        fileName: "gate-id-check-refused.jpg",
+        kind: "SCANNER_PHOTO",
+        capturedAtISO: new Date(start + 35 * 60_000).toISOString(),
+        atVenue: true,
+        showsBarcode: true,
+      },
+      {
+        fileName: "queue-photo-no-ticket.jpg",
+        kind: "SCANNER_PHOTO",
+        capturedAtISO: new Date(start + 50 * 60_000).toISOString(),
+        atVenue: true,
+        showsBarcode: false,
+      },
+    ];
+  }
   if (reason === "NOT_AS_LISTED") {
     return [
       {

@@ -7,11 +7,13 @@ import Link from "next/link";
 import Image from "next/image";
 import toast from "react-hot-toast";
 import { ArrowLeft, Lock, ShieldCheck, Loader2, QrCode } from "lucide-react";
+import { TransferPolicyNote } from "@/components/common/TransferPolicyNote";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/common/Modal";
 import {
   getTier, isBuyable, isEventOver, platformFee, MATERAI, useOrders, useUser, DISPUTE_WINDOW_H, EVENT_DURATION_H, type OrderChain,
+  needsNameAcknowledgement, resaleAllowed,
 } from "@/lib/mock";
 import { useCatalogue } from "@/lib/catalogue";
 import { chainCheckoutReady, demoPrefs, openChainOrder, useChainInfo } from "@/lib/chain/client";
@@ -56,9 +58,11 @@ function CheckoutInner() {
   const onchain = chainCheckoutReady(chainInfo);
 
   const [processing, setProcessing] = useState(false);
+  // Where the gate matches ID to the name, the buyer says they know before paying.
+  const [nameRiskOk, setNameRiskOk] = useState(false);
 
   // Not found, flagged, duplicate, or for a show that is already over: nothing to pay for.
-  if (!listing || !event || !tier || !isBuyable(listing) || isEventOver(event)) {
+  if (!listing || !event || !tier || !isBuyable(listing) || isEventOver(event) || !resaleAllowed(event.transferPolicy)) {
     return (
       <div className="max-w-lg mx-auto px-5 pt-28 pb-16 text-center flex flex-col items-center gap-3">
         <p className="text-neutral-gray">{t("This listing is not available to buy.", "Listing ini tidak bisa dibeli.")}</p>
@@ -72,6 +76,7 @@ function CheckoutInner() {
   const subtotal = listing.askPrice * qty;
   const fee = platformFee(subtotal);
   const total = subtotal + fee + MATERAI;
+  const mustConfirmName = needsNameAcknowledgement(event.transferPolicy);
 
   const payAccount = async () => {
     setProcessing(true);
@@ -149,6 +154,8 @@ function CheckoutInner() {
             </div>
           </div>
 
+          <TransferPolicyNote policy={event.transferPolicy} audience="buyer" />
+
           {/* Payment. QRIS is the one rail: it covers e-wallets and bank apps alike. */}
           <div className="bg-neutral-white rounded-2xl border border-neutral-light-gray-1 p-4">
             <h2 className="font-fredoka font-semibold text-lg text-neutral-black mb-3">{t("Payment", "Pembayaran")}</h2>
@@ -182,7 +189,23 @@ function CheckoutInner() {
             <div className="border-t border-dashed border-neutral-light-gray-1 my-1" />
             <Row label={t("Total", "Total")} value={formatIDR(total)} bold />
           </div>
-          <Button.Primary wrapperClass="w-full" className="w-full" onClick={pay}>
+          {mustConfirmName && (
+            <label className="flex items-start gap-2.5 text-xs text-neutral-black cursor-pointer">
+              <input
+                type="checkbox"
+                checked={nameRiskOk}
+                onChange={(e) => setNameRiskOk(e.target.checked)}
+                className="mt-0.5 w-4 h-4 shrink-0 accent-[#3A6CB4] cursor-pointer"
+              />
+              <span>
+                {t(
+                  "I understand the gate checks that my ID card matches the name on the ticket, so I could be turned away even with a genuine ticket.",
+                  "Saya paham petugas gate mengecek KTP harus sama dengan nama di tiket, jadi saya bisa ditolak walaupun tiketnya asli."
+                )}
+              </span>
+            </label>
+          )}
+          <Button.Primary wrapperClass="w-full" className="w-full" disabled={mustConfirmName && !nameRiskOk} onClick={pay}>
             {t("Pay", "Bayar")} {formatIDR(total)}
           </Button.Primary>
           <p className="flex items-center gap-1.5 text-xs text-secondary-green-dark justify-center">

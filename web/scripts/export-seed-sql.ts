@@ -46,6 +46,7 @@ const sql = [
       city: e.city,
       image_url: e.image.startsWith("/") ? e.image : null,
       featured: !!e.featured,
+      transfer_policy: e.transferPolicy ?? null,
     }))
   ),
   upsert(

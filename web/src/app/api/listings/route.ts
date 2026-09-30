@@ -6,6 +6,7 @@
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { EVENT_DURATION_H, isLateListing } from "@/lib/mock/escrow";
+import { resaleAllowed } from "@/lib/mock/transfer";
 import { SAMPLE_SIGNALS, inPriceBand, isBlocked, isFlagged, isSampleTicket, publicSellerName } from "@/lib/listings/rules";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { isDemoEmail } from "@/lib/supabase/demo";
@@ -53,12 +54,13 @@ export async function POST(req: Request) {
   }
 
   const [ev, tier] = await Promise.all([
-    admin.from("catalogue_events").select("starts_at, status").eq("id", eventId).maybeSingle(),
+    admin.from("catalogue_events").select("starts_at, status, transfer_policy").eq("id", eventId).maybeSingle(),
     admin.from("tiers").select("face_value").eq("id", tierId).eq("event_id", eventId).maybeSingle(),
   ]);
   if (ev.error || tier.error) return fail(500, (ev.error ?? tier.error)!.message);
   if (!ev.data?.starts_at) return fail(404, "acara tidak ditemukan");
   if (!tier.data) return fail(400, "kategori ini bukan milik acara itu");
+  if (!resaleAllowed(ev.data.transfer_policy)) return fail(409, "penyelenggara acara ini melarang tiketnya dijual ulang");
   if (ev.data.status === "cancelled" || Date.now() >= new Date(ev.data.starts_at).getTime() + EVENT_DURATION_H * H) {
     return fail(409, "acara ini sudah lewat atau dibatalkan");
   }

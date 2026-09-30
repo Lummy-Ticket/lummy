@@ -16,7 +16,7 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import {
   useEventRequests, useOrders, useSellerListings, useUser,
   checkEvidence, reasonMeta, suggestedRationale, disputeDeadlineISO,
-  remedyOptions, suggestedRemedy, sellerPenalty, SELLER_PENALTY_PCT, REMEDY_LABEL, partialAmount,
+  remedyOptions, suggestedRemedy, penaltyFor, SELLER_PENALTY_PCT, REMEDY_LABEL, partialAmount,
   type ChainSettlement, type EventRequest, type Order, type Remedy, type SellerListing,
 } from "@/lib/mock";
 import { chainAction } from "@/lib/chain/client";
@@ -370,7 +370,7 @@ export default function AdminPage() {
             {disputes.map((o) => {
               const check = checkEvidence(o, o.dispute!.reason, o.dispute!.evidence, o.dispute!.openedAtISO);
               const suggested = suggestedRemedy(o, o.dispute!.reason, check);
-              const penalty = sellerPenalty(o.amount);
+              const penalty = penaltyFor(o.dispute!.reason, false, o.amount);
               return (
                 <div key={o.id} data-claim={o.id} className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
                   <div className="flex items-start justify-between gap-3">
@@ -424,10 +424,15 @@ export default function AdminPage() {
                   </div>
 
                   <p className="text-xs text-neutral-gray mt-3">
-                    {t(
-                      `Anything other than paying the seller also charges them ${SELLER_PENALTY_PCT}% of the sale, ${formatIDR(penalty)}, on top of losing it. That is what makes a bad listing cost more than it earns.`,
-                      `Selain mencairkan ke penjual, semua opsi juga membebani penjual ${SELLER_PENALTY_PCT}% dari nilai transaksi, ${formatIDR(penalty)}, di luar kehilangan penjualannya. Itu yang bikin listing bermasalah lebih mahal daripada hasilnya.`
-                    )}
+                    {penalty > 0
+                      ? t(
+                          `Anything other than paying the seller also charges them ${SELLER_PENALTY_PCT}% of the sale, ${formatIDR(penalty)}, on top of losing it. That is what makes a bad listing cost more than it earns.`,
+                          `Selain mencairkan ke penjual, semua opsi juga membebani penjual ${SELLER_PENALTY_PCT}% dari nilai transaksi, ${formatIDR(penalty)}, di luar kehilangan penjualannya. Itu yang bikin listing bermasalah lebih mahal daripada hasilnya.`
+                        )
+                      : t(
+                          "The ticket was genuine and was refused over the name, with the seller's ID card staged. A refund here charges the seller nothing beyond losing the sale.",
+                          "Tiketnya asli dan ditolak karena nama, dengan KTP penjual sudah disiapkan. Refund di sini tidak membebani penjual apa pun selain kehilangan penjualannya."
+                        )}
                   </p>
                 </div>
               );

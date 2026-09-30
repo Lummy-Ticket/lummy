@@ -11,8 +11,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { NotifyCard } from "@/components/events/NotifyCard";
+import { TransferPolicyNote } from "@/components/common/TransferPolicyNote";
 import {
-  getTier, isBuyable, isEventOver, CAP_PCT, type Listing, type EventItem,
+  getTier, isBuyable, isEventOver, resaleAllowed, CAP_PCT, type Listing, type EventItem,
 } from "@/lib/mock";
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 import { useCatalogue } from "@/lib/catalogue";
@@ -53,6 +54,10 @@ function ListingRow({ event, listing, qty, cheapest, index }: { event: EventItem
         <span className="text-xs text-neutral-gray">
           {listing.sellerName}
           {listing.gateKtp ? t(" · ID checked at the gate", " · KTP dicek di gate") : ""}
+          {/* Where the gate checks names, a listing without the seller's ID card is the risky one. */}
+          {!listing.gateKtp && (event.transferPolicy === "letter" || event.transferPolicy === "id_match") && (
+            <span className="text-secondary-orange-dark">{t(" · seller's ID card not staged", " · KTP penjual belum disiapkan")}</span>
+          )}
           {listing.splittable && listing.quantity > qty ? t(` · ${listing.quantity - qty} more in this set`, ` · sisa ${listing.quantity - qty} di set ini`) : ""}
         </span>
       </div>
@@ -111,6 +116,7 @@ export default function EventDetailPage() {
   const buyable = visibleListings.filter(isBuyable);
   const cheapest = buyable.length ? Math.min(...buyable.map((l) => l.askPrice)) : 0;
   const over = isEventOver(event);
+  const closed = !resaleAllowed(event.transferPolicy);
 
   return (
     <div className="pt-28 pb-16">
@@ -140,6 +146,11 @@ export default function EventDetailPage() {
               <p className="font-fredoka font-semibold text-neutral-black">{t("This show has ended", "Acara ini sudah selesai")}</p>
               <p className="text-sm text-neutral-gray mt-1">{t("Tickets for it are no longer on sale.", "Tiketnya sudah tidak dijual lagi.")}</p>
               <Link href="/events" className="inline-block mt-4"><Button.Secondary className="text-sm">{t("See what is coming up", "Lihat acara berikutnya")}</Button.Secondary></Link>
+            </div>
+          ) : closed ? (
+            <div className="mt-10 rounded-2xl bg-secondary-pink-soft p-6 text-center">
+              <p className="font-fredoka font-semibold text-neutral-black">{t("Resale is not allowed for this show", "Tiket acara ini tidak boleh dijual ulang")}</p>
+              <p className="text-sm text-neutral-gray mt-1">{t("The organiser forbids it, so Lummy does not open listings here.", "Penyelenggara melarangnya, jadi Lummy tidak membuka listing di sini.")}</p>
             </div>
           ) : (
           <>
@@ -227,11 +238,16 @@ export default function EventDetailPage() {
                   </p>
                 </>
               ) : (
-                <p className="text-sm text-secondary-brown-dark/80">{t("Nothing on sale right now. Join the waitlist and we will tell you.", "Belum ada yang dijual. Masuk waitlist, nanti kami kabari.")}</p>
+                <p className="text-sm text-secondary-brown-dark/80">
+                  {closed
+                    ? t("Resale is closed by the organiser.", "Resale ditutup oleh penyelenggara.")
+                    : t("Nothing on sale right now. Join the waitlist and we will tell you.", "Belum ada yang dijual. Masuk waitlist, nanti kami kabari.")}
+                </p>
               )}
             </div>
           </div>
-          <NotifyCard event={event} />
+          {!over && <TransferPolicyNote policy={event.transferPolicy} audience="buyer" />}
+          {!closed && <NotifyCard event={event} />}
         </aside>
       </div>
     </div>

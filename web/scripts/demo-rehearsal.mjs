@@ -202,6 +202,49 @@ await beat("2:25  bonus: organiser cancels, refund is automatic", async () => {
   return page.getByText("Refunded to you").first().isVisible();
 });
 
+// Name rules: the organiser's rule reaches the buyer before paying, and a refusal over the name on
+// a genuine ticket refunds the buyer without charging the seller.
+await beat("bonus: the show's name rule is on the event page", async () => {
+  await page.goto(`${BASE}/events/ev-coldplay`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(600);
+  return page.getByText("Named ticket, letter accepted").first().isVisible();
+});
+await beat("bonus: ID-match show, the buyer confirms the risk before paying", async () => {
+  await page.goto(`${BASE}/checkout?listing=ls-9&qty=1`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(600);
+  const pay = page.getByRole("button", { name: /^Pay / });
+  const heldFirst = await pay.isDisabled();
+  await page.getByText(/my ID card matches the name/).click();
+  await page.waitForTimeout(200);
+  return heldFirst && (await pay.isEnabled());
+});
+await beat("bonus: refused over the name, refund without a seller penalty", async () => {
+  await page.goto(`${BASE}/checkout?listing=ls-1&qty=2`, { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: /^Pay / }).click();
+  await page.waitForURL(/\/tickets\/or-/, { timeout: 30000 });
+  await page.waitForTimeout(700);
+  await page.getByText("Mark event as finished").click();
+  await page.waitForTimeout(1300);
+  await page.getByText("Something went wrong at the gate").click();
+  await page.waitForTimeout(400);
+  await page.getByText("Turned away over the name").click();
+  await page.waitForTimeout(300);
+  await page.getByText("gate-id-check-refused.jpg").click();
+  await page.waitForTimeout(400);
+  const strong = await page.getByText("STRONG").first().isVisible();
+  await page.locator("input[type=checkbox]").check();
+  await page.waitForTimeout(250);
+  await page.getByRole("button", { name: "File dispute" }).click();
+  await page.waitForTimeout(2300);
+  await signIn("admin");
+  await page.goto(`${BASE}/admin`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(900);
+  const card = page.locator("[data-claim]", { hasText: "Turned away over the name" }).first();
+  const noPenalty = await card.getByText(/charges the seller nothing/).isVisible();
+  const noCharge = !(await card.getByText(/40% of the sale/).isVisible());
+  return strong && noPenalty && noCharge;
+});
+
 await context.close();
 await browser.close();
 

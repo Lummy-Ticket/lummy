@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 import { chainError, chainTarget, operatorSetup, readListing, settle } from "@/lib/chain/server";
 import {
   availableReasons, canFileDispute, checkEvidence, mockEvidenceOptions, mockSellerEvidence, partialAmount, phaseOf,
-  remedyOptions, sellerPenalty, suggestedRationale,
+  penaltyFor, remedyOptions, suggestedRationale,
 } from "@/lib/mock/escrow";
 import type { DisputeReason, Remedy } from "@/lib/mock/types";
 import { HELD, ORDER_SELECT, orderFromRow, type OrderRow } from "@/lib/orders/map";
@@ -148,7 +148,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           verdict_remedy: remedy,
           verdict_to_seller: toSeller,
           refund_amount: refund,
-          seller_penalty: toSeller ? 0 : sellerPenalty(order.amount),
+          seller_penalty: penaltyFor(d.reason, toSeller, order.amount),
           rationale_en: rationale.en,
           rationale_id: rationale.id,
           decided_at: at,

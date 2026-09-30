@@ -31,6 +31,12 @@ export interface Tier {
   faceValue: number; // IDR
 }
 
+/**
+ * How a named ticket can change hands at this show's gate, from the organiser's terms
+ * (see lib/mock/transfer.ts). Null when nobody has confirmed it yet.
+ */
+export type TransferPolicy = "open" | "letter" | "id_match" | "no_resale";
+
 export interface EventItem {
   id: string;
   title: string;
@@ -44,6 +50,7 @@ export interface EventItem {
   listingCount: number; // buyable listings. Derived in seed.ts
   featured?: boolean;
   soldOut?: boolean;
+  transferPolicy?: TransferPolicy | null;
 }
 
 export type ListingStatus = "active" | "sold";
@@ -97,6 +104,7 @@ export type EscrowPhase =
 export type DisputeReason =
   | "GATE_DENIED"
   | "BARCODE_USED"
+  | "NAME_MISMATCH"
   | "NOT_DELIVERED"
   | "NOT_AS_LISTED"
   | "EVENT_CANCELLED"
