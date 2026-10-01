@@ -22,11 +22,14 @@
     "auth:check": "node --env-file-if-exists=.env.local scripts/auth-check.mjs",
     "orders:check": "node --env-file-if-exists=.env.local scripts/orders-check.mjs",
     "listings:check": "node --env-file-if-exists=.env.local scripts/listings-check.mjs",
+    "tickets:check": "tsx scripts/tickets-check.ts",
+    "tickets:inspect": "tsx scripts/tickets-inspect.ts",
     "motion:check": "node scripts/motion-check.mjs",
     "perf:probe": "node scripts/perf-probe.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
+    "@napi-rs/canvas": "^1.0.9",
     "@recharts/devtools": "^0.0.5",
     "@supabase/ssr": "0.12.3",
     "@supabase/supabase-js": "2.110.7",
@@ -38,6 +41,7 @@
     "framer-motion": "^12.23.25",
     "lucide-react": "^0.555.0",
     "next": "16.0.7",
+    "pdfjs-dist": "^6.3.289",
     "qrcode.react": "^4.2.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
@@ -48,7 +52,8 @@
     "tailwind-merge": "^3.4.0",
     "viem": "^2.56.8",
     "zod": "^4.4.3",
-    "zustand": "^5.0.9"
+    "zustand": "^5.0.9",
+    "zxing-wasm": "^3.1.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -58,6 +63,7 @@
     "baseline-browser-mapping": "^2.11.13",
     "eslint": "^9",
     "eslint-config-next": "16.0.7",
+    "pdf-lib": "^1.17.1",
     "playwright-core": "^1.62.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
