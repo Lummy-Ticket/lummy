@@ -7,6 +7,9 @@ import type { NextConfig } from "next";
  */
 const TICKET_READER_FILES = [
   "./node_modules/zxing-wasm/dist/reader/zxing_reader.wasm",
+  // The reader finds pdf.js's fonts through its package.json, which tracing leaves out because
+  // the bundle imports a file deep inside the package rather than the package itself.
+  "./node_modules/pdfjs-dist/package.json",
   "./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
   "./node_modules/pdfjs-dist/standard_fonts/**",
   "./node_modules/pdfjs-dist/cmaps/**",
