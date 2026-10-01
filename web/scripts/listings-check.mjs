@@ -117,7 +117,12 @@ try {
 
   // --- A clean sample goes live straight away
   await seller.page.goto(`${BASE}/sell`, { waitUntil: "networkidle" });
-  check("halaman jual jujur: upload PDF asli belum dibuka", await seller.page.locator("[data-upload-closed]").isVisible());
+  // Real uploads open only where the server checks PDFs (a pepper and a reader that works).
+  const reader = (await (await fetch(`${BASE}/api/tickets/check`)).json()).available === true;
+  check(
+    reader ? "halaman jual: upload PDF asli dibuka, server memeriksanya" : "halaman jual jujur: upload PDF asli belum dibuka",
+    await seller.page.locator(reader ? '[data-upload="real"]' : "[data-upload-closed]").waitFor({ timeout: 15000 }).then(() => true, () => false)
+  );
   await listFromPage(seller, "Genuine ticket", "Publish listing");
   const live = await newestOf(seller.user.id);
   check("listing tersimpan atas nama penjual, dengan nama publik yang disingkat", live?.status === "active" && live.seller_name === "Zahra A.", `${live?.status} ${live?.seller_name}`);

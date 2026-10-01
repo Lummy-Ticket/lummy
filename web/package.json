@@ -24,6 +24,7 @@
     "listings:check": "node --env-file-if-exists=.env.local scripts/listings-check.mjs",
     "tickets:check": "tsx scripts/tickets-check.ts",
     "tickets:inspect": "tsx scripts/tickets-inspect.ts",
+    "tickets:flow": "tsx scripts/tickets-flow-check.ts",
     "motion:check": "node scripts/motion-check.mjs",
     "perf:probe": "node scripts/perf-probe.mjs"
   },

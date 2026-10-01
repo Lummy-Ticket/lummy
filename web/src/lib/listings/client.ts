@@ -6,13 +6,14 @@
 import { useCallback, useEffect, useState } from "react";
 import type { SellerListing } from "@/lib/mock/useSellerListings";
 import { supabaseBrowser } from "@/lib/supabase/browser";
+import type { ListingChecks, TicketCheck } from "@/lib/tickets/checks";
 import type { SampleTicket } from "./rules";
 
 /** Whose listings: one seller's (withdrawn ones left out), or everything waiting for review. */
 export type ListingScope = { seller: string } | { review: true };
 
 const COLUMNS =
-  "id, event_id, tier_id, ask_price, face_value, quantity, status, views, gate_ktp, late_listing, autofilled, forgery_score, pdf_suspicious, barcode_duplicate, created_at, events(title), tiers(name)";
+  "id, event_id, tier_id, ask_price, face_value, quantity, status, views, gate_ktp, late_listing, autofilled, forgery_score, pdf_suspicious, barcode_duplicate, checks, created_at, events(title), tiers(name)";
 
 type Row = {
   id: string;
@@ -28,6 +29,7 @@ type Row = {
   forgery_score: number;
   pdf_suspicious: boolean;
   barcode_duplicate: boolean;
+  checks: ListingChecks | null;
   created_at: string;
   events: { title: string } | null;
   tiers: { name: string } | null;
@@ -47,6 +49,7 @@ const fromRow = (r: Row): SellerListing => ({
   createdAtISO: r.created_at,
   lateListing: r.late_listing,
   gateKtp: r.gate_ktp,
+  checks: r.checks,
 });
 
 /** Null while loading, and when `scope` is null (a sample persona, whose listings live in this browser). */
@@ -93,21 +96,51 @@ export class ListingError extends Error {
 }
 
 async function post<T>(path: string, body: unknown): Promise<T> {
-  const r = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const form = body instanceof FormData;
+  const r = await fetch(path, {
+    method: "POST",
+    // A form sets its own multipart boundary.
+    headers: form ? undefined : { "content-type": "application/json" },
+    body: form ? body : JSON.stringify(body),
+  });
   const json = (await r.json().catch(() => ({}))) as { error?: string };
   if (!r.ok) throw new ListingError(json.error ?? `HTTP ${r.status}`, r.status);
   return json as T;
 }
 
-export const createListing = (input: {
-  eventId: string;
-  tierId: string;
-  askPrice: number;
-  quantity: number;
-  splittable: boolean;
-  gateKtp: boolean;
-  sample: SampleTicket;
-}) => post<{ id: string; status: "active" | "review" }>("/api/listings", input);
+type ListingInput = { eventId: string; tierId: string; askPrice: number; quantity: number; splittable: boolean; gateKtp: boolean };
+
+/** From a real ticket PDF, which the server checks again, or from one of the sample tickets. */
+export function createListing(input: ListingInput & ({ ticket: File } | { sample: SampleTicket })) {
+  if (!("ticket" in input)) return post<{ id: string; status: "active" | "review" }>("/api/listings", input);
+  const form = new FormData();
+  for (const [k, v] of Object.entries(input)) form.append(k, v instanceof File ? v : String(v));
+  return post<{ id: string; status: "active" | "review" }>("/api/listings", form);
+}
+
+/** Reads the PDF on the server and says what publishing it would meet. Nothing is stored. */
+export function checkTicketFile(file: File) {
+  const form = new FormData();
+  form.append("ticket", file);
+  return post<TicketCheck>("/api/tickets/check", form);
+}
+
+/** Whether this deployment checks real PDFs. Null until it has answered; false when not asked. */
+export function useTicketReader(ask: boolean) {
+  const [available, setAvailable] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!ask) return;
+    let alive = true;
+    void fetch("/api/tickets/check")
+      .then((r) => (r.ok ? (r.json() as Promise<{ available?: boolean }>) : { available: false }))
+      .catch(() => ({ available: false }))
+      .then((j) => alive && setAvailable(!!j.available));
+    return () => {
+      alive = false;
+    };
+  }, [ask]);
+  return ask ? available : false;
+}
 
 export const listingAction = (id: string, action: "approve" | "reject" | "withdraw") =>
   post<{ ok: true; status: string }>(`/api/listings/${encodeURIComponent(id)}`, { action });

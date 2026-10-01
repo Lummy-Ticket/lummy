@@ -23,6 +23,7 @@ import { chainAction } from "@/lib/chain/client";
 import { useCatalogue } from "@/lib/catalogue";
 import { orderAction, useAccountOrders } from "@/lib/orders/client";
 import { listingAction, useAccountListings } from "@/lib/listings/client";
+import { formatName, reasonText, reviewReasons } from "@/lib/tickets/checks";
 import { useRouter } from "next/navigation";
 import { SampleBadge } from "@/components/common/SampleBadge";
 
@@ -123,7 +124,7 @@ function ListingQueue({
   held: SellerListing[];
   onApprove: (id: string) => void | Promise<void>;
   onReject: (id: string) => void | Promise<void>;
-  /** Listings from accounts carry a sample ticket until the AI reads real PDFs. */
+  /** Listings from accounts: a real PDF (with what its check found) or a sample ticket. */
   sampleFiles?: boolean;
 }) {
   const t = useT();
@@ -151,13 +152,14 @@ function ListingQueue({
         )}
         {sampleFiles &&
           t(
-            " For now each file is a sample ticket, since the AI does not read real PDFs yet.",
-            " Untuk sekarang tiap file masih tiket contoh, karena AI belum membaca PDF asli."
+            " A listing from a real PDF shows what its check found and opens the file; the rest are sample tickets.",
+            " Listing dari PDF asli menampilkan hasil ceknya dan bisa dibuka file-nya; sisanya tiket contoh."
           )}
       </p>
       {held.map((l) => {
         const ev = catalogue.eventById(l.eventId);
         const risky = l.ai.pdfSuspicious || l.ai.forgeryScore >= 60;
+        const why = l.checks ? reviewReasons(l.checks) : [];
         return (
           <div key={l.id} data-listing={l.id} className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
             <div className="flex items-start justify-between gap-3">
@@ -187,8 +189,51 @@ function ListingQueue({
               )}
             </div>
 
+            {l.checks && (
+              <div data-listing-checks className="mt-3 rounded-2xl bg-secondary-gray-soft p-3 text-xs text-neutral-black flex flex-col gap-1">
+                <span>
+                  {l.checks.barcodes > 0
+                    ? t(
+                        `${l.checks.barcodes} barcode${l.checks.barcodes === 1 ? "" : "s"} read (${l.checks.formats.map(formatName).join(", ")}), each now held by this listing`,
+                        `${l.checks.barcodes} barcode terbaca (${l.checks.formats.map(formatName).join(", ")}), semuanya kini dipegang listing ini`
+                      )
+                    : t("No barcode could be read", "Tidak ada barcode yang terbaca")}
+                  {l.checks.scannedPages < l.checks.pages &&
+                    t(` · read ${l.checks.scannedPages} of ${l.checks.pages} pages`, ` · terbaca ${l.checks.scannedPages} dari ${l.checks.pages} halaman`)}
+                </span>
+                {l.checks.producer && (
+                  <span className="text-neutral-gray">
+                    {t("Made by", "Dibuat dengan")}: {l.checks.producer}
+                  </span>
+                )}
+                {l.checks.reasons.map((r) => (
+                  <span key={r.code} className="flex items-start gap-1.5 text-secondary-orange-dark">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" /> {reasonText(r, t)}
+                  </span>
+                ))}
+                <a
+                  href={`/api/listings/${encodeURIComponent(l.id)}/ticket`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 inline-flex items-center gap-1 text-primary-navy font-medium w-fit"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" /> {t("Open the ticket PDF", "Buka PDF tiketnya")}
+                </a>
+              </div>
+            )}
+
             <p className="text-xs text-neutral-gray mt-3">
-              {l.lateListing && !risky
+              {why.includes("no_barcode")
+                ? t(
+                    "Held because no barcode could be read, so nothing stops the same ticket being listed twice. Read the code off the PDF and check it with the organiser before clearing it.",
+                    "Ditahan karena tidak ada barcode yang terbaca, jadi tidak ada yang mencegah tiket yang sama dijual dua kali. Baca kodenya dari PDF dan cek ke organizer sebelum diloloskan."
+                  )
+                : why.includes("unread_pages") && !why.includes("flagged")
+                ? t(
+                    "Held because not every page could be read in time. Look through the rest of the PDF for more tickets before clearing it.",
+                    "Ditahan karena tidak semua halaman sempat dibaca. Periksa sisa PDF-nya, siapa tahu ada tiket lain, sebelum diloloskan."
+                  )
+                : l.lateListing && !risky
                 ? t(
                     "Held on timing alone: the document reads clean, but last-minute listings are where duplicate-pass fraud concentrates.",
                     "Ditahan murni karena waktunya: dokumennya bersih, tapi listing menit terakhir adalah tempat penipuan tiket ganda menumpuk."

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { ListingChecks } from "@/lib/tickets/checks";
 import type { ListingAI } from "./types";
 
 export type SellerListingStatus = "active" | "sold" | "review" | "rejected";
@@ -20,6 +21,8 @@ export interface SellerListing {
   lateListing?: boolean;
   /** The venue checks ID, so the seller staged a KTP photo for the buyer at listing time. */
   gateKtp?: boolean;
+  /** What the check of a real ticket PDF found. Absent for sample tickets. */
+  checks?: ListingChecks | null;
 }
 
 const SEED: SellerListing[] = [

@@ -20,6 +20,7 @@ insert into public.orders (id, listing_id, event_id, buyer_id, seller_id, event_
 insert into public.disputes (order_id, reason, note_en) values ('or-test', 'GATE_DENIED', 'test');
 insert into public.ktp_assets (listing_id, owner_id, path, sha256, access_open_at, purge_after)
   values ('ls-review', '22222222-2222-2222-2222-222222222222', 'x/ktp.jpg', 'abc', now() + interval '1 day', now() + interval '3 days');
+insert into public.listing_barcodes (listing_id, barcode_hmac, format, page) values ('ls-review', repeat('c', 64), 'QRCode', 1);
 
 -- Runs p_sql as p_role (and as user p_uid, via the JWT claims auth.uid() reads) and
 -- records whether the single value it returns, or DENIED, matches p_expect.
@@ -73,6 +74,15 @@ select pg_temp.probe('authenticated', '22222222-2222-2222-2222-222222222222', 's
 -- Seats are claimed and handed back by the server only, after it has checked the buyer.
 select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: claim seats directly', $q$select (public.claim_listing('ls-2', 1)).id$q$, 'DENIED');
 select pg_temp.probe('anon', null, 'anon: release seats directly', $q$select public.release_listing('ls-2', 1)::text$q$, 'DENIED');
+
+-- Barcodes held by listings are server only, whoever asks: the listing's own seller and staff too.
+select pg_temp.probe('anon', null, 'anon: listing_barcodes', 'select count(*)::text from public.listing_barcodes', 'DENIED');
+select pg_temp.probe('authenticated', '22222222-2222-2222-2222-222222222222', 'seller: read own listing_barcodes', 'select count(*)::text from public.listing_barcodes', 'DENIED');
+select pg_temp.probe('authenticated', '44444444-4444-4444-4444-444444444444', 'admin: read listing_barcodes', 'select count(*)::text from public.listing_barcodes', 'DENIED');
+select pg_temp.probe('authenticated', '22222222-2222-2222-2222-222222222222', 'seller: hold a barcode directly', $q$insert into public.listing_barcodes (listing_id, barcode_hmac, format, page) values ('ls-review', repeat('d', 64), 'QRCode', 1) returning listing_id$q$, 'DENIED');
+-- What the ticket check found is read with the listing; the barcode keys never are.
+select pg_temp.probe('authenticated', '22222222-2222-2222-2222-222222222222', 'seller: read own listing checks', $q$select count(*)::text from (select checks from public.listings where id = 'ls-review') x$q$, '1');
+select pg_temp.probe('anon', null, 'anon: read barcode_hmac', 'select count(barcode_hmac)::text from public.listings', 'DENIED');
 
 insert into t_out(line)
   select (case when role = 'member' then 'ok    ' else 'FAIL  ' end) || 'signup metadata cannot set role -> ' || role::text

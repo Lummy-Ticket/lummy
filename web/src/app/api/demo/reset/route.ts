@@ -95,10 +95,10 @@ export async function POST(req: Request) {
     const restoreError = restored.find((r) => r.error)?.error;
     if (restoreError) return fail(500, restoreError.message);
 
-    // What the demo seller posted in earlier runs goes. One a real buyer's order still points at
-    // is withdrawn instead, since the order has to keep its listing.
+    // What the demo seller posted in earlier runs goes, with its ticket file. One a real buyer's
+    // order still points at is withdrawn instead, since the order has to keep its listing and file.
     const seedIds = SEED_LISTINGS.map((l) => l.id);
-    const posted = await admin.from("listings").select("id").eq("seller_id", seller).not("id", "in", `(${[...seedIds, HELD_LISTING_ID].join(",")})`);
+    const posted = await admin.from("listings").select("id, ticket_path").eq("seller_id", seller).not("id", "in", `(${[...seedIds, HELD_LISTING_ID].join(",")})`);
     if (posted.error) return fail(500, posted.error.message);
     const postedIds = posted.data.map((l) => l.id);
     if (postedIds.length) {
@@ -106,9 +106,11 @@ export async function POST(req: Request) {
       if (referenced.error) return fail(500, referenced.error.message);
       const inUse = new Set(referenced.data.map((o) => o.listing_id));
       const unused = postedIds.filter((id) => !inUse.has(id));
+      const files = posted.data.filter((l) => !inUse.has(l.id) && l.ticket_path).map((l) => l.ticket_path!);
       const cleared = await Promise.all([
         unused.length ? admin.from("listings").delete().in("id", unused) : Promise.resolve({ error: null }),
         inUse.size ? admin.from("listings").update({ status: "cancelled" }).in("id", [...inUse] as string[]) : Promise.resolve({ error: null }),
+        files.length ? admin.storage.from("tickets").remove(files) : Promise.resolve({ error: null }),
       ]);
       const clearError = cleared.find((r) => r.error)?.error;
       if (clearError) return fail(500, clearError.message);

@@ -13,7 +13,8 @@ import {
   isLateListing, LATE_LISTING_H, resaleAllowed,
 } from "@/lib/mock";
 import { SAMPLE_SIGNALS, type SampleTicket } from "@/lib/listings/rules";
-import { ListingError, createListing } from "@/lib/listings/client";
+import { ListingError, checkTicketFile, createListing, useTicketReader } from "@/lib/listings/client";
+import { formatName, isDuplicate, reasonText, reviewReasons, toListingChecks, type TicketCheck } from "@/lib/tickets/checks";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { useCatalogue } from "@/lib/catalogue";
 import { useAccessGuard } from "@/lib/access";
@@ -38,6 +39,7 @@ const SAMPLE_FILES: Record<SampleTicket, string> = {
   edited: "tulus-edited.pdf",
   dup: "tulus-duplicate.pdf",
 };
+const SAMPLE_NAMES = new Set([...Object.values(SAMPLE_FILES), "tulus-vip-ticket.pdf"]);
 
 const STEPS = [
   { en: "Upload PDF", id: "Upload PDF" },
@@ -56,11 +58,19 @@ export default function SellPage() {
   const account = useUser((s) => !!s.user?.account);
   const [publishing, setPublishing] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  // An account on a server that checks real PDFs uploads its own ticket; the sample tickets stay
+  // for demos. `check` is what the server read in that file.
+  const reader = useTicketReader(account);
+  const realUpload = account && reader === true;
+  const [ticketFile, setTicketFile] = useState<File | null>(null);
+  const [check, setCheck] = useState<TicketCheck | null>(null);
   const catalogue = useCatalogue();
+  const [fileName, setFileName] = useState<string | null>(null);
+  // The real check is the default once it is offered; picking a sample ticket switches to the demo.
+  const realFile = realUpload && (!!ticketFile || !fileName);
   const events = catalogue.events;
 
   const [step, setStep] = useState(0);
-  const [fileName, setFileName] = useState<string | null>(null);
   const [sample, setSample] = useState<SampleTicket>("good");
   const [analyzing, setAnalyzing] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -88,9 +98,13 @@ export default function SellPage() {
   const markup = faceValue ? Math.round((price / faceValue - 1) * 100) : 0;
 
   // A duplicate barcode is a hard block. Tampering or a high score does not go live
-  // straight away, it queues for admin review.
-  const blocked = !!ai?.barcodeDuplicate;
-  const flagged = !!ai && !blocked && (ai.pdfSuspicious || ai.forgeryScore >= 60);
+  // straight away, it queues for admin review; so does a real PDF with no barcode to hold.
+  const review = check ? reviewReasons(toListingChecks(check)) : [];
+  const blocked = check ? isDuplicate(check) : !!ai?.barcodeDuplicate;
+  const flagged = !!ai && !blocked && (check ? review.length > 0 : ai.pdfSuspicious || ai.forgeryScore >= 60);
+  // One barcode is one ticket, and the buyer gets the whole PDF, so that count is not the seller's to set.
+  const lockedQty = !!check && check.barcodes.length > 0;
+  const tooMany = !!check && check.barcodes.length > 8;
   // Duplicate-pass fraud clusters in the hours before doors, when buyers are
   // panicking. Late listings still go live, but a human sees them first.
   const late = !!event && isLateListing(event.dateISO);
@@ -98,8 +112,36 @@ export default function SellPage() {
   const closed = !!event && !resaleAllowed(event.transferPolicy);
   const nameChecked = event?.transferPolicy === "letter" || event?.transferPolicy === "id_match";
 
+  /** A file chosen from disk, for an account whose server checks real PDFs. */
+  const pickTicket = (f: File | null | undefined) => {
+    if (!f) return;
+    setTicketFile(f);
+    setFileName(f.name);
+    setCheck(null);
+  };
+
+  const analyzeReal = async (file: File) => {
+    setAnalyzing(true);
+    try {
+      const res = await checkTicketFile(file);
+      setCheck(res);
+      setAi({ autofilled: false, forgeryScore: res.score, barcodeDuplicate: isDuplicate(res), pdfSuspicious: res.suspicious });
+      setOrderer("");
+      setBarcode(res.barcodes.map((b) => `${formatName(b.format)}${b.tail ? ` ...${b.tail}` : ""}`).join(", "));
+      if (res.barcodes.length) setQty(Math.min(res.barcodes.length, 8));
+      setPrice(Math.round(faceValue * 1.15));
+      setStep(1);
+    } catch (e) {
+      toast.error(`${t("Could not check the file", "File gagal dicek")}: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   const analyze = () => {
+    if (realUpload && ticketFile) return void analyzeReal(ticketFile);
     // An account lists a sample ticket, and one is always picked, so name its file here.
+    setCheck(null);
     if (!fileName) setFileName(SAMPLE_FILES[sample]);
     setAnalyzing(true);
     setTimeout(() => {
@@ -118,7 +160,8 @@ export default function SellPage() {
     if (!event || !tier) return;
     setPublishing(true);
     try {
-      const res = await createListing({ eventId: event.id, tierId: tier.id, askPrice: price, quantity: qty, splittable: false, gateKtp, sample });
+      const base = { eventId: event.id, tierId: tier.id, askPrice: price, quantity: qty, splittable: false, gateKtp };
+      const res = await createListing(check && ticketFile ? { ...base, ticket: ticketFile } : { ...base, sample });
       toast.success(res.status === "review" ? t("Submitted for admin review", "Diajukan untuk review admin") : t("Listing is live, protected by escrow.", "Listing tayang, dijaga escrow."));
       router.push("/seller");
       // The catalogue lives in the root layout: fetch it again so the new listing shows.
@@ -149,7 +192,12 @@ export default function SellPage() {
     <PageContainer width="form">
       <h1 className="text-2xl md:text-3xl font-bold text-neutral-black">{t("Sell a ticket", "Jual tiket")}</h1>
       <p className="text-neutral-gray mt-1">
-        {t("Upload the PDF. AI fills in the details and checks it is genuine.", "Upload PDF-nya. AI mengisi datanya otomatis dan mengecek keasliannya.")}
+        {realUpload
+          ? t(
+              "Upload the PDF from the organiser. Lummy reads every barcode in it and checks the file was not edited.",
+              "Upload PDF dari penyelenggara. Lummy membaca semua barcode di dalamnya dan mengecek file-nya bukan editan."
+            )
+          : t("Upload the PDF. AI fills in the details and checks it is genuine.", "Upload PDF-nya. AI mengisi datanya otomatis dan mengecek keasliannya.")}
       </p>
 
       {/* Steps */}
@@ -157,7 +205,9 @@ export default function SellPage() {
         {STEPS.map((s, i) => (
           <div key={s.en} className="flex items-center gap-2">
             <span className={`w-7 h-7 rounded-full grid place-items-center text-xs font-fredoka font-bold ${i <= step ? "bg-primary-navy text-white" : "bg-neutral-light-gray-2 text-neutral-gray"}`}>{i + 1}</span>
-            <span className={`text-sm ${i === step ? "text-neutral-black font-medium" : "text-neutral-gray"} hidden sm:block`}>{t(s.en, s.id)}</span>
+            <span className={`text-sm ${i === step ? "text-neutral-black font-medium" : "text-neutral-gray"} hidden sm:block`}>
+              {i === 1 && realUpload ? t("Check & details", "Cek & data") : t(s.en, s.id)}
+            </span>
             {i < STEPS.length - 1 && <span className="w-6 h-px bg-neutral-light-gray-1" />}
           </div>
         ))}
@@ -166,7 +216,13 @@ export default function SellPage() {
       {/* Step 1: upload */}
       {step === 0 && (
         <div className="flex flex-col gap-5">
-          {account ? (
+          {account && !realUpload ? (
+            reader === null ? (
+              // Asking the server whether it checks real files; the box keeps its size meanwhile.
+              <div className="border-2 border-dashed border-neutral-light-gray-1 rounded-3xl py-16 grid place-items-center">
+                <Loader2 className="w-6 h-6 text-neutral-gray animate-spin" />
+              </div>
+            ) : (
             <div data-upload-closed className="border-2 border-dashed border-neutral-light-gray-1 rounded-3xl py-10 px-6 flex flex-col items-center gap-3 text-center bg-secondary-gray-soft/60">
               <UploadCloud className="w-10 h-10 text-neutral-gray" />
               <span className="font-fredoka font-semibold text-neutral-black">{t("Uploading your own PDF opens with the AI check", "Upload PDF sendiri dibuka bersama cek AI")}</span>
@@ -177,10 +233,22 @@ export default function SellPage() {
                 )}
               </span>
             </div>
+            )
           ) : (
           <>
-          <input ref={fileInput} type="file" accept="application/pdf" hidden onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)} />
+          <input
+            ref={fileInput}
+            type="file"
+            accept="application/pdf"
+            hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (realUpload) pickTicket(f);
+              else setFileName(f?.name ?? null);
+            }}
+          />
           <button
+            data-upload={realUpload ? "real" : "sample"}
             onClick={() => fileInput.current?.click()}
             onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
             onDragLeave={() => setDragging(false)}
@@ -188,26 +256,40 @@ export default function SellPage() {
               e.preventDefault();
               setDragging(false);
               const f = e.dataTransfer.files?.[0];
-              if (f) setFileName(f.name);
+              if (!f) return;
+              if (realUpload) pickTicket(f);
+              else setFileName(f.name);
             }}
             className={`border-2 border-dashed border-lummy-500 rounded-3xl py-12 flex flex-col items-center gap-3 text-center hover:bg-secondary-blue-light transition cursor-pointer ${dragging ? "bg-secondary-blue-light scale-[1.01]" : ""}`}
           >
             <UploadCloud className="w-10 h-10 text-lummy-500" />
             <span className="font-fredoka font-semibold text-neutral-black">{t("Upload your ticket PDF", "Upload PDF tiketmu")}</span>
-            <span className="text-sm text-neutral-gray">{t("Drop a file here or click to choose", "Tarik file ke sini atau klik untuk pilih")}</span>
+            <span className="text-sm text-neutral-gray">
+              {realUpload
+                ? t("The PDF from the organiser, up to 4 MB. Drop it here or click to choose", "PDF dari penyelenggara, maksimal 4 MB. Tarik ke sini atau klik untuk pilih")
+                : t("Drop a file here or click to choose", "Tarik file ke sini atau klik untuk pilih")}
+            </span>
           </button>
           {fileName ? (
             <div className="flex items-center gap-2 text-sm text-neutral-black bg-secondary-blue-extra rounded-xl p-3">
               <FileText className="w-4 h-4 text-lummy-500" /> {fileName}
             </div>
-          ) : (
+          ) : !realUpload ? (
             <button onClick={() => setFileName("tulus-vip-ticket.pdf")} className="text-sm text-primary-navy font-medium hover:opacity-80 w-fit">
               {t("No file handy? Use a sample", "Gak punya file? Pakai contoh")}
             </button>
+          ) : null}
+          {!account && fileName && !SAMPLE_NAMES.has(fileName) && (
+            <p data-simulated-check className="text-xs text-neutral-gray">
+              {t(
+                "A sample account only simulates the check: the result comes from the sample you pick below, not from this file. Sign in with email to check a real PDF.",
+                "Akun contoh cuma menyimulasikan cek: hasilnya dari contoh yang kamu pilih di bawah, bukan dari file ini. Masuk dengan email untuk mengecek PDF asli."
+              )}
+            </p>
           )}
           </>
           )}
-          {account && fileName && (
+          {account && !realUpload && fileName && (
             <div className="flex items-center gap-2 text-sm text-neutral-black bg-secondary-blue-extra rounded-xl p-3">
               <FileText className="w-4 h-4 text-lummy-500" /> {fileName}
             </div>
@@ -215,24 +297,42 @@ export default function SellPage() {
 
           <div className="bg-secondary-gray-soft rounded-2xl p-4">
             <div className="text-xs text-neutral-gray mb-2">
-              {account ? t("Pick a sample ticket to list", "Pilih tiket contoh untuk dijual") : t("Demo: try the analyser on different tickets", "Demo: coba analisa beberapa jenis tiket")}
+              {realUpload
+                ? t("No file handy? List a sample ticket instead", "Gak punya file? Jual tiket contoh saja")
+                : account
+                  ? t("Pick a sample ticket to list", "Pilih tiket contoh untuk dijual")
+                  : t("Demo: try the analyser on different tickets", "Demo: coba analisa beberapa jenis tiket")}
             </div>
             <div className="flex flex-wrap gap-2">
               {([
                 { id: "good", en: "Genuine ticket", id_: "Tiket asli" },
                 { id: "edited", en: "Edited ticket", id_: "Tiket editan" },
                 { id: "dup", en: "Duplicate barcode", id_: "Barcode duplikat" },
-              ] as const).map((s) => (
-                <button key={s.id} onClick={() => { setSample(s.id); setFileName(SAMPLE_FILES[s.id]); }} className={`px-3 py-1.5 rounded-lg text-sm border cursor-pointer ${sample === s.id ? "bg-primary-navy text-white border-primary-navy" : "bg-neutral-white text-neutral-gray border-neutral-light-gray-1"}`}>
-                  {t(s.en, s.id_)}
-                </button>
-              ))}
+              ] as const).map((s) => {
+                // With real uploads on, no sample counts as picked until one is clicked.
+                const picked = !ticketFile && sample === s.id && (!realUpload || fileName === SAMPLE_FILES[s.id]);
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => { setSample(s.id); setFileName(SAMPLE_FILES[s.id]); setTicketFile(null); setCheck(null); }}
+                    className={`px-3 py-1.5 rounded-lg text-sm border cursor-pointer ${picked ? "bg-primary-navy text-white border-primary-navy" : "bg-neutral-white text-neutral-gray border-neutral-light-gray-1"}`}
+                  >
+                    {t(s.en, s.id_)}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          <Button.Primary wrapperClass="w-fit" className="flex items-center gap-2" disabled={!fileName && !account} onClick={analyze}>
-            {analyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            {analyzing ? t("Analysing...", "Menganalisis...") : t("Analyse with AI", "Analisis dengan AI")}
+          <Button.Primary wrapperClass="w-fit" className="flex items-center gap-2" disabled={analyzing || (realUpload ? !fileName : !fileName && !account)} onClick={analyze}>
+            {analyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : realFile ? <ScanLine className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
+            {analyzing
+              ? realFile
+                ? t("Reading the ticket...", "Membaca tiket...")
+                : t("Analysing...", "Menganalisis...")
+              : realFile
+                ? t("Check the ticket", "Cek tiketnya")
+                : t("Analyse with AI", "Analisis dengan AI")}
           </Button.Primary>
         </div>
       )}
@@ -241,21 +341,86 @@ export default function SellPage() {
       {step === 1 && ai && (
         <div className="flex flex-col gap-6">
           <div>
-            <h3 className="font-fredoka font-semibold text-neutral-black flex items-center gap-2 mb-3"><ScanLine className="w-5 h-5 text-lummy-500" /> {t("AI authenticity check", "Cek keaslian AI")}</h3>
+            <h3 className="font-fredoka font-semibold text-neutral-black flex items-center gap-2 mb-3">
+              <ScanLine className="w-5 h-5 text-lummy-500" /> {check ? t("Ticket check", "Cek tiket") : t("AI authenticity check", "Cek keaslian AI")}
+            </h3>
             <div className="grid sm:grid-cols-3 gap-3">
               <Check ok={!ai.pdfSuspicious} label={t("PDF structure forensics", "Forensik struktur PDF")} detail={ai.pdfSuspicious ? t("Traces of editing or re-export", "Ada jejak edit atau re-export") : t("Clean, no tampering", "Bersih, bukan editan")} />
-              <Check ok={!ai.barcodeDuplicate} label={t("Duplicate barcode", "Barcode duplikat")} detail={ai.barcodeDuplicate ? t("Already sold once", "Sudah pernah dijual") : t("Unique, not registered before", "Unik, belum terdaftar")} />
-              <Check ok={ai.forgeryScore < 60} label={t("Forgery score", "Skor pemalsuan")} detail={`${ai.forgeryScore}/100 · ${ai.forgeryScore < 60 ? t("in the clear", "aman") : t("needs review", "perlu review")}`} />
+              {check ? (
+                <Check
+                  ok={!blocked && check.barcodes.length > 0}
+                  label={t("Barcode", "Barcode")}
+                  detail={
+                    blocked
+                      ? t("Already behind another listing on Lummy", "Sudah ada di listing lain di Lummy")
+                      : check.barcodes.length === 0
+                        ? t("None could be read", "Tidak ada yang terbaca")
+                        : t(`${check.barcodes.length} read, none listed before`, `${check.barcodes.length} terbaca, belum pernah dijual`)
+                  }
+                />
+              ) : (
+                <Check ok={!ai.barcodeDuplicate} label={t("Duplicate barcode", "Barcode duplikat")} detail={ai.barcodeDuplicate ? t("Already sold once", "Sudah pernah dijual") : t("Unique, not registered before", "Unik, belum terdaftar")} />
+              )}
+              {check ? (
+                // With a real file the card follows the outcome, so it never reads "in the clear"
+                // next to a flag raised by the file's structure.
+                <Check
+                  ok={!review.includes("flagged")}
+                  label={t("Forgery score", "Skor pemalsuan")}
+                  detail={`${ai.forgeryScore}/100 · ${review.includes("flagged") ? t("goes to review", "masuk review") : t("in the clear", "aman")}`}
+                />
+              ) : (
+                <Check ok={ai.forgeryScore < 60} label={t("Forgery score", "Skor pemalsuan")} detail={`${ai.forgeryScore}/100 · ${ai.forgeryScore < 60 ? t("in the clear", "aman") : t("needs review", "perlu review")}`} />
+              )}
             </div>
-            {(ai.pdfSuspicious || ai.forgeryScore >= 60) && (
+            {check && check.reasons.length > 0 && (
+              <ul data-check-reasons className="mt-3 flex flex-col gap-1 text-sm text-neutral-black">
+                {check.reasons.map((r) => (
+                  <li key={r.code} className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-secondary-orange-dark" /> {reasonText(r, t)}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {(check ? review.includes("flagged") : ai.pdfSuspicious || ai.forgeryScore >= 60) && (
               <div className="mt-3 flex items-start gap-2 text-sm text-secondary-orange-dark bg-secondary-orange-soft rounded-xl p-3">
                 <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /> {t("Flagged, so this goes to manual admin review first. The score is a signal for a human, not an automatic verdict.", "Kena flag, jadi masuk review manual admin dulu. Skor itu sinyal buat manusia, bukan putusan otomatis.")}
+              </div>
+            )}
+            {check && !blocked && review.includes("no_barcode") && (
+              <div className="mt-3 flex items-start gap-2 text-sm text-secondary-orange-dark bg-secondary-orange-soft rounded-xl p-3">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                {t(
+                  "No barcode could be read, so nothing would stop the same ticket being listed twice. A person checks it before it goes live.",
+                  "Tidak ada barcode yang terbaca, jadi tidak ada yang mencegah tiket yang sama dijual dua kali. Manusia mengeceknya dulu sebelum tayang."
+                )}
+              </div>
+            )}
+            {check && !blocked && review.includes("unread_pages") && (
+              <div className="mt-3 flex items-start gap-2 text-sm text-secondary-orange-dark bg-secondary-orange-soft rounded-xl p-3">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                {t(
+                  `Only ${check.scannedPages} of ${check.pages} pages could be read in time. A person checks the rest before it goes live.`,
+                  `Baru ${check.scannedPages} dari ${check.pages} halaman yang sempat dibaca. Manusia mengecek sisanya dulu sebelum tayang.`
+                )}
+              </div>
+            )}
+            {tooMany && (
+              <div className="mt-3 flex items-start gap-2 text-sm text-secondary-pink-dark bg-secondary-pink-soft rounded-xl p-3">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                {t(
+                  `This PDF holds ${check!.barcodes.length} tickets, and a listing takes at most 8. Split the PDF and list each part.`,
+                  `PDF ini berisi ${check!.barcodes.length} tiket, sedangkan satu listing paling banyak 8. Pisahkan PDF-nya lalu jual per bagian.`
+                )}
               </div>
             )}
           </div>
 
           <div>
-            <h3 className="font-fredoka font-semibold text-neutral-black mb-3">{t("Auto-filled details", "Data terisi otomatis")} <span className="text-neutral-gray font-normal text-sm">{t("(check and adjust)", "(cek & sesuaikan)")}</span></h3>
+            <h3 className="font-fredoka font-semibold text-neutral-black mb-3">
+              {check ? t("Ticket details", "Data tiket") : t("Auto-filled details", "Data terisi otomatis")}{" "}
+              <span className="text-neutral-gray font-normal text-sm">{check ? t("(fill in from your ticket)", "(isi sesuai tiketmu)") : t("(check and adjust)", "(cek & sesuaikan)")}</span>
+            </h3>
             <div className="grid sm:grid-cols-2 gap-4">
               <label className="flex flex-col gap-1.5">
                 <span className="text-xs text-neutral-gray">{t("Event", "Event")}</span>
@@ -280,17 +445,29 @@ export default function SellPage() {
                 <input value={orderer} onChange={(e) => setOrderer(e.target.value)} className="rounded-xl border border-lummy-500 px-4 py-3 text-sm text-neutral-black outline-none" />
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className="text-xs text-neutral-gray">{t("Barcode (from the decoder)", "Barcode (dari decoder)")}</span>
-                <input value={barcode} readOnly className="rounded-xl border border-neutral-light-gray-1 bg-secondary-gray-soft px-4 py-3 text-sm text-neutral-gray font-mono outline-none" />
+                <span className="text-xs text-neutral-gray">{check ? t("Barcodes read (last characters)", "Barcode terbaca (karakter terakhir)") : t("Barcode (from the decoder)", "Barcode (dari decoder)")}</span>
+                <input value={barcode || "-"} readOnly className="rounded-xl border border-neutral-light-gray-1 bg-secondary-gray-soft px-4 py-3 text-sm text-neutral-gray font-mono outline-none" />
               </label>
               <label className="flex flex-col gap-1.5 sm:col-span-2">
                 <span className="text-xs text-neutral-gray">{t("Tickets in this PDF", "Jumlah tiket dalam PDF ini")}</span>
+                {lockedQty ? (
+                  <div data-locked-qty className="flex items-center gap-3">
+                    <span className="font-fredoka font-bold text-lg text-neutral-black w-8 text-center">{check!.barcodes.length}</span>
+                    <span className="text-xs text-neutral-gray">
+                      {t(
+                        "One ticket per barcode read. The buyer receives the whole file, so every ticket in it is sold together, seated as printed.",
+                        "Satu tiket per barcode yang terbaca. Pembeli menerima file utuh, jadi semua tiket di dalamnya dijual sekaligus, kursinya sesuai yang tercetak."
+                      )}
+                    </span>
+                  </div>
+                ) : (
                 <div className="flex items-center gap-3">
                   <button type="button" onClick={() => setQty((q) => Math.max(1, q - 1))} className="w-10 h-10 rounded-xl border border-lummy-500 grid place-items-center text-lummy-500 hover:bg-secondary-blue-light transition cursor-pointer"><Minus className="w-4 h-4" /></button>
                   <span className="font-fredoka font-bold text-lg text-neutral-black w-8 text-center">{qty}</span>
                   <button type="button" onClick={() => setQty((q) => Math.min(8, q + 1))} className="w-10 h-10 rounded-xl border border-lummy-500 grid place-items-center text-lummy-500 hover:bg-secondary-blue-light transition cursor-pointer"><Plus className="w-4 h-4" /></button>
                   <span className="text-xs text-neutral-gray">{t("Sold as one set, seated together.", "Dijual sebagai 1 set, duduk bersebelahan.")}{qty > 1 ? t(` All ${qty} at once.`, ` ${qty} tiket sekaligus.`) : ""}</span>
                 </div>
+                )}
               </label>
             </div>
           </div>
@@ -299,7 +476,7 @@ export default function SellPage() {
 
           <div className="flex gap-3">
             <Button.Ghost onClick={() => setStep(0)}><ArrowLeft className="w-4 h-4" /> {t("Back", "Kembali")}</Button.Ghost>
-            <Button.Primary className="flex items-center gap-2" disabled={closed} onClick={() => { setPrice((p) => Math.min(Math.max(p || cap, floor), cap)); setStep(2); }}>{t("Continue to price", "Lanjut ke harga")} <ArrowRight className="w-4 h-4" /></Button.Primary>
+            <Button.Primary className="flex items-center gap-2" disabled={closed || tooMany} onClick={() => { setPrice((p) => Math.min(Math.max(p || cap, floor), cap)); setStep(2); }}>{t("Continue to price", "Lanjut ke harga")} <ArrowRight className="w-4 h-4" /></Button.Primary>
           </div>
         </div>
       )}
@@ -396,12 +573,21 @@ export default function SellPage() {
           {blocked ? (
             <div className="flex items-start gap-2 text-sm text-secondary-pink-dark bg-secondary-pink-soft rounded-2xl p-4">
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-              {t("This barcode has already been sold on Lummy. The listing is blocked automatically. That check is deterministic, not a guess.", "Barcode ini sudah pernah dijual di Lummy. Listing diblokir otomatis. Pengecekannya deterministik, bukan tebakan.")}
+              {check?.sameFile && !check.barcodes.some((b) => b.taken)
+                ? t("This exact file is already behind another listing on Lummy. The listing is blocked automatically.", "File yang persis sama sudah ada di listing lain di Lummy. Listing diblokir otomatis.")
+                : t("This barcode has already been sold on Lummy. The listing is blocked automatically. That check is deterministic, not a guess.", "Barcode ini sudah pernah dijual di Lummy. Listing diblokir otomatis. Pengecekannya deterministik, bukan tebakan.")}
             </div>
           ) : flagged ? (
             <div className="flex items-start gap-2 text-sm text-secondary-orange-dark bg-secondary-orange-soft rounded-2xl p-4">
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{t("AI flagged this ticket, either on forgery score or PDF structure. It will not go live yet, it joins the admin review queue. If it passes, buyers can see it.", "AI menandai tiket ini, entah dari skor pemalsuan atau struktur PDF. Belum langsung tayang, masuk antrian review admin dulu. Kalau lolos, baru bisa dilihat pembeli.")}</span>
+              <span>
+                {check
+                  ? t(
+                      "A person checks this ticket first, for the reasons shown in the previous step. It will not go live yet, it joins the admin review queue. If it passes, buyers can see it.",
+                      "Tiket ini dicek manusia dulu, dengan alasan yang tampil di langkah sebelumnya. Belum langsung tayang, masuk antrian review admin dulu. Kalau lolos, baru bisa dilihat pembeli."
+                    )
+                  : t("AI flagged this ticket, either on forgery score or PDF structure. It will not go live yet, it joins the admin review queue. If it passes, buyers can see it.", "AI menandai tiket ini, entah dari skor pemalsuan atau struktur PDF. Belum langsung tayang, masuk antrian review admin dulu. Kalau lolos, baru bisa dilihat pembeli.")}
+              </span>
             </div>
           ) : (
             <div className="flex items-start gap-2 text-sm text-neutral-gray bg-secondary-blue-extra rounded-2xl p-4">

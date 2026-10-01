@@ -345,12 +345,48 @@ export type Database = {
           },
         ]
       }
+      listing_barcodes: {
+        Row: {
+          barcode_hmac: string
+          created_at: string
+          format: string
+          held: boolean
+          listing_id: string
+          page: number
+        }
+        Insert: {
+          barcode_hmac: string
+          created_at?: string
+          format: string
+          held?: boolean
+          listing_id: string
+          page: number
+        }
+        Update: {
+          barcode_hmac?: string
+          created_at?: string
+          format?: string
+          held?: boolean
+          listing_id?: string
+          page?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listing_barcodes_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       listings: {
         Row: {
           ask_price: number
           autofilled: boolean
           barcode_duplicate: boolean
           barcode_hmac: string | null
+          checks: Json | null
           created_at: string
           event_id: string
           extraction: Json | null
@@ -376,6 +412,7 @@ export type Database = {
           autofilled?: boolean
           barcode_duplicate?: boolean
           barcode_hmac?: string | null
+          checks?: Json | null
           created_at?: string
           event_id: string
           extraction?: Json | null
@@ -401,6 +438,7 @@ export type Database = {
           autofilled?: boolean
           barcode_duplicate?: boolean
           barcode_hmac?: string | null
+          checks?: Json | null
           created_at?: string
           event_id?: string
           extraction?: Json | null
@@ -714,6 +752,7 @@ export type Database = {
           autofilled: boolean
           barcode_duplicate: boolean
           barcode_hmac: string | null
+          checks: Json | null
           created_at: string
           event_id: string
           extraction: Json | null
