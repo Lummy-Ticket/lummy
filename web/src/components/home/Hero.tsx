@@ -41,12 +41,7 @@ export function Hero({ quickCats }: { quickCats: string[] }) {
           {/* The offset shadow is its own layer, so the bottom notch can bite it too. On a
               phone it only drops straight down: the side notches then have no shadow
               band to run into. */}
-          <div aria-hidden className="absolute inset-0 rounded-[32px] bg-primary-navy-dark translate-y-1.5 lg:translate-x-1.5">
-            {/* Centred under the ticket's own notch (not shifted with the shadow), so the bite
-                reads as punched straight through. A full circle: its upper half hides under
-                the ticket, and leaving it unclipped avoids a hairline seam at the edge. */}
-            <span className={`hidden lg:block absolute w-9 h-9 rounded-full ${BG} -bottom-[12px] right-[291px]`} />
-          </div>
+          <div aria-hidden className="absolute inset-0 rounded-[32px] bg-primary-navy-dark translate-y-1.5 lg:translate-x-1.5" />
 
           <div className="relative grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] rounded-[32px] border-2 border-primary-navy bg-neutral-white">
             {/* Main part */}
@@ -81,7 +76,11 @@ export function Hero({ quickCats }: { quickCats: string[] }) {
             </div>
             <div aria-hidden className="hidden lg:block absolute top-6 bottom-6 right-[300px] border-l-2 border-dashed border-neutral-light-gray-1" />
             <Notch side="top" className={`${NOTCH} hidden lg:block -top-[20px] right-[283px]`} />
-            <Notch side="bottom" className={`${NOTCH} hidden lg:block -bottom-[20px] right-[283px]`} />
+            {/* The bottom bite goes through the ticket and the shadow under it, so it is filled
+                by one whole circle: two halves met at the edge and left a hairline seam there.
+                Only the outline is cut to the half inside the ticket. */}
+            <span aria-hidden className={`hidden lg:block absolute z-10 w-9 h-9 rounded-full ${BG} -bottom-[20px] right-[283px]`} />
+            <Notch side="bottom" className="w-9 h-9 border-2 border-primary-navy hidden lg:block -bottom-[20px] right-[283px]" />
 
             {/* Stub: the terms, printed like section, row and seat */}
             <div className="bg-secondary-cream-light rounded-b-[30px] lg:rounded-bl-none lg:rounded-r-[30px] px-5 py-7 sm:px-10 lg:px-8 lg:py-10 flex flex-col">
