@@ -74,6 +74,8 @@ export interface Listing {
   status: ListingStatus;
   gateKtp: boolean; // venue checks ID at the gate, so the seller ID photo is needed
   ai: ListingAI;
+  /** Staff looked at it and let it through, which overrides a flag (never a duplicate). */
+  cleared?: boolean;
 }
 
 // --- Escrow -----------------------------------------------------------------
@@ -225,7 +227,9 @@ export interface Order {
    * When the buyer actually opened the handover documents. This is the platform's
    * own record, and it is what settles a "never handed over" claim either way.
    */
-  docsAccessed?: { letterAtISO?: string; sellerIdAtISO?: string };
+  docsAccessed?: { letterAtISO?: string; sellerIdAtISO?: string; ticketAtISO?: string };
+  /** The listing came with the seller's real ticket PDF, handed over with the order. */
+  ticketFile?: boolean;
   /** Listed within the high-risk window before doors, so it went through review. */
   lateListing?: boolean;
   dispute?: Dispute;

@@ -255,12 +255,18 @@ export function checkEvidence(
   };
 
   if (reason === "NOT_DELIVERED") {
-    const opened = !!(o.docsAccessed?.letterAtISO || o.docsAccessed?.sellerIdAtISO);
+    const ticket = !!o.docsAccessed?.ticketAtISO;
+    const opened = ticket || !!(o.docsAccessed?.letterAtISO || o.docsAccessed?.sellerIdAtISO);
     const checks = [
       {
         ok: !opened,
         label: { en: "No handover on record", id: "Tidak ada serah-terima tercatat" },
-        detail: opened
+        detail: ticket
+          ? {
+              en: "Our log shows the ticket file itself was downloaded, which contradicts the claim.",
+              id: "Catatan kami menunjukkan file tiketnya sendiri sudah diunduh, jadi klaimnya bertentangan.",
+            }
+          : opened
           ? {
               en: "Our log shows the handover documents were opened, which contradicts the claim.",
               id: "Catatan kami menunjukkan dokumen serah-terima sudah dibuka, jadi klaimnya bertentangan.",

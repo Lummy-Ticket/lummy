@@ -143,7 +143,9 @@ export async function POST(req: Request) {
       ask_price: askPrice,
       face_value: faceValue,
       quantity,
-      splittable: body.splittable === true,
+      // The buyer of any part would receive the whole file, every barcode in it, so a real
+      // ticket's set is never split, whatever the request says.
+      splittable: !ticket && body.splittable === true,
       gate_ktp: body.gateKtp === true,
       // A real ticket stays out of the catalogue until its barcodes are held and its file is stored.
       status: ticket ? "review" : status,

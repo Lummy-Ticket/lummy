@@ -214,9 +214,15 @@ export const SEED_LISTINGS: Listing[] = [
   },
 ];
 
-/** A buyer can pay for it: not a known duplicate, and not waiting on a human review. */
+/**
+ * A buyer can pay for it: never a known duplicate, and either nothing flagged it or a person
+ * reviewed the flag and cleared it. The same rule as claim_listing and catalogue_events.
+ */
 export const isBuyable = (l: Listing) =>
-  !l.ai.barcodeDuplicate && !l.ai.pdfSuspicious && l.ai.forgeryScore < 60;
+  !l.ai.barcodeDuplicate && (!!l.cleared || (!l.ai.pdfSuspicious && l.ai.forgeryScore < 60));
+
+/** Flagged by the checks, then cleared by a person: worth saying so rather than "AI verified". */
+export const clearedByStaff = (l: Listing) => !!l.cleared && (l.ai.pdfSuspicious || l.ai.forgeryScore >= 60);
 
 // The card, the price filter and the event page all read price and count from here,
 // so they cannot drift apart from what is actually on sale.

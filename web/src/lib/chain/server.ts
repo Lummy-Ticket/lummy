@@ -132,7 +132,7 @@ export async function readListing(t: ChainTarget, id: Hex): Promise<OnchainListi
  * karena pembeli langsung menerima surat kuasa setelah bayar. Window berakhir `disputeWindow`
  * setelah yang terakhir dari serah terima dan `eventEndsAt`.
  */
-export async function openOrder(op: Operator, eventEndsAt: number) {
+export async function openOrder(op: Operator, eventEndsAt: number, ticket?: { barcodeKey: string | null; sha256: string | null }) {
   return serial(async () => {
     const pc = publicClient(op.chain, op.rpcUrl);
     const balance = await pc.readContract({ address: op.token, abi: tokenAbi, functionName: "balanceOf", args: [op.buyer.address] });
@@ -142,12 +142,27 @@ export async function openOrder(op: Operator, eventEndsAt: number) {
     const as = escrowAs(pc, op.operator, op.chain, op.rpcUrl, op.escrow);
     const tag = crypto.randomUUID();
     const id = keccak256(toHex(`lummy:listing:${tag}`));
-    // Demo: di produksi komitmen ini HMAC dari barcode yang di-decode (docs/09, keputusan A).
-    const commit = keccak256(toHex(`lummy:barcode:${tag}`));
+    // Tiket dari PDF asli: komitmennya diturunkan dari kunci set barcode (HMAC ber-pepper, di-hash
+    // lagi supaya kunci di DB tidak terbit apa adanya), jadi kontrak sendiri yang menolak tiket yang
+    // sama untuk kedua kalinya (keputusan A). Tiket contoh tidak punya barcode, jadi tetap acak.
+    const commit = keccak256(toHex(ticket?.barcodeKey ? `lummy:barcode:${ticket.barcodeKey}` : `lummy:barcode:${tag}`));
     const create = await as.createListingFor(op.seller, id, op.price, commit, eventEndsAt);
-    const sig = await signFund({ pc, buyer: op.buyer, escrow: op.escrow, token: op.token, listingId: id, value: op.price });
-    const fund = await as.fund(id, sig);
-    const handover = await as.markHandover(id, keccak256(toHex(`lummy:surat-kuasa:${id}`)));
+    let fund: Awaited<ReturnType<typeof as.fund>>;
+    try {
+      const sig = await signFund({ pc, buyer: op.buyer, escrow: op.escrow, token: op.token, listingId: id, value: op.price });
+      fund = await as.fund(id, sig);
+    } catch (e) {
+      // Belum ada pembeli, jadi listing di chain dibatalkan supaya komitmennya lepas lagi; tanpa ini
+      // tiket asli itu tidak akan pernah bisa dibeli lewat kontrak.
+      await as.cancelListing(id).catch(() => undefined);
+      throw e;
+    }
+    // Paket serah terima: surat kuasa, plus file tiketnya kalau ada, lewat sha256-nya. Siapa pun yang
+    // memegang file bisa membuktikan file mana yang diserahkan (keputusan H).
+    const handover = await as.markHandover(
+      id,
+      keccak256(toHex(ticket?.sha256 ? `lummy:serah-terima:${id}:${ticket.sha256}` : `lummy:surat-kuasa:${id}`))
+    );
     return { listingId: id, price: op.price.toString(), txs: { create: create.hash, fund: fund.hash, handover: handover.hash } };
   });
 }

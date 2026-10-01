@@ -5,13 +5,14 @@
 // the database mirrors what it did.
 import type { Hex } from "viem";
 import { NextResponse } from "next/server";
-import { chainError, chainTarget, operatorSetup, readListing, settle } from "@/lib/chain/server";
+import { chainError, operatorSetup, settle } from "@/lib/chain/server";
 import {
-  availableReasons, canFileDispute, checkEvidence, mockEvidenceOptions, mockSellerEvidence, partialAmount, phaseOf,
+  availableReasons, canFileDispute, checkEvidence, mockEvidenceOptions, mockSellerEvidence, partialAmount,
   penaltyFor, remedyOptions, suggestedRationale,
 } from "@/lib/mock/escrow";
 import type { DisputeReason, Remedy } from "@/lib/mock/types";
-import { HELD, ORDER_SELECT, orderFromRow, type OrderRow } from "@/lib/orders/map";
+import { ORDER_SELECT, orderFromRow, type OrderRow } from "@/lib/orders/map";
+import { settleOrder } from "@/lib/orders/settle";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { currentUser } from "@/lib/supabase/session";
 import type { Json } from "@/lib/supabase/types";
@@ -169,45 +170,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     case "settle": {
       // Silence settles it: once the window has passed with no claim, the seller is paid. Anyone
-      // on the order may ask; the rule, not the caller, decides.
-      if (order.escrowStatus !== "LOCKED") return fail(409, "pesanan ini sudah selesai atau sedang disengketakan");
-      if (!order.chain) {
-        if (phaseOf(order, now) !== "WINDOW_CLOSED") return fail(409, "masa sengketa belum lewat");
-        const r = await admin
-          .from("orders")
-          .update({ escrow_status: "Released", auto_released: true })
-          .eq("id", id)
-          .in("escrow_status", HELD)
-          .eq("disputed", false);
-        if (r.error) return fail(500, r.error.message);
-        return done();
-      }
-      // On chain the contract's clock decides, and it may already have been settled by anyone.
-      const target = chainTarget();
-      if (!target) return fail(503, "belum ada kontrak untuk chain ini");
-      try {
-        const live = await readListing(target, order.chain.listingId as Hex);
-        if (live.status === "Released" || live.status === "Refunded") {
-          const r = await admin
-            .from("orders")
-            .update({ escrow_status: live.status, auto_released: live.status === "Released" && !live.disputed })
-            .eq("id", id);
-          if (r.error) return fail(500, r.error.message);
-          return done();
-        }
-        if (live.status !== "DisputeWindow" || live.disputed || live.now <= live.deadline) return fail(409, "masa sengketa di kontrak belum lewat");
-        const op = operatorSetup();
-        if (!op) return fail(503, "mode chain mati: kunci operator belum diset");
-        const tx = await settle(op, order.chain.listingId as Hex, "release");
-        const r = await admin
-          .from("orders")
-          .update({ escrow_status: "Released", auto_released: true, tx_settle: tx.tx, tx_withdrawals: tx.withdrawals })
-          .eq("id", id);
-        if (r.error) return fail(500, r.error.message);
-        return done(tx);
-      } catch (e) {
-        return fail(502, chainError(e));
-      }
+      // on the order may ask; the rule, not the caller, decides. The daily sweep asks the same.
+      const r = await settleOrder(admin, row, now);
+      return r.ok ? done(r.tx ?? {}) : fail(r.status, r.error);
     }
 
     default:

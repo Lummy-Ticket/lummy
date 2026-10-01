@@ -22,7 +22,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!user) return fail(401, "masuk dulu");
   if (!/^[\w-]{1,64}$/.test(id)) return fail(404, "listing tidak ditemukan");
 
-  const { data: listing, error } = await admin.from("listings").select("seller_id, status").eq("id", id).maybeSingle();
+  const { data: listing, error } = await admin.from("listings").select("seller_id, status, ticket_path").eq("id", id).maybeSingle();
   if (error) return fail(500, error.message);
   const own = !!listing?.seller_id && listing.seller_id === user.id;
   // Someone else's listing under review does not exist, as far as they can tell.
@@ -41,9 +41,24 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     to = "cancelled";
   } else return fail(400, "aksi tidak dikenal");
 
-  const changed = await admin.from("listings").update({ status: to }).eq("id", id).in("status", from).select("id");
+  // Clearing records that a person looked, which is what lets a flagged listing be bought: the
+  // flags stay, so the record still shows what the checks found.
+  const changed = await admin
+    .from("listings")
+    .update({ status: to, ...(action === "approve" ? { cleared_at: new Date().toISOString() } : {}) })
+    .eq("id", id)
+    .in("status", from)
+    .select("id");
   if (changed.error) return fail(500, changed.error.message);
   if (!changed.data.length) return fail(409, "status listing ini sudah berubah");
+
+  // A withdrawn listing was never sold, so its ticket file (the original buyer's name and contact
+  // are on it) has no further use. A rejected one keeps it as the record of what was refused.
+  if (to === "cancelled" && listing.ticket_path) {
+    const removed = await admin.storage.from("tickets").remove([listing.ticket_path]);
+    if (removed.error) console.error("[listings] withdrawn, but the ticket file stayed:", removed.error.message);
+    else await admin.from("listings").update({ ticket_path: null }).eq("id", id);
+  }
 
   // Going live or coming down both change what buyers see.
   if (to === "active" || listing.status === "active") revalidateTag("catalogue", { expire: 0 });

@@ -1,9 +1,13 @@
 /**
  * The ticket check through the app, the way a seller meets it: signs in to the demo seller account
  * from the Dev Panel, uploads PDFs made on the spot on /sell and reads what the page says. Nothing
- * is published by default. WRITE=1 also publishes one, so the database has to refuse the same
- * barcode in another file, then deletes what it created; it writes to the database the server
- * uses, so run it only where that is fine.
+ * is published by default.
+ *
+ * WRITE=1 goes on to the whole life of a real ticket with the demo accounts: publish one and see
+ * the same barcode refused in another file; publish an edited one, clear it as staff, buy it as the
+ * buyer and download the very file the seller uploaded; withdraw the first and see its file go.
+ * Then it deletes what it created. It writes to the database the server uses, so run it only where
+ * that is fine.
  *
  *   BASE=http://localhost:3000 DEMO_KEY=... npm run tickets:flow
  */
@@ -22,9 +26,12 @@ const BASE = process.env.BASE ?? "http://localhost:3000";
 const DEMO_KEY = process.env.DEMO_KEY ?? "";
 const WRITE = process.env.WRITE === "1";
 const EXEC = process.env.CHROME ?? "/opt/google/chrome/chrome";
+/** A second ticket, so the edited one is not a duplicate of the first. */
+const SECOND = "LMY|ev-tulus|VIP|C-14|5555-6666-7777";
 
 const results: { name: string; ok: boolean; note?: string }[] = [];
 const check = (name: string, ok: boolean, note?: string) => results.push({ name, ok, note: ok ? undefined : note });
+const sha = (b: Uint8Array) => createHash("sha256").update(b).digest("hex");
 
 async function upload(page: Page, name: string, bytes: Uint8Array) {
   await page.goto(`${BASE}/sell`, { waitUntil: "networkidle" });
@@ -39,8 +46,41 @@ async function checked(page: Page, name: string, bytes: Uint8Array) {
   return (await page.locator("main").innerText()).replace(/\s+/g, " ");
 }
 
+/** Checks the file, then publishes it at the suggested price. */
+async function publish(page: Page, name: string, bytes: Uint8Array) {
+  await checked(page, name, bytes);
+  await page.getByRole("button", { name: "Continue to price" }).click();
+  await page.getByRole("button", { name: /^(Publish listing|Submit for review)$/ }).click();
+  await page.waitForURL((u) => u.pathname === "/seller", { timeout: 60000 });
+}
+
+/** Signs the browser in to a demo account through the Dev Panel and waits for its home page. */
+async function persona(page: Page, label: "Seller" | "Buyer" | "Admin", home: string) {
+  const toggle = page.getByRole("button", { name: /^Dev panel$/ });
+  if (await toggle.isVisible()) await toggle.click();
+  await page.getByText("Persona (demo account)").waitFor({ timeout: 15000 });
+  await page.locator("div.fixed.bottom-5").getByRole("button", { name: new RegExp(`^${label}$`) }).click();
+  await page.waitForURL((u) => u.pathname === home, { timeout: 30000 });
+  await page.waitForLoadState("networkidle");
+}
+
+/** A listing action through the same route the console and the dashboard use. */
+const listingAction = (page: Page, id: string, action: "approve" | "withdraw") =>
+  page.evaluate(
+    async ([id, action]) =>
+      (await fetch(`/api/listings/${id}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action }) })).status,
+    [id, action] as const
+  );
+
 /** The read-only field listing the barcodes read; an input's value is not part of the page text. */
 const barcodesField = (page: Page) => page.locator("input[readonly]").first().inputValue();
+
+function adminClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SECRET_KEY;
+  if (!url || !key) throw new Error("WRITE=1 needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY");
+  return createClient<Database>(url, key, { auth: { persistSession: false } });
+}
 
 async function main() {
   await initWriter();
@@ -55,6 +95,8 @@ async function main() {
     }),
     // The genuine ticket's barcode, redrawn in another file under another name.
     redrawn: await ticketPdf({ codes: [{ text: GENUINE, format: "QRCode", vector: true }], producer: "Canva", creator: "Canva", name: "Budi Santoso" }),
+    // Another ticket, re-saved in an editor: flagged, so it waits for staff.
+    editedSecond: await rewrite(await genuineTicket(SECOND), "iLovePDF"),
   };
 
   const browser = await chromium.launch({ executablePath: EXEC, args: ["--no-sandbox"] });
@@ -62,6 +104,7 @@ async function main() {
   const pageErrors: string[] = [];
   page.on("pageerror", (e) => pageErrors.push(e.message.slice(0, 90)));
   const created: string[] = [];
+  const orders: string[] = [];
 
   try {
     const reader = (await (await fetch(`${BASE}/api/tickets/check`)).json()) as { available?: boolean };
@@ -75,11 +118,7 @@ async function main() {
       if (key) localStorage.setItem("lummy:demo-key", key);
     }, DEMO_KEY);
     await page.reload({ waitUntil: "networkidle" });
-    const toggle = page.getByRole("button", { name: /^Dev panel$/ });
-    if (await toggle.isVisible()) await toggle.click();
-    await page.getByText("Persona (demo account)").waitFor({ timeout: 15000 });
-    await page.locator("div.fixed.bottom-5").getByRole("button", { name: /^Seller$/ }).click();
-    await page.waitForURL((u) => u.pathname === "/seller", { timeout: 30000 });
+    await persona(page, "Seller", "/seller");
 
     let text = await checked(page, "genuine.pdf", files.genuine);
     check("genuine: one barcode read, none listed before", text.includes("1 read, none listed before"), text.slice(0, 200));
@@ -104,22 +143,18 @@ async function main() {
     check("not a PDF: refused with the reason", await page.getByText("file ini bukan PDF").first().waitFor({ timeout: 30000 }).then(() => true, () => false));
 
     if (WRITE) {
-      const env = { url: process.env.NEXT_PUBLIC_SUPABASE_URL, key: process.env.SUPABASE_SECRET_KEY };
-      if (!env.url || !env.key) throw new Error("WRITE=1 needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY");
-      const admin = createClient<Database>(env.url, env.key, { auth: { persistSession: false } });
-      const sha = createHash("sha256").update(files.genuine).digest("hex");
+      const admin = adminClient();
 
-      await checked(page, "genuine.pdf", files.genuine);
-      await page.getByRole("button", { name: "Continue to price" }).click();
-      await page.getByRole("button", { name: /^(Publish listing|Submit for review)$/ }).click();
-      await page.waitForURL((u) => u.pathname === "/seller", { timeout: 60000 });
-      const row = await admin.from("listings").select("id, status, quantity, ticket_path, checks").eq("ticket_sha256", sha).neq("status", "cancelled").maybeSingle();
-      if (row.data) created.push(row.data.id);
-      check("publish: listing stored with its file and checks", !!row.data?.ticket_path && row.data.quantity === 1 && !!row.data.checks, JSON.stringify(row.data ?? row.error));
-      const held = await admin.from("listing_barcodes").select("held").eq("listing_id", row.data?.id ?? "");
+      // --- Publish one, and its barcode is held: the same barcode in another file is refused.
+      await publish(page, "genuine.pdf", files.genuine);
+      const first = await admin.from("listings").select("id, status, quantity, splittable, ticket_path, checks").eq("ticket_sha256", sha(files.genuine)).neq("status", "cancelled").maybeSingle();
+      if (first.data) created.push(first.data.id);
+      check("publish: listing stored with its file and checks", !!first.data?.ticket_path && first.data.quantity === 1 && !!first.data.checks, JSON.stringify(first.data ?? first.error));
+      check("publish: a real ticket's set is never split", first.data?.splittable === false);
+      const held = await admin.from("listing_barcodes").select("held").eq("listing_id", first.data?.id ?? "");
       check("publish: its barcode is held", held.data?.length === 1 && held.data[0].held === true, JSON.stringify(held.data ?? held.error));
-      const stored = row.data?.ticket_path ? await admin.storage.from("tickets").download(row.data.ticket_path) : null;
-      check("publish: the stored file is the uploaded file", !!stored?.data && createHash("sha256").update(Buffer.from(await stored.data.arrayBuffer())).digest("hex") === sha);
+      const stored = first.data?.ticket_path ? await admin.storage.from("tickets").download(first.data.ticket_path) : null;
+      check("publish: the stored file is the uploaded file", !!stored?.data && sha(new Uint8Array(await stored.data.arrayBuffer())) === sha(files.genuine));
 
       text = await checked(page, "redrawn.pdf", files.redrawn);
       check("same barcode in another file: blocked before publishing", text.includes("Already behind another listing on Lummy"), text.slice(0, 300));
@@ -127,24 +162,78 @@ async function main() {
       check("same barcode: publish button says blocked", await page.getByRole("button", { name: "Blocked (duplicate)" }).isDisabled());
       const direct = await page.evaluate(async (bytes) => {
         const form = new FormData();
-        for (const [k, v] of Object.entries({ eventId: "ev-tulus", tierId: "t-tl-vip", askPrice: "1500000", quantity: "1", splittable: "false", gateKtp: "false" })) form.append(k, v);
+        for (const [k, v] of Object.entries({ eventId: "ev-tulus", tierId: "t-tl-vip", askPrice: "1500000", quantity: "1", splittable: "true", gateKtp: "false" })) form.append(k, v);
         form.append("ticket", new Blob([new Uint8Array(bytes)], { type: "application/pdf" }), "redrawn.pdf");
         const r = await fetch("/api/listings", { method: "POST", body: form });
         return { status: r.status, body: await r.text() };
       }, [...files.redrawn]);
       check("same barcode: the server refuses it too (409)", direct.status === 409, JSON.stringify(direct));
+
+      // --- An edited ticket waits for staff; once cleared it is live and can be bought.
+      await publish(page, "edited-second.pdf", files.editedSecond);
+      const second = await admin.from("listings").select("id, status").eq("ticket_sha256", sha(files.editedSecond)).neq("status", "cancelled").maybeSingle();
+      if (second.data) created.push(second.data.id);
+      check("edited ticket: held for review, not live", second.data?.status === "review", JSON.stringify(second.data ?? second.error));
+      const secondId = second.data?.id ?? "";
+
+      await persona(page, "Admin", "/admin");
+      const approved = await listingAction(page, secondId, "approve");
+      const cleared = await admin.from("listings").select("status, cleared_at, pdf_suspicious").eq("id", secondId).single();
+      check(
+        "cleared by staff: live and marked cleared, flags kept for the record",
+        approved === 200 && cleared.data?.status === "active" && !!cleared.data.cleared_at && cleared.data.pdf_suspicious === true,
+        JSON.stringify({ approved, ...cleared.data })
+      );
+
+      // --- The buyer pays and receives the very file the seller uploaded.
+      await persona(page, "Buyer", "/");
+      await page.goto(`${BASE}/checkout?listing=${secondId}&qty=1`, { waitUntil: "networkidle" });
+      await page.getByRole("button", { name: /^Pay / }).click();
+      await page.waitForURL(/\/tickets\/[\w-]+$/, { timeout: 60000 });
+      const orderId = new URL(page.url()).pathname.split("/").pop() ?? "";
+      orders.push(orderId);
+      await page.locator('[data-ticket-file="open"]').waitFor({ timeout: 30000 });
+      check("order page offers the ticket file", true);
+      const handed = await page.request.get(`${BASE}/api/orders/${orderId}/ticket`, { maxRedirects: 0 });
+      check("ticket route answers with a signed link", handed.status() === 302 && !!handed.headers()["location"], `HTTP ${handed.status()}`);
+      const file = handed.headers()["location"] ? await page.request.get(handed.headers()["location"]) : null;
+      check("the buyer gets the seller's file, byte for byte", !!file && sha(new Uint8Array(await file.body())) === sha(files.editedSecond));
+      const logged = await admin.from("orders").select("ticket_file, docs_ticket_at").eq("id", orderId).single();
+      check("the download is logged as the handover", logged.data?.ticket_file === true && !!logged.data.docs_ticket_at, JSON.stringify(logged.data ?? logged.error));
+
+      // --- Nobody else opens the buyer's file; the seller withdraws the first listing and its file goes.
+      await persona(page, "Seller", "/seller");
+      const stranger = await page.request.get(`${BASE}/api/orders/${orderId}/ticket`, { maxRedirects: 0 });
+      check("the seller cannot open the buyer's order file (404)", stranger.status() === 404, `HTTP ${stranger.status()}`);
+      const firstId = first.data?.id ?? "";
+      const withdrawn = await listingAction(page, firstId, "withdraw");
+      const after = await admin.from("listings").select("status, ticket_path").eq("id", firstId).single();
+      const left = await admin.storage.from("tickets").list("", { search: `${firstId}.pdf` });
+      check(
+        "withdrawn: cancelled, its file deleted",
+        withdrawn === 200 && after.data?.status === "cancelled" && !after.data.ticket_path && (left.data ?? []).length === 0,
+        JSON.stringify({ withdrawn, ...after.data, files: left.data?.length })
+      );
+      const freed = await admin.from("listing_barcodes").select("held").eq("listing_id", firstId);
+      check("withdrawn: its barcode is free to be listed again", freed.data?.length === 1 && freed.data[0].held === false);
     }
   } catch (e) {
     check("flow ran to the end", false, (e as Error).message.split("\n")[0].slice(0, 200));
   } finally {
-    if (created.length) {
-      const env = { url: process.env.NEXT_PUBLIC_SUPABASE_URL!, key: process.env.SUPABASE_SECRET_KEY! };
-      const admin = createClient<Database>(env.url, env.key, { auth: { persistSession: false } });
+    if (created.length || orders.length) {
+      const admin = adminClient();
+      // Orders point at their listing, so they go first.
+      if (orders.length) await admin.from("orders").delete().in("id", orders);
       const paths = (await admin.from("listings").select("ticket_path").in("id", created)).data?.map((r) => r.ticket_path).filter((p): p is string => !!p) ?? [];
       if (paths.length) await admin.storage.from("tickets").remove(paths);
       const gone = await admin.from("listings").delete().in("id", created);
       const left = await admin.from("listing_barcodes").select("listing_id").in("listing_id", created);
-      check("cleanup: test listings, files and barcodes removed", !gone.error && (left.data?.length ?? 1) === 0, gone.error?.message);
+      const stray = await admin.from("orders").select("id").in("id", orders);
+      check(
+        "cleanup: test orders, listings, files and barcodes removed",
+        !gone.error && (left.data?.length ?? 1) === 0 && (stray.data?.length ?? 1) === 0,
+        gone.error?.message
+      );
     }
     check("no page errors", pageErrors.length === 0, [...new Set(pageErrors)].join(" | "));
     await browser.close();
@@ -152,7 +241,7 @@ async function main() {
 
   for (const r of results) console.log(`${r.ok ? "PASS" : "FAIL"}  ${r.name}${r.note ? `  (${r.note.slice(0, 200)})` : ""}`);
   const failed = results.filter((r) => !r.ok).length;
-  console.log(`\n${results.length - failed}/${results.length} checks pass${WRITE ? "" : " (read-only; WRITE=1 also publishes and cleans up)"}`);
+  console.log(`\n${results.length - failed}/${results.length} checks pass${WRITE ? "" : " (read-only; WRITE=1 also publishes, buys and cleans up)"}`);
   process.exit(failed ? 1 : 0);
 }
 

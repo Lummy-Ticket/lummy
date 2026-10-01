@@ -95,9 +95,14 @@ export function orderFromRow(r: OrderRow): Order {
     autoRefundReason: r.auto_refund_reason === "EVENT_CANCELLED" ? "EVENT_CANCELLED" : undefined,
     eventStatus: r.event_status,
     docsAccessed:
-      r.docs_letter_at || r.docs_seller_id_at
-        ? { letterAtISO: r.docs_letter_at ?? undefined, sellerIdAtISO: r.docs_seller_id_at ?? undefined }
+      r.docs_letter_at || r.docs_seller_id_at || r.docs_ticket_at
+        ? {
+            letterAtISO: r.docs_letter_at ?? undefined,
+            sellerIdAtISO: r.docs_seller_id_at ?? undefined,
+            ticketAtISO: r.docs_ticket_at ?? undefined,
+          }
         : undefined,
+    ticketFile: r.ticket_file || undefined,
     lateListing: r.late_listing || undefined,
     dispute: disputeOf(r.disputes),
     buyerId: r.buyer_id,

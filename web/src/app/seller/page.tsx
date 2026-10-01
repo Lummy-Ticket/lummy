@@ -236,15 +236,20 @@ export default function SellerPage() {
   const atStake = active.reduce((a, l) => a + l.askPrice * l.quantity + sellerPenalty(l.askPrice * l.quantity), 0);
   const upheld = mine.filter((o) => o.dispute?.verdict && !o.dispute.verdict.toSeller).length;
 
-  // Payout timing is not a promise we make up: it is the escrow rule applied to
-  // this listing's own event date.
+  // Payout timing is not a promise we make up: an account's sale says what its escrow did, and
+  // otherwise it is the escrow rule applied to this listing's own event date. A date in the past
+  // only means the money is due, not that it has gone out.
   const payoutNote = (l: SellerListing) => {
     if (l.status !== "sold") return null;
+    const its = account ? mine.filter((o) => o.listingId === l.id) : [];
+    if (its.some((o) => o.escrowStatus === "DISPUTED")) return t("A claim is open", "Ada klaim terbuka");
+    if (its.length && its.every((o) => o.escrowStatus === "REFUNDED")) return t("Refunded to the buyer", "Dikembalikan ke pembeli");
+    if (its.length && its.every((o) => o.escrowStatus === "RELEASED")) return t("Paid out", "Sudah cair");
     const ev = catalogue.eventById(l.eventId);
     if (!ev) return null;
     const due = new Date(new Date(ev.dateISO).getTime() + (EVENT_DURATION_H + DISPUTE_WINDOW_H) * 3_600_000);
     return due.getTime() < now
-      ? t("Paid out", "Sudah cair")
+      ? t("Due for payout", "Siap dicairkan")
       : t(`Pays out ${formatEventDate(due.toISOString())}`, `Cair ${formatEventDate(due.toISOString())}`);
   };
 

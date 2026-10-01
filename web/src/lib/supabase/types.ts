@@ -387,6 +387,7 @@ export type Database = {
           barcode_duplicate: boolean
           barcode_hmac: string | null
           checks: Json | null
+          cleared_at: string | null
           created_at: string
           event_id: string
           extraction: Json | null
@@ -413,6 +414,7 @@ export type Database = {
           barcode_duplicate?: boolean
           barcode_hmac?: string | null
           checks?: Json | null
+          cleared_at?: string | null
           created_at?: string
           event_id: string
           extraction?: Json | null
@@ -439,6 +441,7 @@ export type Database = {
           barcode_duplicate?: boolean
           barcode_hmac?: string | null
           checks?: Json | null
+          cleared_at?: string | null
           created_at?: string
           event_id?: string
           extraction?: Json | null
@@ -503,6 +506,7 @@ export type Database = {
           disputed: boolean
           docs_letter_at: string | null
           docs_seller_id_at: string | null
+          docs_ticket_at: string | null
           escrow_status: Database["public"]["Enums"]["escrow_status"]
           event_date: string
           event_ended_at: string | null
@@ -523,6 +527,7 @@ export type Database = {
           quantity: number
           seller_id: string | null
           seller_name: string
+          ticket_file: boolean
           tier_name: string
           tx_create: string | null
           tx_fund: string | null
@@ -543,6 +548,7 @@ export type Database = {
           disputed?: boolean
           docs_letter_at?: string | null
           docs_seller_id_at?: string | null
+          docs_ticket_at?: string | null
           escrow_status?: Database["public"]["Enums"]["escrow_status"]
           event_date: string
           event_ended_at?: string | null
@@ -563,6 +569,7 @@ export type Database = {
           quantity: number
           seller_id?: string | null
           seller_name: string
+          ticket_file?: boolean
           tier_name: string
           tx_create?: string | null
           tx_fund?: string | null
@@ -583,6 +590,7 @@ export type Database = {
           disputed?: boolean
           docs_letter_at?: string | null
           docs_seller_id_at?: string | null
+          docs_ticket_at?: string | null
           escrow_status?: Database["public"]["Enums"]["escrow_status"]
           event_date?: string
           event_ended_at?: string | null
@@ -603,6 +611,7 @@ export type Database = {
           quantity?: number
           seller_id?: string | null
           seller_name?: string
+          ticket_file?: boolean
           tier_name?: string
           tx_create?: string | null
           tx_fund?: string | null
@@ -753,6 +762,7 @@ export type Database = {
           barcode_duplicate: boolean
           barcode_hmac: string | null
           checks: Json | null
+          cleared_at: string | null
           created_at: string
           event_id: string
           extraction: Json | null

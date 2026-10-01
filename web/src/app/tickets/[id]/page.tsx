@@ -8,7 +8,7 @@ import toast from "react-hot-toast";
 import {
   ArrowLeft, Lock, CheckCircle2, ExternalLink, Copy, FileText, CreditCard, ShieldCheck,
   AlertTriangle, Loader2, Paperclip, ChevronDown, Repeat, Timer, Gavel,
-  FlaskConical, XCircle, MapPin, Clock,
+  FlaskConical, XCircle, MapPin, Clock, Ticket, Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/common/Modal";
@@ -643,6 +643,38 @@ export default function OrderDetailPage() {
         <div className="flex flex-col gap-4 min-w-0">
           <div className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
             <h2 className="font-fredoka font-semibold text-lg text-neutral-black mb-3">{t("Handover documents", "Dokumen serah-terima")}</h2>
+            {/* The ticket itself, the PDF the seller uploaded. Opening it is logged by the server. */}
+            {account && order.ticketFile && (
+              order.escrowStatus === "REFUNDED" ? (
+                <div data-ticket-file="closed" className="mb-3 w-full flex items-center gap-3 p-3 rounded-2xl border border-neutral-light-gray-1 bg-secondary-gray-soft/60">
+                  <span className="w-10 h-10 rounded-xl bg-secondary-gray-soft text-neutral-gray grid place-items-center shrink-0"><Ticket className="w-5 h-5" /></span>
+                  <div>
+                    <div className="text-sm font-medium text-neutral-gray">{t("Your ticket (PDF)", "Tiketmu (PDF)")}</div>
+                    <div className="text-xs text-neutral-gray">{t("Closed: the order was refunded", "Ditutup: pesanan sudah direfund")}</div>
+                  </div>
+                </div>
+              ) : (
+                <a
+                  data-ticket-file="open"
+                  href={`/api/orders/${encodeURIComponent(order.id)}/ticket`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => window.setTimeout(refreshOrder, 2000)}
+                  className="mb-3 w-full flex items-center gap-3 p-3 rounded-2xl border-2 border-primary-navy hover:bg-secondary-blue-extra transition text-left"
+                >
+                  <span className="w-10 h-10 rounded-xl bg-secondary-blue-soft text-primary-navy grid place-items-center shrink-0"><Ticket className="w-5 h-5" /></span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium text-neutral-black">{t("Your ticket (PDF)", "Tiketmu (PDF)")}</div>
+                    <div className="text-xs text-neutral-gray">
+                      {order.docsAccessed?.ticketAtISO
+                        ? t(`Downloaded ${formatDateTime(order.docsAccessed.ticketAtISO)}`, `Diunduh ${formatDateTime(order.docsAccessed.ticketAtISO)}`)
+                        : t("The file the seller uploaded. Download it before the show.", "File yang diupload penjual. Unduh sebelum acara.")}
+                    </div>
+                  </div>
+                  <Download className="w-4 h-4 text-primary-navy shrink-0" />
+                </a>
+              )
+            )}
             <button onClick={() => { setShowKuasa(true); openDoc("letter"); }} className="w-full flex items-center gap-3 p-3 rounded-2xl border border-neutral-light-gray-1 hover:border-lummy-500 transition cursor-pointer text-left">
               <span className="w-10 h-10 rounded-xl bg-secondary-blue-soft text-lummy-500 grid place-items-center shrink-0"><FileText className="w-5 h-5" /></span>
               <div>

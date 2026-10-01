@@ -59,7 +59,7 @@ export async function POST(req: Request) {
 
   const { data: listing, error: listingError } = await admin
     .from("listings")
-    .select("id, event_id, tier_id, seller_id, seller_name, ask_price, status, gate_ktp, late_listing")
+    .select("id, event_id, tier_id, seller_id, seller_name, ask_price, status, gate_ktp, late_listing, ticket_path, ticket_sha256, barcode_hmac")
     .eq("id", listingId)
     .maybeSingle();
   if (listingError) return fail(500, listingError.message);
@@ -99,7 +99,7 @@ export async function POST(req: Request) {
   if (op) {
     try {
       const endsAtSec = Math.floor(endsAt / 1000);
-      const r = await openOrder(op, endsAtSec);
+      const r = await openOrder(op, endsAtSec, { barcodeKey: listing.barcode_hmac, sha256: listing.ticket_sha256 });
       // The contract counts the window from the later of the handover and the show's end.
       const live = await readListing(op, r.listingId as Hex).catch(() => null);
       chain = {
@@ -137,6 +137,8 @@ export async function POST(req: Request) {
       materai: MATERAI,
       gate_ktp: listing.gate_ktp,
       late_listing: listing.late_listing,
+      // The seller's PDF is handed over with the order (GET /api/orders/[id]/ticket).
+      ticket_file: !!listing.ticket_path,
       // After the handover the contract is already in its window state.
       escrow_status: chain ? "DisputeWindow" : "Funded",
       event_ends_at: iso(chain ? Math.floor(endsAt / 1000) * 1000 : endsAt),

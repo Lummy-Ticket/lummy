@@ -71,8 +71,9 @@ function CheckoutInner() {
     );
   }
 
-  // A hand-edited URL cannot buy more seats than the listing holds.
-  const qty = Math.min(listing.quantity, Math.max(1, Number(params.get("qty")) || 1));
+  // A hand-edited URL cannot buy more seats than the listing holds, and a set that is not
+  // splittable is bought whole: the server would refuse anything else.
+  const qty = listing.splittable ? Math.min(listing.quantity, Math.max(1, Number(params.get("qty")) || 1)) : listing.quantity;
   const subtotal = listing.askPrice * qty;
   const fee = platformFee(subtotal);
   const total = subtotal + fee + MATERAI;

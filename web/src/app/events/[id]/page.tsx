@@ -6,14 +6,14 @@ import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  MapPin, Calendar, Lock, ArrowLeft, ArrowRight, ScanLine, AlertTriangle, CheckCircle2,
+  MapPin, Calendar, Lock, ArrowLeft, ArrowRight, ScanLine, AlertTriangle, CheckCircle2, ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { NotifyCard } from "@/components/events/NotifyCard";
 import { TransferPolicyNote } from "@/components/common/TransferPolicyNote";
 import {
-  getTier, isBuyable, isEventOver, resaleAllowed, CAP_PCT, type Listing, type EventItem,
+  getTier, isBuyable, clearedByStaff, isEventOver, resaleAllowed, CAP_PCT, type Listing, type EventItem,
 } from "@/lib/mock";
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 import { useCatalogue } from "@/lib/catalogue";
@@ -43,6 +43,9 @@ function ListingRow({ event, listing, qty, cheapest, index }: { event: EventItem
             <Badge.Base className="rounded-full bg-secondary-pink-soft text-secondary-pink-dark text-xs flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> {t("Duplicate barcode", "Barcode duplikat")}</Badge.Base>
           ) : flagged ? (
             <Badge.Base className="rounded-full bg-secondary-orange-soft text-secondary-orange-dark text-xs flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> {t("Under review", "Dalam review")}</Badge.Base>
+          ) : clearedByStaff(listing) ? (
+            // The checks flagged it and a person cleared it: say that, not "AI verified".
+            <Badge.Base className="rounded-full bg-secondary-blue-extra text-primary-navy text-xs flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> {t("Checked by the Lummy team", "Dicek tim Lummy")}</Badge.Base>
           ) : (
             <Badge.Base className="rounded-full bg-secondary-green-light text-secondary-green-dark text-xs flex items-center gap-1"><ScanLine className="w-3 h-3" /> {t("AI verified", "Terverifikasi AI")}</Badge.Base>
           )}
