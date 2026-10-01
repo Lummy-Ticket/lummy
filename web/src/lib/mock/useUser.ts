@@ -21,9 +21,10 @@ const endSession = (user: User | null) => {
 export const useUser = create<UserState>()(
   persist(
     (set, get) => ({
-      // The mock starts signed in as a sample buyer so a first visit already shows the
-      // signed-in navbar.
-      user: DEMO_USERS.BUYER,
+      // A first visit starts signed out, like any real site. Starting as a sample buyer read
+      // as somebody else's session left open; the sample accounts stay one click away on the
+      // login page, which every account page sends a signed-out visitor to.
+      user: null,
       login: (role = "BUYER") => {
         endSession(get().user);
         set({ user: DEMO_USERS[role] });

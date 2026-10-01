@@ -245,6 +245,17 @@ await beat("bonus: refused over the name, refund without a seller penalty", asyn
   return strong && noPenalty && noCharge;
 });
 
+await beat("bonus: a first visit is signed out, and a sample account returns to checkout", async () => {
+  await page.evaluate(() => localStorage.removeItem("lummy:user"));
+  await page.goto(BASE, { waitUntil: "networkidle" });
+  const signedOut = await page.getByRole("link", { name: "Sign in" }).isVisible();
+  await page.goto(`${BASE}/checkout?listing=ls-1`, { waitUntil: "networkidle" });
+  await page.waitForURL((u) => u.pathname === "/login", { timeout: 10000 });
+  await page.getByRole("button", { name: /^(Continue with a sample account|Sign in)$/ }).click();
+  await page.waitForURL((u) => u.pathname === "/checkout", { timeout: 10000 });
+  return signedOut && new URL(page.url()).searchParams.get("listing") === "ls-1";
+});
+
 await context.close();
 await browser.close();
 

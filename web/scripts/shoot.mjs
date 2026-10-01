@@ -33,6 +33,11 @@ await mkdir(OUT, { recursive: true });
 const browser = await chromium.launch({ executablePath: EXEC, args: ["--no-sandbox"] });
 for (const vp of VIEWPORTS) {
   const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: 1 });
+  // A first visit starts signed out, so the account pages are shot as the sample buyer.
+  await ctx.addInitScript(() => {
+    if (!localStorage.getItem("lummy:user"))
+      localStorage.setItem("lummy:user", JSON.stringify({ state: { user: { id: "u-buyer", name: "Luthfi Hadi", email: "luthfi@demo.id", role: "BUYER" } }, version: 0 }));
+  });
   const page = await ctx.newPage();
   for (const [route, name] of ROUTES) {
     try {

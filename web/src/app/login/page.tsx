@@ -79,7 +79,9 @@ function LoginInner() {
   const sampleSignIn = () => {
     login(role);
     toast.success(t("Signed in with a sample account", "Masuk dengan akun contoh"));
-    router.push(ROLES.find((r) => r.role === role)!.home);
+    // Back to where the visitor was headed (a checkout, say), else the role's home.
+    const next = params.get("next");
+    router.push(next ? safePath(next) : ROLES.find((r) => r.role === role)!.home);
   };
 
   return (

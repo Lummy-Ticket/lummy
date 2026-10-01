@@ -300,6 +300,8 @@ export function Navbar() {
   const staff = isStaff(me);
   const claims = useClaimsToAnswer(me);
   const accountLinks = [TICKETS, DASHBOARD, PROFILE, ...(staff ? [CONSOLE] : [])];
+  // Signing in from an event page comes back to that page.
+  const loginHref = pathname === "/" ? "/login" : `/login?next=${encodeURIComponent(pathname)}`;
   // The one place each person keeps coming back to, kept in the bar.
   const hub = staff ? CONSOLE : TICKETS;
   const showSearch = pathname !== "/events" && (pathname !== "/" || heroSearchGone);
@@ -400,7 +402,7 @@ export function Navbar() {
               <AccountMenu me={me} links={accountLinks} claims={claims} pathname={pathname} onSignOut={signOut} className="hidden lg:block" />
             ) : mounted ? (
               <Link
-                href="/login"
+                href={loginHref}
                 className="hidden lg:inline-flex items-center gap-1.5 h-10 px-4 rounded-full border-2 border-primary-navy bg-primary-sky text-primary-navy-dark font-fredoka font-semibold text-[15px] shadow-[2px_2px_0_#245397] transition hover:-translate-x-px hover:-translate-y-px hover:shadow-[3px_3px_0_#245397] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
               >
                 <UserIcon className="w-4 h-4" /> {t("Sign in", "Masuk")}
@@ -483,7 +485,7 @@ export function Navbar() {
                   </div>
                 </div>
               ) : mounted ? (
-                <Button.Primary wrapperClass="w-full" className="w-full flex items-center justify-center gap-2" onClick={() => { setSheetOpen(false); router.push("/login"); }}>
+                <Button.Primary wrapperClass="w-full" className="w-full flex items-center justify-center gap-2" onClick={() => { setSheetOpen(false); router.push(loginHref); }}>
                   <UserIcon className="w-4 h-4" /> {t("Sign in", "Masuk")}
                 </Button.Primary>
               ) : null}
