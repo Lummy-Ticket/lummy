@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import {
-  CheckCircle2, XCircle, AlertTriangle, Sparkles, Calendar, MapPin, Scale, Paperclip,
+  CheckCircle2, XCircle, AlertTriangle, Sparkles, Calendar, CalendarX, MapPin, Scale, Paperclip,
   ExternalLink, Gavel, Clock, Loader2, Ticket,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 import { PageContainer } from "@/components/layout/PageContainer";
 import {
-  useEventRequests, useOrders, useSellerListings, useUser,
+  useEventRequests, useOrders, useSellerListings, useUser, isEventOver,
   checkEvidence, reasonMeta, suggestedRationale, disputeDeadlineISO,
   remedyOptions, suggestedRemedy, penaltyFor, SELLER_PENALTY_PCT, REMEDY_LABEL, partialAmount,
   type ChainSettlement, type EventRequest, type Order, type Remedy, type SellerListing,
@@ -109,6 +109,76 @@ function EmptyQueue({ text }: { text: string }) {
   return (
     <div className="bg-neutral-white rounded-3xl border border-dashed border-neutral-light-gray-1 p-10 text-center">
       <p className="text-neutral-gray text-sm">{text}</p>
+    </div>
+  );
+}
+
+/**
+ * Shows still to come, where staff record that an organiser cancelled one. The server closes its
+ * listings and refunds every order still in escrow, fee included; asking twice guards the button.
+ */
+function ShowsPanel() {
+  const t = useT();
+  const { formatEventDate } = useFormatters();
+  const catalogue = useCatalogue();
+  const router = useRouter();
+  const [confirm, setConfirm] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const upcoming = catalogue.events.filter((e) => !isEventOver(e)).sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+
+  const cancel = async (id: string) => {
+    if (confirm !== id) {
+      setConfirm(id);
+      setTimeout(() => setConfirm((c) => (c === id ? null : c)), 4000);
+      return;
+    }
+    setConfirm(null);
+    setBusy(id);
+    try {
+      const r = await fetch(`/api/events/${encodeURIComponent(id)}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "cancel" }),
+      });
+      const j = (await r.json().catch(() => ({}))) as { error?: string; refunded?: number; listingsClosed?: number; failed?: number; remaining?: number };
+      if (!r.ok) throw new Error(j.error ?? `HTTP ${r.status}`);
+      toast.success(
+        t(`Show cancelled: ${j.refunded ?? 0} order(s) refunded, ${j.listingsClosed ?? 0} listing(s) closed`, `Acara dibatalkan: ${j.refunded ?? 0} pesanan direfund, ${j.listingsClosed ?? 0} listing ditutup`)
+      );
+      const left = (j.failed ?? 0) + (j.remaining ?? 0);
+      if (left) toast.error(t(`${left} order(s) are still held. Press again, or check the server log.`, `${left} pesanan masih tertahan. Tekan lagi, atau cek log server.`));
+      // The catalogue sits in the root layout, and the show has just left it.
+      router.refresh();
+    } catch (e) {
+      toast.error(`${t("Not cancelled", "Gagal dibatalkan")}: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-sm text-neutral-gray">
+        {t(
+          "When an organiser cancels a show, record it here. Its listings close and every order still in escrow is refunded in full, fee included. Sellers are not penalised.",
+          "Kalau penyelenggara membatalkan acara, catat di sini. Listing-nya ditutup dan semua pesanan yang masih di escrow direfund penuh, termasuk biaya layanan. Penjual tidak dikenai penalti."
+        )}
+      </p>
+      {upcoming.length === 0 && <EmptyQueue text={t("No shows coming up.", "Tidak ada acara mendatang.")} />}
+      {upcoming.map((e) => (
+        <div key={e.id} data-show={e.id} className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="font-fredoka font-semibold text-neutral-black truncate">{e.title}</h3>
+            <div className="text-xs text-neutral-gray mt-1">
+              {formatEventDate(e.dateISO)} · {e.venue}, {e.city} · {t(`${e.listingCount} on sale`, `${e.listingCount} dijual`)}
+            </div>
+          </div>
+          <Button.Ghost tone="danger" className="text-sm shrink-0 flex items-center gap-1.5" disabled={busy === e.id} onClick={() => void cancel(e.id)}>
+            {busy === e.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CalendarX className="w-4 h-4" />}
+            {confirm === e.id ? t("Press again to cancel the show", "Tekan lagi untuk membatalkan") : t("Organiser cancelled", "Dibatalkan penyelenggara")}
+          </Button.Ghost>
+        </div>
+      ))}
     </div>
   );
 }
@@ -277,7 +347,7 @@ export default function AdminPage() {
   const listings = useSellerListings((s) => s.listings);
   const approveListing = useSellerListings((s) => s.approve);
   const rejectListing = useSellerListings((s) => s.reject);
-  const [tab, setTab] = useState<"claims" | "listings" | "events">("claims");
+  const [tab, setTab] = useState<"claims" | "listings" | "events" | "shows">("claims");
   // The order whose verdict is on its way, so the wait says what is actually happening.
   const [sending, setSending] = useState<Order | null>(null);
 
@@ -305,6 +375,8 @@ export default function AdminPage() {
     { id: "claims" as const, en: "Claims", id_: "Klaim", Icon: Scale, count: disputes.length },
     { id: "listings" as const, en: "Listings held", id_: "Listing ditahan", Icon: Ticket, count: held.length },
     { id: "events" as const, en: "New events", id_: "Event baru", Icon: Calendar, count: pendingEvents.length },
+    // Cancelling acts on real orders, so it is there for staff signed in with an account.
+    ...(account ? [{ id: "shows" as const, en: "Shows", id_: "Acara", Icon: CalendarX, count: 0 }] : []),
   ];
   const doApprove = (r: EventRequest) => { approve(r.id); toast.success(t("Event approved, tickets can be listed", "Event disetujui, tiketnya boleh dijual")); };
 
@@ -505,6 +577,8 @@ export default function AdminPage() {
           sampleFiles={account}
         />
       )}
+
+      {mounted && account && tab === "shows" && <ShowsPanel />}
 
       {tab === "events" && (
       <>

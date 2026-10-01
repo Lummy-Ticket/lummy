@@ -26,8 +26,10 @@ async function fetchCatalogue(url: string, key: string): Promise<CatalogueData> 
   const error = ev.error ?? ti.error ?? ls.error;
   if (error) throw new Error(error.message);
 
+  // A cancelled show leaves the catalogue: nothing about it can be bought or sold any more, and
+  // its orders read their own snapshot.
   const events: EventItem[] = (ev.data ?? []).flatMap((e) =>
-    e.id && e.title && e.starts_at && e.category && e.venue && e.city
+    e.id && e.title && e.starts_at && e.category && e.venue && e.city && e.status !== "cancelled"
       ? [{
           id: e.id,
           title: e.title,

@@ -25,6 +25,7 @@
     "tickets:check": "tsx scripts/tickets-check.ts",
     "tickets:inspect": "tsx scripts/tickets-inspect.ts",
     "tickets:flow": "tsx scripts/tickets-flow-check.ts",
+    "cancel:check": "tsx scripts/cancel-check.ts",
     "motion:check": "node scripts/motion-check.mjs",
     "perf:probe": "node scripts/perf-probe.mjs"
   },

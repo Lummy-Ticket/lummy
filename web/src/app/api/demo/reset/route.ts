@@ -12,7 +12,7 @@ import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { chainError, chainTarget, operatorSetup, readListing, settle } from "@/lib/chain/server";
 import { demoKeyAllowed, demoMode } from "@/lib/demo-key";
-import { SEED_LISTINGS } from "@/lib/mock/seed";
+import { SEED_LISTINGS, seedEvents } from "@/lib/mock/seed";
 import { seedOrders } from "@/lib/mock/seed-orders";
 import { SAMPLE_SIGNALS, publicSellerName } from "@/lib/listings/rules";
 import { HELD, rowsFromOrder } from "@/lib/orders/map";
@@ -88,10 +88,12 @@ export async function POST(req: Request) {
     const removeError = removed.find((r) => r.error)?.error;
     if (removeError) return fail(500, removeError.message);
 
-    // Every seed listing on sale again, with the seats it started with.
-    const restored = await Promise.all(
-      SEED_LISTINGS.map((l) => admin.from("listings").update({ quantity: l.quantity, status: l.status }).eq("id", l.id).select("id"))
-    );
+    // Every seed listing on sale again, with the seats it started with and no clearance from a
+    // rehearsal, and every seed show that a rehearsal cancelled is back on.
+    const restored = await Promise.all([
+      ...SEED_LISTINGS.map((l) => admin.from("listings").update({ quantity: l.quantity, status: l.status, cleared_at: null }).eq("id", l.id).select("id")),
+      admin.from("events").update({ status: "scheduled" }).in("id", seedEvents(Date.now()).map((e) => e.id)).eq("status", "cancelled").select("id"),
+    ]);
     const restoreError = restored.find((r) => r.error)?.error;
     if (restoreError) return fail(500, restoreError.message);
 

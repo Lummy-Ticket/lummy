@@ -128,7 +128,11 @@ try {
   check("listing tersimpan atas nama penjual, dengan nama publik yang disingkat", live?.status === "active" && live.seller_name === "Zahra A.", `${live?.status} ${live?.seller_name}`);
   check("harga asli diambil server dari kategori", live?.face_value === 1_200_000 && live.ask_price === 1_380_000, `${live?.face_value} ${live?.ask_price}`);
   check("sinyal AI dari tabel server", live?.forgery_score === 9 && !live.pdf_suspicious && live.extraction?.sample === "good");
-  check("listing baru tampil di dasbor penjual", await seller.page.locator(`[data-listing="${live?.id}"]`).isVisible());
+  // The dashboard reads the account's listings after it loads, so give the read a moment.
+  check(
+    "listing baru tampil di dasbor penjual",
+    await seller.page.locator(`[data-listing="${live?.id}"]`).waitFor({ timeout: 15000 }).then(() => true, () => false)
+  );
   check("listing baru langsung ada di katalog", await inCatalogue(live?.id));
 
   // --- A flagged one waits for staff, who clear it from the console
