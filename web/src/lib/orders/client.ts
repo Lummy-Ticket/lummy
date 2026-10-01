@@ -5,7 +5,7 @@
 // through /api/orders, which checks each one on the server.
 import { useCallback, useEffect, useState } from "react";
 import { demoPrefs } from "@/lib/chain/client";
-import type { DisputeReason, Order, Remedy } from "@/lib/mock/types";
+import type { DisputeEvidence, DisputeReason, EvidenceKind, Order, Remedy } from "@/lib/mock/types";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import { HELD, ORDER_SELECT, orderFromRow, type OrderRow } from "./map";
 
@@ -78,10 +78,29 @@ export const placeOrder = (input: { listingId: string; quantity: number; chain: 
 
 export type OrderAction =
   | { action: "docs"; which: "letter" | "sellerId" }
-  | { action: "dispute"; reason: DisputeReason; note: string; evidence?: string }
-  | { action: "reply"; note: string; evidence?: string }
+  | { action: "dispute"; reason: DisputeReason; note: string; evidence?: string; evidencePath?: string; kind?: EvidenceKind }
+  | { action: "reply"; note: string; evidence?: string; evidencePath?: string; kind?: EvidenceKind }
   | { action: "verdict"; remedy: Remedy }
   | { action: "settle" };
 
 export const orderAction = (id: string, input: OrderAction) =>
   send<{ ok: true; tx?: string; withdrawals?: string[] }>(`/api/orders/${encodeURIComponent(id)}`, input);
+
+/**
+ * A claim photo: the server hands out a one-off token, the browser puts the original file straight
+ * into the private bucket (metadata intact, no request-size limit in the way), and the server then
+ * reads it itself. Returns what it read, to show before anything is filed; filing sends the path.
+ */
+export async function uploadEvidence(orderId: string, file: File, kind?: EvidenceKind): Promise<DisputeEvidence> {
+  const path = `/api/orders/${encodeURIComponent(orderId)}`;
+  const intent = await send<{ path: string; token: string }>(path, { action: "evidence-upload", type: file.type, size: file.size });
+  const sb = supabaseBrowser();
+  if (!sb) throw new OrderError("database belum tersambung", 503);
+  const up = await sb.storage.from("evidence").uploadToSignedUrl(intent.path, intent.token, file, { contentType: file.type });
+  if (up.error) throw new OrderError(up.error.message, 500);
+  const read = await send<{ evidence: DisputeEvidence }>(path, { action: "evidence-read", evidencePath: intent.path, kind });
+  return read.evidence;
+}
+
+/** Opens a claim photo for the parties and staff (a one-minute signed link behind the route). */
+export const evidenceHref = (orderId: string, side: "buyer" | "seller") => `/api/orders/${encodeURIComponent(orderId)}/evidence?side=${side}`;

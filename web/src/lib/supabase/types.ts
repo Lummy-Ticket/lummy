@@ -259,6 +259,8 @@ export type Database = {
           title: string
           transfer_policy: Database["public"]["Enums"]["transfer_policy"] | null
           venue: string
+          venue_lat: number | null
+          venue_lng: number | null
         }
         Insert: {
           category: string
@@ -275,6 +277,8 @@ export type Database = {
             | Database["public"]["Enums"]["transfer_policy"]
             | null
           venue: string
+          venue_lat?: number | null
+          venue_lng?: number | null
         }
         Update: {
           category?: string
@@ -291,6 +295,8 @@ export type Database = {
             | Database["public"]["Enums"]["transfer_policy"]
             | null
           venue?: string
+          venue_lat?: number | null
+          venue_lng?: number | null
         }
         Relationships: []
       }

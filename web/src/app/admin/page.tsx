@@ -4,8 +4,9 @@ import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import {
   CheckCircle2, XCircle, AlertTriangle, Sparkles, Calendar, CalendarX, MapPin, Scale, Paperclip,
-  ExternalLink, Gavel, Clock, Loader2, Ticket,
+  ExternalLink, Gavel, Clock, Loader2, Ticket, MinusCircle,
 } from "lucide-react";
+import { EvidencePhoto } from "@/components/common/EvidencePhoto";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/common/Modal";
@@ -65,10 +66,17 @@ function EvidencePanel({ order }: { order: Order }) {
             {check.strength}
           </span>
         </div>
+        {d.evidence?.upload && <EvidencePhoto orderId={order.id} side="buyer" evidence={d.evidence} />}
         <div className="grid sm:grid-cols-2 gap-x-4">
           {check.checks.map((c) => (
             <div key={c.label.en} className="flex gap-2 py-1.5">
-              {c.ok ? <CheckCircle2 className="w-4 h-4 text-secondary-green-dark shrink-0 mt-0.5" /> : <XCircle className="w-4 h-4 text-secondary-pink-dark shrink-0 mt-0.5" />}
+              {c.ok ? (
+                <CheckCircle2 className="w-4 h-4 text-secondary-green-dark shrink-0 mt-0.5" />
+              ) : c.unknown ? (
+                <MinusCircle className="w-4 h-4 text-neutral-gray shrink-0 mt-0.5" />
+              ) : (
+                <XCircle className="w-4 h-4 text-secondary-pink-dark shrink-0 mt-0.5" />
+              )}
               <div className="min-w-0">
                 <div className="text-xs font-medium text-neutral-black">{t(c.label.en, c.label.id)}</div>
                 <div className="text-xs text-neutral-gray">{t(c.detail.en, c.detail.id)}</div>
@@ -90,13 +98,16 @@ function EvidencePanel({ order }: { order: Order }) {
                     <Paperclip className="w-3 h-3 shrink-0" /> {r.evidence.fileName}
                   </span>
                 )}
+                {r.evidence?.upload && <EvidencePhoto orderId={order.id} side={r.fromSeller ? "seller" : "buyer"} evidence={r.evidence} />}
               </div>
             ))}
           </div>
         )}
 
         <div className="mt-3 pt-3 border-t border-dashed border-neutral-light-gray-1 flex flex-wrap gap-x-5 gap-y-1 text-xs text-neutral-gray">
-          {d.evidence && <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {t("Captured", "Diambil")} {formatDateTime(d.evidence.capturedAtISO)}</span>}
+          {d.evidence?.capturedAtISO && (
+            <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {t("Captured", "Diambil")} {formatDateTime(d.evidence.capturedAtISO)}</span>
+          )}
           <span className="flex items-center gap-1.5"><Gavel className="w-3.5 h-3.5" /> {t("Filed", "Diajukan")} {formatDateTime(d.openedAtISO)}</span>
           {deadline && <span className="flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" /> {t("Window closes", "Masa sengketa tutup")} {formatDateTime(deadline)}</span>}
         </div>

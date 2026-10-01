@@ -18,6 +18,9 @@ const TICKET_READER_FILES = [
   "./node_modules/@napi-rs/canvas-linux-x64-gnu/**",
 ];
 
+/** Claim photos (src/lib/evidence) are read with the same canvas and decoder, without pdf.js. */
+const PHOTO_READER_FILES = ["./node_modules/zxing-wasm/dist/reader/zxing_reader.wasm", "./node_modules/@napi-rs/canvas-linux-x64-gnu/**"];
+
 const nextConfig: NextConfig = {
   devIndicators: false,
   // Dev only: the chain e2e opens `next dev` at 127.0.0.1, which Next 16.1+ treats as another
@@ -29,6 +32,7 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/tickets/check": TICKET_READER_FILES,
     "/api/listings": TICKET_READER_FILES,
+    "/api/orders": PHOTO_READER_FILES,
   },
   images: {
     // Poster event = SVG data-URI (offline). Izinkan SVG lewat next/image.

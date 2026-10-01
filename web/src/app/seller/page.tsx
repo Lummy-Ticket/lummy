@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { Plus, Eye, Megaphone, Copy, ExternalLink, ShieldCheck, Search, Clock, Scale, Paperclip, CheckCircle2 } from "lucide-react";
+import { Plus, Eye, Megaphone, Copy, ExternalLink, ShieldCheck, Search, Clock, Scale, Paperclip, CheckCircle2, Camera, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/common/Modal";
+import { EvidencePhoto } from "@/components/common/EvidencePhoto";
+import { isDemoEmail } from "@/lib/supabase/demo";
 import { PageContainer } from "@/components/layout/PageContainer";
 import {
   useSellerListings, useOrders, useUser, reasonMeta, mockSellerEvidence,
@@ -17,7 +19,7 @@ import { useAccessGuard, useHydrated } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters, useActiveLang } from "@/lib/i18n";
 import { useCatalogue } from "@/lib/catalogue";
-import { orderAction, useAccountOrders } from "@/lib/orders/client";
+import { orderAction, uploadEvidence, useAccountOrders } from "@/lib/orders/client";
 import { listingAction, useAccountListings } from "@/lib/listings/client";
 import { useRouter } from "next/navigation";
 
@@ -76,15 +78,38 @@ function PromoteModal({ listing, onClose }: { listing: SellerListing | null; onC
  * Claims filed against this seller. Deciding on the buyer's word alone would
  * make a false claim cheap, so the seller answers here before staff rules.
  */
-function ClaimsAgainstYou({ orders, onReply }: { orders: Order[]; onReply: (o: Order, note: string, file: DisputeEvidence | null) => Promise<void> }) {
+function ClaimsAgainstYou({
+  orders, onReply, account, sampleFiles,
+}: {
+  orders: Order[];
+  onReply: (o: Order, note: string, file: DisputeEvidence | null) => Promise<void>;
+  /** An account attaches a photo of its own; the sample files are for sample personas and demo accounts. */
+  account: boolean;
+  sampleFiles: boolean;
+}) {
   const t = useT();
   const { formatIDR, formatDateTime } = useFormatters();
   const [openId, setOpenId] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [file, setFile] = useState<DisputeEvidence | null>(null);
   const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const photoInput = useRef<HTMLInputElement>(null);
 
   if (orders.length === 0) return null;
+
+  const attach = async (o: Order, picked: File | undefined) => {
+    if (!picked) return;
+    setUploading(true);
+    try {
+      setFile(await uploadEvidence(o.id, picked, "CHAT_LOG"));
+    } catch (e) {
+      toast.error(`${t("The file was not read", "File gagal dibaca")}: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setUploading(false);
+      if (photoInput.current) photoInput.current.value = "";
+    }
+  };
 
   const send = async (o: Order) => {
     setSending(true);
@@ -130,6 +155,8 @@ function ClaimsAgainstYou({ orders, onReply }: { orders: Order[]; onReply: (o: O
               {o.dispute?.note && (
                 <p className="text-xs text-neutral-gray italic mt-2">&ldquo;{t(o.dispute.note.en, o.dispute.note.id)}&rdquo;</p>
               )}
+              {/* What the buyer put forward, so the answer is to the actual evidence. */}
+              {account && o.dispute?.evidence?.upload && <EvidencePhoto orderId={o.id} side="buyer" evidence={o.dispute.evidence} />}
 
               {answered ? (
                 <p className="text-xs text-secondary-green-dark mt-3 flex items-center gap-1.5">
@@ -145,7 +172,28 @@ function ClaimsAgainstYou({ orders, onReply }: { orders: Order[]; onReply: (o: O
                     className="w-full rounded-xl border border-neutral-light-gray-1 focus:border-lummy-500 px-3 py-2 text-sm outline-none resize-none"
                   />
                   <span className="text-xs text-neutral-gray">{t("Attach something, if you have it", "Lampirkan sesuatu, kalau ada")}</span>
-                  {mockSellerEvidence(o).map((ev) => (
+                  {account && (
+                    <>
+                      <input ref={photoInput} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => void attach(o, e.target.files?.[0])} />
+                      <button
+                        data-evidence-upload
+                        onClick={() => photoInput.current?.click()}
+                        disabled={uploading}
+                        className={`w-full flex items-center gap-2 p-2.5 rounded-xl border-2 border-dashed text-left transition cursor-pointer border-lummy-500 ${file?.upload ? "bg-secondary-blue-light" : "hover:bg-secondary-blue-light"}`}
+                      >
+                        {uploading ? <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin text-lummy-500" /> : <Camera className="w-3.5 h-3.5 shrink-0 text-lummy-500" />}
+                        <span className="text-xs">
+                          {uploading
+                            ? t("Reading the file...", "Membaca file...")
+                            : file?.upload
+                              ? t("Use another photo", "Pakai foto lain")
+                              : t("A photo or screenshot of the handover", "Foto atau screenshot serah terima")}
+                        </span>
+                      </button>
+                      {file?.upload && <EvidencePhoto orderId={o.id} side="seller" evidence={file} link={false} />}
+                    </>
+                  )}
+                  {sampleFiles && mockSellerEvidence(o).map((ev) => (
                     <button
                       key={ev.fileName}
                       onClick={() => setFile(ev)}
@@ -196,7 +244,11 @@ export default function SellerPage() {
   const claims = mine.filter((o) => o.escrowStatus === "DISPUTED");
   const reply = async (o: Order, note: string, file: DisputeEvidence | null) => {
     if (!account) return replyToDispute(o.id, { fromSeller: true, note: { en: note, id: note }, evidence: file ?? undefined });
-    await orderAction(o.id, { action: "reply", note, evidence: file?.fileName });
+    // An uploaded file goes by its path: the server reads it again rather than trust this page.
+    await orderAction(
+      o.id,
+      file?.upload ? { action: "reply", note, evidencePath: file.upload.path, kind: file.kind } : { action: "reply", note, evidence: file?.fileName }
+    );
     refreshSales();
   };
   const mounted = useHydrated();
@@ -274,7 +326,7 @@ export default function SellerPage() {
         <Stat label={t("If everything sells", "Kalau semua terjual")} value={formatIDR(est)} />
       </div>
 
-      <ClaimsAgainstYou orders={claims} onReply={reply} />
+      <ClaimsAgainstYou orders={claims} onReply={reply} account={account} sampleFiles={!account || isDemoEmail(user?.email ?? "")} />
 
       {/* The whole model rests on cheating costing more than it earns. That is
           only credible if a seller can see the number before they list. */}

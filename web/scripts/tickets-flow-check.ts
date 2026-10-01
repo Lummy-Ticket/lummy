@@ -15,7 +15,7 @@ import { createHash } from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { chromium, type Page } from "playwright-core";
 import type { Database } from "../src/lib/supabase/types";
-import { GENUINE, genuineTicket, initWriter, latin1, rewrite, ticketPdf } from "./ticket-fixtures";
+import { GENUINE, genuineTicket, initWriter, latin1, photo, rewrite, ticketPdf, withExif } from "./ticket-fixtures";
 
 try {
   process.loadEnvFile(".env.local");
@@ -201,10 +201,56 @@ async function main() {
       const logged = await admin.from("orders").select("ticket_file, docs_ticket_at").eq("id", orderId).single();
       check("the download is logged as the handover", logged.data?.ticket_file === true && !!logged.data.docs_ticket_at, JSON.stringify(logged.data ?? logged.error));
 
-      // --- Nobody else opens the buyer's file; the seller withdraws the first listing and its file goes.
+      // --- The buyer claims with a photo of their own: the server reads this order's code off it.
+      await page.goto(`${BASE}/tickets/${orderId}`, { waitUntil: "networkidle" });
+      // Before the show the button asks about the ticket; after it, about the gate.
+      await page.getByRole("button", { name: /^(Problem with this ticket\?|Something went wrong at the gate)$/ }).click();
+      await page.getByText("Ticket differs from the listing").click();
+      await page.locator('input[type=file][accept="image/jpeg,image/png,image/webp"]').setInputFiles({
+        name: "my-ticket.jpg",
+        mimeType: "image/jpeg",
+        buffer: Buffer.from(withExif(await photo(SECOND, "jpeg"))),
+      });
+      await page.getByText("Read from your photo").waitFor({ timeout: 60000 });
+      check("claim photo: read by the server, this order's code found", await page.getByText("The code in the photo is this order's ticket.").isVisible());
+      await page.locator("input[type=checkbox]").check();
+      await page.getByRole("button", { name: "File dispute" }).click();
+      await page.waitForFunction(() => document.body.innerText.includes("Under review"), undefined, { timeout: 30000 }).catch(() => undefined);
+      const claim = await admin.from("disputes").select("reason, evidence").eq("order_id", orderId).maybeSingle();
+      const filedPhoto = claim.data?.evidence as { showsBarcode?: boolean; upload?: { path?: string; editedWith?: string } } | null;
+      check(
+        "claim filed with the photo the server read",
+        claim.data?.reason === "NOT_AS_LISTED" && filedPhoto?.showsBarcode === true && !!filedPhoto.upload?.path?.startsWith(`${orderId}/buyer-`) && filedPhoto.upload.editedWith === "Snapseed",
+        JSON.stringify(claim.data ?? claim.error).slice(0, 200)
+      );
+      const ownPhoto = await page.request.get(`${BASE}/api/orders/${orderId}/evidence?side=buyer`, { maxRedirects: 0 });
+      check("the buyer can open their own photo", ownPhoto.status() === 302, `HTTP ${ownPhoto.status()}`);
+
+      // --- Nobody else opens the buyer's file; the seller sees the photo, answers with one, and withdraws the first listing.
       await persona(page, "Seller", "/seller");
       const stranger = await page.request.get(`${BASE}/api/orders/${orderId}/ticket`, { maxRedirects: 0 });
       check("the seller cannot open the buyer's order file (404)", stranger.status() === 404, `HTTP ${stranger.status()}`);
+      const sellerSees = await page.request.get(`${BASE}/api/orders/${orderId}/evidence?side=buyer`, { maxRedirects: 0 });
+      check("the seller can open the buyer's claim photo", sellerSees.status() === 302, `HTTP ${sellerSees.status()}`);
+      const card = page.locator(`[data-claim="${orderId}"]`);
+      await card.waitFor({ timeout: 30000 });
+      await card.getByText("Answer this claim").click();
+      await card.locator("textarea").fill("Tiketnya sudah saya serahkan lewat Lummy.");
+      await card.locator('input[type=file][accept="image/jpeg,image/png,image/webp"]').setInputFiles({
+        name: "handover.png",
+        mimeType: "image/png",
+        buffer: Buffer.from(await photo(null, "png")),
+      });
+      await card.locator('[data-evidence-photo="seller"]').waitFor({ timeout: 60000 });
+      await card.getByRole("button", { name: "Send answer" }).click();
+      await card.getByText("Your answer is on file").waitFor({ timeout: 30000 }).catch(() => undefined);
+      const reply = await admin.from("dispute_replies").select("from_seller, evidence").eq("order_id", orderId);
+      const replied = reply.data?.[0]?.evidence as { upload?: { path?: string } } | null;
+      check(
+        "the seller's answer carries their own upload",
+        reply.data?.length === 1 && reply.data[0].from_seller && !!replied?.upload?.path?.startsWith(`${orderId}/seller-`),
+        JSON.stringify(reply.data ?? reply.error).slice(0, 200)
+      );
       const firstId = first.data?.id ?? "";
       const withdrawn = await listingAction(page, firstId, "withdraw");
       const after = await admin.from("listings").select("status, ticket_path").eq("id", firstId).single();
@@ -216,23 +262,40 @@ async function main() {
       );
       const freed = await admin.from("listing_barcodes").select("held").eq("listing_id", firstId);
       check("withdrawn: its barcode is free to be listed again", freed.data?.length === 1 && freed.data[0].held === false);
+
+      // --- Staff ruling on the claim open both photos.
+      await persona(page, "Admin", "/admin");
+      const both = await Promise.all(
+        (["buyer", "seller"] as const).map((side) => page.request.get(`${BASE}/api/orders/${orderId}/evidence?side=${side}`, { maxRedirects: 0 }))
+      );
+      check("staff can open both sides' photos", both.every((r) => r.status() === 302), both.map((r) => r.status()).join(","));
     }
   } catch (e) {
     check("flow ran to the end", false, (e as Error).message.split("\n")[0].slice(0, 200));
   } finally {
     if (created.length || orders.length) {
       const admin = adminClient();
-      // Orders point at their listing, so they go first.
-      if (orders.length) await admin.from("orders").delete().in("id", orders);
+      // Claims point at their order, and orders at their listing, so they go first; then the photos.
+      if (orders.length) {
+        await admin.from("dispute_replies").delete().in("order_id", orders);
+        await admin.from("disputes").delete().in("order_id", orders);
+        await admin.from("orders").delete().in("id", orders);
+        for (const o of orders) {
+          const photos = (await admin.storage.from("evidence").list(o)).data ?? [];
+          if (photos.length) await admin.storage.from("evidence").remove(photos.map((p) => `${o}/${p.name}`));
+        }
+      }
+      let photosLeft = 0;
+      for (const o of orders) photosLeft += ((await admin.storage.from("evidence").list(o)).data ?? []).length;
       const paths = (await admin.from("listings").select("ticket_path").in("id", created)).data?.map((r) => r.ticket_path).filter((p): p is string => !!p) ?? [];
       if (paths.length) await admin.storage.from("tickets").remove(paths);
       const gone = await admin.from("listings").delete().in("id", created);
       const left = await admin.from("listing_barcodes").select("listing_id").in("listing_id", created);
       const stray = await admin.from("orders").select("id").in("id", orders);
       check(
-        "cleanup: test orders, listings, files and barcodes removed",
-        !gone.error && (left.data?.length ?? 1) === 0 && (stray.data?.length ?? 1) === 0,
-        gone.error?.message
+        "cleanup: test orders, claims, photos, listings, files and barcodes removed",
+        !gone.error && (left.data?.length ?? 1) === 0 && (stray.data?.length ?? 1) === 0 && photosLeft === 0,
+        gone.error?.message ?? `photos left: ${photosLeft}`
       );
     }
     check("no page errors", pageErrors.length === 0, [...new Set(pageErrors)].join(" | "));

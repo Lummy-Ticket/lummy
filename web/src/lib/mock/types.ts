@@ -124,17 +124,39 @@ export type Remedy = "REPLACEMENT" | "REFUND_PARTIAL" | "REFUND_FULL" | "RELEASE
 
 export type EvidenceKind = "SCANNER_PHOTO" | "STAFF_LETTER" | "CHAT_LOG" | "TICKET_PHOTO" | "SYSTEM_RECORD";
 
-// Evidence carries its own capture metadata (mock EXIF). The whole anti-lying
-// model rests on it: a buyer who actually walked in has no gate-time rejection
-// to photograph, so a late screenshot reads as weak on its face.
+// Evidence carries its own capture metadata: read off the uploaded photo (EXIF), or
+// mock EXIF for the sample files. The whole anti-lying model rests on it: a buyer
+// who actually walked in has no gate-time rejection to photograph, so a late
+// screenshot reads as weak on its face.
 export interface DisputeEvidence {
   fileName: string;
   kind: EvidenceKind;
-  capturedAtISO: string;
-  atVenue: boolean; // geotag matched the venue
+  /** When the file was taken. A real photo can come without one (a screenshot, an app that strips EXIF). */
+  capturedAtISO?: string;
+  /** The geotag matched the venue. Null: not checked, because the file has no location or the venue has none on record. */
+  atVenue?: boolean | null;
   /** Whether this order's barcode is legible in the file. Without it, a photo of
-   *  a stranger being turned away would pass the time and place checks. */
-  showsBarcode?: boolean;
+   *  a stranger being turned away would pass the time and place checks. Null: no
+   *  barcode on record to compare against. */
+  showsBarcode?: boolean | null;
+  /** A real upload, and what the server read off it. Absent for the sample files. */
+  upload?: EvidenceUpload;
+}
+
+export interface EvidenceUpload {
+  /** In the private evidence bucket; opened through /api/orders/[id]/evidence. */
+  path: string;
+  sha256: string;
+  size: number;
+  type: string;
+  /** Barcodes read in the photo. foreignCode: one was read, but it is not this order's ticket. */
+  codesRead: number;
+  foreignCode?: boolean;
+  gps?: { lat: number; lng: number };
+  /** Camera make and model, from EXIF. */
+  device?: string;
+  /** An editing app named in the file (Photoshop, Snapseed...). Phones' own firmware names are left out. */
+  editedWith?: string;
 }
 
 export interface DisputeVerdict {

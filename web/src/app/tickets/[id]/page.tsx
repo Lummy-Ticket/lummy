@@ -8,10 +8,12 @@ import toast from "react-hot-toast";
 import {
   ArrowLeft, Lock, CheckCircle2, ExternalLink, Copy, FileText, CreditCard, ShieldCheck,
   AlertTriangle, Loader2, Paperclip, ChevronDown, Repeat, Timer, Gavel,
-  FlaskConical, XCircle, MapPin, Clock, Ticket, Download,
+  FlaskConical, XCircle, MapPin, Clock, Ticket, Download, MinusCircle, Camera,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/common/Modal";
+import { EvidencePhoto } from "@/components/common/EvidencePhoto";
+import { isDemoEmail } from "@/lib/supabase/demo";
 import { useAccessGuard, useHydrated } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters } from "@/lib/i18n";
@@ -23,7 +25,7 @@ import {useOrders, useUser, explorerTx, explorerAddr, shortHash, phaseOf, msUnti
 } from "@/lib/mock";
 import { chainAction, chainWritable, useChainHistory, useChainInfo, useChainListing, usdcText } from "@/lib/chain/client";
 import { DEPLOYMENTS } from "@/lib/chain/deployments";
-import { OrderError, orderAction, useAccountOrders } from "@/lib/orders/client";
+import { OrderError, orderAction, uploadEvidence, useAccountOrders } from "@/lib/orders/client";
 
 /** The escrow that new on-chain orders go to, shown even on sample orders so anyone can inspect it. */
 const LIVE_ESCROW = DEPLOYMENTS[421614]?.escrow;
@@ -44,11 +46,14 @@ function ChainRow({ label, value, href, onCopy }: { label: string; value: string
   );
 }
 
-function CheckRow({ ok, label, detail }: { ok: boolean; label: string; detail: string }) {
+function CheckRow({ ok, unknown, label, detail }: { ok: boolean; unknown?: boolean; label: string; detail: string }) {
   return (
     <div className="flex gap-2 py-1.5">
       {ok ? (
         <CheckCircle2 className="w-4 h-4 text-secondary-green-dark shrink-0 mt-0.5" />
+      ) : unknown ? (
+        // Nothing to check against: neither a pass nor a fail.
+        <MinusCircle className="w-4 h-4 text-neutral-gray shrink-0 mt-0.5" />
       ) : (
         <XCircle className="w-4 h-4 text-secondary-pink-dark shrink-0 mt-0.5" />
       )}
@@ -110,6 +115,9 @@ export default function OrderDetailPage() {
   const [evidence, setEvidence] = useState<DisputeEvidence | null>(null);
   const [note, setNote] = useState("");
   const [attested, setAttested] = useState(false);
+  // A photo of the buyer's own, uploaded and read by the server before the claim is filed.
+  const [uploading, setUploading] = useState(false);
+  const photoInput = useRef<HTMLInputElement>(null);
 
 
   // One ticking clock drives the countdown and the automatic payout, so the
@@ -171,11 +179,25 @@ export default function OrderDetailPage() {
       });
   }, [account, stored, live, now, refreshOrder, refreshLive, t]);
 
-  // Which files can back this particular claim, and how they read.
+  // Which files can back this particular claim, and how they read. The sample files are for the
+  // sample personas and the demo accounts; any other account uploads a photo of its own.
   const evidenceOptions = useMemo(
     () => (order && reason ? mockEvidenceOptions(order, reason) : []),
     [order, reason]
   );
+  const sampleFiles = !account || isDemoEmail(user?.email ?? "");
+  const attachPhoto = async (file: File | undefined) => {
+    if (!file || !order) return;
+    setUploading(true);
+    try {
+      setEvidence(await uploadEvidence(order.id, file, reason === "NOT_AS_LISTED" ? "TICKET_PHOTO" : "SCANNER_PHOTO"));
+    } catch (e) {
+      toast.error(`${t("The photo was not read", "Foto gagal dibaca")}: ${errText(e)}`);
+    } finally {
+      setUploading(false);
+      if (photoInput.current) photoInput.current.value = "";
+    }
+  };
   const check = useMemo(
     () => (order && reason ? checkEvidence(order, reason, evidence, new Date(now).toISOString()) : null),
     [order, reason, evidence, now]
@@ -244,8 +266,14 @@ export default function OrderDetailPage() {
     setActing(true);
     try {
       if (account) {
-        // The server files it, and on a chain order raises the flag in the contract as well.
-        await orderAction(order.id, { action: "dispute", reason, note, evidence: evidence?.fileName });
+        // The server files it, and on a chain order raises the flag in the contract as well. An
+        // uploaded photo goes by its path: the server reads the file again rather than trust this page.
+        await orderAction(
+          order.id,
+          evidence?.upload
+            ? { action: "dispute", reason, note, evidencePath: evidence.upload.path, kind: evidence.kind }
+            : { action: "dispute", reason, note, evidence: evidence?.fileName }
+        );
         refreshOrder();
       } else {
         // On chain the dispute is a real flag that freezes the payout, sent by the operator for the buyer.
@@ -412,7 +440,8 @@ export default function OrderDetailPage() {
                     {filedCheck?.strength === "STRONG" ? "STRONG" : "WEAK"}
                   </span>
                 </div>
-                {filedCheck?.checks.map((c) => <CheckRow key={c.label.en} ok={c.ok} label={t(c.label.en, c.label.id)} detail={t(c.detail.en, c.detail.id)} />)}
+                {account && order.dispute.evidence?.upload && <EvidencePhoto orderId={order.id} side="buyer" evidence={order.dispute.evidence} />}
+                {filedCheck?.checks.map((c) => <CheckRow key={c.label.en} ok={c.ok} unknown={c.unknown} label={t(c.label.en, c.label.id)} detail={t(c.detail.en, c.detail.id)} />)}
                 {(order.dispute.replies ?? []).map((r, i) => (
                   <div key={i} className="mt-3 pt-3 border-t border-dashed border-neutral-light-gray-1 text-xs">
                     <span className={`font-medium ${r.fromSeller ? "text-primary-navy" : "text-secondary-orange-dark"}`}>
@@ -425,6 +454,7 @@ export default function OrderDetailPage() {
                         <Paperclip className="w-3 h-3 shrink-0" /> {r.evidence.fileName}
                       </span>
                     )}
+                    {account && r.evidence?.upload && <EvidencePhoto orderId={order.id} side={r.fromSeller ? "seller" : "buyer"} evidence={r.evidence} />}
                   </div>
                 ))}
                 {order.dispute.verdict && (
@@ -857,7 +887,43 @@ export default function OrderDetailPage() {
                 {needsFile ? t("Evidence", "Bukti") : t("What settles this", "Yang menentukan")}
               </span>
               <p className="text-xs text-neutral-gray -mt-1">{meta ? t(meta.help.en, meta.help.id) : ""}</p>
-              {needsFile && evidenceOptions.map((ev) => (
+              {needsFile && account && (
+                <>
+                  <input
+                    ref={photoInput}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    hidden
+                    onChange={(e) => void attachPhoto(e.target.files?.[0])}
+                  />
+                  <button
+                    data-evidence-upload
+                    onClick={() => photoInput.current?.click()}
+                    disabled={uploading}
+                    className={`w-full flex items-center gap-2 p-3 rounded-xl border-2 border-dashed text-left transition cursor-pointer ${evidence?.upload ? "border-lummy-500 bg-secondary-blue-light" : "border-lummy-500 hover:bg-secondary-blue-light"}`}
+                  >
+                    {uploading ? <Loader2 className="w-4 h-4 shrink-0 animate-spin text-lummy-500" /> : <Camera className="w-4 h-4 shrink-0 text-lummy-500" />}
+                    <span className="text-sm text-neutral-black">
+                      {uploading
+                        ? t("Reading the photo...", "Membaca foto...")
+                        : evidence?.upload
+                          ? t("Use another photo", "Pakai foto lain")
+                          : t("Upload your photo", "Upload fotomu")}
+                    </span>
+                  </button>
+                  <p className="text-[11px] text-neutral-gray leading-relaxed">
+                    {t(
+                      "Straight from your camera roll is best: the time it was taken, and your ticket's code if it is in the picture, are read from the photo. Only the seller and our arbiter can open it.",
+                      "Paling baik langsung dari galeri: waktu pengambilan, dan kode tiketmu kalau ada di foto, dibaca dari fotonya. Cuma penjual dan arbiter kami yang bisa membukanya."
+                    )}
+                  </p>
+                  {evidence?.upload && <EvidencePhoto orderId={order.id} side="buyer" evidence={evidence} link={false} />}
+                </>
+              )}
+              {needsFile && sampleFiles && account && (
+                <span className="text-[11px] text-neutral-gray mt-1">{t("Or a sample file (demo account):", "Atau file contoh (akun demo):")}</span>
+              )}
+              {needsFile && sampleFiles && evidenceOptions.map((ev) => (
                 <button
                   key={ev.fileName}
                   onClick={() => setEvidence(ev)}
@@ -872,12 +938,13 @@ export default function OrderDetailPage() {
             {check && (!needsFile || evidence) && (
               <div className="mt-3 rounded-2xl border border-neutral-light-gray-1 p-4">
                 <div className="flex items-center gap-2 text-xs font-semibold text-neutral-black mb-1">
-                  <MapPin className="w-3.5 h-3.5 text-neutral-gray" /> {needsFile ? t("File metadata", "Metadata file") : t("Our records", "Catatan kami")}
+                  <MapPin className="w-3.5 h-3.5 text-neutral-gray" />{" "}
+                  {!needsFile ? t("Our records", "Catatan kami") : evidence?.upload ? t("Read from your photo", "Dibaca dari fotomu") : t("File metadata", "Metadata file")}
                   <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold ${check.strength === "STRONG" ? "bg-secondary-green-soft text-secondary-green-dark" : "bg-secondary-pink-soft text-secondary-pink-dark"}`}>
                     {check.strength}
                   </span>
                 </div>
-                {check.checks.map((c) => <CheckRow key={c.label.en} ok={c.ok} label={t(c.label.en, c.label.id)} detail={t(c.detail.en, c.detail.id)} />)}
+                {check.checks.map((c) => <CheckRow key={c.label.en} ok={c.ok} unknown={c.unknown} label={t(c.label.en, c.label.id)} detail={t(c.detail.en, c.detail.id)} />)}
                 {check.strength === "WEAK" && (
                   <p className="text-xs text-secondary-pink-dark mt-2">
                     {needsFile

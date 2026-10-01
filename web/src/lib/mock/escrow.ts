@@ -229,7 +229,8 @@ function inGateWindow(o: Order, capturedAtISO: string) {
 
 export interface EvidenceCheck {
   strength: "STRONG" | "WEAK";
-  checks: { ok: boolean; label: Bi; detail: Bi }[];
+  /** unknown: the check could not be made (nothing on the file or on record to check against). */
+  checks: { ok: boolean; unknown?: boolean; label: Bi; detail: Bi }[];
 }
 
 /**
@@ -281,56 +282,91 @@ export function checkEvidence(
     return { strength: checks.every((c) => c.ok) ? "STRONG" : "WEAK", checks };
   }
 
+  // A real upload is judged on what could be read off it: a check with nothing to go on is
+  // "not checked" rather than failed, and only a check that ran and failed weakens it.
+  const uploaded = !!ev?.upload;
+  const strengthOf = (checks: EvidenceCheck["checks"], required: EvidenceCheck["checks"]): EvidenceCheck["strength"] =>
+    uploaded
+      ? required.every((c) => c.ok) && checks.every((c) => c.ok || c.unknown) ? "STRONG" : "WEAK"
+      : checks.every((c) => c.ok) ? "STRONG" : "WEAK";
+
   if (reason === "NOT_AS_LISTED") {
-    const shows = !!ev?.showsBarcode;
-    const checks = [
-      {
-        ok: shows,
-        label: { en: "Ticket is legible in the file", id: "Tiket terbaca di file" },
-        detail: shows
-          ? { en: "The tier and code can be read and compared with the listing.", id: "Kategori dan kodenya bisa dibaca dan dibandingkan dengan listing." }
-          : { en: "Nothing readable to compare against the listing.", id: "Tidak ada yang bisa dibaca untuk dibandingkan dengan listing." },
-      },
-      inTime,
-    ];
-    return { strength: checks.every((c) => c.ok) ? "STRONG" : "WEAK", checks };
+    const legible = barcodeCheck(
+      ev,
+      { en: "Ticket is legible in the file", id: "Tiket terbaca di file" },
+      { en: "The tier and code can be read and compared with the listing.", id: "Kategori dan kodenya bisa dibaca dan dibandingkan dengan listing." },
+      { en: "Nothing readable to compare against the listing.", id: "Tidak ada yang bisa dibaca untuk dibandingkan dengan listing." }
+    );
+    const checks = [legible, inTime];
+    return { strength: strengthOf(checks, [legible, inTime]), checks };
   }
 
   // Gate claims.
-  const withinGate = !!ev && inGateWindow(o, ev.capturedAtISO);
-  const atVenue = !!ev?.atVenue;
-  const showsBarcode = !!ev?.showsBarcode;
-  const checks = [
-    {
-      ok: withinGate,
-      label: { en: "Captured during the event window", id: "Diambil saat jam acara" },
-      detail: withinGate
+  const withinGate = ev?.capturedAtISO ? inGateWindow(o, ev.capturedAtISO) : null;
+  const time = {
+    ok: withinGate === true,
+    unknown: uploaded && withinGate === null,
+    label: { en: "Captured during the event window", id: "Diambil saat jam acara" },
+    detail:
+      withinGate === true
         ? { en: "Timestamp falls inside gate hours.", id: "Waktunya masuk jam gate." }
-        : {
-            en: "Timestamp falls outside gate hours, so it cannot show a live rejection.",
-            id: "Waktunya di luar jam gate, jadi tidak mungkin merekam penolakan langsung.",
-          },
-    },
-    {
-      ok: atVenue,
-      label: { en: "Location matches the venue", id: "Lokasi cocok dengan venue" },
-      detail: atVenue
+        : withinGate === false
+        ? { en: "Timestamp falls outside gate hours, so it cannot show a live rejection.", id: "Waktunya di luar jam gate, jadi tidak mungkin merekam penolakan langsung." }
+        : uploaded
+        ? { en: "The file carries no capture time (screenshots and some apps drop it), so the time was not checked.", id: "File ini tidak membawa waktu pengambilan (screenshot dan sebagian aplikasi menghapusnya), jadi waktunya tidak dicek." }
+        : { en: "No file, so there is no timestamp to check.", id: "Tidak ada file, jadi tidak ada waktu yang bisa dicek." },
+  };
+  const place = {
+    ok: ev?.atVenue === true,
+    unknown: uploaded && ev?.atVenue == null,
+    label: { en: "Location matches the venue", id: "Lokasi cocok dengan venue" },
+    detail:
+      ev?.atVenue === true
         ? { en: "Geotag matches the venue.", id: "Geotag cocok dengan venue." }
+        : uploaded && ev?.atVenue === false
+        ? { en: "The photo's location is away from the venue.", id: "Lokasi foto jauh dari venue." }
+        : uploaded && ev?.upload?.gps
+        ? { en: "The photo has a location, but the venue has none on record, so they were not compared.", id: "Foto ini punya lokasi, tapi venue belum punya lokasi tercatat, jadi tidak dibandingkan." }
+        : uploaded
+        ? { en: "The file carries no location (phones often strip it on upload), so the place was not checked.", id: "File ini tidak membawa lokasi (HP sering menghapusnya saat upload), jadi tempatnya tidak dicek." }
         : { en: "No venue geotag on the file.", id: "Tidak ada geotag venue di file ini." },
-    },
-    {
-      ok: showsBarcode,
-      label: { en: "Shows this order's ticket", id: "Memperlihatkan tiket order ini" },
-      detail: showsBarcode
-        ? { en: "The code on screen matches this order.", id: "Kode di layar cocok dengan order ini." }
-        : {
-            en: "No readable code, so this could be someone else being refused.",
-            id: "Tidak ada kode yang terbaca, jadi bisa saja ini orang lain yang ditolak.",
-          },
-    },
+  };
+  const ticket = barcodeCheck(
+    ev,
+    { en: "Shows this order's ticket", id: "Memperlihatkan tiket order ini" },
+    { en: "The code on screen matches this order.", id: "Kode di layar cocok dengan order ini." },
+    { en: "No readable code, so this could be someone else being refused.", id: "Tidak ada kode yang terbaca, jadi bisa saja ini orang lain yang ditolak." }
+  );
+  const checks = [
+    time,
+    place,
+    ticket,
     inTime,
   ];
-  return { strength: checks.every((c) => c.ok) ? "STRONG" : "WEAK", checks };
+  // A real photo can be strong without a location (phones strip it), never without the time
+  // and this order's code; a location that was read and is elsewhere still weakens it.
+  return { strength: strengthOf(checks, [time, ticket, inTime]), checks };
+}
+
+/** Whether the file shows this order's ticket, worded for what was actually read off it. */
+function barcodeCheck(ev: DisputeEvidence | null | undefined, label: Bi, matched: Bi, missing: Bi) {
+  const shows = ev?.showsBarcode;
+  const uploaded = !!ev?.upload;
+  return {
+    ok: shows === true,
+    unknown: uploaded && shows === null,
+    label,
+    detail:
+      shows === true
+        ? uploaded
+          ? { en: "The code in the photo is this order's ticket.", id: "Kode di foto ini adalah tiket order ini." }
+          : matched
+        : uploaded && ev?.upload?.foreignCode
+        ? { en: "A code is readable, but it is not this order's ticket.", id: "Ada kode yang terbaca, tapi bukan tiket order ini." }
+        : uploaded && shows === null
+        ? { en: "This order's listing has no barcode on record, so the code was not compared.", id: "Listing order ini tidak punya barcode tercatat, jadi kodenya tidak dibandingkan." }
+        : missing,
+  };
 }
 
 // --- Remedies -----------------------------------------------------------------

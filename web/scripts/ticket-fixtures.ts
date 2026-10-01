@@ -4,7 +4,9 @@
  * redrawn around the same barcode, two tickets in one PDF, one with no barcode, one with a script.
  */
 import { readFile } from "fs/promises";
+import { createCanvas } from "@napi-rs/canvas";
 import { PDFDocument, PDFName, PDFString, StandardFonts, rgb, type PDFPage } from "pdf-lib";
+import piexif from "piexifjs";
 import { prepareZXingModule, writeBarcode } from "zxing-wasm/writer";
 import { packageFile } from "../src/lib/tickets/barcode";
 
@@ -97,3 +99,36 @@ export async function withScript(pdf: Uint8Array) {
 
 /** A genuine ticket around `payload`, the producer a ticketing system would leave. */
 export const genuineTicket = (payload = GENUINE) => ticketPdf({ codes: [{ text: payload, format: "QRCode" }], producer: "Lummy test issuer PDF engine" });
+
+/** A 1600x1200 "photo" for claims: a grey scene, with the code on a phone-like white panel when given. */
+export async function photo(code: string | null, format: "jpeg" | "png") {
+  const canvas = createCanvas(1600, 1200);
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#6b7280";
+  ctx.fillRect(0, 0, 1600, 1200);
+  if (code) {
+    const out = await writeBarcode(code, { format: "QRCode", withQuietZones: true });
+    const { data, width, height } = out.symbol;
+    const cell = 12;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(500, 250, width * cell + 40, height * cell + 40);
+    ctx.fillStyle = "#000000";
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) if (data[y * width + x] === 0) ctx.fillRect(520 + x * cell, 270 + y * cell, cell, cell);
+  }
+  return new Uint8Array(format === "jpeg" ? await canvas.encode("jpeg") : await canvas.encode("png"));
+}
+
+/** A camera's EXIF (time, place, phone, an editing app), written into a JPEG the way a phone would. */
+export function withExif(jpeg: Uint8Array) {
+  const exif = piexif.dump({
+    "0th": { [piexif.ImageIFD.Make]: "samsung", [piexif.ImageIFD.Model]: "SM-S918B", [piexif.ImageIFD.Software]: "Snapseed 2.0" },
+    Exif: { [piexif.ExifIFD.DateTimeOriginal]: "2026:12:20 19:30:00" },
+    GPS: {
+      [piexif.GPSIFD.GPSLatitudeRef]: "S",
+      [piexif.GPSIFD.GPSLatitude]: [[6, 1], [13, 1], [700, 100]],
+      [piexif.GPSIFD.GPSLongitudeRef]: "E",
+      [piexif.GPSIFD.GPSLongitude]: [[106, 1], [48, 1], [800, 100]],
+    },
+  });
+  return new Uint8Array(Buffer.from(piexif.insert(exif, Buffer.from(jpeg).toString("binary")), "binary"));
+}

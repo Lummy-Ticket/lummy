@@ -13,7 +13,11 @@ import {
 import type { DisputeReason, Remedy } from "@/lib/mock/types";
 import { ORDER_SELECT, orderFromRow, type OrderRow } from "@/lib/orders/map";
 import { settleOrder } from "@/lib/orders/settle";
+import { EVIDENCE_TYPES, EvidenceError, MAX_EVIDENCE_BYTES } from "@/lib/evidence/read";
+import { EVIDENCE_KINDS, evidenceFromUpload, newEvidencePath, ownsEvidencePath, type Side } from "@/lib/evidence/server";
+import type { DisputeEvidence, EvidenceKind } from "@/lib/mock/types";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { isDemoEmail } from "@/lib/supabase/demo";
 import { currentUser } from "@/lib/supabase/session";
 import type { Json } from "@/lib/supabase/types";
 
@@ -27,7 +31,20 @@ const done = (extra: Record<string, unknown> = {}) => NextResponse.json({ ok: tr
 const text = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 const asJson = (v: object | undefined) => (v ? (v as unknown as Json) : null);
 
-type Body = { action?: unknown; which?: unknown; reason?: unknown; note?: unknown; evidence?: unknown; remedy?: unknown };
+type Body = {
+  action?: unknown;
+  which?: unknown;
+  reason?: unknown;
+  note?: unknown;
+  /** A sample file's name (demo accounts only). */
+  evidence?: unknown;
+  /** A photo uploaded through evidence-upload. */
+  evidencePath?: unknown;
+  kind?: unknown;
+  type?: unknown;
+  size?: unknown;
+  remedy?: unknown;
+};
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -50,7 +67,47 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const at = new Date(now).toISOString();
   const body = ((await req.json().catch(() => null)) ?? {}) as Body;
 
+  const side: Side | null = buyer ? "buyer" : seller ? "seller" : null;
+  // The sample files are for the demo accounts that rehearse with them. Everyone else attaches a
+  // photo of their own, which the server reads itself.
+  const sampleFiles = isDemoEmail(user.email);
+  const kindOf = (fallback: EvidenceKind) => ((EVIDENCE_KINDS as unknown[]).includes(body.kind) ? (body.kind as EvidenceKind) : fallback);
+  /** The photo this side uploaded for this order, as read by the server; nothing else is accepted. */
+  const uploaded = (kind: EvidenceKind) => {
+    const path = typeof body.evidencePath === "string" ? body.evidencePath : "";
+    if (!side || !ownsEvidencePath(path, id, side)) throw new EvidenceError("foto bukti tidak dikenal, upload ulang");
+    return evidenceFromUpload(admin, row, path, kind);
+  };
+  const evidenceFailed = (e: unknown) =>
+    e instanceof EvidenceError ? fail(422, e.message) : fail(500, `foto bukti gagal dibaca: ${e instanceof Error ? e.message : String(e)}`);
+
   switch (body.action) {
+    case "evidence-upload": {
+      // A one-off token to put a photo straight into the private bucket, for whoever may attach one now.
+      if (!side) return fail(403, "cuma pembeli dan penjual yang bisa melampirkan bukti");
+      const open = order.escrowStatus === "DISPUTED" && !!order.dispute && !order.dispute.verdict;
+      if (!(buyer ? (!order.dispute && canFileDispute(order, now)) || open : open)) {
+        return fail(409, "bukti tidak bisa dilampirkan ke pesanan ini sekarang");
+      }
+      const type = String(body.type);
+      const size = Number(body.size);
+      if (!EVIDENCE_TYPES[type]) return fail(400, "kirim foto JPEG, PNG, atau WebP");
+      if (!Number.isFinite(size) || size <= 0 || size > MAX_EVIDENCE_BYTES) return fail(413, "foto lebih dari 10 MB");
+      const path = newEvidencePath(id, side, type);
+      const signed = await admin.storage.from("evidence").createSignedUploadUrl(path);
+      if (signed.error || !signed.data) return fail(500, signed.error?.message ?? "link upload gagal dibuat");
+      return done({ path, token: signed.data.token });
+    }
+
+    case "evidence-read": {
+      // What the server reads off the photo, shown in the form before anything is filed.
+      try {
+        return done({ evidence: await uploaded(kindOf(buyer ? "SCANNER_PHOTO" : "CHAT_LOG")) });
+      } catch (e) {
+        return evidenceFailed(e);
+      }
+    }
+
     case "docs": {
       // The platform's own record of the handover, which settles a "never handed over" claim.
       if (!buyer) return fail(403, "cuma pembeli yang membuka dokumen serah-terima");
@@ -70,11 +127,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const reason = String(body.reason) as DisputeReason;
       const meta = availableReasons(order, now).find((r) => r.id === reason);
       if (!meta?.eligible) return fail(400, "alasan ini tidak bisa dipakai sekarang");
-      // The file's details come from the server's own list, never from the browser, so a claim
-      // cannot invent a venue geotag. In production they are read from the uploaded file.
+      // The file's details are read by the server, never taken from the browser, so a claim cannot
+      // invent a venue geotag: off the uploaded photo, or off its own list for a sample file.
       const needsFile = meta.proof !== "DOCS" && meta.proof !== "NONE";
-      const evidence = needsFile ? mockEvidenceOptions(order, reason).find((e) => e.fileName === body.evidence) : undefined;
-      if (needsFile && !evidence) return fail(400, "klaim ini butuh bukti");
+      let evidence: DisputeEvidence | undefined;
+      if (needsFile && typeof body.evidencePath === "string") {
+        try {
+          evidence = await uploaded(reason === "NOT_AS_LISTED" ? "TICKET_PHOTO" : kindOf("SCANNER_PHOTO"));
+        } catch (e) {
+          return evidenceFailed(e);
+        }
+      } else if (needsFile && sampleFiles) {
+        evidence = mockEvidenceOptions(order, reason).find((e) => e.fileName === body.evidence);
+      }
+      if (needsFile && !evidence) return fail(400, sampleFiles ? "klaim ini butuh bukti" : "klaim ini butuh foto bukti");
       const note = text(body.note, 1000);
 
       const filed = await admin.from("disputes").insert({ order_id: id, reason, note_en: note, note_id: note, evidence: asJson(evidence), opened_at: at });
@@ -107,8 +173,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       if ((order.dispute.replies ?? []).some((r) => r.fromSeller === seller)) return fail(409, "jawabanmu sudah masuk");
       const note = text(body.note, 1000);
       if (!note) return fail(400, "tulis jawabannya dulu");
-      const evidence = seller && body.evidence ? mockSellerEvidence(order).find((e) => e.fileName === body.evidence) : undefined;
-      if (body.evidence && !evidence) return fail(400, "lampiran tidak dikenal");
+      let evidence: DisputeEvidence | undefined;
+      if (typeof body.evidencePath === "string" && body.evidencePath) {
+        try {
+          evidence = await uploaded(kindOf(seller ? "CHAT_LOG" : "SCANNER_PHOTO"));
+        } catch (e) {
+          return evidenceFailed(e);
+        }
+      } else if (body.evidence) {
+        evidence = seller && sampleFiles ? mockSellerEvidence(order).find((e) => e.fileName === body.evidence) : undefined;
+        if (!evidence) return fail(400, "lampiran tidak dikenal");
+      }
       const r = await admin.from("dispute_replies").insert({
         order_id: id, author_id: user.id, from_seller: seller, note_en: note, note_id: note, evidence: asJson(evidence),
       });
