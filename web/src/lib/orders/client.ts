@@ -81,7 +81,8 @@ export type OrderAction =
   | { action: "dispute"; reason: DisputeReason; note: string; evidence?: string; evidencePath?: string; kind?: EvidenceKind }
   | { action: "reply"; note: string; evidence?: string; evidencePath?: string; kind?: EvidenceKind }
   | { action: "verdict"; remedy: Remedy }
-  | { action: "settle" };
+  | { action: "settle" }
+  | { action: "postponed-refund" };
 
 export const orderAction = (id: string, input: OrderAction) =>
   send<{ ok: true; tx?: string; withdrawals?: string[] }>(`/api/orders/${encodeURIComponent(id)}`, input);

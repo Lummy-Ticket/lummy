@@ -62,10 +62,13 @@ else
 fi
 
 # Pesanan akun: akun demo membeli lewat checkout, klaim dan putusannya dijalankan kontrak di Anvil, dan
-# database mencatat semuanya. Listing, pesanan, dan akun uji dihapus lagi di akhir.
+# database mencatat semuanya. Lalu acara diundur: kontrak memundurkan jadwalnya, dan refund pembeli
+# datang dari kontrak. Listing, pesanan, acara, dan akun uji dihapus lagi di akhir.
 if [ -x "${CHROME:-/opt/google/chrome/chrome}" ] && grep -q "^SUPABASE_SECRET_KEY=." .env.local 2>/dev/null; then
   echo ""
   BASE=http://127.0.0.1:$PORT DEMO_KEY=uji-lokal CHAIN=1 node --env-file-if-exists=.env.local scripts/orders-check.mjs
+  echo ""
+  BASE=http://127.0.0.1:$PORT RPC=$RPC DEMO_KEY=uji-lokal CHAIN=1 npx tsx scripts/postpone-check.ts
 else
   echo "Supabase (SUPABASE_SECRET_KEY di web/.env.local) atau Chrome tidak ada, uji pesanan akun dilewati."
 fi

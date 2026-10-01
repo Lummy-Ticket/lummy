@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import type {
   Dispute, DisputeEvidence, DisputeReason, DisputeReply, EscrowStatus, EventItem, Listing, Order, OrderChain, Remedy, Tier,
 } from "./types";
-import { DISPUTE_WINDOW_H, canFileDispute, disputeDeadlineISO, partialAmount, penaltyFor } from "./escrow";
+import { DISPUTE_WINDOW_H, canFileDispute, canRefundPostponed, disputeDeadlineISO, partialAmount, penaltyFor } from "./escrow";
 import { seedOrders } from "./seed-orders";
 
 /** What the contract reports for an on-chain order, as read through /api/chain/listing. */
@@ -21,7 +21,7 @@ export interface ChainSettlement {
   tx: string;
   withdrawals: string[];
   autoReleased?: boolean;
-  autoRefundReason?: "EVENT_CANCELLED";
+  autoRefundReason?: "EVENT_CANCELLED" | "EVENT_POSTPONED";
 }
 
 const H = 3_600_000;
@@ -258,9 +258,7 @@ export const useOrders = create<OrderState>()(
       refundPostponed: (id) =>
         set((s) => ({
           orders: patch(s.orders, id, (o) =>
-            o.escrowStatus === "LOCKED" && o.eventStatus === "postponed" && !o.chain
-              ? { ...o, escrowStatus: "REFUNDED" }
-              : o
+            canRefundPostponed(o) && !o.chain ? { ...o, escrowStatus: "REFUNDED", autoRefundReason: "EVENT_POSTPONED" } : o
           ),
         })),
 

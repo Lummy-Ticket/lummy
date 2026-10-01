@@ -1,24 +1,46 @@
 "use client";
 
 // What the server read off an uploaded claim photo, and the way to open it. The link goes through a
-// route that lets in only the two sides of the order and staff.
+// route that lets in only the two sides of the order and staff. A month after the claim was decided
+// the photo itself is deleted (lib/retention.ts); what was read off it stays.
 import { ExternalLink, MapPin } from "lucide-react";
 import type { DisputeEvidence } from "@/lib/mock/types";
 import { evidenceHref } from "@/lib/orders/client";
+import { EVIDENCE_RETENTION_DAYS, evidenceGoneAt, isGone } from "@/lib/retention";
 import { useFormatters, useT } from "@/lib/i18n";
 
-/** `link`: false while the photo is not filed yet, since the route opens filed photos only. */
-export function EvidencePhoto({ orderId, side, evidence, link = true }: { orderId: string; side: "buyer" | "seller"; evidence: DisputeEvidence; link?: boolean }) {
+/**
+ * `link`: false while the photo is not filed yet, since the route opens filed photos only.
+ * `decidedAtISO`: when the claim was decided, which sets when the photo is deleted.
+ */
+export function EvidencePhoto({
+  orderId, side, evidence, link = true, decidedAtISO,
+}: {
+  orderId: string;
+  side: "buyer" | "seller";
+  evidence: DisputeEvidence;
+  link?: boolean;
+  decidedAtISO?: string;
+}) {
   const t = useT();
   const { formatDateTime } = useFormatters();
   const up = evidence.upload;
   if (!up) return null;
+  const gone = !!decidedAtISO && isGone(evidenceGoneAt(decidedAtISO));
   return (
     <div data-evidence-photo={side} className="mt-1.5 flex flex-col gap-0.5 text-xs text-neutral-gray">
-      {link && (
+      {link && !gone && (
         <a href={evidenceHref(orderId, side)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary-navy font-medium w-fit">
           <ExternalLink className="w-3.5 h-3.5" /> {t("Open the photo", "Buka fotonya")}
         </a>
+      )}
+      {gone && (
+        <span data-evidence-gone>
+          {t(
+            `The photo was deleted ${EVIDENCE_RETENTION_DAYS} days after the decision, since it carried personal data. What was read off it stays.`,
+            `Fotonya dihapus ${EVIDENCE_RETENTION_DAYS} hari setelah putusan, karena memuat data pribadi. Hasil bacaannya tetap tersimpan.`
+          )}
+        </span>
       )}
       <span>
         {evidence.capturedAtISO

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import {
-  CheckCircle2, XCircle, AlertTriangle, Sparkles, Calendar, CalendarX, MapPin, Scale, Paperclip,
+  CheckCircle2, XCircle, AlertTriangle, Sparkles, Calendar, CalendarClock, CalendarX, MapPin, Scale, Paperclip,
   ExternalLink, Gavel, Clock, Loader2, Ticket, MinusCircle,
 } from "lucide-react";
 import { EvidencePhoto } from "@/components/common/EvidencePhoto";
@@ -124,9 +124,18 @@ function EmptyQueue({ text }: { text: string }) {
   );
 }
 
+/** A date as a datetime-local input shows it, in this device's time zone. */
+function localInput(iso: string) {
+  const d = new Date(iso);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 /**
- * Shows still to come, where staff record that an organiser cancelled one. The server closes its
- * listings and refunds every order still in escrow, fee included; asking twice guards the button.
+ * Shows still to come, where staff record what an organiser did to one. Cancelled: the server
+ * closes its listings and refunds every order still in escrow, fee included; asking twice guards
+ * the button. Postponed: the show moves to a later date, never an earlier one, and every order
+ * still in escrow moves with it.
  */
 function ShowsPanel() {
   const t = useT();
@@ -135,7 +144,31 @@ function ShowsPanel() {
   const router = useRouter();
   const [confirm, setConfirm] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [moving, setMoving] = useState<{ id: string; at: string } | null>(null);
   const upcoming = catalogue.events.filter((e) => !isEventOver(e)).sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+
+  const postpone = async (id: string, at: string) => {
+    setBusy(id);
+    try {
+      const r = await fetch(`/api/events/${encodeURIComponent(id)}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "postpone", startsAt: new Date(at).toISOString() }),
+      });
+      const j = (await r.json().catch(() => ({}))) as { error?: string; startsAt?: string; moved?: number; failed?: number; remaining?: number };
+      if (!r.ok) throw new Error(j.error ?? `HTTP ${r.status}`);
+      const when = formatEventDate(j.startsAt ?? at);
+      toast.success(t(`Show moved to ${when}: ${j.moved ?? 0} order(s) moved with it`, `Acara diundur ke ${when}: ${j.moved ?? 0} pesanan ikut diundur`));
+      const left = (j.failed ?? 0) + (j.remaining ?? 0);
+      if (left) toast.error(t(`${left} order(s) did not move. Submit the same date again, or check the server log.`, `${left} pesanan belum ikut. Kirim tanggal yang sama lagi, atau cek log server.`));
+      setMoving(null);
+      router.refresh();
+    } catch (e) {
+      toast.error(`${t("Not postponed", "Gagal diundur")}: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const cancel = async (id: string) => {
     if (confirm !== id) {
@@ -171,23 +204,61 @@ function ShowsPanel() {
     <div className="flex flex-col gap-4">
       <p className="text-sm text-neutral-gray">
         {t(
-          "When an organiser cancels a show, record it here. Its listings close and every order still in escrow is refunded in full, fee included. Sellers are not penalised.",
-          "Kalau penyelenggara membatalkan acara, catat di sini. Listing-nya ditutup dan semua pesanan yang masih di escrow direfund penuh, termasuk biaya layanan. Penjual tidak dikenai penalti."
+          "When an organiser cancels or moves a show, record it here. Cancelled: its listings close and every order still in escrow is refunded in full, fee included. Postponed: its listings keep selling for the new date, and every order still in escrow moves with it; each buyer may keep the ticket or take the money back. Sellers are not penalised either way.",
+          "Kalau penyelenggara membatalkan atau mengundur acara, catat di sini. Batal: listing-nya ditutup dan semua pesanan yang masih di escrow direfund penuh, termasuk biaya layanan. Diundur: listing-nya tetap dijual untuk tanggal baru, dan semua pesanan yang masih di escrow ikut diundur; tiap pembeli boleh tetap memakai tiketnya atau mengambil dananya kembali. Penjual tidak dikenai penalti di kedua kasus."
         )}
       </p>
       {upcoming.length === 0 && <EmptyQueue text={t("No shows coming up.", "Tidak ada acara mendatang.")} />}
       {upcoming.map((e) => (
-        <div key={e.id} data-show={e.id} className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="font-fredoka font-semibold text-neutral-black truncate">{e.title}</h3>
-            <div className="text-xs text-neutral-gray mt-1">
-              {formatEventDate(e.dateISO)} · {e.venue}, {e.city} · {t(`${e.listingCount} on sale`, `${e.listingCount} dijual`)}
+        <div key={e.id} data-show={e.id} className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="font-fredoka font-semibold text-neutral-black truncate">{e.title}</h3>
+              <div className="text-xs text-neutral-gray mt-1">
+                {formatEventDate(e.dateISO)} · {e.venue}, {e.city} · {t(`${e.listingCount} on sale`, `${e.listingCount} dijual`)}
+                {e.postponed && <span className="text-secondary-brown-dark font-medium"> · {t("postponed", "diundur")}</span>}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 shrink-0">
+              <Button.Ghost
+                className="text-sm flex items-center gap-1.5"
+                disabled={busy === e.id}
+                onClick={() => setMoving(moving?.id === e.id ? null : { id: e.id, at: localInput(e.dateISO) })}
+              >
+                <CalendarClock className="w-4 h-4" /> {t("Organiser postponed", "Diundur penyelenggara")}
+              </Button.Ghost>
+              <Button.Ghost tone="danger" className="text-sm flex items-center gap-1.5" disabled={busy === e.id} onClick={() => void cancel(e.id)}>
+                {busy === e.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CalendarX className="w-4 h-4" />}
+                {confirm === e.id ? t("Press again to cancel the show", "Tekan lagi untuk membatalkan") : t("Organiser cancelled", "Dibatalkan penyelenggara")}
+              </Button.Ghost>
             </div>
           </div>
-          <Button.Ghost tone="danger" className="text-sm shrink-0 flex items-center gap-1.5" disabled={busy === e.id} onClick={() => void cancel(e.id)}>
-            {busy === e.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CalendarX className="w-4 h-4" />}
-            {confirm === e.id ? t("Press again to cancel the show", "Tekan lagi untuk membatalkan") : t("Organiser cancelled", "Dibatalkan penyelenggara")}
-          </Button.Ghost>
+          {moving?.id === e.id && (
+            <form
+              data-postpone-form
+              className="mt-4 pt-4 border-t border-dashed border-neutral-light-gray-1 flex flex-col sm:flex-row sm:items-end gap-3"
+              onSubmit={(ev) => {
+                ev.preventDefault();
+                void postpone(e.id, moving.at);
+              }}
+            >
+              <label className="flex flex-col gap-1.5 text-xs text-neutral-gray">
+                {t("New start, in this device's time", "Jadwal mulai baru, waktu perangkat ini")}
+                <input
+                  type="datetime-local"
+                  required
+                  value={moving.at}
+                  min={localInput(e.dateISO)}
+                  onChange={(ev) => setMoving({ id: e.id, at: ev.target.value })}
+                  className="rounded-xl border border-lummy-500 px-4 py-2.5 text-sm text-neutral-black outline-none"
+                />
+              </label>
+              <Button.Ghost type="submit" className="text-sm flex items-center gap-1.5" disabled={busy === e.id || !moving.at || new Date(moving.at).getTime() <= new Date(e.dateISO).getTime()}>
+                {busy === e.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CalendarClock className="w-4 h-4" />}
+                {t("Move the show", "Undur acaranya")}
+              </Button.Ghost>
+            </form>
+          )}
         </div>
       ))}
     </div>

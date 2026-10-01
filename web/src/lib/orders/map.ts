@@ -92,7 +92,7 @@ export function orderFromRow(r: OrderRow): Order {
     eventEndedAtISO: r.event_ended_at ?? undefined,
     eventEndsAtISO: r.event_ends_at ?? undefined,
     autoReleased: r.auto_released || undefined,
-    autoRefundReason: r.auto_refund_reason === "EVENT_CANCELLED" ? "EVENT_CANCELLED" : undefined,
+    autoRefundReason: r.auto_refund_reason === "EVENT_CANCELLED" || r.auto_refund_reason === "EVENT_POSTPONED" ? r.auto_refund_reason : undefined,
     eventStatus: r.event_status,
     docsAccessed:
       r.docs_letter_at || r.docs_seller_id_at || r.docs_ticket_at

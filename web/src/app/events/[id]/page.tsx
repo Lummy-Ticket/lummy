@@ -143,6 +143,12 @@ export default function EventDetailPage() {
             <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-primary-navy" /> {formatEventDate(event.dateISO)}</span>
             <span className="flex items-center gap-2"><MapPin className="w-4 h-4 text-primary-navy" /> {event.venue}, {event.city}</span>
           </div>
+          {event.postponed && !over && (
+            <p data-event-postponed className="mt-3 inline-flex items-center gap-2 rounded-full bg-secondary-gold-soft px-3 py-1 text-xs font-medium text-secondary-brown-dark">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+              {t("Postponed by the organiser. The date above is the new one.", "Diundur penyelenggara. Tanggal di atas adalah jadwal barunya.")}
+            </p>
+          )}
 
           {over ? (
             <div className="mt-10 rounded-2xl bg-secondary-gray-soft p-6 text-center">

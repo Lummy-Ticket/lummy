@@ -27,6 +27,8 @@
     "tickets:flow": "tsx scripts/tickets-flow-check.ts",
     "cancel:check": "tsx scripts/cancel-check.ts",
     "evidence:check": "tsx scripts/evidence-check.ts",
+    "retention:check": "tsx scripts/retention-check.ts",
+    "postpone:check": "tsx scripts/postpone-check.ts",
     "motion:check": "node scripts/motion-check.mjs",
     "perf:probe": "node scripts/perf-probe.mjs"
   },

@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/common/Modal";
 import { EvidencePhoto } from "@/components/common/EvidencePhoto";
 import { isDemoEmail } from "@/lib/supabase/demo";
+import { TICKET_RETENTION_DAYS, isGone, ticketFileGoneAt } from "@/lib/retention";
 import { useAccessGuard, useHydrated } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters } from "@/lib/i18n";
@@ -21,7 +22,7 @@ import { EscrowStatusPill } from "@/components/common/EscrowStatusPill";
 import { EscrowSteps } from "@/components/common/EscrowSteps";
 import { EscrowTimeline } from "@/components/common/EscrowTimeline";
 import { PageContainer } from "@/components/layout/PageContainer";
-import {useOrders, useUser, explorerTx, explorerAddr, shortHash, phaseOf, msUntilRelease, disputeDeadlineISO, endedAtISO, checkEvidence, mockEvidenceOptions, DISPUTE_WINDOW_H, reasonMeta, availableReasons, reasonBlockedNote, canFileDispute, REMEDY_LABEL, windowMs, windowLabel, withChainSnapshot, type DisputeEvidence, type DisputeReason,
+import {useOrders, useUser, explorerTx, explorerAddr, shortHash, phaseOf, msUntilRelease, disputeDeadlineISO, endedAtISO, canRefundPostponed, checkEvidence, mockEvidenceOptions, DISPUTE_WINDOW_H, reasonMeta, availableReasons, reasonBlockedNote, canFileDispute, REMEDY_LABEL, windowMs, windowLabel, withChainSnapshot, type DisputeEvidence, type DisputeReason,
 } from "@/lib/mock";
 import { chainAction, chainWritable, useChainHistory, useChainInfo, useChainListing, usdcText } from "@/lib/chain/client";
 import { DEPLOYMENTS } from "@/lib/chain/deployments";
@@ -108,6 +109,8 @@ export default function OrderDetailPage() {
   const [showKtp, setShowKtp] = useState(false);
   const [ktpOpen, setKtpOpen] = useState(false);
   const [showProof, setShowProof] = useState(false);
+  // Taking the money back from a postponed show gives the ticket up, so it asks twice.
+  const [optingOut, setOptingOut] = useState(false);
 
   // Dispute form
   const [showDispute, setShowDispute] = useState(false);
@@ -230,6 +233,8 @@ export default function OrderDetailPage() {
   const onchain = order.chain;
   const canWrite = chainWritable(chainInfo);
   const filedReason = order.dispute ? reasonMeta(order.dispute.reason) : null;
+  // A paid-out order's ticket file is deleted a month after the show (lib/retention.ts).
+  const ticketGone = order.escrowStatus === "RELEASED" && !!order.eventEndsAtISO && isGone(ticketFileGoneAt(order.eventEndsAtISO), now);
   const filedCheck = order.dispute
     ? checkEvidence(order, order.dispute.reason, order.dispute.evidence, order.dispute.openedAtISO)
     : null;
@@ -314,6 +319,31 @@ export default function OrderDetailPage() {
     }
   };
 
+  // The show moved: the buyer may take the money back instead of keeping the ticket for the new date.
+  const refundMoved = async () => {
+    if (!optingOut) {
+      setOptingOut(true);
+      setTimeout(() => setOptingOut(false), 5000);
+      return;
+    }
+    setOptingOut(false);
+    if (!account) {
+      refundPostponed(order.id);
+      toast.success(t("Refunded. The escrow released it back to you.", "Dana dikembalikan. Escrow melepasnya balik ke kamu."));
+      return;
+    }
+    setActing(true);
+    try {
+      await orderAction(order.id, { action: "postponed-refund" });
+      await refreshOrder();
+      toast.success(t("Refunded, fee included. The escrow released it back to you.", "Dana dikembalikan, termasuk biaya layanan. Escrow melepasnya balik ke kamu."));
+    } catch (e) {
+      toast.error(`${t("Not refunded", "Gagal direfund")}: ${errText(e)}`);
+    } finally {
+      setActing(false);
+    }
+  };
+
   const watermark = `${user?.name ?? t("Buyer", "Pembeli")} · ${new Date().toLocaleDateString("en-GB")} · Lummy`;
 
   return (
@@ -355,6 +385,8 @@ export default function OrderDetailPage() {
               : t("Paid out to the seller after the arbiter reviewed the dispute.", "Cair ke penjual setelah arbiter meninjau sengketa."))}
             {phase === "REFUNDED" && (order.autoRefundReason === "EVENT_CANCELLED"
               ? t("Returned automatically when the organiser cancelled the show.", "Dikembalikan otomatis saat penyelenggara membatalkan acara.")
+              : order.autoRefundReason === "EVENT_POSTPONED"
+              ? t("Returned when you chose the money over the new date.", "Dikembalikan saat kamu memilih dana kembali, bukan tanggal baru.")
               : t("Returned to you after the arbiter reviewed the evidence.", "Dikembalikan ke kamu setelah arbiter meninjau bukti."))}
           </p>
 
@@ -378,22 +410,32 @@ export default function OrderDetailPage() {
             </div>
           )}
           {order.eventStatus === "postponed" && order.escrowStatus === "LOCKED" && (
-            <div className="mt-4 rounded-2xl bg-secondary-gold-soft p-4">
+            <div data-postponed className="mt-4 rounded-2xl bg-secondary-gold-soft p-4">
               <div className="text-sm font-medium text-secondary-brown-dark flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 shrink-0" /> {t("Event postponed", "Acara diundur")}
               </div>
+              {account && (
+                <div className="text-xs font-medium text-secondary-brown-dark mt-1">
+                  {t(`New date: ${formatEventDate(order.eventDateISO)}`, `Tanggal baru: ${formatEventDate(order.eventDateISO)}`)}
+                </div>
+              )}
               <p className="text-xs text-secondary-brown-dark/90 mt-1.5 leading-relaxed">
                 {t(
-                  "Your ticket stays valid for the new date and the escrow holds until then. If the new date does not work for you, take the money back instead. No arbiter needed either way.",
-                  "Tiketmu tetap berlaku untuk tanggal baru dan escrow menahan dananya sampai saat itu. Kalau tanggal barunya tidak cocok, ambil uangmu kembali. Dua-duanya tidak perlu arbiter."
+                  "Your ticket stays valid for the new date and the escrow holds until then. If the new date does not work for you, take the money back instead, fee included, until the show starts. No arbiter needed either way.",
+                  "Tiketmu tetap berlaku untuk tanggal baru dan escrow menahan dananya sampai saat itu. Kalau tanggal barunya tidak cocok, ambil uangmu kembali, termasuk biaya layanan, selama acaranya belum mulai. Dua-duanya tidak perlu arbiter."
                 )}
               </p>
-              {!account && (
+              {canRefundPostponed(order, now) && !(onchain && !account) && (
                 <button
-                  onClick={() => { refundPostponed(order.id); toast.success(t("Refunded. The escrow released it back to you.", "Dana dikembalikan. Escrow melepasnya balik ke kamu.")); }}
-                  className="mt-2.5 text-xs font-medium text-primary-navy hover:opacity-80 cursor-pointer"
+                  data-postponed-refund
+                  disabled={acting}
+                  onClick={() => void refundMoved()}
+                  className="mt-2.5 text-xs font-medium text-primary-navy hover:opacity-80 cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
                 >
-                  {t("New date does not work, refund me", "Tanggal baru gak cocok, kembalikan dana")}
+                  {acting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {optingOut
+                    ? t("Press again: the ticket goes back to the seller", "Tekan lagi: tiketnya kembali ke penjual")
+                    : t("New date does not work, refund me", "Tanggal baru gak cocok, kembalikan dana")}
                 </button>
               )}
             </div>
@@ -440,7 +482,7 @@ export default function OrderDetailPage() {
                     {filedCheck?.strength === "STRONG" ? "STRONG" : "WEAK"}
                   </span>
                 </div>
-                {account && order.dispute.evidence?.upload && <EvidencePhoto orderId={order.id} side="buyer" evidence={order.dispute.evidence} />}
+                {account && order.dispute.evidence?.upload && <EvidencePhoto orderId={order.id} side="buyer" evidence={order.dispute.evidence} decidedAtISO={order.dispute.verdict?.decidedAtISO} />}
                 {filedCheck?.checks.map((c) => <CheckRow key={c.label.en} ok={c.ok} unknown={c.unknown} label={t(c.label.en, c.label.id)} detail={t(c.detail.en, c.detail.id)} />)}
                 {(order.dispute.replies ?? []).map((r, i) => (
                   <div key={i} className="mt-3 pt-3 border-t border-dashed border-neutral-light-gray-1 text-xs">
@@ -454,7 +496,7 @@ export default function OrderDetailPage() {
                         <Paperclip className="w-3 h-3 shrink-0" /> {r.evidence.fileName}
                       </span>
                     )}
-                    {account && r.evidence?.upload && <EvidencePhoto orderId={order.id} side={r.fromSeller ? "seller" : "buyer"} evidence={r.evidence} />}
+                    {account && r.evidence?.upload && <EvidencePhoto orderId={order.id} side={r.fromSeller ? "seller" : "buyer"} evidence={r.evidence} decidedAtISO={order.dispute?.verdict?.decidedAtISO} />}
                   </div>
                 ))}
                 {order.dispute.verdict && (
@@ -675,12 +717,19 @@ export default function OrderDetailPage() {
             <h2 className="font-fredoka font-semibold text-lg text-neutral-black mb-3">{t("Handover documents", "Dokumen serah-terima")}</h2>
             {/* The ticket itself, the PDF the seller uploaded. Opening it is logged by the server. */}
             {account && order.ticketFile && (
-              order.escrowStatus === "REFUNDED" ? (
+              order.escrowStatus === "REFUNDED" || ticketGone ? (
                 <div data-ticket-file="closed" className="mb-3 w-full flex items-center gap-3 p-3 rounded-2xl border border-neutral-light-gray-1 bg-secondary-gray-soft/60">
                   <span className="w-10 h-10 rounded-xl bg-secondary-gray-soft text-neutral-gray grid place-items-center shrink-0"><Ticket className="w-5 h-5" /></span>
                   <div>
                     <div className="text-sm font-medium text-neutral-gray">{t("Your ticket (PDF)", "Tiketmu (PDF)")}</div>
-                    <div className="text-xs text-neutral-gray">{t("Closed: the order was refunded", "Ditutup: pesanan sudah direfund")}</div>
+                    <div className="text-xs text-neutral-gray">
+                      {order.escrowStatus === "REFUNDED"
+                        ? t("Closed: the order was refunded", "Ditutup: pesanan sudah direfund")
+                        : t(
+                            `Deleted ${TICKET_RETENTION_DAYS} days after the show, since it carried personal data`,
+                            `Dihapus ${TICKET_RETENTION_DAYS} hari setelah acara, karena memuat data pribadi`
+                          )}
+                    </div>
                   </div>
                 </div>
               ) : (

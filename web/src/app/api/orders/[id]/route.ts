@@ -1,17 +1,17 @@
 // What can happen to an account's order after it is paid: the buyer opening the handover
-// documents, filing a claim, either side answering it, staff ruling, and the payout once the
-// window has passed in silence. Every action is checked against the same escrow rules the pages
-// use (lib/mock/escrow.ts), on the server's clock. On a chain order the contract acts first and
-// the database mirrors what it did.
+// documents, filing a claim, either side answering it, staff ruling, the payout once the window
+// has passed in silence, and the buyer taking the money back from a postponed show. Every action
+// is checked against the same escrow rules the pages use (lib/mock/escrow.ts), on the server's
+// clock. On a chain order the contract acts first and the database mirrors what it did.
 import type { Hex } from "viem";
 import { NextResponse } from "next/server";
 import { chainError, operatorSetup, settle } from "@/lib/chain/server";
 import {
-  availableReasons, canFileDispute, checkEvidence, mockEvidenceOptions, mockSellerEvidence, partialAmount,
+  availableReasons, canFileDispute, canRefundPostponed, checkEvidence, mockEvidenceOptions, mockSellerEvidence, partialAmount,
   penaltyFor, remedyOptions, suggestedRationale,
 } from "@/lib/mock/escrow";
 import type { DisputeReason, Remedy } from "@/lib/mock/types";
-import { ORDER_SELECT, orderFromRow, type OrderRow } from "@/lib/orders/map";
+import { HELD, ORDER_SELECT, orderFromRow, type OrderRow } from "@/lib/orders/map";
 import { settleOrder } from "@/lib/orders/settle";
 import { EVIDENCE_TYPES, EvidenceError, MAX_EVIDENCE_BYTES } from "@/lib/evidence/read";
 import { EVIDENCE_KINDS, evidenceFromUpload, newEvidencePath, ownsEvidencePath, type Side } from "@/lib/evidence/server";
@@ -248,6 +248,37 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       // on the order may ask; the rule, not the caller, decides. The daily sweep asks the same.
       const r = await settleOrder(admin, row, now);
       return r.ok ? done(r.tx ?? {}) : fail(r.status, r.error);
+    }
+
+    case "postponed-refund": {
+      // The show moved after this was bought: the buyer keeps the ticket for the new date, or takes
+      // the money back, fee included, with no arbiter (docs/01, decision E). The seller is not
+      // penalised; the ticket stays theirs, though Lummy cannot sell it a second time (docs/09).
+      if (!buyer) return fail(403, "cuma pembeli yang bisa memilih refund");
+      if (!canRefundPostponed(order, now)) return fail(409, "refund karena acara diundur tidak tersedia untuk pesanan ini");
+      let tx: { tx: string; withdrawals: string[] } | null = null;
+      if (order.chain) {
+        const op = operatorSetup();
+        if (!op) return fail(503, "mode chain mati: kunci operator belum diset");
+        try {
+          tx = await settle(op, order.chain.listingId as Hex, "refund");
+        } catch (e) {
+          return fail(502, chainError(e));
+        }
+      }
+      const r = await admin
+        .from("orders")
+        .update({ escrow_status: "Refunded", auto_refund_reason: "EVENT_POSTPONED", ...(tx ? { tx_settle: tx.tx, tx_withdrawals: tx.withdrawals } : {}) })
+        .eq("id", id)
+        .in("escrow_status", HELD)
+        .eq("disputed", false)
+        .select("id");
+      if (r.error) return fail(500, r.error.message);
+      if (!r.data.length) {
+        if (tx) console.error("[orders] refunded on chain but the order had already changed:", id);
+        return fail(409, "pesanan ini baru saja berubah");
+      }
+      return done(tx ?? {});
     }
 
     default:

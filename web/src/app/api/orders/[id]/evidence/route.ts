@@ -1,9 +1,11 @@
 // A claim photo, for the two people the claim is between and the staff ruling on it: each side
 // sees what the other put forward. The bucket is private with no policies, so this is the only
-// way in, through a signed link that works for a minute.
+// way in, through a signed link that works for a minute. A month after the decision the photos are
+// deleted (lib/retention.ts), and from then on this says so.
 import { NextResponse } from "next/server";
 import { ownsEvidencePath, type Side } from "@/lib/evidence/server";
 import type { DisputeEvidence } from "@/lib/mock/types";
+import { EVIDENCE_RETENTION_DAYS, evidenceGoneAt, isGone } from "@/lib/retention";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { currentUser } from "@/lib/supabase/session";
 
@@ -13,11 +15,8 @@ export const runtime = "nodejs";
 const noStore = { "Cache-Control": "private, no-store" };
 const fail = (status: number, error: string) => NextResponse.json({ error }, { status, headers: noStore });
 
-type Row = {
-  buyer_id: string;
-  seller_id: string | null;
-  disputes: { evidence: unknown; dispute_replies: { from_seller: boolean; evidence: unknown }[] | null } | { evidence: unknown; dispute_replies: { from_seller: boolean; evidence: unknown }[] | null }[] | null;
-};
+type Claim = { evidence: unknown; decided_at: string | null; dispute_replies: { from_seller: boolean; evidence: unknown }[] | null };
+type Row = { buyer_id: string; seller_id: string | null; disputes: Claim | Claim[] | null };
 
 const pathOf = (v: unknown) => (v && typeof v === "object" ? (v as DisputeEvidence).upload?.path : undefined);
 
@@ -31,7 +30,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   const { data, error } = await admin
     .from("orders")
-    .select("buyer_id, seller_id, disputes(evidence, dispute_replies(from_seller, evidence))")
+    .select("buyer_id, seller_id, disputes(evidence, decided_at, dispute_replies(from_seller, evidence))")
     .eq("id", id)
     .maybeSingle();
   if (error) return fail(500, error.message);
@@ -45,6 +44,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       ? pathOf(dispute?.evidence) ?? pathOf((dispute?.dispute_replies ?? []).find((r) => !r.from_seller)?.evidence)
       : pathOf((dispute?.dispute_replies ?? []).find((r) => r.from_seller)?.evidence);
   if (!path || !ownsEvidencePath(path, id, side)) return fail(404, "tidak ada foto bukti dari pihak ini");
+  if (dispute?.decided_at && isGone(evidenceGoneAt(dispute.decided_at))) {
+    return fail(410, `foto bukti dihapus ${EVIDENCE_RETENTION_DAYS} hari setelah klaim diputus, karena memuat data pribadi`);
+  }
 
   const signed = await admin.storage.from("evidence").createSignedUrl(path, 60);
   if (signed.error || !signed.data) return fail(500, signed.error?.message ?? "link foto gagal dibuat");

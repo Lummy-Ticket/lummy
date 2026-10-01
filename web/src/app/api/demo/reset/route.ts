@@ -12,7 +12,7 @@ import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { chainError, chainTarget, operatorSetup, readListing, settle } from "@/lib/chain/server";
 import { demoKeyAllowed, demoMode } from "@/lib/demo-key";
-import { SEED_LISTINGS, seedEvents } from "@/lib/mock/seed";
+import { ROLLING_HOUR, SEED_LISTINGS, seedEvents } from "@/lib/mock/seed";
 import { seedOrders } from "@/lib/mock/seed-orders";
 import { SAMPLE_SIGNALS, publicSellerName } from "@/lib/listings/rules";
 import { HELD, rowsFromOrder } from "@/lib/orders/map";
@@ -25,7 +25,11 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const noStore = { "Cache-Control": "private, no-store" };
-const fail = (status: number, error: string) => NextResponse.json({ error }, { status, headers: noStore });
+const fail = (status: number, error: string) => {
+  // A reset that breaks halfway leaves the demo accounts empty, so the reason has to reach the log.
+  if (status >= 500) console.error("[demo reset] failed:", error);
+  return NextResponse.json({ error }, { status, headers: noStore });
+};
 
 /** Stable ids, so a presenter's links keep working across resets. */
 const demoOrderId = (seedId: string) => seedId.replace("or-seed-", "or-demo-");
@@ -89,10 +93,17 @@ export async function POST(req: Request) {
     if (removeError) return fail(500, removeError.message);
 
     // Every seed listing on sale again, with the seats it started with and no clearance from a
-    // rehearsal, and every seed show that a rehearsal cancelled is back on.
+    // rehearsal, and every seed show that a rehearsal cancelled or moved is back on, on its date.
     const restored = await Promise.all([
       ...SEED_LISTINGS.map((l) => admin.from("listings").update({ quantity: l.quantity, status: l.status, cleared_at: null }).eq("id", l.id).select("id")),
-      admin.from("events").update({ status: "scheduled" }).in("id", seedEvents(Date.now()).map((e) => e.id)).eq("status", "cancelled").select("id"),
+      ...seedEvents(Date.now()).map((e) =>
+        admin
+          .from("events")
+          .update({ status: "scheduled", starts_at: e.dateISO, rolling_hour: ROLLING_HOUR[e.id] ?? null })
+          .eq("id", e.id)
+          .neq("status", "scheduled")
+          .select("id")
+      ),
     ]);
     const restoreError = restored.find((r) => r.error)?.error;
     if (restoreError) return fail(500, restoreError.message);
@@ -168,7 +179,7 @@ export async function POST(req: Request) {
 
     revalidateTag("catalogue", { expire: 0 });
     return NextResponse.json(
-      { ok: true, orders: rows.length, listings: restored.filter((r) => r.data?.length).length, escrowsClosed: closed, escrowsKept: kept.length },
+      { ok: true, orders: rows.length, listings: restored.slice(0, SEED_LISTINGS.length).filter((r) => r.data?.length).length, escrowsClosed: closed, escrowsKept: kept.length },
       { headers: noStore }
     );
   } catch (e) {

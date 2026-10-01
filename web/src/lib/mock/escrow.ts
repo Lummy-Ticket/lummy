@@ -100,6 +100,15 @@ export function canFileDispute(o: Order, now: number = Date.now()) {
   return phase === "PRE_EVENT" || phase === "WINDOW_OPEN";
 }
 
+/**
+ * The organiser moved the show after this order was bought. Until the new date starts the buyer may
+ * take the money back instead of keeping the ticket, with no arbiter (docs/01), fee included
+ * (decision E). An order bought after the move knew the new date, so it is not "postponed".
+ */
+export function canRefundPostponed(o: Order, now: number = Date.now()) {
+  return o.eventStatus === "postponed" && o.escrowStatus === "LOCKED" && !endedAtISO(o, now) && now < new Date(o.eventDateISO).getTime();
+}
+
 /** Listed so close to doors that it needs a human before it goes live. */
 export const isLateListing = (eventISO: string, now: number = Date.now()) =>
   new Date(eventISO).getTime() - now <= LATE_LISTING_H * H;

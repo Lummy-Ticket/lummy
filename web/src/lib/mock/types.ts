@@ -51,6 +51,8 @@ export interface EventItem {
   featured?: boolean;
   soldOut?: boolean;
   transferPolicy?: TransferPolicy | null;
+  /** The organiser moved it; dateISO is the new date. */
+  postponed?: boolean;
 }
 
 export type ListingStatus = "active" | "sold";
@@ -241,8 +243,11 @@ export interface Order {
   sellerId?: string;
   /** True when the window elapsed in silence and the contract paid out by itself. */
   autoReleased?: boolean;
-  /** Set when the escrow refunded without anyone filing, e.g. a cancelled show. */
-  autoRefundReason?: "EVENT_CANCELLED";
+  /**
+   * Set when the escrow refunded without a claim: the organiser cancelled the show, or postponed it
+   * and the buyer chose the money over the new date.
+   */
+  autoRefundReason?: "EVENT_CANCELLED" | "EVENT_POSTPONED";
   /** Organiser state for this order's event, snapshotted at purchase. */
   eventStatus?: EventStatus;
   /**

@@ -14,6 +14,7 @@ type State = "done" | "now" | "next";
 export function EscrowSteps({ order, phase, windowText }: { order: Order; phase: EscrowPhase; windowText: string }) {
   const t = useT();
   const cancelled = order.autoRefundReason === "EVENT_CANCELLED";
+  const movedOut = order.autoRefundReason === "EVENT_POSTPONED";
   const refunded = phase === "REFUNDED";
   const settled = phase === "RELEASED" || refunded;
 
@@ -33,6 +34,8 @@ export function EscrowSteps({ order, phase, windowText }: { order: Order; phase:
     { Icon: Lock, label: t("In escrow", "Di escrow"), sub: t("until the show ends", "sampai acara selesai") },
     cancelled
       ? { Icon: Flag, label: t("Show cancelled", "Acara batal"), sub: t("by the organiser", "oleh penyelenggara") }
+      : movedOut
+      ? { Icon: Flag, label: t("Show postponed", "Acara diundur"), sub: t("you chose the money", "kamu pilih dana kembali") }
       : phase === "IN_REVIEW"
       ? { Icon: Flag, label: t("Claim filed", "Klaim diajukan"), sub: t("an arbiter decides", "arbiter memutus") }
       : {

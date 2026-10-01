@@ -1,24 +1,38 @@
-// Staff record that the organiser cancelled a show. Its tickets stop selling, and every order still
-// held in escrow is refunded in full, the fee too: a cancellation is no one's fault, so the
-// platform carries it (docs/09, decision E) and no seller is penalised. On a chain order the
-// contract refunds first and the database records it. Safe to press again: a run that reaches its
-// time budget leaves the rest for the next one, and finished orders are never touched twice.
+// Staff record what an organiser did to a show.
+//   cancel: its tickets stop selling, and every order still held in escrow is refunded in full, the
+//     fee too: a cancellation is no one's fault, so the platform carries it (docs/09, decision E)
+//     and no seller is penalised.
+//   postpone: the show moves to a later date, never an earlier one. Its listings keep selling for
+//     the new date, and every order still held moves with it, so its window opens after the new
+//     show; its buyer may keep the ticket or take the money back (docs/01).
+// On a chain order the contract acts first and the database records it. Both are safe to press
+// again: a run that reaches its time budget leaves the rest for the next one, and finished orders
+// are never touched twice.
 import type { Hex } from "viem";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
-import { chainError, operatorSetup, settle } from "@/lib/chain/server";
+import { chainError, operatorSetup, postpone, settle } from "@/lib/chain/server";
+import { DISPUTE_WINDOW_H, EVENT_DURATION_H } from "@/lib/mock/escrow";
 import { HELD, ORDER_SELECT, orderFromRow, type OrderRow } from "@/lib/orders/map";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { currentUser } from "@/lib/supabase/session";
+import type { Database } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-/** Chain refunds go one by one through the operator, so a run stops before the function would. */
+/** Chain writes go one by one through the operator, so a run stops before the function would. */
 const BUDGET_MS = 45_000;
+const H = 3_600_000;
+/** Far enough for any real reschedule, not a typo's century. */
+const MAX_AHEAD_MS = 2 * 365 * 24 * H;
 const noStore = { "Cache-Control": "private, no-store" };
 const fail = (status: number, error: string) => NextResponse.json({ error }, { status, headers: noStore });
+const iso = (ms: number) => new Date(ms).toISOString();
+
+type Admin = SupabaseClient<Database>;
 
 const RATIONALE = {
   en: "The organiser cancelled the show, so the order was refunded in full without a ruling. The seller is not penalised.",
@@ -31,13 +45,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!admin) return fail(503, "database belum tersambung di server ini");
   const user = await currentUser();
   if (!user) return fail(401, "masuk dulu");
-  if (!user.staff) return fail(403, "cuma staf yang bisa membatalkan acara");
+  if (!user.staff) return fail(403, "cuma staf yang bisa mencatat perubahan acara");
   if (!/^[\w-]{1,64}$/.test(id)) return fail(404, "acara tidak ditemukan");
-  const { action } = ((await req.json().catch(() => null)) ?? {}) as { action?: unknown };
-  if (action !== "cancel") return fail(400, "aksi tidak dikenal");
+  const body = ((await req.json().catch(() => null)) ?? {}) as { action?: unknown; startsAt?: unknown };
+  if (body.action === "cancel") return cancel(admin, id, user.id);
+  if (body.action === "postpone") return postponeShow(admin, id, body.startsAt);
+  return fail(400, "aksi tidak dikenal");
+}
 
+async function cancel(admin: Admin, id: string, staffId: string) {
   const started = Date.now();
-  const at = new Date(started).toISOString();
+  const at = iso(started);
   const { data: event, error } = await admin.from("events").select("id, status").eq("id", id).maybeSingle();
   if (error) return fail(500, error.message);
   if (!event) return fail(404, "acara tidak ditemukan");
@@ -117,7 +135,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           rationale_en: RATIONALE.en,
           rationale_id: RATIONALE.id,
           decided_at: at,
-          decided_by: user.id,
+          decided_by: staffId,
         })
         .eq("order_id", row.id)
         .is("decided_at", null);
@@ -128,6 +146,88 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   revalidateTag("catalogue", { expire: 0 });
   return NextResponse.json(
     { ok: true, listingsClosed: open.data.length, refunded, failed: failures.length, remaining, errors: failures.slice(0, 3) },
+    { headers: noStore }
+  );
+}
+
+async function postponeShow(admin: Admin, id: string, startsAtRaw: unknown) {
+  const started = Date.now();
+  const startsAt = typeof startsAtRaw === "string" ? Date.parse(startsAtRaw) : NaN;
+  if (!Number.isFinite(startsAt)) return fail(400, "tanggal barunya tidak terbaca");
+  // The catalogue's date, which is the one a rolling demo show is sold at.
+  const { data: event, error } = await admin.from("catalogue_events").select("starts_at, status").eq("id", id).maybeSingle();
+  if (error) return fail(500, error.message);
+  if (!event?.starts_at) return fail(404, "acara tidak ditemukan");
+  if (event.status === "cancelled") return fail(409, "acara ini sudah dibatalkan");
+  const current = new Date(event.starts_at).getTime();
+  // Later only, as the contract holds, so a postponed show never pays out sooner. The same date
+  // again finishes a run that stopped at its budget.
+  const finishing = event.status === "postponed" && startsAt === current;
+  if (!finishing && startsAt <= current) return fail(400, "jadwal cuma bisa dimundurkan, tidak dimajukan");
+  if (startsAt <= started) return fail(400, "tanggal barunya sudah lewat");
+  if (startsAt > started + MAX_AHEAD_MS) return fail(400, "tanggal barunya terlalu jauh");
+  if (!finishing) {
+    const r = await admin.from("events").update({ status: "postponed", starts_at: iso(startsAt), rolling_hour: null }).eq("id", id);
+    if (r.error) return fail(500, r.error.message);
+  }
+
+  // Every order still holding money moves with the show. One bought after an earlier move knew the
+  // date it bought, so it moves only when the show moves past it again.
+  const held = await admin.from("orders").select(ORDER_SELECT).eq("event_id", id).in("escrow_status", HELD);
+  if (held.error) return fail(500, held.error.message);
+  const rows = (held.data ?? []) as unknown as OrderRow[];
+  const endsAt = startsAt + EVENT_DURATION_H * H;
+  let moved = 0;
+  let remaining = 0;
+  const failures: string[] = [];
+  for (const row of rows) {
+    if (Date.now() - started > BUDGET_MS) {
+      remaining++;
+      continue;
+    }
+    const order = orderFromRow(row);
+    // The contract keeps whole seconds.
+    const end = order.chain ? Math.floor(endsAt / 1000) * 1000 : endsAt;
+    if (row.event_ends_at && new Date(row.event_ends_at).getTime() >= end) continue;
+    let deadline: number;
+    if (order.chain) {
+      const op = operatorSetup();
+      if (!op) {
+        failures.push("mode chain mati: kunci operator belum diset");
+        continue;
+      }
+      try {
+        deadline = (await postpone(op, order.chain.listingId as Hex, end / 1000)).deadline * 1000;
+      } catch (e) {
+        // The contract refuses once the window has closed in silence: that order pays out as it stands.
+        failures.push(chainError(e));
+        continue;
+      }
+    } else {
+      // The contract's rule (decision G): a window that closed in silence is not reopened.
+      if (!row.disputed && row.dispute_deadline && Date.now() > new Date(row.dispute_deadline).getTime()) {
+        failures.push("WindowClosed");
+        continue;
+      }
+      deadline = end + DISPUTE_WINDOW_H * H;
+    }
+    const r = await admin
+      .from("orders")
+      .update({ event_date: iso(startsAt), event_ends_at: iso(end), dispute_deadline: iso(deadline), event_status: "postponed" })
+      .eq("id", row.id)
+      .in("escrow_status", HELD)
+      .select("id");
+    if (r.error) {
+      failures.push(r.error.message);
+      continue;
+    }
+    if (r.data.length) moved++;
+  }
+  if (failures.length) console.error(`[events] ${id} postponed; orders that did not move:`, failures);
+
+  revalidateTag("catalogue", { expire: 0 });
+  return NextResponse.json(
+    { ok: true, startsAt: iso(startsAt), moved, failed: failures.length, remaining, errors: failures.slice(0, 3) },
     { headers: noStore }
   );
 }

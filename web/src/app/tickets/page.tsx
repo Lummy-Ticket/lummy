@@ -41,6 +41,8 @@ export default function TicketsPage() {
           urgent: false, Icon: RotateCcw,
           text: o.autoRefundReason === "EVENT_CANCELLED"
             ? t("Event cancelled, money returned", "Acara dibatalkan, dana kembali")
+            : o.autoRefundReason === "EVENT_POSTPONED"
+            ? t("Event postponed, money returned", "Acara diundur, dana kembali")
             : t("Money returned to you", "Dana kembali ke kamu"),
         };
       default:

@@ -1,8 +1,11 @@
 // The ticket itself, handed to the buyer: the PDF the seller uploaded, behind a signed link that
 // works for a minute. The buyer's first download is logged like the other handover documents,
 // since it is what answers a "never handed over" claim. Staff may open it to rule on a claim;
-// their opening is not the buyer's. A refunded order has given the ticket back, so it is closed.
+// their opening is not the buyer's. A refunded order has given the ticket back, so it is closed, and
+// a month after the show the file is deleted (lib/retention.ts), so it is closed from then on too.
 import { NextResponse } from "next/server";
+import { HELD } from "@/lib/orders/map";
+import { TICKET_RETENTION_DAYS, isGone, ticketFileGoneAt } from "@/lib/retention";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { currentUser } from "@/lib/supabase/session";
 
@@ -22,7 +25,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const { data: order, error } = await admin
     .from("orders")
-    .select("buyer_id, listing_id, ticket_file, escrow_status, docs_ticket_at")
+    .select("buyer_id, listing_id, ticket_file, escrow_status, docs_ticket_at, event_ends_at")
     .eq("id", id)
     .maybeSingle();
   if (error) return fail(500, error.message);
@@ -32,6 +35,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!order.ticket_file || !order.listing_id) return fail(404, "pesanan ini tidak punya file tiket");
   if (order.escrow_status === "Refunded" || order.escrow_status === "Cancelled") {
     return fail(410, "pesanan ini sudah direfund, jadi file tiketnya ditutup");
+  }
+  // While the order still holds money (an open claim does) the file stays, as the daily job keeps it.
+  if (!HELD.includes(order.escrow_status) && order.event_ends_at && isGone(ticketFileGoneAt(order.event_ends_at))) {
+    return fail(410, `file tiket dihapus ${TICKET_RETENTION_DAYS} hari setelah acara, karena memuat data pribadi`);
   }
 
   const { data: listing, error: listingError } = await admin.from("listings").select("ticket_path").eq("id", order.listing_id).maybeSingle();

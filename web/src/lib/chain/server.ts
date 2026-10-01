@@ -188,6 +188,24 @@ export async function settle(op: Operator, id: Hex, action: SettleAction, toBuye
   });
 }
 
+/**
+ * Acara diundur: jadwal selesai listing di chain dimundurkan. Kontrak menolak memajukan dan menolak
+ * setelah window tutup (keputusan G). Jadwal yang sudah sejauh itu tidak dikirim lagi, jadi menekan
+ * ulang aman. Hasilnya batas window baru menurut kontrak.
+ */
+export async function postpone(op: Operator, id: Hex, newEventEndsAt: number) {
+  return serial(async () => {
+    const pc = publicClient(op.chain, op.rpcUrl);
+    const L = await getListing(pc, op.escrow, id);
+    let tx: Hex | null = null;
+    if (L.eventEndsAt < newEventEndsAt) {
+      tx = (await escrowAs(pc, op.operator, op.chain, op.rpcUrl, op.escrow).postponeEvent(id, newEventEndsAt)).hash;
+    }
+    const live = await readListing(op, id);
+    return { tx, deadline: live.deadline };
+  });
+}
+
 /** Nama error kontrak kalau ada (mis. "WindowClosed"), selain itu pesan singkat viem. */
 export function chainError(e: unknown): string {
   type Err = { shortMessage?: string; message?: string; walk?: (fn: (x: unknown) => boolean) => unknown };
