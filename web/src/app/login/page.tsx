@@ -7,6 +7,7 @@ import { AlertTriangle, Loader2, Mail, MailCheck } from "lucide-react";
 import type { AuthError } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
+import Link from "next/link";
 import { useUser, type Role } from "@/lib/mock";
 import { useT } from "@/lib/i18n";
 import { supabaseBrowser } from "@/lib/supabase/browser";
@@ -125,6 +126,12 @@ function LoginInner() {
                 {sending && <Loader2 className="w-4 h-4 animate-spin" />}
                 {t("Email me a sign-in link", "Kirim link masuk ke email")}
               </Button.Primary>
+              <p className="text-[11px] text-neutral-gray text-center mt-3 leading-relaxed">
+                {t("By signing in you agree to the ", "Dengan masuk, kamu setuju dengan ")}
+                <Link href="/terms" className="text-primary-navy">{t("terms", "syarat dan ketentuan")}</Link>
+                {t(" and the ", " dan ")}
+                <Link href="/privacy" className="text-primary-navy">{t("privacy policy", "kebijakan privasi")}</Link>.
+              </p>
             </form>
           ))}
 

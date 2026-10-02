@@ -3,8 +3,11 @@
 //      nobody opens the order (lib/orders/settle.ts).
 //   2. Deletes files whose time is up: ticket PDFs a month after the show, claim photos a month
 //      after the decision, uploads never attached after a week (lib/retention.ts).
-// It needs no secret: it can only do what the escrow rules and the retention rules already say, the
-// same as the pages asking, and what it finishes is not due the next time. Counts only in the answer.
+// It can only do what the escrow rules and the retention rules already say, the same as the pages
+// asking, and what it finishes is not due the next time. Still, a stranger calling it over and over
+// would load the database, so when CRON_SECRET is set (Vercel sends it as a bearer token on every
+// cron run) anything without it is turned away. Counts only in the answer.
+import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { settleDue } from "@/lib/orders/settle";
 import { purgeExpired } from "@/lib/retention-purge";
@@ -16,7 +19,17 @@ export const maxDuration = 60;
 
 const noStore = { "Cache-Control": "no-store" };
 
-export async function GET() {
+/** Without CRON_SECRET the route stays open, as before; with it, only Vercel Cron gets in. */
+function fromCron(req: Request) {
+  const secret = process.env.CRON_SECRET?.trim();
+  if (!secret) return true;
+  const sent = Buffer.from(req.headers.get("authorization") ?? "");
+  const expected = Buffer.from(`Bearer ${secret}`);
+  return sent.length === expected.length && timingSafeEqual(sent, expected);
+}
+
+export async function GET(req: Request) {
+  if (!fromCron(req)) return NextResponse.json({ error: "cuma Vercel Cron" }, { status: 401, headers: noStore });
   const admin = supabaseAdmin();
   if (!admin) return NextResponse.json({ error: "database belum tersambung di server ini" }, { status: 503, headers: noStore });
   let settle: Awaited<ReturnType<typeof settleDue>> | { error: string };

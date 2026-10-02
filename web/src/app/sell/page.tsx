@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import toast from "react-hot-toast";
 import {
   UploadCloud, FileText, ScanLine, CheckCircle2, AlertTriangle, Loader2, ArrowRight, ArrowLeft, Sparkles, ShieldCheck, ChevronDown, Minus, Plus, IdCard, Lock,
@@ -64,6 +65,9 @@ export default function SellPage() {
   const realUpload = account && reader === true;
   const [ticketFile, setTicketFile] = useState<File | null>(null);
   const [check, setCheck] = useState<TicketCheck | null>(null);
+  // A real ticket carries someone's name and maybe their ID number, so publishing it asks first.
+  const [agreed, setAgreed] = useState(false);
+  const sendsRealFile = !!(check && ticketFile);
   const catalogue = useCatalogue();
   const [fileName, setFileName] = useState<string | null>(null);
   // The real check is the default once it is offered; picking a sample ticket switches to the demo.
@@ -173,7 +177,7 @@ export default function SellPage() {
   };
 
   const publish = () => {
-    if (!event || !tier || blocked || ktpMissing || closed) return;
+    if (!event || !tier || blocked || ktpMissing || closed || (sendsRealFile && !agreed)) return;
     if (account) return void publishAccount();
     addListing({
       eventId: event.id, eventTitle: event.title, tierName: tier.name,
@@ -596,9 +600,21 @@ export default function SellPage() {
             </div>
           )}
 
+          {sendsRealFile && (
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input data-consent type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 accent-[#3A6CB4] cursor-pointer" />
+              <span className="text-xs text-neutral-gray leading-relaxed">
+                {t("This ticket is mine to sell. I agree that the PDF, with the names and numbers on it, is stored and handed to the buyer as described in the ", "Tiket ini berhak saya jual. Saya setuju PDF-nya, dengan nama dan nomor di dalamnya, disimpan dan diberikan ke pembeli seperti dijelaskan di ")}
+                <Link href="/privacy" target="_blank" className="text-primary-navy font-medium">{t("privacy policy", "kebijakan privasi")}</Link>
+                {t(" and the ", " dan ")}
+                <Link href="/terms" target="_blank" className="text-primary-navy font-medium">{t("terms", "syarat dan ketentuan")}</Link>.
+              </span>
+            </label>
+          )}
+
           <div className="flex gap-3">
             <Button.Ghost onClick={() => setStep(1)}><ArrowLeft className="w-4 h-4" /> {t("Back", "Kembali")}</Button.Ghost>
-            <Button.Primary disabled={blocked || ktpMissing || publishing || closed} onClick={publish}>
+            <Button.Primary disabled={blocked || ktpMissing || publishing || closed || (sendsRealFile && !agreed)} onClick={publish}>
               {blocked ? t("Blocked (duplicate)", "Diblokir (duplikat)") : flagged || late ? t("Submit for review", "Ajukan untuk review") : t("Publish listing", "Publish listing")}
             </Button.Primary>
           </div>

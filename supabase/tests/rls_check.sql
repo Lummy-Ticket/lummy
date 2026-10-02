@@ -42,7 +42,8 @@ end $$;
 select pg_temp.probe('anon', null, 'anon: catalogue has 7 events', 'select count(*)::text from public.catalogue_events', '7');
 select pg_temp.probe('anon', null, 'anon: WTF is tomorrow 14:00 WIB', $q$select (starts_at = ((((now() at time zone 'Asia/Jakarta')::date + 1) + time '14:00') at time zone 'Asia/Jakarta'))::text from public.catalogue_events where id = 'ev-wtf'$q$, 'true');
 select pg_temp.probe('anon', null, 'anon: Coldplay from 1,400,000 with 4 buyable', $q$select from_price || '/' || listing_count from public.catalogue_events where id = 'ev-coldplay'$q$, '1400000/4');
-select pg_temp.probe('anon', null, 'anon: sees 17 live listings, not the review one', 'select count(*)::text from public.listings', '17');
+-- Counted by status, not in total: real listings come and go, so a fixed total breaks.
+select pg_temp.probe('anon', null, 'anon: sees live listings only, not the review one', $q$select (count(*) filter (where status <> 'active' or id = 'ls-review'))::text from public.listings$q$, '0');
 select pg_temp.probe('anon', null, 'anon: ticket_path column', 'select ticket_path from public.listings limit 1', 'DENIED');
 select pg_temp.probe('anon', null, 'anon: orders', 'select count(*)::text from public.orders', 'DENIED');
 select pg_temp.probe('anon', null, 'anon: profiles', 'select count(*)::text from public.profiles', 'DENIED');

@@ -50,7 +50,11 @@ async function checked(page: Page, name: string, bytes: Uint8Array) {
 async function publish(page: Page, name: string, bytes: Uint8Array) {
   await checked(page, name, bytes);
   await page.getByRole("button", { name: "Continue to price" }).click();
-  await page.getByRole("button", { name: /^(Publish listing|Submit for review)$/ }).click();
+  // A real ticket asks for consent first: the button stays off until the box is ticked.
+  const button = page.getByRole("button", { name: /^(Publish listing|Submit for review)$/ });
+  check(`${name}: publish waits for consent`, await button.isDisabled());
+  await page.locator("[data-consent]").check();
+  await button.click();
   await page.waitForURL((u) => u.pathname === "/seller", { timeout: 60000 });
 }
 

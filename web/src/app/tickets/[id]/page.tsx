@@ -1038,6 +1038,13 @@ export default function OrderDetailPage() {
                       "I declare I was refused entry and did not attend. A false claim means a permanent ban and liability for the seller's loss.",
                       "Saya menyatakan ditolak masuk dan tidak menghadiri acara. Klaim palsu berarti akun diblokir permanen dan menanggung kerugian penjual."
                     )}
+                {evidence?.upload && (
+                  <>
+                    {" "}
+                    {t("I agree that my photo, with when and where it was taken, is shown to the seller and staff and kept as described in the ", "Saya setuju foto saya, dengan waktu dan lokasi pengambilannya, ditunjukkan ke penjual dan staf dan disimpan seperti dijelaskan di ")}
+                    <Link href="/privacy" target="_blank" className="text-primary-navy font-medium">{t("privacy policy", "kebijakan privasi")}</Link>.
+                  </>
+                )}
               </span>
             </label>
           </>

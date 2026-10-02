@@ -191,6 +191,10 @@ function ClaimsAgainstYou({
                         </span>
                       </button>
                       {file?.upload && <EvidencePhoto orderId={o.id} side="seller" evidence={file} link={false} />}
+                      <span className="text-[11px] text-neutral-gray">
+                        {t("Your photo, with when and where it was taken, is shown to the buyer and staff. ", "Fotomu, dengan waktu dan lokasi pengambilannya, ditunjukkan ke pembeli dan staf. ")}
+                        <Link href="/privacy" target="_blank" className="text-primary-navy">{t("Privacy policy", "Kebijakan privasi")}</Link>
+                      </span>
                     </>
                   )}
                   {sampleFiles && mockSellerEvidence(o).map((ev) => (

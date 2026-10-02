@@ -139,7 +139,8 @@ export async function POST(req: Request) {
       event_id: eventId,
       tier_id: tierId,
       seller_id: user.id,
-      seller_name: publicSellerName(user.name),
+      // Never the email: an account without a name of its own is shown as "Lummy seller".
+      seller_name: publicSellerName(user.fullName),
       ask_price: askPrice,
       face_value: faceValue,
       quantity,
