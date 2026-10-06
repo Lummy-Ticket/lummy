@@ -39,9 +39,27 @@ begin
   insert into t_out(line) values ((case when got = p_expect then 'ok    ' else 'FAIL  ' end) || p_label || ' -> ' || got || case when got = p_expect then '' else ' (expected ' || p_expect || ')' end);
 end $$;
 
-select pg_temp.probe('anon', null, 'anon: catalogue has 7 events', 'select count(*)::text from public.catalogue_events', '7');
+-- Real shows get added next to the 7 seed ones, so the seed is a floor, not a total.
+select pg_temp.probe('anon', null, 'anon: reads the catalogue, at least the 7 seed events', 'select (count(*) >= 7)::text from public.catalogue_events', 'true');
 select pg_temp.probe('anon', null, 'anon: WTF is tomorrow 14:00 WIB', $q$select (starts_at = ((((now() at time zone 'Asia/Jakarta')::date + 1) + time '14:00') at time zone 'Asia/Jakarta'))::text from public.catalogue_events where id = 'ev-wtf'$q$, 'true');
-select pg_temp.probe('anon', null, 'anon: Coldplay from 1,400,000 with 4 buyable', $q$select from_price || '/' || listing_count from public.catalogue_events where id = 'ev-coldplay'$q$, '1400000/4');
+-- The catalogue's price and count follow the buyable rule for every show, whatever is listed,
+-- and the seed's edited and duplicate listings (still on sale, still flagged) are left out.
+select pg_temp.probe('anon', null, 'anon: catalogue counts only buyable listings, flagged ones left out', $q$
+  with buyable as (
+    select event_id, min(ask_price) as low, count(*) as n from public.listings
+    where status = 'active' and not barcode_duplicate and (cleared_at is not null or (not pdf_suspicious and forgery_score < 60))
+    group by event_id
+  )
+  select (
+    not exists (
+      select 1 from public.catalogue_events c left join buyable b on b.event_id = c.id
+      where c.listing_count <> coalesce(b.n, 0) or c.from_price <> coalesce(b.low, 0)
+    )
+    and exists (
+      select 1 from public.listings
+      where status = 'active' and cleared_at is null and (barcode_duplicate or pdf_suspicious or forgery_score >= 60)
+    )
+  )::text$q$, 'true');
 -- Counted by status, not in total: real listings come and go, so a fixed total breaks.
 select pg_temp.probe('anon', null, 'anon: sees live listings only, not the review one', $q$select (count(*) filter (where status <> 'active' or id = 'ls-review'))::text from public.listings$q$, '0');
 select pg_temp.probe('anon', null, 'anon: ticket_path column', 'select ticket_path from public.listings limit 1', 'DENIED');
