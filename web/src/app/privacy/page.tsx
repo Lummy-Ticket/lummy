@@ -60,7 +60,7 @@ const sections: LegalSection[] = [
     list: [
       { en: "Supabase: the database and private file storage, in Singapore.", id: "Supabase: database dan penyimpanan file privat, di Singapura." },
       { en: "Vercel: the servers that run the site, in Singapore.", id: "Vercel: server yang menjalankan situs, di Singapura." },
-      { en: "Mailspace: sends the sign-in email.", id: "Mailspace: mengirim email untuk masuk." },
+      { en: `Mailspace: sends the sign-in email and holds our team inbox (${CONTACT_EMAIL}), where your messages to us arrive.`, id: `Mailspace: mengirim email untuk masuk dan menyimpan kotak masuk tim (${CONTACT_EMAIL}), tempat pesanmu ke kami masuk.` },
       { en: "Arbitrum (a public blockchain): the escrow ledger described above.", id: "Arbitrum (blockchain publik): buku besar escrow seperti di atas." },
       { en: "Before we turn on reading ticket details automatically with Google Gemini, or paying with QRIS through Xendit, this page will say so first.", id: "Sebelum kami menyalakan pembacaan data tiket otomatis dengan Google Gemini, atau pembayaran QRIS lewat Xendit, halaman ini akan menyebutnya lebih dulu." },
     ],
@@ -108,7 +108,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage
       title={{ en: "Privacy policy", id: "Kebijakan privasi" }}
-      effective={{ en: "2 Oct 2026", id: "2 Okt 2026" }}
+      effective={{ en: "7 Oct 2026", id: "7 Okt 2026" }}
       intro={{
         en: "What Lummy Ticket keeps about you, why, who can see it, and when it is deleted. Written to match what the app actually does.",
         id: "Apa yang disimpan Lummy Ticket tentang kamu, untuk apa, siapa yang bisa melihatnya, dan kapan dihapus. Ditulis sesuai yang benar-benar dilakukan aplikasinya.",

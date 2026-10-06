@@ -13,7 +13,7 @@ export const CONTROLLER: Bi = {
   en: "Tim Lummy Ticket (Zahra Sasongko, Luthfi Hadi and Joanita Timbin Panggalo), the founding team running this prototype. There is no company yet; this page will name it once there is.",
   id: "Tim Lummy Ticket (Zahra Sasongko, Luthfi Hadi, dan Joanita Timbin Panggalo), tim pendiri yang menjalankan prototipe ini. Badan usahanya belum ada; halaman ini akan menyebutnya begitu berdiri.",
 };
-export const CONTACT_EMAIL = "lummyticket@gmail.com";
+export const CONTACT_EMAIL = "team@lummy.id";
 
 export function LegalPage({ title, effective, intro, sections }: { title: Bi; effective: Bi; intro: Bi; sections: LegalSection[] }) {
   const t = useT();
