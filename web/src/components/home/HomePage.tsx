@@ -100,12 +100,14 @@ export default function HomePage() {
 
       <section className="max-w-7xl mx-auto px-5 lg:px-10 mt-16">
         <SectionHead title={t("Popular right now", "Lagi banyak dicari")} href="/events" />
-        {/* A swipeable row on phones, a grid from tablet up */}
-        <div data-reveal="stagger" className="flex gap-4 overflow-x-auto snap-x snap-mandatory -mx-5 px-5 pt-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:gap-5 sm:mx-0 sm:px-0 sm:overflow-visible">
+        {/* A swipeable row on phones and tablets, a grid of three on desktop. The scroll padding keeps a
+            snapped card on the page gutter instead of against the screen edge, and tablets swipe too, so
+            the third card never sits alone on a second row. */}
+        <div data-reveal="stagger" className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-pl-5 scroll-pr-5 -mx-5 px-5 pt-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:grid lg:grid-cols-3 lg:gap-5 lg:mx-0 lg:px-0 lg:overflow-visible">
           {featured.map((e, i) => (
             <Card.Event
               key={e.id}
-              className="w-[82%] snap-start sm:w-full"
+              className="w-[82%] shrink-0 snap-start sm:w-[46%] lg:w-full"
               eager={i < 3}
               image={e.image}
               date={formatEventDate(e.dateISO)}

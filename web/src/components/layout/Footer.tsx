@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { Logo } from "./Logo";
-import { ShieldCheck } from "lucide-react";
+import { Mail, ShieldCheck } from "lucide-react";
+import { CONTACT_EMAIL } from "@/components/legal/LegalPage";
 import { useT } from "@/lib/i18n";
 
 // Only pages that exist. A footer full of "#" links reads as a template.
@@ -47,6 +48,10 @@ export function Footer() {
           <span className="mt-1 inline-flex items-center gap-2 text-sm text-primary-navy font-medium">
             <ShieldCheck className="w-4 h-4" /> {t("Guaranteed by code, not by promises.", "Dijamin kode, bukan janji.")}
           </span>
+          {/* The one address people write to: the team inbox, the same one the policy pages name. */}
+          <a data-contact href={`mailto:${CONTACT_EMAIL}`} className="inline-flex items-center gap-2 text-sm text-neutral-gray hover:text-primary-navy transition w-fit">
+            <Mail className="w-4 h-4" /> {CONTACT_EMAIL}
+          </a>
         </div>
         {cols.map((c) => (
           <div key={c.en} className="flex flex-col gap-3">
