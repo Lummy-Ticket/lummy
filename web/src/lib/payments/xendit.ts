@@ -12,8 +12,10 @@ const API = "https://api.xendit.co";
 const VERSION = "2024-11-11";
 /** QRIS takes 1 to 10,000,000 rupiah per payment (Xendit, QRIS channel). */
 export const QRIS_MAX = 10_000_000;
-/** Xendit's payment request id, the only thing from outside that goes into a URL path here. */
+/** Xendit's payment request id, one of the two things from outside that go into a URL path here. */
 export const PAYMENT_REQUEST_ID = /^pr-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+/** Xendit's id for one payment made against a request (the other one). */
+export const XENDIT_PAYMENT_ID = /^py-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export type XenditConfig = { key: string; token: string; testMode: boolean };
 
@@ -45,6 +47,7 @@ export class XenditError extends Error {
 }
 
 type Raw = {
+  payment_id?: string;
   payment_request_id?: string;
   reference_id?: string;
   status?: QrisStatus;
@@ -131,6 +134,21 @@ export const createQris = (cfg: XenditConfig, p: { referenceId: string; amount: 
 export const readQris = (cfg: XenditConfig, id: string) => call(cfg, "GET", path(id)).then(parse);
 
 export const cancelQris = (cfg: XenditConfig, id: string) => call(cfg, "POST", path(id, "/cancel"), undefined, true).then(parse);
+
+/**
+ * One payment by its id (GET /v3/payments/{id}). A webhook names the payment at once, while the
+ * request's latest_payment_id can lag seconds behind; this confirms the named one with Xendit.
+ */
+export async function readPayment(cfg: XenditConfig, id: string) {
+  if (!XENDIT_PAYMENT_ID.test(id)) throw new XenditError("id pembayaran Xendit tidak dikenal", 400);
+  const d = await call(cfg, "GET", `/v3/payments/${id}`);
+  return {
+    id: d.payment_id ?? id,
+    paymentRequestId: d.payment_request_id ?? "",
+    referenceId: d.reference_id ?? "",
+    status: String(d.status ?? ""),
+  };
+}
 
 /** Test mode only: Xendit pays the request itself and then sends the webhook. */
 export async function simulateQris(cfg: XenditConfig, id: string, amount: number) {

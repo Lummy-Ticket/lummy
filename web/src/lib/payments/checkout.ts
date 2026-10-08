@@ -12,7 +12,7 @@ import { checkPurchase, loadPurchase, orderInsert, priceOf } from "@/lib/orders/
 import type { Database } from "@/lib/supabase/types";
 import { GRACE_SECONDS, HOLD_MINUTES } from "./hold";
 import type { PaymentStatus, PaymentView } from "./types";
-import { cancelQris, createQris, QRIS_MAX, readQris, XenditError, type Qris, type XenditConfig } from "./xendit";
+import { cancelQris, createQris, QRIS_MAX, readPayment, readQris, XENDIT_PAYMENT_ID, XenditError, type Qris, type XenditConfig } from "./xendit";
 
 if (typeof window !== "undefined") throw new Error("lib/payments/checkout hanya boleh dipakai di server");
 
@@ -98,20 +98,37 @@ async function ensureOrder(admin: Admin, row: PaymentRow): Promise<string | null
 }
 
 /**
+ * The payment number a webhook named, once Xendit itself confirms it is a finished payment of this
+ * hold's QRIS. Null otherwise: the webhook's word alone is never stored.
+ */
+async function confirmedNumber(cfg: XenditConfig, row: PaymentRow, named: string | null): Promise<string | null> {
+  if (!named || !XENDIT_PAYMENT_ID.test(named) || !row.provider_ref) return null;
+  const p = await readPayment(cfg, named).catch(() => null);
+  return p && p.paymentRequestId === row.provider_ref && p.status === "SUCCEEDED" ? p.id : null;
+}
+
+/** Records Xendit's payment number on a hold that has none yet; one already there is kept. */
+async function fillNumber(admin: Admin, id: string, number: string | null) {
+  if (!number) return;
+  const { data } = await admin.from("payments").select("provider_payment_id").eq("id", id).single();
+  if (data && !data.provider_payment_id) {
+    await admin.from("payments").update({ provider_payment_id: number, updated_at: new Date().toISOString() }).eq("id", id);
+  }
+}
+
+/**
  * Brings a hold up to date with Xendit, and writes the order once the money is in. Holds still
  * open are read at most every RECHECK_MS unless `force` (the webhook, the simulator). Closed holds
- * are read again only when forced, for money that arrives late.
+ * are read again only when forced, for money that arrives late. `named` is the payment number a
+ * webhook carried; it is only kept after Xendit confirms it.
  */
-export async function syncPayment(admin: Admin, cfg: XenditConfig, row: PaymentRow, force = false): Promise<PaymentRow> {
+export async function syncPayment(admin: Admin, cfg: XenditConfig, row: PaymentRow, force = false, named: string | null = null): Promise<PaymentRow> {
   if (row.status === "paid") {
-    // Paid before Xendit had named the payment: fill its number in on a later read.
+    // Paid before Xendit had named the payment: fill its number in from a webhook or a later read.
     if (!row.provider_payment_id && row.provider_ref && (force || stale(row))) {
-      const later = await readQris(cfg, row.provider_ref).catch(() => null);
-      const now = new Date().toISOString();
-      await admin
-        .from("payments")
-        .update({ checked_at: now, ...(later?.latestPaymentId ? { provider_payment_id: later.latestPaymentId, updated_at: now } : {}) })
-        .eq("id", row.id);
+      const number = (await confirmedNumber(cfg, row, named)) ?? (await readQris(cfg, row.provider_ref).catch(() => null))?.latestPaymentId ?? null;
+      await admin.from("payments").update({ checked_at: new Date().toISOString() }).eq("id", row.id);
+      await fillNumber(admin, row.id, number);
     }
     await ensureOrder(admin, row);
     return reread(admin, row.id);
@@ -139,16 +156,18 @@ export async function syncPayment(admin: Admin, cfg: XenditConfig, row: PaymentR
       console.error("[payments] Xendit reports a payment that does not match its hold:", row.id, qris.id);
       return reread(admin, row.id);
     }
-    // Right after a payment Xendit can answer SUCCEEDED before it names the payment (seen in test
-    // mode, 8 Oct 2026, for over a second). Ask a few more times; if it is still unnamed, the next
-    // forced read (Xendit's webhook) fills the number in.
-    for (let i = 0; i < 3 && !qris.latestPaymentId; i++) {
+    // Right after a payment Xendit can answer SUCCEEDED before the request names the payment (seen
+    // for several seconds on 8 Oct 2026). Xendit's webhook names it at once, so take that number
+    // once Xendit confirms it; without one, ask the request a few more times.
+    let number = qris.latestPaymentId ?? (await confirmedNumber(cfg, row, named));
+    for (let i = 0; i < 3 && !number; i++) {
       await sleep(1000);
-      const named = await readQris(cfg, row.provider_ref).catch(() => null);
-      if (named?.latestPaymentId) qris = named;
+      number = (await readQris(cfg, row.provider_ref).catch(() => null))?.latestPaymentId ?? null;
     }
-    const marked = await admin.rpc("mark_payment_paid", { p_id: row.id, p_provider_payment_id: qris.latestPaymentId ?? "" });
+    const marked = await admin.rpc("mark_payment_paid", { p_id: row.id, p_provider_payment_id: number ?? "" });
     if (marked.error) throw new Error(marked.error.message);
+    // Another reader may have marked it first, without the number: record it now.
+    await fillNumber(admin, row.id, number);
     if (row.status !== "pending") seatsChanged();
     if (marked.data === "paid") await ensureOrder(admin, await reread(admin, row.id));
     if (marked.data === "unfulfilled") console.error("[payments] paid after its seats went back; refund it:", row.id);

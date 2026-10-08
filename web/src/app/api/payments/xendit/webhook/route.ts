@@ -22,9 +22,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "token tidak cocok" }, { status: 401, headers: noStore });
   }
 
-  const body = (await req.json().catch(() => null)) as { event?: unknown; data?: { payment_request_id?: unknown; reference_id?: unknown } } | null;
+  const body = (await req.json().catch(() => null)) as {
+    event?: unknown;
+    data?: { payment_request_id?: unknown; reference_id?: unknown; payment_id?: unknown };
+  } | null;
   const prId = typeof body?.data?.payment_request_id === "string" ? body.data.payment_request_id : "";
   const reference = typeof body?.data?.reference_id === "string" ? body.data.reference_id : "";
+  // The payment's own number, which the request may only name seconds later. Kept only once Xendit
+  // confirms it (lib/payments/checkout).
+  const named = typeof body?.data?.payment_id === "string" ? body.data.payment_id : null;
 
   let found = null;
   if (PAYMENT_REQUEST_ID.test(prId)) {
@@ -41,7 +47,7 @@ export async function POST(req: Request) {
   if (!found) return NextResponse.json({ ignored: true }, { headers: noStore });
 
   try {
-    const fresh = await syncPayment(admin, cfg, found, true);
+    const fresh = await syncPayment(admin, cfg, found, true, named);
     return NextResponse.json({ status: fresh.status }, { headers: noStore });
   } catch (e) {
     console.error("[payments] webhook:", found.id, (e as Error).message);

@@ -11,7 +11,12 @@
  * The two accounts are made for the run and signed in with an admin link, so no email is sent and
  * no demo key is needed; everything it made, accounts included, is deleted at the end. It writes to
  * the database the server uses and calls Xendit in test mode, so run it only where that is fine,
- * against a server with the same test key and webhook token (web/.env.local supplies them):
+ * against a server with the same test key and webhook token (web/.env.local supplies them).
+ *
+ * Xendit sends its webhooks to lummy.id even when the run is local. Both servers use the same
+ * database, so lummy.id acts on this run's holds too; every step is idempotent, so the outcome is
+ * the same whichever server gets there first.
+ *
  *
  *   BASE=http://localhost:3000 npm run payments:check
  *   BASE=https://lummy.id WEBHOOK_LIVE=1 npm run payments:check
@@ -186,9 +191,22 @@ async function main() {
     const genuine = await webhook(TOKEN, { payment_request_id: prId, reference_id: p1, status: "SUCCEEDED" });
     check("the genuine webhook is accepted", genuine.status === 200 && genuine.body.status === "paid", JSON.stringify(genuine));
     check("and still one order", (await ordersOf(p1)).length === 1);
-    // Xendit can name the payment a few seconds after it reports it; by its webhook the number is there.
-    const named1 = (await payment(p1))?.provider_payment_id ?? "";
-    check("after the webhook the hold carries Xendit's payment number", named1.startsWith("py-"), JSON.stringify(named1));
+    // The request can name its payment seconds late; Xendit's own webhook (sent to lummy.id) names it
+    // at once and the server keeps it after checking it with Xendit. Wait for it to land.
+    let named1 = "";
+    for (let i = 0; i < 20 && !named1.startsWith("py-"); i++) {
+      named1 = (await payment(p1))?.provider_payment_id ?? "";
+      if (!named1.startsWith("py-")) await sleep(1000);
+    }
+    check("the hold gets Xendit's payment number", named1.startsWith("py-"), JSON.stringify(named1));
+    // Even with the number missing, one the webhook alone names is not believed: the server keeps
+    // only what Xendit confirms.
+    await admin.from("payments").update({ provider_payment_id: "" }).eq("id", p1);
+    const fake = "py-00000000-0000-4000-8000-000000000000";
+    const fakeNumber = await webhook(TOKEN, { payment_request_id: prId, reference_id: p1, payment_id: fake });
+    const kept = (await payment(p1))?.provider_payment_id;
+    check("a payment number Xendit does not confirm is not stored", fakeNumber.status === 200 && kept !== fake, JSON.stringify({ fakeNumber, kept }));
+    check("the real number comes back from Xendit itself", kept === named1, JSON.stringify({ kept, named1 }));
     const stranger = await webhook(TOKEN, { payment_request_id: "pr-00000000-0000-4000-8000-000000000000", reference_id: "pay-000000000000" });
     check("a webhook for a payment that is not ours is acknowledged and ignored", stranger.status === 200 && stranger.body.ignored === true, JSON.stringify(stranger));
 
@@ -278,9 +296,16 @@ async function main() {
   } catch (e) {
     check("check ran to the end", false, (e as Error).message.split("\n")[0].slice(0, 200));
   } finally {
-    await admin.from("orders").delete().in("listing_id", LISTINGS);
-    await admin.from("payments").delete().in("listing_id", LISTINGS);
-    await admin.from("listings").delete().in("id", LISTINGS);
+    // Xendit's own webhooks for this run may still be landing. One arriving between the deletes
+    // could write a paid hold's order back, so let them settle, then go round until nothing is left.
+    await sleep(5000);
+    for (let round = 0; round < 3; round++) {
+      await admin.from("orders").delete().in("listing_id", LISTINGS);
+      await admin.from("payments").delete().in("listing_id", LISTINGS);
+      await admin.from("listings").delete().in("id", LISTINGS);
+      if (!(await admin.from("listings").select("id").in("id", LISTINGS)).data?.length) break;
+      await sleep(2000);
+    }
     await admin.from("tiers").delete().in("id", [TIER, TIER_VIP]);
     const gone = await admin.from("events").delete().eq("id", EVENT);
     const users = await Promise.all(userIds.map((id) => admin.auth.admin.deleteUser(id)));
