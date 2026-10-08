@@ -80,6 +80,14 @@ export async function POST(req: Request) {
       }
     }
 
+    // Their QRIS holds go too (docs/09 §6). An open one gives its seats back first.
+    const holds = await admin.from("payments").select("id, status").in("buyer_id", demoIds);
+    if (holds.error) return fail(500, holds.error.message);
+    for (const h of holds.data.filter((h) => h.status === "pending")) {
+      const shut = await admin.rpc("close_payment", { p_id: h.id, p_status: "canceled" });
+      if (shut.error) return fail(500, shut.error.message);
+    }
+
     // The demo accounts' orders, and whatever an earlier reset seeded. Their claims go with them.
     const keep = kept.length ? `(${kept.join(",")})` : null;
     let bought = admin.from("orders").delete().in("buyer_id", demoIds);
@@ -91,6 +99,15 @@ export async function POST(req: Request) {
     const removed = await Promise.all([bought.select("id"), seeded.select("id")]);
     const removeError = removed.find((r) => r.error)?.error;
     if (removeError) return fail(500, removeError.message);
+    // With their orders gone, a paid hold left behind would write its order again on the next
+    // read, so the holds go as well, except one an order kept above still points at.
+    const pointed = await admin.from("orders").select("payment_id").in("buyer_id", demoIds).not("payment_id", "is", null);
+    if (pointed.error) return fail(500, pointed.error.message);
+    const stillPointed = pointed.data.map((o) => o.payment_id as string);
+    let holdsGone = admin.from("payments").delete().in("buyer_id", demoIds);
+    if (stillPointed.length) holdsGone = holdsGone.not("id", "in", `(${stillPointed.join(",")})`);
+    const holdsError = (await holdsGone).error;
+    if (holdsError) return fail(500, holdsError.message);
 
     // Every seed listing on sale again, with the seats it started with and no clearance from a
     // rehearsal, and every seed show that a rehearsal cancelled or moved is back on, on its date.
@@ -109,15 +126,18 @@ export async function POST(req: Request) {
     if (restoreError) return fail(500, restoreError.message);
 
     // What the demo seller posted in earlier runs goes, with its ticket file. One a real buyer's
-    // order still points at is withdrawn instead, since the order has to keep its listing and file.
+    // order or QRIS payment still points at is withdrawn instead, since those keep their listing.
     const seedIds = SEED_LISTINGS.map((l) => l.id);
     const posted = await admin.from("listings").select("id, ticket_path").eq("seller_id", seller).not("id", "in", `(${[...seedIds, HELD_LISTING_ID].join(",")})`);
     if (posted.error) return fail(500, posted.error.message);
     const postedIds = posted.data.map((l) => l.id);
     if (postedIds.length) {
-      const referenced = await admin.from("orders").select("listing_id").in("listing_id", postedIds);
-      if (referenced.error) return fail(500, referenced.error.message);
-      const inUse = new Set(referenced.data.map((o) => o.listing_id));
+      const [referenced, paidFor] = await Promise.all([
+        admin.from("orders").select("listing_id").in("listing_id", postedIds),
+        admin.from("payments").select("listing_id").in("listing_id", postedIds),
+      ]);
+      if (referenced.error || paidFor.error) return fail(500, (referenced.error ?? paidFor.error)!.message);
+      const inUse = new Set<string | null>([...referenced.data.map((o) => o.listing_id), ...paidFor.data.map((p) => p.listing_id)]);
       const unused = postedIds.filter((id) => !inUse.has(id));
       const files = posted.data.filter((l) => !inUse.has(l.id) && l.ticket_path).map((l) => l.ticket_path!);
       const cleared = await Promise.all([

@@ -4,7 +4,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { unstable_cache } from "next/cache";
 import type { Category, EventItem, Listing } from "@/lib/mock/types";
+import { GRACE_SECONDS } from "@/lib/payments/hold";
 import { eventPoster } from "@/lib/poster";
+import { supabaseAdmin } from "./admin";
 import { supabasePublicEnv } from "./env";
 import type { Database } from "./types";
 
@@ -12,7 +14,19 @@ if (typeof window !== "undefined") throw new Error("lib/supabase/catalogue hanya
 
 export type CatalogueData = { events: EventItem[]; listings: Listing[] };
 
+/**
+ * QRIS holds nobody paid give their seats back before the listings are counted (docs/09 §6).
+ * Runs whenever the catalogue is rebuilt, so the seats come back without anyone watching the clock.
+ */
+async function releaseUnpaidHolds() {
+  const admin = supabaseAdmin();
+  if (!admin) return;
+  const { error } = await admin.rpc("expire_payments", { p_grace_seconds: GRACE_SECONDS });
+  if (error) console.error("[catalogue] could not release unpaid QRIS holds:", error.message);
+}
+
 async function fetchCatalogue(url: string, key: string): Promise<CatalogueData> {
+  await releaseUnpaidHolds();
   const db = createClient<Database>(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
   const [ev, ti, ls] = await Promise.all([
     db.from("catalogue_events").select("*").order("starts_at"),

@@ -1,16 +1,17 @@
 // Buying with an account. The seats are claimed in one database call, so two buyers pressing Pay
-// together cannot both get them, and the price, fee and stamp duty are worked out here from the
-// listing, never taken from the browser. Payment is simulated; with chain mode (demo key) the
-// money is also locked in the testnet escrow before the order is written.
+// together cannot both get them, and the price, fee and stamp duty are worked out from the listing
+// (lib/orders/create), never taken from the browser. Payment here is simulated; with chain mode
+// (demo key) the money is also locked in the testnet escrow before the order is written. Once QRIS
+// is switched on (docs/09 §6), an ordinary account pays through POST /api/payments instead.
 import type { Hex } from "viem";
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { chainError, openOrder, operatorSetup, readListing, writeAllowed } from "@/lib/chain/server";
 import { demoKeyAllowed, demoMode } from "@/lib/demo-key";
-import { DISPUTE_WINDOW_H, EVENT_DURATION_H } from "@/lib/mock/escrow";
-import { resaleAllowed } from "@/lib/mock/transfer";
-import { MATERAI, platformFee } from "@/lib/mock/util";
+import { DISPUTE_WINDOW_H } from "@/lib/mock/escrow";
+import { checkPurchase, orderInsert, type ChainFields } from "@/lib/orders/create";
 import { HELD } from "@/lib/orders/map";
+import { xenditConfig } from "@/lib/payments/xendit";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { isDemoEmail } from "@/lib/supabase/demo";
 import { currentUser } from "@/lib/supabase/session";
@@ -49,7 +50,11 @@ export async function POST(req: Request) {
   const demoEnded = body?.demoEnded === true;
   if (demoEnded && (demoMode() === "off" || !demoKeyAllowed(req))) return fail(401, "demo key salah atau belum diisi");
 
-  if (!user.staff && !isDemoEmail(user.email)) {
+  const ordinary = !user.staff && !isDemoEmail(user.email);
+  // With QRIS on, the money has to come through it; this straight path stays for chain mode,
+  // presenters and staff.
+  if (!op && ordinary && xenditConfig()) return fail(409, "pembayaran sekarang lewat QRIS: muat ulang halaman checkout");
+  if (ordinary) {
     const open = await admin.from("orders").select("id", { count: "exact", head: true }).eq("buyer_id", user.id).in("escrow_status", HELD);
     if (open.error) return fail(500, open.error.message);
     if ((open.count ?? 0) >= OPEN_ORDER_LIMIT) {
@@ -57,26 +62,9 @@ export async function POST(req: Request) {
     }
   }
 
-  const { data: listing, error: listingError } = await admin
-    .from("listings")
-    .select("id, event_id, tier_id, seller_id, seller_name, ask_price, status, gate_ktp, late_listing, ticket_path, ticket_sha256, barcode_hmac")
-    .eq("id", listingId)
-    .maybeSingle();
-  if (listingError) return fail(500, listingError.message);
-  if (!listing || listing.status !== "active") return fail(409, "listing ini sudah tidak dijual");
-  if (listing.seller_id === user.id) return fail(400, "tidak bisa membeli listing sendiri");
-
-  const [ev, tier] = await Promise.all([
-    admin.from("catalogue_events").select("title, starts_at, status, image_url, transfer_policy").eq("id", listing.event_id).maybeSingle(),
-    admin.from("tiers").select("name").eq("id", listing.tier_id).maybeSingle(),
-  ]);
-  if (ev.error || tier.error) return fail(500, (ev.error ?? tier.error)!.message);
-  const event = ev.data;
-  if (!event?.title || !event.starts_at || !tier.data) return fail(409, "acara untuk listing ini tidak ditemukan");
-  const scheduledEnd = new Date(event.starts_at).getTime() + EVENT_DURATION_H * H;
-  if (event.status === "cancelled" || Date.now() >= scheduledEnd) return fail(409, "acara ini sudah lewat atau dibatalkan");
-  // A listing that went up before the organiser's rule was recorded still cannot be bought.
-  if (!resaleAllowed(event.transfer_policy)) return fail(409, "penyelenggara acara ini melarang tiketnya dijual ulang");
+  const check = await checkPurchase(admin, user.id, listingId);
+  if (!check.ok) return fail(check.status, check.error);
+  const purchase = check.purchase;
 
   const claim = await admin.rpc("claim_listing", { p_listing_id: listingId, p_quantity: quantity });
   if (claim.error) return fail(500, claim.error.message);
@@ -85,21 +73,12 @@ export async function POST(req: Request) {
   const giveBack = () => admin.rpc("release_listing", { p_listing_id: listingId, p_quantity: quantity });
 
   // The show's end starts the window. The presenter switch pretends it has already come.
-  const endsAt = demoEnded ? Date.now() : scheduledEnd;
-  let chain: {
-    chain_id: number;
-    contract_address: string;
-    onchain_listing_id: string;
-    onchain_price: string;
-    dispute_deadline: string;
-    tx_create: string;
-    tx_fund: string;
-    tx_handover: string;
-  } | null = null;
+  const endsAt = demoEnded ? Date.now() : purchase.scheduledEnd;
+  let chain: ChainFields | null = null;
   if (op) {
     try {
       const endsAtSec = Math.floor(endsAt / 1000);
-      const r = await openOrder(op, endsAtSec, { barcodeKey: listing.barcode_hmac, sha256: listing.ticket_sha256 });
+      const r = await openOrder(op, endsAtSec, { barcodeKey: purchase.listing.barcode_hmac, sha256: purchase.listing.ticket_sha256 });
       // The contract counts the window from the later of the handover and the show's end.
       const live = await readListing(op, r.listingId as Hex).catch(() => null);
       chain = {
@@ -118,33 +97,9 @@ export async function POST(req: Request) {
     }
   }
 
-  const subtotal = listing.ask_price * quantity;
   const { data: order, error: orderError } = await admin
     .from("orders")
-    .insert({
-      listing_id: listing.id,
-      event_id: listing.event_id,
-      buyer_id: user.id,
-      seller_id: listing.seller_id,
-      event_title: event.title,
-      event_image: event.image_url,
-      event_date: event.starts_at,
-      tier_name: tier.data.name,
-      seller_name: listing.seller_name,
-      quantity,
-      amount: subtotal,
-      fee: platformFee(subtotal),
-      materai: MATERAI,
-      gate_ktp: listing.gate_ktp,
-      late_listing: listing.late_listing,
-      // The seller's PDF is handed over with the order (GET /api/orders/[id]/ticket).
-      ticket_file: !!listing.ticket_path,
-      // After the handover the contract is already in its window state.
-      escrow_status: chain ? "DisputeWindow" : "Funded",
-      event_ends_at: iso(chain ? Math.floor(endsAt / 1000) * 1000 : endsAt),
-      dispute_deadline: chain ? chain.dispute_deadline : iso(endsAt + DISPUTE_WINDOW_H * H),
-      ...chain,
-    })
+    .insert(orderInsert(user.id, purchase, quantity, { endsAt, chain }))
     .select("id")
     .single();
   if (orderError || !order) {

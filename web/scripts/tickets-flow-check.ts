@@ -192,7 +192,10 @@ async function main() {
       // --- The buyer pays and receives the very file the seller uploaded.
       await persona(page, "Buyer", "/");
       await page.goto(`${BASE}/checkout?listing=${secondId}&qty=1`, { waitUntil: "networkidle" });
+      // With QRIS on, Xendit's simulator pays the code (test mode, docs/09 §6).
+      const qris = await page.locator("[data-qris-note]").isVisible();
       await page.getByRole("button", { name: /^Pay / }).click();
+      if (qris) await page.locator("[data-qris-simulate]").click();
       await page.waitForURL(/\/tickets\/[\w-]+$/, { timeout: 60000 });
       const orderId = new URL(page.url()).pathname.split("/").pop() ?? "";
       orders.push(orderId);
@@ -284,6 +287,7 @@ async function main() {
         await admin.from("dispute_replies").delete().in("order_id", orders);
         await admin.from("disputes").delete().in("order_id", orders);
         await admin.from("orders").delete().in("id", orders);
+        await admin.from("payments").delete().in("listing_id", created);
         for (const o of orders) {
           const photos = (await admin.storage.from("evidence").list(o)).data ?? [];
           if (photos.length) await admin.storage.from("evidence").remove(photos.map((p) => `${o}/${p.name}`));

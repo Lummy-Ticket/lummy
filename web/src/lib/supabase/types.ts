@@ -530,6 +530,7 @@ export type Database = {
           materai: number
           onchain_listing_id: string | null
           onchain_price: string | null
+          payment_id: string | null
           quantity: number
           seller_id: string | null
           seller_name: string
@@ -572,6 +573,7 @@ export type Database = {
           materai?: number
           onchain_listing_id?: string | null
           onchain_price?: string | null
+          payment_id?: string | null
           quantity: number
           seller_id?: string | null
           seller_name: string
@@ -614,6 +616,7 @@ export type Database = {
           materai?: number
           onchain_listing_id?: string | null
           onchain_price?: string | null
+          payment_id?: string | null
           quantity?: number
           seller_id?: string | null
           seller_name?: string
@@ -627,6 +630,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: true
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_buyer_id_fkey"
             columns: ["buyer_id"]
@@ -660,6 +670,90 @@ export type Database = {
             columns: ["seller_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          buyer_id: string
+          channel: string
+          checked_at: string | null
+          created_at: string
+          expires_at: string
+          fee: number
+          id: string
+          listing_id: string
+          materai: number
+          paid_at: string | null
+          provider: string
+          provider_payment_id: string | null
+          provider_ref: string | null
+          qr_string: string | null
+          quantity: number
+          status: string
+          test_mode: boolean
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          buyer_id: string
+          channel?: string
+          checked_at?: string | null
+          created_at?: string
+          expires_at: string
+          fee: number
+          id?: string
+          listing_id: string
+          materai: number
+          paid_at?: string | null
+          provider?: string
+          provider_payment_id?: string | null
+          provider_ref?: string | null
+          qr_string?: string | null
+          quantity: number
+          status?: string
+          test_mode: boolean
+          total: number
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          buyer_id?: string
+          channel?: string
+          checked_at?: string | null
+          created_at?: string
+          expires_at?: string
+          fee?: number
+          id?: string
+          listing_id?: string
+          materai?: number
+          paid_at?: string | null
+          provider?: string
+          provider_payment_id?: string | null
+          provider_ref?: string | null
+          qr_string?: string | null
+          quantity?: number
+          status?: string
+          test_mode?: boolean
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
             referencedColumns: ["id"]
           },
         ]
@@ -795,6 +889,18 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      close_payment: {
+        Args: { p_id: string; p_status: string }
+        Returns: boolean
+      }
+      expire_payments: {
+        Args: { p_grace_seconds?: number }
+        Returns: string[]
+      }
+      mark_payment_paid: {
+        Args: { p_id: string; p_provider_payment_id: string }
+        Returns: string
       }
       release_listing: {
         Args: { p_listing_id: string; p_quantity: number }

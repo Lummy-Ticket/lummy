@@ -18,6 +18,8 @@ import {
 import { useCatalogue } from "@/lib/catalogue";
 import { chainCheckoutReady, demoPrefs, openChainOrder, useChainInfo } from "@/lib/chain/client";
 import { OrderError, placeOrder } from "@/lib/orders/client";
+import { startPayment, usePaymentsConfig, type PaymentView } from "@/lib/payments/client";
+import { QrisPanel } from "@/components/checkout/QrisPanel";
 import { useAccessGuard } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters } from "@/lib/i18n";
@@ -56,6 +58,11 @@ function CheckoutInner() {
   const account = useUser((s) => !!s.user?.account);
   const chainInfo = useChainInfo();
   const onchain = chainCheckoutReady(chainInfo);
+  // With QRIS switched on (docs/09 §6), an account pays through it. Chain mode keeps the testnet
+  // escrow, and a sample persona keeps its order in this browser.
+  const payments = usePaymentsConfig(account && !onchain);
+  const qris = account && !onchain && !!payments?.enabled;
+  const [payment, setPayment] = useState<PaymentView | null>(null);
 
   const [processing, setProcessing] = useState(false);
   // Where the gate matches ID to the name, the buyer says they know before paying.
@@ -78,6 +85,8 @@ function CheckoutInner() {
   const fee = platformFee(subtotal);
   const total = subtotal + fee + MATERAI;
   const mustConfirmName = needsNameAcknowledgement(event.transferPolicy);
+  // QRIS takes at most this much per payment; the server refuses more as well.
+  const overQris = qris && !!payments && total > payments.max;
 
   const payAccount = async () => {
     setProcessing(true);
@@ -102,8 +111,22 @@ function CheckoutInner() {
     }
   };
 
+  // Holds the seats and opens the QRIS; the panel below takes it from there.
+  const payQris = async () => {
+    setProcessing(true);
+    try {
+      setPayment(await startPayment(listing.id, qty));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error(`${t("Payment failed", "Pembayaran gagal")}: ${msg}`);
+      if (e instanceof OrderError && e.status === 409) router.refresh();
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const pay = async () => {
-    if (account) return payAccount();
+    if (account) return qris ? payQris() : payAccount();
     setProcessing(true);
     let chain: OrderChain | undefined;
     if (onchain && chainInfo?.escrow) {
@@ -206,9 +229,22 @@ function CheckoutInner() {
               </span>
             </label>
           )}
-          <Button.Primary wrapperClass="w-full" className="w-full" disabled={mustConfirmName && !nameRiskOk} onClick={pay}>
+          <Button.Primary
+            wrapperClass="w-full"
+            className="w-full"
+            disabled={(mustConfirmName && !nameRiskOk) || (account && !onchain && !payments) || overQris}
+            onClick={pay}
+          >
             {t("Pay", "Bayar")} {formatIDR(total)}
           </Button.Primary>
+          {overQris && (
+            <p data-qris-over className="text-xs text-secondary-pink-dark text-center">
+              {t(
+                `QRIS takes at most ${formatIDR(payments?.max ?? 0)} per payment. Buy fewer tickets at once.`,
+                `QRIS maksimal ${formatIDR(payments?.max ?? 0)} per pembayaran. Beli lebih sedikit tiket sekaligus.`
+              )}
+            </p>
+          )}
           <p className="flex items-center gap-1.5 text-xs text-secondary-green-dark justify-center">
             <ShieldCheck className="w-3.5 h-3.5" /> {t("Protected by Lummy escrow", "Dijamin escrow Lummy")}
           </p>
@@ -218,6 +254,15 @@ function CheckoutInner() {
                 `Chain mode: a real escrow on Arbitrum Sepolia, ${chainInfo?.priceUsdc ?? "1"} test USDC standing in for the rupiah.`,
                 `Mode chain: escrow sungguhan di Arbitrum Sepolia, ${chainInfo?.priceUsdc ?? "1"} USDC testnet mewakili rupiahnya.`
               )}
+            </p>
+          ) : qris ? (
+            <p data-qris-note className="text-[11px] text-neutral-gray text-center -mt-2">
+              {payments?.testMode
+                ? t(
+                    "QRIS in Xendit's test mode: a real app cannot pay the code, and no money moves.",
+                    "QRIS mode test Xendit: kodenya tidak bisa dibayar aplikasi sungguhan, dan tidak ada uang yang berpindah."
+                  )
+                : t("Pay with QRIS from any e-wallet or bank app.", "Bayar dengan QRIS dari e-wallet atau aplikasi bank apa pun.")}
             </p>
           ) : (
             account && (
@@ -239,11 +284,35 @@ function CheckoutInner() {
           <p className="text-sm text-neutral-gray text-center">
             {onchain
               ? t("Locking your money in the escrow contract: listing, payment, handover.", "Mengunci dana di kontrak escrow: listing, pembayaran, serah terima.")
+              : qris
+              ? t("Holding your seats and creating the QRIS code.", "Menahan kursimu dan membuat kode QRIS.")
               : account
               ? t("Saving your order.", "Menyimpan pesananmu.")
               : t("Securing your money in escrow.", "Mengamankan dana kamu di escrow.")}
           </p>
         </div>
+      </Modal>
+
+      {/* Closing it by accident would leave the seats held, so only its own buttons close it. */}
+      <Modal open={!!payment} onClose={() => {}} className="max-w-md">
+        {payment && (
+          <QrisPanel
+            initial={payment}
+            onPaid={(orderId, testMode) => {
+              toast.success(
+                testMode
+                  ? t("Payment received (test mode). Your order is saved, and its escrow rules are real.", "Pembayaran (mode test) diterima. Pesananmu tersimpan, dan aturan escrow-nya sungguhan.")
+                  : t("Payment received. Your money is now in escrow.", "Pembayaran diterima. Dana kamu sekarang di escrow.")
+              );
+              router.push(`/tickets/${orderId}`);
+              router.refresh();
+            }}
+            onClose={() => {
+              setPayment(null);
+              router.refresh();
+            }}
+          />
+        )}
       </Modal>
     </div>
   );

@@ -10,6 +10,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { settleDue } from "@/lib/orders/settle";
+import { expireHolds } from "@/lib/payments/checkout";
 import { purgeExpired } from "@/lib/retention-purge";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
@@ -39,9 +40,16 @@ export async function GET(req: Request) {
     settle = { error: (e as Error).message };
   }
   const purge = await purgeExpired(admin, Date.now(), 15_000);
+  // QRIS holds nobody paid: the catalogue releases them too, this catches the quiet days.
+  let holdsReleased: number | { error: string };
+  try {
+    holdsReleased = await expireHolds(admin);
+  } catch (e) {
+    holdsReleased = { error: (e as Error).message };
+  }
   if (purge.errors.length) console.error("[cron/daily] files that could not be deleted:", purge.errors);
   return NextResponse.json(
-    { settle, purge: { ticketFiles: purge.ticketFiles, evidenceFiles: purge.evidenceFiles, orphanUploads: purge.orphanUploads, errors: purge.errors.length, unfinished: purge.unfinished } },
+    { settle, holdsReleased, purge: { ticketFiles: purge.ticketFiles, evidenceFiles: purge.evidenceFiles, orphanUploads: purge.orphanUploads, errors: purge.errors.length, unfinished: purge.unfinished } },
     { headers: noStore }
   );
 }

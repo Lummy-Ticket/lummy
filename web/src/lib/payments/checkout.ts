@@ -1,0 +1,268 @@
+// Paying with QRIS through Xendit (docs/09 §6).
+//   1. Pay holds the seats (claim_listing) and opens a QRIS payment that expires with the hold.
+//   2. The order is written only when Xendit reports the money, and the report is always read
+//      back from Xendit itself: a webhook is only a nudge, so a forged one writes nothing.
+//   3. A hold nobody paid gives its seats back a few minutes after the QRIS expired at Xendit
+//      (expire_payments), so a payment can no longer land on seats sold to someone else. Money
+//      that arrives anyway takes the seats again if they are free, or waits for a refund.
+// One open hold per buyer: starting another closes the first.
+import { revalidateTag } from "next/cache";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { checkPurchase, loadPurchase, orderInsert, priceOf } from "@/lib/orders/create";
+import type { Database } from "@/lib/supabase/types";
+import { GRACE_SECONDS, HOLD_MINUTES } from "./hold";
+import type { PaymentStatus, PaymentView } from "./types";
+import { cancelQris, createQris, QRIS_MAX, readQris, XenditError, type Qris, type XenditConfig } from "./xendit";
+
+if (typeof window !== "undefined") throw new Error("lib/payments/checkout hanya boleh dipakai di server");
+
+type Admin = SupabaseClient<Database>;
+export type PaymentRow = Database["public"]["Tables"]["payments"]["Row"];
+
+export type Result<T> = { ok: true; value: T } | { ok: false; status: number; error: string };
+const fail = (status: number, error: string) => ({ ok: false, status, error }) as const;
+
+/** A page asking every few seconds reads Xendit at most this often. */
+const RECHECK_MS = 10_000;
+export const PAYMENT_ID = /^pay-[0-9a-f]{12}$/;
+
+const rupiah = (n: number) => `Rp${n.toLocaleString("id-ID")}`;
+const seatsChanged = () => revalidateTag("catalogue", { expire: 0 });
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const stale = (row: PaymentRow) => !row.checked_at || Date.now() - Date.parse(row.checked_at) >= RECHECK_MS;
+
+export function paymentView(row: PaymentRow, orderId: string | null): PaymentView {
+  return {
+    id: row.id,
+    status: row.status as PaymentStatus,
+    amount: Number(row.total),
+    expiresAt: row.expires_at,
+    qrString: row.status === "pending" ? row.qr_string : null,
+    testMode: row.test_mode,
+    orderId,
+  };
+}
+
+async function reread(admin: Admin, id: string): Promise<PaymentRow> {
+  const { data, error } = await admin.from("payments").select("*").eq("id", id).single();
+  if (error || !data) throw new Error(error?.message ?? "pembayaran tidak ditemukan");
+  return data;
+}
+
+export async function orderIdOf(admin: Admin, paymentId: string): Promise<string | null> {
+  const { data, error } = await admin.from("orders").select("id").eq("payment_id", paymentId).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data?.id ?? null;
+}
+
+/** Holds past their time plus grace give the seats back. Returns how many closed. */
+export async function expireHolds(admin: Admin) {
+  const { data, error } = await admin.rpc("expire_payments", { p_grace_seconds: GRACE_SECONDS });
+  if (error) throw new Error(error.message);
+  if (data?.length) seatsChanged();
+  return data?.length ?? 0;
+}
+
+async function close(admin: Admin, id: string, status: "expired" | "canceled" | "failed") {
+  const { data, error } = await admin.rpc("close_payment", { p_id: id, p_status: status });
+  if (error) throw new Error(error.message);
+  if (data) seatsChanged();
+}
+
+/**
+ * The order for a paid hold, written once: orders.payment_id is unique, so a second writer gets
+ * the first one's order. A show or listing cancelled while the QRIS was open gets no order; the
+ * money waits for a refund instead.
+ */
+async function ensureOrder(admin: Admin, row: PaymentRow): Promise<string | null> {
+  const existing = await orderIdOf(admin, row.id);
+  if (existing) return existing;
+  const loaded = await loadPurchase(admin, row.listing_id);
+  if (!loaded.ok) throw new Error(loaded.error);
+  const p = loaded.purchase;
+  if (!p || p.listing.status === "cancelled" || p.listing.status === "rejected" || p.event.status === "cancelled") {
+    await admin.from("payments").update({ status: "unfulfilled", updated_at: new Date().toISOString() }).eq("id", row.id).eq("status", "paid");
+    console.error("[payments] paid, but the listing or show is gone; refund it:", row.id);
+    return null;
+  }
+  const ins = await admin
+    .from("orders")
+    .insert(orderInsert(row.buyer_id, p, row.quantity, { endsAt: p.scheduledEnd, paymentId: row.id }))
+    .select("id")
+    .single();
+  if (ins.error) {
+    if (ins.error.code === "23505") return orderIdOf(admin, row.id);
+    throw new Error(ins.error.message);
+  }
+  return ins.data.id;
+}
+
+/**
+ * Brings a hold up to date with Xendit, and writes the order once the money is in. Holds still
+ * open are read at most every RECHECK_MS unless `force` (the webhook, the simulator). Closed holds
+ * are read again only when forced, for money that arrives late.
+ */
+export async function syncPayment(admin: Admin, cfg: XenditConfig, row: PaymentRow, force = false): Promise<PaymentRow> {
+  if (row.status === "paid") {
+    // Paid before Xendit had named the payment: fill its number in on a later read.
+    if (!row.provider_payment_id && row.provider_ref && (force || stale(row))) {
+      const later = await readQris(cfg, row.provider_ref).catch(() => null);
+      const now = new Date().toISOString();
+      await admin
+        .from("payments")
+        .update({ checked_at: now, ...(later?.latestPaymentId ? { provider_payment_id: later.latestPaymentId, updated_at: now } : {}) })
+        .eq("id", row.id);
+    }
+    await ensureOrder(admin, row);
+    return reread(admin, row.id);
+  }
+  if (row.status === "unfulfilled") return row;
+  if (!row.provider_ref) {
+    // The request never reached Xendit, so nobody can pay it: close it once its time is up.
+    if (row.status === "pending" && Date.parse(row.expires_at) < Date.now()) await close(admin, row.id, "failed");
+    return reread(admin, row.id);
+  }
+  if (row.status !== "pending" && !force) return row;
+  if (!force && !stale(row)) return row;
+
+  let qris: Qris;
+  try {
+    qris = await readQris(cfg, row.provider_ref);
+  } catch (e) {
+    console.error("[payments] could not read Xendit for", row.id, (e as Error).message);
+    return row;
+  }
+  await admin.from("payments").update({ checked_at: new Date().toISOString() }).eq("id", row.id);
+
+  if (qris.status === "SUCCEEDED") {
+    if (qris.referenceId !== row.id || qris.amount !== Number(row.total)) {
+      console.error("[payments] Xendit reports a payment that does not match its hold:", row.id, qris.id);
+      return reread(admin, row.id);
+    }
+    // Right after a payment Xendit can answer SUCCEEDED before it names the payment (seen in test
+    // mode, 8 Oct 2026); ask once more so the record carries it.
+    if (!qris.latestPaymentId) {
+      await sleep(1500);
+      const named = await readQris(cfg, row.provider_ref).catch(() => null);
+      if (named?.latestPaymentId) qris = named;
+    }
+    const marked = await admin.rpc("mark_payment_paid", { p_id: row.id, p_provider_payment_id: qris.latestPaymentId ?? "" });
+    if (marked.error) throw new Error(marked.error.message);
+    if (row.status !== "pending") seatsChanged();
+    if (marked.data === "paid") await ensureOrder(admin, await reread(admin, row.id));
+    if (marked.data === "unfulfilled") console.error("[payments] paid after its seats went back; refund it:", row.id);
+    return reread(admin, row.id);
+  }
+
+  if (row.status === "pending") {
+    if (qris.status === "EXPIRED" || qris.status === "CANCELED" || qris.status === "FAILED") {
+      await close(admin, row.id, qris.status === "FAILED" ? "failed" : qris.status === "CANCELED" ? "canceled" : "expired");
+    } else if (Date.parse(row.expires_at) + GRACE_SECONDS * 1000 < Date.now()) {
+      // Still open at Xendit well past its time: shut it there first, then give the seats back.
+      // Paid in between, the cancel fails and the next read finds the money.
+      try {
+        await cancelQris(cfg, row.provider_ref);
+        await close(admin, row.id, "expired");
+      } catch (e) {
+        console.error("[payments] could not cancel an overdue QRIS:", row.id, (e as Error).message);
+      }
+    }
+  }
+  return reread(admin, row.id);
+}
+
+/** The buyer gives up the hold: shut the QRIS at Xendit, then give the seats back. */
+export async function cancelHold(admin: Admin, cfg: XenditConfig, row: PaymentRow): Promise<PaymentRow> {
+  if (row.status !== "pending") return row;
+  if (row.provider_ref) {
+    try {
+      await cancelQris(cfg, row.provider_ref);
+    } catch {
+      // Maybe paid a moment ago: let Xendit's answer decide.
+      const fresh = await syncPayment(admin, cfg, row, true);
+      if (fresh.status !== "pending") return fresh;
+      throw new XenditError("QRIS belum bisa dibatalkan, coba lagi sebentar", 502);
+    }
+  }
+  await close(admin, row.id, "canceled");
+  return reread(admin, row.id);
+}
+
+/**
+ * Pay with QRIS: hold the seats, open the QRIS, and hand back what the page shows. Pressing Pay
+ * again for the same seats while the code is still good returns the same hold.
+ */
+export async function startCheckout(
+  admin: Admin,
+  cfg: XenditConfig,
+  buyerId: string,
+  listingId: string,
+  quantity: number
+): Promise<Result<PaymentView>> {
+  await expireHolds(admin);
+
+  const open = await admin.from("payments").select("*").eq("buyer_id", buyerId).eq("status", "pending");
+  if (open.error) return fail(500, open.error.message);
+  const release = (row: PaymentRow) =>
+    cancelHold(admin, cfg, row).catch((e) => console.error("[payments] could not close an older hold:", row.id, (e as Error).message));
+  // The same seats with time left: hand back the same code. Other seats of the same listing go
+  // back first, so this hold counts them.
+  for (const row of (open.data ?? []).filter((r) => r.listing_id === listingId)) {
+    if (row.quantity === quantity && row.provider_ref && Date.parse(row.expires_at) - Date.now() > 60_000) {
+      const fresh = await syncPayment(admin, cfg, row, true);
+      if (fresh.status === "pending") return { ok: true, value: paymentView(fresh, null) };
+      if (fresh.status === "paid") return { ok: true, value: paymentView(fresh, await orderIdOf(admin, fresh.id)) };
+    } else {
+      await release(row);
+    }
+  }
+
+  // A start that cannot go ahead leaves the buyer's other hold alone.
+  const check = await checkPurchase(admin, buyerId, listingId);
+  if (!check.ok) return check;
+  const price = priceOf(check.purchase.listing.ask_price, quantity);
+  if (price.total > QRIS_MAX) {
+    return fail(400, `QRIS paling banyak ${rupiah(QRIS_MAX)} per pembayaran, sedangkan totalnya ${rupiah(price.total)}. Kurangi jumlah tiketnya.`);
+  }
+  // One open hold per buyer: this one replaces any on other listings.
+  for (const row of (open.data ?? []).filter((r) => r.listing_id !== listingId)) await release(row);
+
+  const claim = await admin.rpc("claim_listing", { p_listing_id: listingId, p_quantity: quantity });
+  if (claim.error) return fail(500, claim.error.message);
+  // Nothing claimed comes back as a row of nulls, not as null.
+  if (!claim.data?.id) return fail(409, "tiketnya baru saja dibeli orang lain, atau jumlahnya tidak tersedia");
+
+  const expiresAt = new Date(Math.ceil((Date.now() + HOLD_MINUTES * 60_000) / 1000) * 1000);
+  const inserted = await admin
+    .from("payments")
+    .insert({ buyer_id: buyerId, listing_id: listingId, quantity, ...price, test_mode: cfg.testMode, expires_at: expiresAt.toISOString() })
+    .select("*")
+    .single();
+  if (inserted.error || !inserted.data) {
+    await admin.rpc("release_listing", { p_listing_id: listingId, p_quantity: quantity });
+    return fail(500, inserted.error?.message ?? "pembayaran gagal disimpan");
+  }
+  const row = inserted.data;
+  seatsChanged();
+
+  let qrisId: string | null = null;
+  try {
+    const qris = await createQris(cfg, { referenceId: row.id, amount: price.total, expiresAt, description: `Lummy Ticket ${row.id}` });
+    qrisId = qris.id;
+    if (!qris.qrString) throw new XenditError("Xendit tidak mengirim kode QR", 502);
+    const now = new Date().toISOString();
+    const saved = await admin
+      .from("payments")
+      .update({ provider_ref: qris.id, qr_string: qris.qrString, checked_at: now, updated_at: now })
+      .eq("id", row.id)
+      .select("*")
+      .single();
+    if (saved.error || !saved.data) throw new Error(saved.error?.message ?? "pembayaran gagal disimpan");
+    return { ok: true, value: paymentView(saved.data, null) };
+  } catch (e) {
+    // Nobody saw a code for this hold, so nobody can pay it: shut it and give the seats back.
+    if (qrisId) await cancelQris(cfg, qrisId).catch(() => null);
+    await close(admin, row.id, "failed").catch(() => null);
+    return fail(502, `QRIS gagal dibuat: ${(e as Error).message}`);
+  }
+}

@@ -29,8 +29,8 @@ const sections: LegalSection[] = [
         id: "Foto yang kamu lampirkan ke klaim atau jawaban, dan yang tercatat di file-nya: kapan diambil, di mana (GPS, kalau HP menyimpannya), model kamera, aplikasi edit, dan barcode di dalamnya (sebagai hash berkunci).",
       },
       {
-        en: "Orders and claims: what was bought, the amounts, when the handover documents were opened, what each side wrote, and the decision.",
-        id: "Pesanan dan klaim: apa yang dibeli, nominalnya, kapan dokumen serah terima dibuka, apa yang ditulis tiap pihak, dan putusannya.",
+        en: "Orders, payments and claims: what was bought, the amounts, the QRIS payment's status and Xendit's payment number, when the handover documents were opened, what each side wrote, and the decision.",
+        id: "Pesanan, pembayaran, dan klaim: apa yang dibeli, nominalnya, status pembayaran QRIS dan nomor pembayaran dari Xendit, kapan dokumen serah terima dibuka, apa yang ditulis tiap pihak, dan putusannya.",
       },
       {
         en: "We do not accept photos of ID cards yet, and we run no analytics or advertising trackers. The site keeps a sign-in cookie, and your language and sample data in your browser.",
@@ -62,7 +62,8 @@ const sections: LegalSection[] = [
       { en: "Vercel: the servers that run the site, in Singapore.", id: "Vercel: server yang menjalankan situs, di Singapura." },
       { en: `Mailspace: sends the sign-in email and holds our team inbox (${CONTACT_EMAIL}), where your messages to us arrive.`, id: `Mailspace: mengirim email untuk masuk dan menyimpan kotak masuk tim (${CONTACT_EMAIL}), tempat pesanmu ke kami masuk.` },
       { en: "Arbitrum (a public blockchain): the escrow ledger described above.", id: "Arbitrum (blockchain publik): buku besar escrow seperti di atas." },
-      { en: "Before we turn on reading ticket details automatically with Google Gemini, or paying with QRIS through Xendit, this page will say so first.", id: "Sebelum kami menyalakan pembacaan data tiket otomatis dengan Google Gemini, atau pembayaran QRIS lewat Xendit, halaman ini akan menyebutnya lebih dulu." },
+      { en: "Xendit: takes QRIS payments. For now it runs in test mode, so no real money moves, and it receives only the amount and a payment number, never your name or email.", id: "Xendit: menerima pembayaran QRIS. Untuk sekarang berjalan di mode test, jadi tidak ada uang sungguhan yang berpindah, dan Xendit hanya menerima nominal dan nomor pembayaran, tidak pernah nama atau emailmu." },
+      { en: "Before we turn on reading ticket details automatically with an AI service, or take real payments, this page will say so first.", id: "Sebelum kami menyalakan pembacaan data tiket otomatis dengan layanan AI, atau menerima pembayaran sungguhan, halaman ini akan menyebutnya lebih dulu." },
     ],
     body: [{ en: "This means your data is stored outside Indonesia.", id: "Artinya datamu disimpan di luar Indonesia." }],
   },
@@ -72,7 +73,7 @@ const sections: LegalSection[] = [
       { en: "Ticket PDFs: deleted 30 days after the show, but never while an order on them still holds money or a claim is open.", id: "PDF tiket: dihapus 30 hari setelah acara, tapi tidak selama pesanan di atasnya masih menahan dana atau klaimnya masih terbuka." },
       { en: "Claim photos: deleted 30 days after the claim is decided, and where they were taken is removed from the claim record with them. What the checks concluded and the decision stay.", id: "Foto klaim: dihapus 30 hari setelah klaim diputus, dan lokasi pengambilannya ikut dihapus dari catatan klaim. Hasil cek dan putusannya tetap tersimpan." },
       { en: "Photos uploaded but never attached to a claim: deleted after 7 days.", id: "Foto yang di-upload tapi tidak pernah dilampirkan: dihapus setelah 7 hari." },
-      { en: "Your account, orders and claims: while your account exists, then as long as needed to settle anything still open. Records on the public ledger cannot be deleted by anyone.", id: "Akun, pesanan, dan klaim: selama akunmu ada, lalu selama dibutuhkan untuk menyelesaikan yang masih berjalan. Catatan di buku besar publik tidak bisa dihapus siapa pun." },
+      { en: "Your account, orders, payments and claims: while your account exists, then as long as needed to settle anything still open. Records on the public ledger cannot be deleted by anyone.", id: "Akun, pesanan, pembayaran, dan klaim: selama akunmu ada, lalu selama dibutuhkan untuk menyelesaikan yang masih berjalan. Catatan di buku besar publik tidak bisa dihapus siapa pun." },
     ],
   },
   {

@@ -132,9 +132,14 @@ try {
     }, DEMO_KEY);
   }
   await buyer.page.goto(`${BASE}/checkout?listing=${L1}&qty=1`, { waitUntil: "networkidle" });
+  // With QRIS on (a Xendit test key on the server), the account pays through it, and Xendit's
+  // simulator stands in for the buyer's app (docs/09 §6; payments:check covers that path in full).
+  const qris = !CHAIN && (await buyer.page.locator("[data-qris-note]").isVisible());
   if (CHAIN) check("checkout: mode chain aktif", await buyer.page.getByText("Chain mode: a real escrow", { exact: false }).isVisible());
+  else if (qris) check("checkout: bayar lewat QRIS mode test", true);
   else check("checkout: bilang pembayarannya simulasi", await buyer.page.locator("[data-simulated-payment]").isVisible());
   await buyer.page.getByRole("button", { name: /^Pay IDR/ }).click();
+  if (qris) await buyer.page.locator("[data-qris-simulate]").click();
   await buyer.page.waitForURL(/\/tickets\/or-/, { timeout: CHAIN ? 120000 : 30000 });
   const orderId = new URL(buyer.page.url()).pathname.split("/").pop();
   await buyer.page.getByRole("heading", { name: "Tulus: Manusia Tour" }).waitFor();
@@ -259,11 +264,25 @@ try {
   const link = await admin.auth.admin.generateLink({ type: "magiclink", email: PLAIN_EMAIL });
   const plain = await browser.newContext();
   await (await plain.newPage()).goto(`${BASE}/auth/confirm?token_hash=${link.data.properties?.hashed_token}&type=email`, { waitUntil: "networkidle" });
-  const plainBuy = () => plain.request.post(`${BASE}/api/orders`, { data: { listingId: L3, quantity: 1 } });
-  const firstThree = [(await plainBuy()).status(), (await plainBuy()).status(), (await plainBuy()).status()];
+  // With QRIS on, an ordinary account must pay through it (the straight path answers 409), and
+  // Xendit's test simulator stands in for the buyer's app; the cap holds there too.
+  const qrisOn = (await (await fetch(`${BASE}/api/payments`)).json().catch(() => ({}))).enabled === true;
+  const plainBuy = async () => {
+    if (!qrisOn) return (await plain.request.post(`${BASE}/api/orders`, { data: { listingId: L3, quantity: 1 } })).status();
+    const start = await plain.request.post(`${BASE}/api/payments`, { data: { listingId: L3, quantity: 1 } });
+    if (start.status() !== 200) return start.status();
+    const { id } = await start.json();
+    const paid = await plain.request.post(`${BASE}/api/payments/${id}`, { data: { action: "simulate" } });
+    return paid.status() === 200 && (await paid.json()).status === "paid" ? 200 : paid.status();
+  };
+  if (qrisOn) {
+    const straight = await plain.request.post(`${BASE}/api/orders`, { data: { listingId: L3, quantity: 1 } });
+    check("akun biasa: jalur langsung tertutup selama QRIS aktif (409)", straight.status() === 409, String(straight.status()));
+  }
+  const firstThree = [await plainBuy(), await plainBuy(), await plainBuy()];
   check("akun biasa: tiga pesanan berjalan boleh", firstThree.every((c) => c === 200), firstThree.join(","));
   const fourth = await plainBuy();
-  check("akun biasa: pesanan keempat ditolak 429", fourth.status() === 429, String(fourth.status()));
+  check("akun biasa: pesanan keempat ditolak 429", fourth === 429, String(fourth));
   check("yang ditolak tidak mengambil kursi", JSON.stringify(await listingOf(L3)) === JSON.stringify({ quantity: 3, status: "active" }));
   check("akun demo tidak kena batas itu", (await buyer.buy({ listingId: L3, quantity: 1 })).status() === 200);
   await plain.close();
@@ -345,6 +364,7 @@ try {
 } finally {
   // Orders first (their claims go with them), then the listings they point at, then the account.
   const orders = await admin.from("orders").delete().in("listing_id", [L1, L2, L3]).select("id");
+  await admin.from("payments").delete().in("listing_id", [L1, L2, L3]);
   const listings = await admin.from("listings").delete().in("id", [L1, L2, L3]).select("id");
   const gone = plainUserId ? await admin.auth.admin.deleteUser(plainUserId) : { error: null };
   await admin.from("listings").update({ quantity: 2, status: "active" }).eq("id", SEED_TOUCHED);
