@@ -127,7 +127,7 @@ function LoginInner() {
                 {t("Email me a sign-in link", "Kirim link masuk ke email")}
               </Button.Primary>
               <p className="text-[11px] text-neutral-gray text-center mt-3 leading-relaxed">
-                {t("By signing in you agree to the ", "Dengan masuk, kamu setuju dengan ")}
+                {t("By signing in you confirm you are 18 or older and agree to the ", "Dengan masuk, kamu menyatakan berusia 18 tahun ke atas dan setuju dengan ")}
                 <Link href="/terms" className="text-primary-navy">{t("terms", "syarat dan ketentuan")}</Link>
                 {t(" and the ", " dan ")}
                 <Link href="/privacy" className="text-primary-navy">{t("privacy policy", "kebijakan privasi")}</Link>.

@@ -17,6 +17,15 @@ const sections: LegalSection[] = [
     ],
   },
   {
+    title: { en: "Who can use Lummy", id: "Siapa yang boleh memakai Lummy" },
+    body: [
+      {
+        en: "You must be 18 or older to buy or sell on Lummy. We may close an account that belongs to someone younger.",
+        id: "Kamu harus berusia 18 tahun ke atas untuk membeli atau menjual di Lummy. Kami boleh menutup akun milik orang yang lebih muda.",
+      },
+    ],
+  },
+  {
     title: { en: "This is a prototype", id: "Ini prototipe" },
     body: [
       {
@@ -80,7 +89,7 @@ export default function TermsPage() {
   return (
     <LegalPage
       title={{ en: "Terms of use", id: "Syarat dan ketentuan" }}
-      effective={{ en: "7 Oct 2026", id: "7 Okt 2026" }}
+      effective={{ en: "8 Oct 2026", id: "8 Okt 2026" }}
       intro={{
         en: "The rules of buying and selling on Lummy Ticket. They are the same rules the app enforces.",
         id: "Aturan jual beli di Lummy Ticket. Isinya sama dengan aturan yang dijalankan aplikasinya.",

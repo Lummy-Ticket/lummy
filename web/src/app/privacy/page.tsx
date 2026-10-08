@@ -85,6 +85,15 @@ const sections: LegalSection[] = [
     ],
   },
   {
+    title: { en: "Under 18", id: "Di bawah 18 tahun" },
+    body: [
+      {
+        en: "Lummy is only for people 18 and older. If we learn an account belongs to someone under 18, we close it and delete its data, except what an open order or the law still needs.",
+        id: "Lummy hanya untuk yang berusia 18 tahun ke atas. Kalau kami tahu sebuah akun milik orang di bawah 18 tahun, akun itu kami tutup dan datanya kami hapus, kecuali yang masih dibutuhkan pesanan yang berjalan atau diwajibkan hukum.",
+      },
+    ],
+  },
+  {
     title: { en: "How it is protected", id: "Cara kami melindunginya" },
     body: [
       {
@@ -108,7 +117,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage
       title={{ en: "Privacy policy", id: "Kebijakan privasi" }}
-      effective={{ en: "7 Oct 2026", id: "7 Okt 2026" }}
+      effective={{ en: "8 Oct 2026", id: "8 Okt 2026" }}
       intro={{
         en: "What Lummy Ticket keeps about you, why, who can see it, and when it is deleted. Written to match what the app actually does.",
         id: "Apa yang disimpan Lummy Ticket tentang kamu, untuk apa, siapa yang bisa melihatnya, dan kapan dihapus. Ditulis sesuai yang benar-benar dilakukan aplikasinya.",
