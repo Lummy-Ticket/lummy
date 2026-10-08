@@ -223,7 +223,13 @@ async function main() {
     const third = await api(buyerCtx, "POST", "/api/payments", { listingId: L1, quantity: 1 });
     const p3 = String(third.body.id ?? "");
     await ageHold(p3);
-    const expired = await api(buyerCtx, "GET", `/api/payments/${p3}`);
+    // The server reads Xendit at most every 10 seconds per hold, and a webhook landing just now, or
+    // a slow cancel at Xendit, can take one of those rounds. Ask again the way the page does.
+    let expired = await api(buyerCtx, "GET", `/api/payments/${p3}`);
+    for (let i = 0; i < 6 && expired.body.status === "pending"; i++) {
+      await sleep(3000);
+      expired = await api(buyerCtx, "GET", `/api/payments/${p3}`);
+    }
     check("an overdue hold reads as expired", expired.status === 200 && expired.body.status === "expired" && expired.body.qrString === null, JSON.stringify(expired));
     check("and its seat is back", (await listing(L1))?.quantity === 1 && (await listing(L1))?.status === "active");
 
