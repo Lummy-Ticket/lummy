@@ -140,9 +140,10 @@ export async function syncPayment(admin: Admin, cfg: XenditConfig, row: PaymentR
       return reread(admin, row.id);
     }
     // Right after a payment Xendit can answer SUCCEEDED before it names the payment (seen in test
-    // mode, 8 Oct 2026); ask once more so the record carries it.
-    if (!qris.latestPaymentId) {
-      await sleep(1500);
+    // mode, 8 Oct 2026, for over a second). Ask a few more times; if it is still unnamed, the next
+    // forced read (Xendit's webhook) fills the number in.
+    for (let i = 0; i < 3 && !qris.latestPaymentId; i++) {
+      await sleep(1000);
       const named = await readQris(cfg, row.provider_ref).catch(() => null);
       if (named?.latestPaymentId) qris = named;
     }

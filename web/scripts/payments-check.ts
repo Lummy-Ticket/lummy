@@ -175,11 +175,7 @@ async function main() {
       JSON.stringify(o1)
     );
     const row1 = await payment(p1);
-    check(
-      "the hold records Xendit's payment",
-      row1?.status === "paid" && !!row1.paid_at && (row1.provider_payment_id ?? "").startsWith("py-"),
-      JSON.stringify({ status: row1?.status, paid_at: row1?.paid_at, provider_payment_id: row1?.provider_payment_id })
-    );
+    check("the hold reads as paid, with the time", row1?.status === "paid" && !!row1.paid_at, JSON.stringify({ status: row1?.status, paid_at: row1?.paid_at }));
     const reread1 = await api(buyerCtx, "GET", `/api/payments/${p1}`);
     check("reading it again points at the same order", reread1.body.status === "paid" && reread1.body.orderId === o1[0]?.id, JSON.stringify(reread1));
 
@@ -190,6 +186,9 @@ async function main() {
     const genuine = await webhook(TOKEN, { payment_request_id: prId, reference_id: p1, status: "SUCCEEDED" });
     check("the genuine webhook is accepted", genuine.status === 200 && genuine.body.status === "paid", JSON.stringify(genuine));
     check("and still one order", (await ordersOf(p1)).length === 1);
+    // Xendit can name the payment a few seconds after it reports it; by its webhook the number is there.
+    const named1 = (await payment(p1))?.provider_payment_id ?? "";
+    check("after the webhook the hold carries Xendit's payment number", named1.startsWith("py-"), JSON.stringify(named1));
     const stranger = await webhook(TOKEN, { payment_request_id: "pr-00000000-0000-4000-8000-000000000000", reference_id: "pay-000000000000" });
     check("a webhook for a payment that is not ours is acknowledged and ignored", stranger.status === 200 && stranger.body.ignored === true, JSON.stringify(stranger));
 
