@@ -41,7 +41,7 @@ const PASSES = [
 type OperatorList = { fnArray: number[]; argsArray: unknown[] };
 
 /** Whether a page draws something a barcode could be: a picture, or many separate shapes. */
-function mayHoldBarcode(ops: OperatorList, OPS: Record<string, number>) {
+export function mayHoldBarcode(ops: OperatorList, OPS: Record<string, number>) {
   const pictures = new Set(Object.entries(OPS).filter(([name]) => name.includes("Image")).map(([, fn]) => fn));
   let shapes = 0;
   for (let i = 0; i < ops.fnArray.length; i++) {
@@ -93,7 +93,7 @@ export class TicketError extends Error {
 
 const nonEmpty = (x: unknown) => (x instanceof Map ? x.size > 0 : !!x && typeof x === "object" && Object.keys(x).length > 0);
 
-async function open(
+export async function openPdf(
   bytes: Uint8Array,
   maxImageSize: number
 ): Promise<{ task: PDFDocumentLoadingTask; doc: PDFDocumentProxy; OPS: Record<string, number> }> {
@@ -120,7 +120,7 @@ async function open(
   }
 }
 
-async function readPage(page: PDFPageProxy, dpi: number) {
+export async function readPage(page: PDFPageProxy, dpi: number) {
   const base = page.getViewport({ scale: 1 });
   const scale = Math.min(dpi / 72, MAX_SIDE_PX / Math.max(base.width, base.height));
   const viewport = page.getViewport({ scale });
@@ -149,7 +149,7 @@ export async function analyzeTicket(bytes: Uint8Array, pepper: string): Promise<
 
   for (const [i, pass] of PASSES.entries()) {
     if (i > 0 && (found.size > 0 || Date.now() >= deadline)) break;
-    const { task, doc, OPS } = await open(bytes, pass.maxImageSize);
+    const { task, doc, OPS } = await openPdf(bytes, pass.maxImageSize);
     try {
       pages = doc.numPages;
       const scripts: string[] = [];

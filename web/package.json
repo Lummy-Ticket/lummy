@@ -24,6 +24,8 @@
     "listings:check": "node --env-file-if-exists=.env.local scripts/listings-check.mjs",
     "tickets:check": "tsx scripts/tickets-check.ts",
     "tickets:inspect": "tsx scripts/tickets-inspect.ts",
+    "tickets:clean": "tsx scripts/tickets-clean.ts",
+    "clean:check": "tsx scripts/clean-check.ts",
     "tickets:flow": "tsx scripts/tickets-flow-check.ts",
     "cancel:check": "tsx scripts/cancel-check.ts",
     "evidence:check": "tsx scripts/evidence-check.ts",

@@ -47,7 +47,7 @@ async function drawCode(doc: PDFDocument, page: PDFPage, code: Code) {
   }
 }
 
-export async function ticketPdf(o: { codes: Code[]; name?: string; producer: string; creator?: string; modified?: Date }) {
+export async function ticketPdf(o: { codes: Code[]; name?: string; producer: string; creator?: string; modified?: Date; extra?: string[] }) {
   const doc = await PDFDocument.create({ updateMetadata: false });
   doc.setProducer(o.producer);
   doc.setCreator(o.creator ?? "Lummy test issuer");
@@ -59,6 +59,7 @@ export async function ticketPdf(o: { codes: Code[]; name?: string; producer: str
     page.drawText("TULUS - Tur Manusia 2026", { x: 36, y: 540, size: 16, font });
     page.drawText(`Name: ${o.name ?? "Zahra Amelia"}`, { x: 36, y: 510, size: 12, font });
     page.drawText("VIP - Row C - Seat 12 - Istora Senayan", { x: 36, y: 490, size: 12, font });
+    (o.extra ?? []).forEach((line, i) => page.drawText(line, { x: 36, y: 470 - i * 16, size: 10, font }));
     if (code) await drawCode(doc, page, code);
   }
   return doc.save({ useObjectStreams: false });
