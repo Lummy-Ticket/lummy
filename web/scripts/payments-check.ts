@@ -8,6 +8,10 @@
  * refund when they are not. With WEBHOOK_LIVE=1 (BASE is the address registered at Xendit), money
  * paid at Xendit alone has to reach the hold through Xendit's own webhook.
  *
+ * The paid order then has to reach the public ledger on Arbitrum Sepolia by itself (docs/09 §7),
+ * and a claim and a staff ruling on it have to follow it there; a third account, made staff for the
+ * run, rules. LEDGER=0 skips that part, for a server without the ledger key.
+ *
  * The two accounts are made for the run and signed in with an admin link, so no email is sent and
  * no demo key is needed; everything it made, accounts included, is deleted at the end. It writes to
  * the database the server uses and calls Xendit in test mode, so run it only where that is fine,
@@ -23,6 +27,9 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import { chromium, type Browser, type BrowserContext } from "playwright-core";
+import { createPublicClient, http, keccak256, toHex, zeroAddress, type Address } from "viem";
+import { arbitrumSepolia } from "viem/chains";
+import { ledgerAbi } from "../src/lib/chain/abi";
 import type { Database } from "../src/lib/supabase/types";
 
 try {
@@ -35,9 +42,12 @@ const EXEC = process.env.CHROME ?? "/opt/google/chrome/chrome";
 const XENDIT_KEY = process.env.XENDIT_SECRET_KEY ?? "";
 const TOKEN = process.env.XENDIT_WEBHOOK_TOKEN ?? "";
 const WEBHOOK_LIVE = process.env.WEBHOOK_LIVE === "1";
+const LEDGER = process.env.LEDGER !== "0";
+const RPC = process.env.LUMMY_RPC_URL ?? "https://sepolia-rollup.arbitrum.io/rpc";
 const RUN = Date.now().toString(36);
 const BUYER_EMAIL = `payments-check-${RUN}-buyer@example.com`;
 const SELLER_EMAIL = `payments-check-${RUN}-seller@example.com`;
+const STAFF_EMAIL = `payments-check-${RUN}-staff@example.com`;
 const EVENT = "ev-zz-pay";
 const TIER = "t-zz-pay";
 const TIER_VIP = "t-zz-pay-vip";
@@ -55,6 +65,11 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 type Admin = ReturnType<typeof createClient<Database>>;
 type Reply = { status: number; body: Record<string, unknown> };
+type LedgerHistory = {
+  source?: string;
+  events?: { kind: string; amount?: string; toBuyer?: string; toSeller?: string }[];
+  live?: { status: string; disputed: boolean; buyer: string; seller: string };
+};
 
 /** Signs an account in the way its email link would, with a link the admin key makes (none is sent). */
 async function signIn(admin: Admin, browser: Browser, email: string): Promise<BrowserContext> {
@@ -120,14 +135,18 @@ async function main() {
   try {
     // --- Two accounts of our own: one buys, one sells (and later tries to read the buyer's hold).
     const made = await Promise.all(
-      [BUYER_EMAIL, SELLER_EMAIL].map((email, i) =>
-        admin.auth.admin.createUser({ email, email_confirm: true, user_metadata: { full_name: i ? "Payments Seller" : "Payments Buyer" } })
+      [BUYER_EMAIL, SELLER_EMAIL, STAFF_EMAIL].map((email, i) =>
+        admin.auth.admin.createUser({ email, email_confirm: true, user_metadata: { full_name: ["Payments Buyer", "Payments Seller", "Payments Staff"][i] } })
       )
     );
     const buyer = made[0].data.user?.id;
     const seller = made[1].data.user?.id;
-    for (const id of [buyer, seller]) if (id) userIds.push(id);
-    if (!buyer || !seller) throw new Error(`accounts: ${made.map((m) => m.error?.message ?? "ok").join(", ")}`);
+    const staff = made[2].data.user?.id;
+    for (const id of [buyer, seller, staff]) if (id) userIds.push(id);
+    if (!buyer || !seller || !staff) throw new Error(`accounts: ${made.map((m) => m.error?.message ?? "ok").join(", ")}`);
+    // Staff for this run only: it rules on the claim below, and is deleted with the others.
+    const promoted = await admin.from("profiles").update({ role: "admin" }).eq("id", staff).select("id");
+    if (promoted.error || !promoted.data.length) throw new Error(`staff: ${promoted.error?.message ?? "no profile"}`);
 
     // --- A show of our own with three listings on sale. A multi-row insert sends null for a
     // column one row leaves out, so every row names them all.
@@ -154,6 +173,7 @@ async function main() {
 
     const buyerCtx = await signIn(admin, browser, BUYER_EMAIL);
     const sellerCtx = await signIn(admin, browser, SELLER_EMAIL);
+    const staffCtx = await signIn(admin, browser, STAFF_EMAIL);
     const probe = await api(buyerCtx, "GET", "/api/payments/pay-000000000000");
     check("the buyer is signed in (a hold that does not exist reads 404, not 401)", probe.status === 404, JSON.stringify(probe));
 
@@ -227,6 +247,65 @@ async function main() {
     check("the real number comes back from Xendit itself", kept === named1, JSON.stringify({ kept, named1 }));
     const stranger = await webhook(TOKEN, { payment_request_id: "pr-00000000-0000-4000-8000-000000000000", reference_id: "pay-000000000000" });
     check("a webhook for a payment that is not ours is acknowledged and ignored", stranger.status === 200 && stranger.body.ignored === true, JSON.stringify(stranger));
+
+    // --- The public record (docs/09 §7): the paid order reaches LummyLedger by itself a moment
+    // later, and the buyer's claim and the staff ruling follow it there. Nothing personal goes on chain.
+    if (LEDGER) {
+      const orderId = o1[0]?.id ?? "";
+      const recordId = keccak256(toHex(`lummy:order:${orderId}`));
+      const ledgerRow = async () =>
+        (await admin.from("orders").select("ledger_id, ledger_status, ledger_contract, ledger_error").eq("id", orderId).single()).data;
+      const history = async () => {
+        const r = await fetch(`${BASE}/api/chain/history/${recordId}`);
+        return { status: r.status, body: (await r.json().catch(() => ({}))) as LedgerHistory };
+      };
+      /** Asks again until `done` holds or a minute has passed; the chain needs a few seconds per step. */
+      const until = async <T,>(read: () => Promise<T>, done: (v: T) => boolean) => {
+        let v = await read();
+        for (let i = 0; i < 40 && !done(v); i++) {
+          await sleep(1500);
+          v = await read();
+        }
+        return v;
+      };
+
+      const lr = await until(ledgerRow, (r) => r?.ledger_status === "Open" || !!r?.ledger_error);
+      check("the paid order reaches the public ledger by itself", lr?.ledger_status === "Open" && lr.ledger_id === recordId, JSON.stringify(lr));
+      const h1 = await history();
+      const first = h1.body.events?.[0];
+      check(
+        "its proof reads as paid, in rupiah, from the ledger contract",
+        h1.status === 200 && h1.body.source === "ledger" && first?.kind === "Paid" && first.amount === String(PRICE) && h1.body.live?.status === "DisputeWindow",
+        JSON.stringify(h1).slice(0, 300)
+      );
+      check(
+        "and names nobody: no account, email or address of either side",
+        h1.status === 200 && !/Payments|example\.com/.test(JSON.stringify(h1.body)) && h1.body.live?.buyer === zeroAddress && h1.body.live?.seller === zeroAddress,
+        JSON.stringify(h1.body.live)
+      );
+      const pc = createPublicClient({ chain: arbitrumSepolia, transport: http(RPC) });
+      const used = lr?.ledger_contract
+        ? await pc.readContract({ address: lr.ledger_contract as Address, abi: ledgerAbi, functionName: "paymentUsed", args: [keccak256(toHex(`lummy:xendit:${prId}`))] })
+        : false;
+      check("the contract holds this payment as used, so it can never back a second order", used === true, String(used));
+
+      const claim = await api(buyerCtx, "POST", `/api/orders/${orderId}`, { action: "dispute", reason: "NOT_DELIVERED", note: "uji buku besar" });
+      check("the buyer files a claim on the QRIS order", claim.status === 200, JSON.stringify(claim));
+      const h2 = await until(history, (h) => !!h.body.events?.some((e) => e.kind === "DisputeRaised"));
+      check("the claim reaches the record", !!h2.body.events?.some((e) => e.kind === "DisputeRaised") && h2.body.live?.disputed === true, JSON.stringify(h2.body.live));
+
+      const ruled = await api(staffCtx, "POST", `/api/orders/${orderId}`, { action: "verdict", remedy: "REFUND_FULL" });
+      check("staff rule a full refund", ruled.status === 200, JSON.stringify(ruled));
+      const h3 = await until(history, (h) => h.body.live?.status === "Refunded");
+      const verdict = h3.body.events?.find((e) => e.kind === "Resolved");
+      check(
+        "the ruling reaches the record: all of it back to the buyer",
+        h3.body.live?.status === "Refunded" && verdict?.toBuyer === String(PRICE) && verdict?.toSeller === "0",
+        JSON.stringify(h3.body).slice(0, 300)
+      );
+      const mirrored = await until(ledgerRow, (r) => r?.ledger_status === "Refunded");
+      check("and the order notes the record is final", mirrored?.ledger_status === "Refunded" && !mirrored.ledger_error, JSON.stringify(mirrored));
+    }
 
     // --- Cancelling gives the seat back.
     const second = await api(buyerCtx, "POST", "/api/payments", { listingId: L1, quantity: 1 });
@@ -328,7 +407,7 @@ async function main() {
     }
     check("after 20 new holds in 10 minutes the next is refused (429)", limited?.status === 429, JSON.stringify(limited));
     check("and the refused start holds nothing", (await listing(L_RATE))?.status === "active", JSON.stringify(await listing(L_RATE)));
-    await Promise.all([buyerCtx.close(), sellerCtx.close()]);
+    await Promise.all([buyerCtx.close(), sellerCtx.close(), staffCtx.close()]);
   } catch (e) {
     check("check ran to the end", false, (e as Error).message.split("\n")[0].slice(0, 200));
   } finally {

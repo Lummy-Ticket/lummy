@@ -103,6 +103,11 @@ select pg_temp.probe('authenticated', '22222222-2222-2222-2222-222222222222', 's
 select pg_temp.probe('authenticated', '22222222-2222-2222-2222-222222222222', 'seller: read own listing checks', $q$select count(*)::text from (select checks from public.listings where id = 'ls-review') x$q$, '1');
 select pg_temp.probe('anon', null, 'anon: read barcode_hmac', 'select count(barcode_hmac)::text from public.listings', 'DENIED');
 
+-- QRIS holds and the public ledger's progress are written by the server only (docs/09 §6, §7).
+select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: read payments directly', 'select count(*)::text from public.payments', 'DENIED');
+select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: mark own ledger record final', $q$update public.orders set ledger_status = 'Released' returning id$q$, 'DENIED');
+select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: reads own ledger columns', $q$select count(*)::text from (select ledger_id, ledger_status from public.orders) x$q$, '1');
+
 insert into t_out(line)
   select (case when role = 'member' then 'ok    ' else 'FAIL  ' end) || 'signup metadata cannot set role -> ' || role::text
   from public.profiles where id = '22222222-2222-2222-2222-222222222222';

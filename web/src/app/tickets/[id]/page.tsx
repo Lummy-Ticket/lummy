@@ -25,11 +25,12 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import {useOrders, useUser, explorerTx, explorerAddr, shortHash, phaseOf, msUntilRelease, disputeDeadlineISO, endedAtISO, canRefundPostponed, checkEvidence, mockEvidenceOptions, DISPUTE_WINDOW_H, reasonMeta, availableReasons, reasonBlockedNote, canFileDispute, REMEDY_LABEL, windowMs, windowLabel, withChainSnapshot, type DisputeEvidence, type DisputeReason,
 } from "@/lib/mock";
 import { chainAction, chainWritable, useChainHistory, useChainInfo, useChainListing, usdcText } from "@/lib/chain/client";
-import { DEPLOYMENTS } from "@/lib/chain/deployments";
+import { DEPLOYMENTS, LEDGERS } from "@/lib/chain/deployments";
 import { OrderError, orderAction, uploadEvidence, useAccountOrders } from "@/lib/orders/client";
 
 /** The escrow that new on-chain orders go to, shown even on sample orders so anyone can inspect it. */
 const LIVE_ESCROW = DEPLOYMENTS[421614]?.escrow;
+const LIVE_LEDGER = LEDGERS[421614]?.ledger;
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -100,6 +101,12 @@ export default function OrderDetailPage() {
   useEffect(() => {
     if (liveStep) refreshHistory();
   }, [liveStep, refreshHistory]);
+  // A QRIS order's public record (docs/09 §7): the same story, from the ledger contract's events.
+  const { data: ledgerHistory, refresh: refreshLedger } = useChainHistory(stored?.ledger?.id);
+  const ledgerStep = stored?.ledger ? `${stored.escrowStatus}:${stored.ledger.status}` : "";
+  useEffect(() => {
+    if (ledgerStep) refreshLedger();
+  }, [ledgerStep, refreshLedger]);
   const releaseTried = useRef(0);
 
   const mounted = useHydrated();
@@ -231,6 +238,15 @@ export default function OrderDetailPage() {
   const elapsed = Number.isFinite(left) ? Math.min(1, Math.max(0, 1 - left / windowMs(order))) : 0;
   const win = windowLabel(order);
   const onchain = order.chain;
+  // The timeline below: an escrow's own events, or a QRIS order's public record.
+  const record =
+    onchain && history
+      ? { history, live, proofId: onchain.listingId }
+      : order.ledger?.id && ledgerHistory
+        ? { history: ledgerHistory, live: null, proofId: order.ledger.id }
+        : null;
+  const ledgerContract = order.ledger?.contract ?? LIVE_LEDGER;
+  const ledgerTestnet = (order.ledger?.chainId ?? 421614) !== 42161;
   const canWrite = chainWritable(chainInfo);
   const filedReason = order.dispute ? reasonMeta(order.dispute.reason) : null;
   // A paid-out order's ticket file is deleted a month after the show (lib/retention.ts).
@@ -548,7 +564,33 @@ export default function OrderDetailPage() {
               </p>
             </div>
           )}
-          {showProof && !onchain && (
+          {showProof && !onchain && order.ledger && (
+            <div className="mt-3 rounded-2xl bg-secondary-blue-extra p-4 text-xs text-neutral-gray leading-relaxed">
+              {ledgerTestnet
+                ? t(
+                    "This order was paid by QRIS in Xendit's test mode. The money is held by the payment provider, not on chain; every step of the order is written to the public contract below, on Arbitrum Sepolia, where nobody can change it afterwards.",
+                    "Pesanan ini dibayar lewat QRIS di mode uji Xendit. Uangnya dipegang penyedia pembayaran, bukan di chain; setiap langkah pesanan ditulis ke kontrak publik berikut, di Arbitrum Sepolia, dan tidak bisa diubah siapa pun."
+                  )
+                : t(
+                    "This order was paid by QRIS. The money is held by the payment provider, not on chain; every step of the order is written to the public contract below, on Arbitrum, where nobody can change it afterwards.",
+                    "Pesanan ini dibayar lewat QRIS. Uangnya dipegang penyedia pembayaran, bukan di chain; setiap langkah pesanan ditulis ke kontrak publik berikut, di Arbitrum, dan tidak bisa diubah siapa pun."
+                  )}
+              {order.ledger.status === "Pending" && !order.ledger.stuck && (
+                <p className="mt-2">{t("The first entry is being written now and appears here in a moment.", "Catatan pertamanya sedang ditulis dan sebentar lagi muncul di sini.")}</p>
+              )}
+              {order.ledger.stuck && (
+                <p className="mt-2 text-secondary-orange-dark">
+                  {t("The contract refused one step of this order; our team is checking it.", "Kontrak menolak satu langkah pesanan ini; tim kami sedang memeriksanya.")}
+                </p>
+              )}
+              {ledgerContract && (
+                <a href={explorerAddr(ledgerContract)} target="_blank" rel="noreferrer" className="mt-2 flex items-center gap-1.5 font-mono text-primary-navy">
+                  {shortHash(ledgerContract)} <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              )}
+            </div>
+          )}
+          {showProof && !onchain && !order.ledger && (
             <div className="mt-3 rounded-2xl bg-secondary-blue-extra p-4 text-xs text-neutral-gray leading-relaxed">
               {account
                 ? t(
@@ -567,16 +609,16 @@ export default function OrderDetailPage() {
             </div>
           )}
 
-          {/* History: a chain order reads it from the contract's events, anything else from our records. */}
-          {onchain && history ? (
+          {/* History: a chain order or a QRIS order reads it from the contract's events, anything else from our records. */}
+          {record ? (
             <div className="mt-5">
-              <EscrowTimeline history={history} live={live} />
+              <EscrowTimeline history={record.history} live={record.live} />
               <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
-                <Link href={`/proof/${onchain.listingId}`} className="inline-flex items-center gap-1.5 text-primary-navy font-medium hover:opacity-80">
+                <Link href={`/proof/${record.proofId}`} className="inline-flex items-center gap-1.5 text-primary-navy font-medium hover:opacity-80">
                   <ShieldCheck className="w-3.5 h-3.5" /> {t("Open the public proof page", "Buka halaman bukti publik")}
                 </Link>
                 <button
-                  onClick={() => copy(`${window.location.origin}/proof/${onchain.listingId}`)}
+                  onClick={() => copy(`${window.location.origin}/proof/${record.proofId}`)}
                   className="inline-flex items-center gap-1.5 text-neutral-gray hover:text-primary-navy cursor-pointer"
                 >
                   <Copy className="w-3.5 h-3.5" /> {t("Copy the link to share", "Salin tautan untuk dibagikan")}

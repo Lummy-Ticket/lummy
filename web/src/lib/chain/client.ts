@@ -148,7 +148,9 @@ export function useChainListing(listingId: string | undefined, intervalMs = 5000
 }
 
 export type ChainHistoryKind =
-  | "Listed" | "ListingCancelled" | "Funded" | "HandoverMarked" | "EventPostponed" | "DisputeRaised" | "Resolved" | "Released" | "Refunded";
+  | "Listed" | "ListingCancelled" | "Funded" | "HandoverMarked" | "EventPostponed" | "DisputeRaised" | "Resolved" | "Released" | "Refunded"
+  /** Buku besar: pembayaran QRIS masuk dan catatannya dibuka. */
+  | "Paid";
 
 /** Satu event kontrak untuk listing ini. Bentuknya sama dengan HistoryEvent di lib/chain/history. */
 export type ChainHistoryEvent = {
@@ -162,9 +164,22 @@ export type ChainHistoryEvent = {
   toSeller?: string;
   deadline?: number;
   eventEndsAt?: number;
+  /** Alasan refund tanpa sengketa, khusus buku besar. */
+  reason?: "Other" | "EventCancelled" | "EventPostponed";
 };
 
-export type ChainHistory = { listingId: string; chainId: number; escrow: string; events: ChainHistoryEvent[]; live: ChainListing };
+/**
+ * `source`: "escrow" = dana USDC dikunci di LummyEscrow; "ledger" = pesanan QRIS yang uangnya di Xendit dan
+ * langkahnya dicatat LummyLedger (nominal dalam rupiah). `escrow` = alamat kontrak yang dibaca.
+ */
+export type ChainHistory = {
+  source?: "escrow" | "ledger";
+  listingId: string;
+  chainId: number;
+  escrow: string;
+  events: ChainHistoryEvent[];
+  live: ChainListing;
+};
 
 export const chainSettled = (s: ChainStatus | undefined) => s === "Released" || s === "Refunded" || s === "Cancelled";
 

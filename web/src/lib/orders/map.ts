@@ -74,6 +74,17 @@ export function orderFromRow(r: OrderRow): Order {
           },
         }
       : undefined;
+  // Paid by QRIS: the public record follows it. Orders paid before the ledger existed have none.
+  const ledger: Order["ledger"] =
+    !r.payment_id || r.ledger_status === "Skipped"
+      ? undefined
+      : {
+          id: r.ledger_id ?? undefined,
+          contract: r.ledger_contract ?? undefined,
+          chainId: r.ledger_chain_id ?? undefined,
+          status: r.ledger_status === "Open" || r.ledger_status === "Released" || r.ledger_status === "Refunded" ? r.ledger_status : "Pending",
+          stuck: r.ledger_error ? true : undefined,
+        };
   return {
     id: r.id,
     listingId: r.listing_id ?? "",
@@ -88,6 +99,7 @@ export function orderFromRow(r: OrderRow): Order {
     gateKtp: r.gate_ktp,
     escrowStatus: escrowStatusOf(r.escrow_status, r.disputed),
     chain: onchain,
+    ledger,
     createdAtISO: r.created_at,
     eventEndedAtISO: r.event_ended_at ?? undefined,
     eventEndsAtISO: r.event_ends_at ?? undefined,

@@ -9,6 +9,7 @@
 import { revalidateTag } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { checkPurchase, loadPurchase, orderInsert, priceOf } from "@/lib/orders/create";
+import { queueLedgerSync } from "@/lib/orders/ledger";
 import type { Database } from "@/lib/supabase/types";
 import { GRACE_SECONDS, HOLD_MINUTES } from "./hold";
 import type { PaymentStatus, PaymentView } from "./types";
@@ -103,6 +104,8 @@ async function ensureOrder(admin: Admin, row: PaymentRow): Promise<string | null
     if (ins.error.code === "23505") return orderIdOf(admin, row.id);
     throw new Error(ins.error.message);
   }
+  // The public record on chain follows once the answer is sent (docs/09 §7).
+  queueLedgerSync(admin, ins.data.id);
   return ins.data.id;
 }
 

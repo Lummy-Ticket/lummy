@@ -216,6 +216,21 @@ export interface OrderChain {
   txs: { create: string; fund: string; handover: string; settle?: string; withdrawals?: string[] };
 }
 
+/**
+ * The public record of a QRIS order on LummyLedger (docs/09 §7). The money is held by the payment
+ * provider and the database decides; the contract records each step for anyone to check.
+ */
+export interface OrderLedger {
+  /** bytes32 id of the record, once its first step reached the chain. */
+  id?: string;
+  contract?: string;
+  chainId?: number;
+  /** Pending: paid, the record is still being written. */
+  status: "Pending" | "Open" | "Released" | "Refunded";
+  /** The contract refused a step; staff look at it. */
+  stuck?: boolean;
+}
+
 export interface Order {
   id: string;
   listingId: string;
@@ -230,6 +245,7 @@ export interface Order {
   gateKtp: boolean;
   escrowStatus: EscrowStatus;
   chain?: OrderChain;
+  ledger?: OrderLedger;
   createdAtISO: string;
   /** Set once the event is confirmed over. This is what starts the 48h clock. */
   eventEndedAtISO?: string;

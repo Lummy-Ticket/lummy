@@ -4,6 +4,8 @@ import type { Address } from "viem";
 
 export type Deployment = { escrow: Address; token: Address; mockToken: boolean; disputeWindow: number; deployBlock?: number };
 
+export type LedgerDeployment = { ledger: Address; disputeWindow: number; deployBlock?: number };
+
 export const DEPLOYMENTS: Partial<Record<number, Deployment>> = {
   "421614": {
     "escrow": "0x6830Db86283157E4cB80b0615d4c51381A0C25Dd",
@@ -11,5 +13,13 @@ export const DEPLOYMENTS: Partial<Record<number, Deployment>> = {
     "mockToken": false,
     "disputeWindow": 600,
     "deployBlock": 312132461
+  }
+};
+
+export const LEDGERS: Partial<Record<number, LedgerDeployment>> = {
+  "421614": {
+    "ledger": "0xe454cbc81916E9bE1e6A768715134568FCEE8b0E",
+    "disputeWindow": 172800,
+    "deployBlock": 317357843
   }
 };

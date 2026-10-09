@@ -12,6 +12,7 @@ import {
 } from "@/lib/mock/escrow";
 import type { DisputeReason, Remedy } from "@/lib/mock/types";
 import { HELD, ORDER_SELECT, orderFromRow, type OrderRow } from "@/lib/orders/map";
+import { queueLedgerSync } from "@/lib/orders/ledger";
 import { settleOrder } from "@/lib/orders/settle";
 import { EVIDENCE_TYPES, EvidenceError, MAX_EVIDENCE_BYTES } from "@/lib/evidence/read";
 import { EVIDENCE_KINDS, evidenceFromUpload, newEvidencePath, ownsEvidencePath, type Side } from "@/lib/evidence/server";
@@ -64,6 +65,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const order = orderFromRow(row);
   const now = Date.now();
+  // A QRIS order's public record (docs/09 §7) follows each change once the answer is sent.
+  const ledgerFollows = () => {
+    if (row.payment_id) queueLedgerSync(admin, id);
+  };
   const at = new Date(now).toISOString();
   const body = ((await req.json().catch(() => null)) ?? {}) as Body;
 
@@ -163,6 +168,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         await admin.from("orders").update({ disputed: false }).eq("id", id);
         return fail(order.chain ? 502 : 500, failure);
       }
+      ledgerFollows();
       return done();
     }
 
@@ -240,6 +246,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         .update({ escrow_status: toSeller ? "Released" : "Refunded", ...(tx ? { tx_settle: tx.tx, tx_withdrawals: tx.withdrawals } : {}) })
         .eq("id", id);
       if (settled.error) return fail(500, settled.error.message);
+      ledgerFollows();
       return done(tx ?? {});
     }
 
@@ -247,6 +254,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       // Silence settles it: once the window has passed with no claim, the seller is paid. Anyone
       // on the order may ask; the rule, not the caller, decides. The daily sweep asks the same.
       const r = await settleOrder(admin, row, now);
+      if (r.ok && r.released) ledgerFollows();
       return r.ok ? done(r.tx ?? {}) : fail(r.status, r.error);
     }
 
@@ -278,6 +286,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         if (tx) console.error("[orders] refunded on chain but the order had already changed:", id);
         return fail(409, "pesanan ini baru saja berubah");
       }
+      ledgerFollows();
       return done(tx ?? {});
     }
 

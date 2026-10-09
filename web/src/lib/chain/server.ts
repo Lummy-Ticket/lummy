@@ -48,6 +48,18 @@ export function chainTarget(): ChainTarget | null {
 /** Nilai env pertama yang terisi, tanpa spasi atau newline yang ikut ter-paste. */
 const envOf = (...names: string[]) => names.map((n) => process.env[n]?.trim()).find(Boolean);
 
+/** ~/.lummy/testnet.env, khusus mesin dev di Arbitrum Sepolia. Produksi tidak pernah membacanya. */
+function testnetFile(chainId: number): Record<string, string> {
+  const file = path.join(os.homedir(), ".lummy", "testnet.env");
+  if (process.env.NODE_ENV === "production" || chainId !== 421614 || !fs.existsSync(file)) return {};
+  const env: Record<string, string> = {};
+  for (const line of fs.readFileSync(file, "utf8").split("\n")) {
+    const eq = line.indexOf("=");
+    if (eq > 0 && !line.startsWith("#")) env[line.slice(0, eq)] = line.slice(eq + 1).trim();
+  }
+  return env;
+}
+
 /**
  * Kunci dari env. Nama `LUMMY_*`, atau nama yang sama dengan ~/.lummy/testnet.env supaya file itu bisa
  * diimpor langsung ke Vercel (tanpa DEPLOYER_PRIVATE_KEY dan SELLER_PRIVATE_KEY, yang tidak dibutuhkan
@@ -57,18 +69,28 @@ function loadKeys(chainId: number) {
   let operator = envOf("LUMMY_OPERATOR_KEY", "OPERATOR_PRIVATE_KEY");
   let buyer = envOf("LUMMY_BUYER_KEY", "BUYER_PRIVATE_KEY");
   let seller = envOf("LUMMY_SELLER_ADDRESS", "SELLER_ADDRESS");
-  const file = path.join(os.homedir(), ".lummy", "testnet.env");
-  if ((!operator || !buyer || !seller) && process.env.NODE_ENV !== "production" && chainId === 421614 && fs.existsSync(file)) {
-    const env: Record<string, string> = {};
-    for (const line of fs.readFileSync(file, "utf8").split("\n")) {
-      const eq = line.indexOf("=");
-      if (eq > 0 && !line.startsWith("#")) env[line.slice(0, eq)] = line.slice(eq + 1).trim();
-    }
+  if (!operator || !buyer || !seller) {
+    const env = testnetFile(chainId);
     operator ??= env.OPERATOR_PRIVATE_KEY;
     buyer ??= env.BUYER_PRIVATE_KEY;
     seller ??= env.SELLER_ADDRESS;
   }
   return operator && buyer && seller ? { operator, buyer, seller } : null;
+}
+
+/**
+ * Akun yang menulis ke buku besar (lib/chain/ledger.ts): kunci khusus kalau ada, supaya nonce-nya tidak
+ * pernah berebut dengan checkout escrow di instance server lain; kalau tidak ada, kunci operator escrow,
+ * yang punya OPERATOR_ROLE di kedua kontrak.
+ */
+export function ledgerAccount(chainId: number): LocalAccount | null {
+  const file = testnetFile(chainId);
+  const key =
+    envOf("LUMMY_LEDGER_KEY", "LEDGER_OPERATOR_PRIVATE_KEY") ??
+    file.LEDGER_OPERATOR_PRIVATE_KEY ??
+    envOf("LUMMY_OPERATOR_KEY", "OPERATOR_PRIVATE_KEY") ??
+    file.OPERATOR_PRIVATE_KEY;
+  return key ? privateKeyToAccount(key as Hex) : null;
 }
 
 export function operatorSetup(): Operator | null {
@@ -97,9 +119,10 @@ export function writeAllowed(req: Request, op: Operator): boolean {
   return writeMode(op) !== "off" && demoKeyAllowed(req);
 }
 
-// Satu antrean per instance server: dua checkout bersamaan tidak berebut nonce operator.
+// Satu antrean per instance server: dua checkout bersamaan tidak berebut nonce operator. Penulisan
+// buku besar ikut antrean ini, karena tanpa kunci khusus ia memakai kunci operator yang sama.
 let queue: Promise<unknown> = Promise.resolve();
-function serial<T>(fn: () => Promise<T>): Promise<T> {
+export function serial<T>(fn: () => Promise<T>): Promise<T> {
   const run = queue.then(fn, fn);
   queue = run.catch(() => undefined);
   return run;

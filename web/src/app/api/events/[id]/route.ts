@@ -13,6 +13,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { chainError, operatorSetup, postpone, settle } from "@/lib/chain/server";
+import { queueLedgerSync } from "@/lib/orders/ledger";
 import { DISPUTE_WINDOW_H, EVENT_DURATION_H } from "@/lib/mock/escrow";
 import { HELD, ORDER_SELECT, orderFromRow, type OrderRow } from "@/lib/orders/map";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -123,6 +124,7 @@ async function cancel(admin: Admin, id: string, staffId: string) {
     }
     if (!done.data.length) continue; // settled by someone else in the meantime
     refunded++;
+    if (row.payment_id) queueLedgerSync(admin, row.id);
     // A claim still open on it is closed the same way: refunded in full, no penalty.
     if (order.dispute && !order.dispute.verdict) {
       await admin
@@ -221,7 +223,10 @@ async function postponeShow(admin: Admin, id: string, startsAtRaw: unknown) {
       failures.push(r.error.message);
       continue;
     }
-    if (r.data.length) moved++;
+    if (r.data.length) {
+      moved++;
+      if (row.payment_id) queueLedgerSync(admin, row.id);
+    }
   }
   if (failures.length) console.error(`[events] ${id} postponed; orders that did not move:`, failures);
 

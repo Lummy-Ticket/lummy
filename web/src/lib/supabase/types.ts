@@ -526,6 +526,12 @@ export type Database = {
           id: string
           last_synced_block: number | null
           late_listing: boolean
+          ledger_chain_id: number | null
+          ledger_contract: string | null
+          ledger_error: string | null
+          ledger_id: string | null
+          ledger_status: string | null
+          ledger_synced_at: string | null
           listing_id: string | null
           materai: number
           onchain_listing_id: string | null
@@ -569,6 +575,12 @@ export type Database = {
           id?: string
           last_synced_block?: number | null
           late_listing?: boolean
+          ledger_chain_id?: number | null
+          ledger_contract?: string | null
+          ledger_error?: string | null
+          ledger_id?: string | null
+          ledger_status?: string | null
+          ledger_synced_at?: string | null
           listing_id?: string | null
           materai?: number
           onchain_listing_id?: string | null
@@ -612,6 +624,12 @@ export type Database = {
           id?: string
           last_synced_block?: number | null
           late_listing?: boolean
+          ledger_chain_id?: number | null
+          ledger_contract?: string | null
+          ledger_error?: string | null
+          ledger_id?: string | null
+          ledger_status?: string | null
+          ledger_synced_at?: string | null
           listing_id?: string | null
           materai?: number
           onchain_listing_id?: string | null

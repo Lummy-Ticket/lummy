@@ -2,11 +2,13 @@
 
 // Public proof for one escrow: what happened to it, read straight from the contract, and the rules the
 // contract holds it to. Anyone with the link can check it, a buyer, a seller or a promoter, without an
-// account. Nothing here comes from our database, so there is no personal data to leak.
+// account. Nothing here comes from our database, so there is no personal data to leak. The same page
+// shows the public record of a QRIS order (docs/09 §7): there the money sits with the payment provider
+// and the contract keeps the record, and the page says so instead of promising what it cannot.
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import toast from "react-hot-toast";
-import { AlertTriangle, Copy, ExternalLink, Loader2, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Copy, ExternalLink, Landmark, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { EscrowTimeline } from "@/components/common/EscrowTimeline";
@@ -37,10 +39,42 @@ const RULES: Words[] = [
   },
 ];
 
+// The record of a QRIS order: what the contract itself guarantees about it (LummyLedger).
+const LEDGER_RULES: Words[] = [
+  {
+    en: "One payment backs one order, and one ticket can be sold once. The contract refuses a second record of either.",
+    id: "Satu pembayaran untuk satu pesanan, dan satu tiket hanya bisa terjual sekali. Kontrak menolak catatan kedua untuk keduanya.",
+  },
+  {
+    en: "A payout cannot be recorded before the claim window ends. Once it passes without a claim, anyone can record it, and a refund no longer can be.",
+    id: "Pencairan tidak bisa dicatat sebelum masa klaim berakhir. Setelah lewat tanpa klaim, siapa pun bisa mencatatnya, dan refund tidak bisa dicatat lagi.",
+  },
+  {
+    en: "Every step above is public and cannot be changed afterwards.",
+    id: "Setiap langkah di atas tercatat publik dan tidak bisa diubah.",
+  },
+];
+
 /** One line on where this escrow stands, from the contract's live state and its last decision. */
 function standing(h: ChainHistory): Words {
   const { live } = h;
   const verdict = [...h.events].reverse().find((e) => e.kind === "Resolved");
+  if (h.source === "ledger") {
+    switch (live.status) {
+      case "DisputeWindow":
+        if (live.disputed) return { en: "A claim is open, the payout is on hold", id: "Ada klaim, pencairan ditahan" };
+        if (live.now > live.deadline) return { en: "Claim window over, the payout is due", id: "Masa klaim lewat, pencairan jatuh tempo" };
+        return { en: "Paid, held until the claim window ends", id: "Sudah dibayar, ditahan sampai masa klaim berakhir" };
+      case "Released":
+        return { en: "Done: payout to the seller recorded", id: "Selesai: pencairan ke penjual dicatat" };
+      case "Refunded":
+        return verdict?.toSeller && verdict.toSeller !== "0"
+          ? { en: "Done: split by the claim decision", id: "Selesai: dibagi sesuai putusan klaim" }
+          : { en: "Done: refund to the buyer recorded", id: "Selesai: refund ke pembeli dicatat" };
+      default:
+        return { en: "Record found", id: "Catatan ditemukan" };
+    }
+  }
   switch (live.status) {
     case "Listed":
       return { en: "Listed, not paid for yet", id: "Sudah dipasang, belum dibayar" };
@@ -98,9 +132,12 @@ export default function ProofPage() {
   if (!valid || state === "missing") {
     return (
       <PageContainer width="form">
-        <h1 className="font-fredoka font-semibold text-2xl text-neutral-black">{t("Escrow not found", "Escrow tidak ditemukan")}</h1>
+        <h1 className="font-fredoka font-semibold text-2xl text-neutral-black">{t("Not found", "Tidak ditemukan")}</h1>
         <p className="text-sm text-neutral-gray mt-2">
-          {t("There is no escrow with this ID in the contract. Check the link you were given.", "Tidak ada escrow dengan ID ini di kontrak. Cek lagi tautan yang kamu terima.")}
+          {t(
+            "There is no escrow or order record with this ID in our contracts. A record appears a moment after the payment, so try again shortly, or check the link you were given.",
+            "Tidak ada escrow atau catatan pesanan dengan ID ini di kontrak kami. Catatan muncul sesaat setelah pembayaran, jadi coba lagi sebentar, atau cek lagi tautan yang kamu terima."
+          )}
         </p>
         <Link href="/" className="inline-block mt-4 text-sm text-primary-navy font-medium">{t("Back to Lummy", "Kembali ke Lummy")}</Link>
       </PageContainer>
@@ -128,17 +165,23 @@ export default function ProofPage() {
   }
 
   const where = standing(data);
+  const ledger = data.source === "ledger";
   return (
     <PageContainer width="form">
       <div className="text-xs font-semibold uppercase tracking-wide text-lummy-500 flex items-center gap-1.5">
-        <ShieldCheck className="w-4 h-4" /> {t("Escrow proof", "Bukti escrow")}
+        <ShieldCheck className="w-4 h-4" /> {ledger ? t("Order record", "Catatan pesanan") : t("Escrow proof", "Bukti escrow")}
       </div>
       <h1 className="font-fredoka font-semibold text-2xl sm:text-3xl text-neutral-black mt-2">{t(where.en, where.id)}</h1>
       <p className="text-sm text-neutral-gray mt-2">
-        {t(
-          "Every step of this escrow, read straight from the contract on the blockchain. This page holds no personal data.",
-          "Setiap langkah escrow ini, dibaca langsung dari kontrak di blockchain. Halaman ini tidak memuat data pribadi."
-        )}
+        {ledger
+          ? t(
+              "Every step of this order, read straight from the contract on the blockchain. This page holds no personal data.",
+              "Setiap langkah pesanan ini, dibaca langsung dari kontrak di blockchain. Halaman ini tidak memuat data pribadi."
+            )
+          : t(
+              "Every step of this escrow, read straight from the contract on the blockchain. This page holds no personal data.",
+              "Setiap langkah escrow ini, dibaca langsung dari kontrak di blockchain. Halaman ini tidak memuat data pribadi."
+            )}
       </p>
 
       <div className="mt-6 bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
@@ -148,7 +191,7 @@ export default function ProofPage() {
       <div className="mt-4 bg-secondary-blue-extra rounded-3xl p-5">
         <h2 className="font-fredoka font-semibold text-lg text-neutral-black">{t("Rules the contract enforces", "Aturan yang dijaga kontrak")}</h2>
         <ul className="mt-3 flex flex-col gap-2.5">
-          {RULES.map((r) => (
+          {(ledger ? LEDGER_RULES : RULES).map((r) => (
             <li key={r.en} className="flex gap-2 text-sm text-neutral-black">
               <ShieldCheck className="w-4 h-4 text-secondary-green-dark shrink-0 mt-0.5" /> {t(r.en, r.id)}
             </li>
@@ -156,20 +199,44 @@ export default function ProofPage() {
         </ul>
       </div>
 
+      {ledger && (
+        <div className="mt-4 rounded-3xl border border-neutral-light-gray-1 p-5 flex gap-3">
+          <Landmark className="w-5 h-5 text-primary-navy shrink-0 mt-0.5" />
+          <div>
+            <h2 className="font-semibold text-sm text-neutral-black">{t("Where the money is", "Di mana uangnya")}</h2>
+            <p className="text-sm text-neutral-gray mt-1">
+              {t(
+                "This order was paid by QRIS. The money is held by Lummy's payment provider (Xendit), not by this contract. The contract keeps Lummy's public record of the order: if what happens to the money ever differs from it, this page is the evidence.",
+                "Pesanan ini dibayar lewat QRIS. Uangnya dipegang penyedia pembayaran Lummy (Xendit), bukan oleh kontrak ini. Kontrak menyimpan catatan publik Lummy atas pesanan ini: kalau yang terjadi pada uangnya berbeda dari catatan ini, halaman inilah buktinya."
+              )}
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="mt-4 rounded-3xl border border-neutral-light-gray-1 p-5">
         <div className="text-xs text-neutral-gray mb-1">{t("Technical details", "Detail teknis")}</div>
-        <Row label={t("Escrow contract", "Kontrak escrow")} value={shortHash(data.escrow)} href={explorerAddress(data.chainId, data.escrow)} />
         <Row
-          label={t("Escrow ID", "ID escrow")}
+          label={ledger ? t("Ledger contract", "Kontrak buku besar") : t("Escrow contract", "Kontrak escrow")}
+          value={shortHash(data.escrow)}
+          href={explorerAddress(data.chainId, data.escrow)}
+        />
+        <Row
+          label={ledger ? t("Record ID", "ID catatan") : t("Escrow ID", "ID escrow")}
           value={shortHash(data.listingId, 10)}
-          onCopy={() => copy(data.listingId, { en: "Escrow ID copied", id: "ID escrow disalin" })}
+          onCopy={() => copy(data.listingId, ledger ? { en: "Record ID copied", id: "ID catatan disalin" } : { en: "Escrow ID copied", id: "ID escrow disalin" })}
         />
         <Row label={t("Network", "Jaringan")} value={`${NETWORK[data.chainId] ?? "Chain"} (${data.chainId})`} />
       </div>
 
       {TESTNETS.has(data.chainId) && (
         <p className="mt-4 text-xs text-neutral-gray">
-          {t("This runs on a test network: amounts are test USDC, not real money.", "Ini berjalan di jaringan uji: nilainya USDC uji coba, bukan uang sungguhan.")}
+          {ledger
+            ? t(
+                "This record is on a test network and the payment ran in Xendit's test mode: no real money moved.",
+                "Catatan ini di jaringan uji dan pembayarannya berjalan di mode uji Xendit: tidak ada uang sungguhan yang berpindah."
+              )
+            : t("This runs on a test network: amounts are test USDC, not real money.", "Ini berjalan di jaringan uji: nilainya USDC uji coba, bukan uang sungguhan.")}
         </p>
       )}
 
