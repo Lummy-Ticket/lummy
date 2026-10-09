@@ -327,14 +327,19 @@ export function Navbar() {
   if (me && staff && isActive(pathname, CONSOLE.href)) {
     return (
       <nav data-bar="staff" className="fixed z-50 top-0 w-full h-20 flex justify-center px-5 lg:px-10 bg-neutral-white border-b border-neutral-light-gray-1">
-        <div className="max-w-7xl w-full flex items-center gap-3">
-          <Logo />
-          <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-secondary-blue-light border border-lummy-500 text-primary-navy text-sm font-medium">
-            <ShieldCheck className="w-4 h-4" /> {t("Staff", "Staf")}
+        <div className="max-w-7xl w-full flex items-center gap-2 sm:gap-3">
+          <Logo className="[&_img]:h-6 sm:[&_img]:h-8" />
+          {/* On a phone the bar is full: the chip keeps its shield, and its word for wider screens. */}
+          <span
+            title={t("Staff", "Staf")}
+            className="inline-flex items-center gap-1.5 h-8 px-2 sm:px-3 rounded-full bg-secondary-blue-light border border-lummy-500 text-primary-navy text-sm font-medium shrink-0"
+          >
+            <ShieldCheck className="w-4 h-4" aria-hidden /> <span className="sr-only sm:not-sr-only">{t("Staff", "Staf")}</span>
           </span>
           <div className="ml-auto flex items-center gap-2 sm:gap-4">
-            <Link href="/" aria-label={t("View site", "Lihat situs")} className="inline-flex items-center gap-1.5 text-sm text-neutral-gray hover:text-neutral-black transition-colors">
-              <Globe className="w-4 h-4" /> <span className="hidden sm:inline">{t("View site", "Lihat situs")}</span>
+            {/* The logo already leads back to the site, so a phone does without this one. */}
+            <Link href="/" aria-label={t("View site", "Lihat situs")} className="hidden sm:inline-flex items-center gap-1.5 text-sm text-neutral-gray hover:text-neutral-black transition-colors">
+              <Globe className="w-4 h-4" /> {t("View site", "Lihat situs")}
             </Link>
             <LangToggle />
             <AccountMenu me={me} links={accountLinks} claims={claims} pathname={pathname} onSignOut={signOut} />
