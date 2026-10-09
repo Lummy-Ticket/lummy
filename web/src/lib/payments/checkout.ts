@@ -24,6 +24,12 @@ const fail = (status: number, error: string) => ({ ok: false, status, error }) a
 
 /** A page asking every few seconds reads Xendit at most this often. */
 const RECHECK_MS = 10_000;
+/**
+ * New holds one buyer may open in HOLD_RATE_MINUTES. A person never needs that many; the cap keeps
+ * one account from flooding Xendit with QRIS requests or churning seats.
+ */
+const HOLDS_PER_WINDOW = 20;
+const HOLD_RATE_MINUTES = 10;
 export const PAYMENT_ID = /^pay-[0-9a-f]{12}$/;
 
 const rupiah = (n: number) => `Rp${n.toLocaleString("id-ID")}`;
@@ -63,7 +69,8 @@ export async function expireHolds(admin: Admin) {
   return data?.length ?? 0;
 }
 
-async function close(admin: Admin, id: string, status: "expired" | "canceled" | "failed") {
+/** Closes an open hold and gives its seats back; unfulfilled means money came that cannot be honoured. */
+async function close(admin: Admin, id: string, status: "expired" | "canceled" | "failed" | "unfulfilled") {
   const { data, error } = await admin.rpc("close_payment", { p_id: id, p_status: status });
   if (error) throw new Error(error.message);
   if (data) seatsChanged();
@@ -85,9 +92,11 @@ async function ensureOrder(admin: Admin, row: PaymentRow): Promise<string | null
     console.error("[payments] paid, but the listing or show is gone; refund it:", row.id);
     return null;
   }
+  // The amounts the buyer paid, kept on the hold, not the listing's price today.
+  const price = { amount: Number(row.amount), fee: Number(row.fee), materai: Number(row.materai) };
   const ins = await admin
     .from("orders")
-    .insert(orderInsert(row.buyer_id, p, row.quantity, { endsAt: p.scheduledEnd, paymentId: row.id }))
+    .insert(orderInsert(row.buyer_id, p, row.quantity, { endsAt: p.scheduledEnd, paymentId: row.id, price }))
     .select("id")
     .single();
   if (ins.error) {
@@ -153,7 +162,17 @@ export async function syncPayment(admin: Admin, cfg: XenditConfig, row: PaymentR
 
   if (qris.status === "SUCCEEDED") {
     if (qris.referenceId !== row.id || qris.amount !== Number(row.total)) {
-      console.error("[payments] Xendit reports a payment that does not match its hold:", row.id, qris.id);
+      // Money arrived that does not match this hold, so it cannot be honoured: the seats go back and
+      // the money waits for a refund, where staff can see it, instead of the hold quietly expiring.
+      console.error("[payments] Xendit reports a payment that does not match its hold; refund it:", row.id, qris.id);
+      if (row.status === "pending") await close(admin, row.id, "unfulfilled");
+      else {
+        await admin
+          .from("payments")
+          .update({ status: "unfulfilled", updated_at: new Date().toISOString() })
+          .eq("id", row.id)
+          .in("status", ["expired", "canceled", "failed"]);
+      }
       return reread(admin, row.id);
     }
     // Right after a payment Xendit can answer SUCCEEDED before the request names the payment (seen
@@ -244,6 +263,15 @@ export async function startCheckout(
   if (price.total > QRIS_MAX) {
     return fail(400, `QRIS paling banyak ${rupiah(QRIS_MAX)} per pembayaran, sedangkan totalnya ${rupiah(price.total)}. Kurangi jumlah tiketnya.`);
   }
+  const recent = await admin
+    .from("payments")
+    .select("id", { count: "exact", head: true })
+    .eq("buyer_id", buyerId)
+    .gte("created_at", new Date(Date.now() - HOLD_RATE_MINUTES * 60_000).toISOString());
+  if (recent.error) return fail(500, recent.error.message);
+  if ((recent.count ?? 0) >= HOLDS_PER_WINDOW) {
+    return fail(429, `terlalu banyak percobaan bayar dalam ${HOLD_RATE_MINUTES} menit terakhir; coba lagi sebentar lagi`);
+  }
   // One open hold per buyer: this one replaces any on other listings.
   for (const row of (open.data ?? []).filter((r) => r.listing_id !== listingId)) await release(row);
 
@@ -260,6 +288,15 @@ export async function startCheckout(
     .single();
   if (inserted.error || !inserted.data) {
     await admin.rpc("release_listing", { p_listing_id: listingId, p_quantity: quantity });
+    // Another tab of this buyer opened a hold a moment ago (one open hold per buyer is a database
+    // rule, payments_one_open_per_buyer): hand that one back if it is for these seats and ready.
+    if (inserted.error?.code === "23505") {
+      const other = await admin.from("payments").select("*").eq("buyer_id", buyerId).eq("status", "pending").maybeSingle();
+      if (other.data && other.data.listing_id === listingId && other.data.quantity === quantity && other.data.provider_ref) {
+        return { ok: true, value: paymentView(other.data, null) };
+      }
+      return fail(409, "masih ada pembayaran lain yang berjalan; selesaikan atau batalkan dulu");
+    }
     return fail(500, inserted.error?.message ?? "pembayaran gagal disimpan");
   }
   const row = inserted.data;

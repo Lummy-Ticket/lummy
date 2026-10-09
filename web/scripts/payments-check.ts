@@ -44,7 +44,8 @@ const TIER_VIP = "t-zz-pay-vip";
 const L1 = "ls-zz-pay-1"; // two seats, sold one by one
 const L2 = "ls-zz-pay-2"; // one seat
 const L_BIG = "ls-zz-pay-big"; // above the QRIS ceiling
-const LISTINGS = [L1, L2, L_BIG];
+const L_RATE = "ls-zz-pay-rate"; // for the cap on new holds
+const LISTINGS = [L1, L2, L_BIG, L_RATE];
 const PRICE = 550_000;
 const TOTAL = PRICE + Math.max(Math.round(PRICE * 0.05), 25_000) + 12_000;
 
@@ -142,6 +143,7 @@ async function main() {
         { id: L1, event_id: EVENT, tier_id: TIER, seller_id: seller, seller_name: "Payments S.", ask_price: PRICE, face_value: 500_000, quantity: 2, splittable: true, status: "active" },
         { id: L2, event_id: EVENT, tier_id: TIER, seller_id: seller, seller_name: "Payments S.", ask_price: PRICE, face_value: 500_000, quantity: 1, splittable: false, status: "active" },
         { id: L_BIG, event_id: EVENT, tier_id: TIER_VIP, seller_id: seller, seller_name: "Payments S.", ask_price: 9_800_000, face_value: 8_000_000, quantity: 1, splittable: false, status: "active" },
+        { id: L_RATE, event_id: EVENT, tier_id: TIER, seller_id: seller, seller_name: "Payments S.", ask_price: PRICE, face_value: 500_000, quantity: 1, splittable: false, status: "active" },
       ]),
     ];
     const setupError = setup.find((r) => r.error)?.error;
@@ -164,18 +166,34 @@ async function main() {
       JSON.stringify(first)
     );
     check("one of the two seats is held", (await listing(L1))?.quantity === 1, JSON.stringify(await listing(L1)));
+    // While a buyer is paying, the seller cannot pull the listing out from under them.
+    const pull = await api(sellerCtx, "POST", `/api/listings/${L1}`, { action: "withdraw" });
+    check(
+      "the seller cannot withdraw a listing someone is paying for",
+      pull.status === 409 && String(pull.body.error).includes("sedang membayar") && (await listing(L1))?.status === "active",
+      JSON.stringify(pull)
+    );
+    // One open hold per buyer is the database's rule too, not only the route's.
+    const second2 = await admin.from("payments").insert({
+      buyer_id: buyer, listing_id: L2, quantity: 1, amount: PRICE, fee: TOTAL - PRICE - 12_000, materai: 12_000, total: TOTAL,
+      test_mode: true, expires_at: new Date(Date.now() + 15 * 60_000).toISOString(),
+    });
+    check("the database refuses a second open hold for the same buyer", second2.error?.code === "23505", JSON.stringify(second2.error));
     const again = await api(buyerCtx, "POST", "/api/payments", { listingId: L1, quantity: 1 });
     check("pressing Pay again returns the same hold", again.status === 200 && again.body.id === p1, JSON.stringify(again));
     check("nothing else was held", (await listing(L1))?.quantity === 1);
     const read = await api(buyerCtx, "GET", `/api/payments/${p1}`);
     check("the page reads it as waiting", read.status === 200 && read.body.status === "pending", JSON.stringify(read));
 
-    // --- Paid through Xendit's simulator: one order.
+    // --- Paid through Xendit's simulator: one order, at the price that was paid. The listing's price
+    // moves while the QRIS is open (no route allows that today; the order must not depend on it).
+    await admin.from("listings").update({ ask_price: 600_000 }).eq("id", L1);
     const paid = await api(buyerCtx, "POST", `/api/payments/${p1}`, { action: "simulate" });
+    await admin.from("listings").update({ ask_price: PRICE }).eq("id", L1);
     check("the simulator pays it and the order is written", paid.status === 200 && paid.body.status === "paid" && typeof paid.body.orderId === "string", JSON.stringify(paid));
     const o1 = await ordersOf(p1);
     check(
-      "exactly one order, for the buyer, at the listing price, held in escrow",
+      "exactly one order, for the buyer, at the price paid (not the listing's new price), held in escrow",
       o1.length === 1 && o1[0].buyer_id === buyer && o1[0].amount === PRICE && o1[0].quantity === 1 && o1[0].escrow_status === "Funded",
       JSON.stringify(o1)
     );
@@ -298,6 +316,18 @@ async function main() {
       }
       check("Xendit's own webhook reaches the site and writes the order", status === "paid" && (await ordersOf(pw)).length === 1, status);
     }
+
+    // --- One account cannot flood Xendit: after 20 new holds in 10 minutes the next is refused,
+    // and the refused one holds nothing.
+    let limited: Reply | null = null;
+    for (let i = 0; i < 25 && !limited; i++) {
+      const h = await api(buyerCtx, "POST", "/api/payments", { listingId: L_RATE, quantity: 1 });
+      if (h.status === 429) limited = h;
+      else if (h.status === 200) await api(buyerCtx, "POST", `/api/payments/${String(h.body.id)}`, { action: "cancel" });
+      else break;
+    }
+    check("after 20 new holds in 10 minutes the next is refused (429)", limited?.status === 429, JSON.stringify(limited));
+    check("and the refused start holds nothing", (await listing(L_RATE))?.status === "active", JSON.stringify(await listing(L_RATE)));
     await Promise.all([buyerCtx.close(), sellerCtx.close()]);
   } catch (e) {
     check("check ran to the end", false, (e as Error).message.split("\n")[0].slice(0, 200));

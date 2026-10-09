@@ -37,6 +37,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     to = action === "approve" ? "active" : "rejected";
   } else if (action === "withdraw") {
     if (!own) return fail(403, "cuma penjualnya yang bisa menarik listing ini");
+    // A buyer paying a QRIS for it right now would pay for a ticket that is gone (docs/09 §6), so
+    // the seller waits until that hold closes, at most 20 minutes.
+    const paying = await admin.from("payments").select("id", { count: "exact", head: true }).eq("listing_id", id).eq("status", "pending");
+    if (paying.error) return fail(500, paying.error.message);
+    if ((paying.count ?? 0) > 0) return fail(409, "ada pembeli yang sedang membayar listing ini; coba lagi setelah 20 menit");
     from = ["active", "review"];
     to = "cancelled";
   } else return fail(400, "aksi tidak dikenal");

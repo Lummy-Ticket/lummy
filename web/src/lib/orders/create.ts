@@ -93,14 +93,18 @@ export type ChainFields = {
   tx_handover: string;
 };
 
-/** The order row for a purchase. `endsAt` starts the claim window (the demo switch moves it). */
+/**
+ * The order row for a purchase. `endsAt` starts the claim window (the demo switch moves it).
+ * `price` is what the buyer actually paid, when that was settled earlier (a QRIS hold); without it
+ * the price comes from the listing now.
+ */
 export function orderInsert(
   buyerId: string,
   p: Purchase,
   quantity: number,
-  opts: { endsAt: number; chain?: ChainFields | null; paymentId?: string }
+  opts: { endsAt: number; chain?: ChainFields | null; paymentId?: string; price?: { amount: number; fee: number; materai: number } }
 ): OrderInsert {
-  const { amount, fee, materai } = priceOf(p.listing.ask_price, quantity);
+  const { amount, fee, materai } = opts.price ?? priceOf(p.listing.ask_price, quantity);
   const chain = opts.chain ?? null;
   return {
     listing_id: p.listing.id,
