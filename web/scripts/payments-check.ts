@@ -12,6 +12,10 @@
  * and a claim and a staff ruling on it have to follow it there; a third account, made staff for the
  * run, rules. LEDGER=0 skips that part, for a server without the ledger key.
  *
+ * At the end staff see the payment that is owed back and record its refund, which a late webhook
+ * cannot undo, and then cancel the show while someone is paying: the open QRIS stops, its seat stays
+ * off sale, and the show's paid QRIS order is refunded on the public record with the reason.
+ *
  * The two accounts are made for the run and signed in with an admin link, so no email is sent and
  * no demo key is needed; everything it made, accounts included, is deleted at the end. It writes to
  * the database the server uses and calls Xendit in test mode, so run it only where that is fine,
@@ -67,7 +71,7 @@ type Admin = ReturnType<typeof createClient<Database>>;
 type Reply = { status: number; body: Record<string, unknown> };
 type LedgerHistory = {
   source?: string;
-  events?: { kind: string; amount?: string; toBuyer?: string; toSeller?: string }[];
+  events?: { kind: string; amount?: string; toBuyer?: string; toSeller?: string; reason?: string }[];
   live?: { status: string; disputed: boolean; buyer: string; seller: string };
 };
 
@@ -129,6 +133,20 @@ async function main() {
   /** Moves a hold's clock back, as if its time ran out ten minutes ago. */
   const ageHold = (id: string) =>
     admin.from("payments").update({ expires_at: new Date(Date.now() - 10 * 60_000).toISOString(), checked_at: null }).eq("id", id);
+  /** The public record of one order, as the proof page reads it. */
+  const historyOf = async (recordId: string) => {
+    const r = await fetch(`${BASE}/api/chain/history/${recordId}`);
+    return { status: r.status, body: (await r.json().catch(() => ({}))) as LedgerHistory };
+  };
+  /** Asks again until `done` holds or a minute has passed; the chain needs a few seconds per step. */
+  const until = async <T,>(read: () => Promise<T>, done: (v: T) => boolean) => {
+    let v = await read();
+    for (let i = 0; i < 40 && !done(v); i++) {
+      await sleep(1500);
+      v = await read();
+    }
+    return v;
+  };
 
   const userIds: string[] = [];
   const browser = await chromium.launch({ executablePath: EXEC, args: ["--no-sandbox"] });
@@ -255,19 +273,7 @@ async function main() {
       const recordId = keccak256(toHex(`lummy:order:${orderId}`));
       const ledgerRow = async () =>
         (await admin.from("orders").select("ledger_id, ledger_status, ledger_contract, ledger_error").eq("id", orderId).single()).data;
-      const history = async () => {
-        const r = await fetch(`${BASE}/api/chain/history/${recordId}`);
-        return { status: r.status, body: (await r.json().catch(() => ({}))) as LedgerHistory };
-      };
-      /** Asks again until `done` holds or a minute has passed; the chain needs a few seconds per step. */
-      const until = async <T,>(read: () => Promise<T>, done: (v: T) => boolean) => {
-        let v = await read();
-        for (let i = 0; i < 40 && !done(v); i++) {
-          await sleep(1500);
-          v = await read();
-        }
-        return v;
-      };
+      const history = () => historyOf(recordId);
 
       const lr = await until(ledgerRow, (r) => r?.ledger_status === "Open" || !!r?.ledger_error);
       check("the paid order reaches the public ledger by itself", lr?.ledger_status === "Open" && lr.ledger_id === recordId, JSON.stringify(lr));
@@ -407,6 +413,54 @@ async function main() {
     }
     check("after 20 new holds in 10 minutes the next is refused (429)", limited?.status === 429, JSON.stringify(limited));
     check("and the refused start holds nothing", (await listing(L_RATE))?.status === "active", JSON.stringify(await listing(L_RATE)));
+
+    // --- Staff: money that needs a person. The payment that found its seat taken (p5) is listed with
+    // whom to pay back; recording its refund closes it for good, even against a late webhook.
+    const overview = await api(staffCtx, "GET", "/api/admin/payments");
+    const owed = (overview.body.needsRefund as { id: string; buyer?: { email?: string | null } }[] | undefined) ?? [];
+    check(
+      "staff see the payment owed back, with whom to pay",
+      overview.status === 200 && owed.some((x) => x.id === p5 && x.buyer?.email === BUYER_EMAIL),
+      JSON.stringify(overview).slice(0, 300)
+    );
+    const notStaff = await api(buyerCtx, "GET", "/api/admin/payments");
+    check("and nobody else can see it", notStaff.status === 403, JSON.stringify(notStaff));
+    const refunded = await api(staffCtx, "POST", "/api/admin/payments", { action: "refunded", id: p5, note: "uji refund" });
+    const refundedAgain = await api(staffCtx, "POST", "/api/admin/payments", { action: "refunded", id: p5 });
+    check(
+      "staff record the refund, once",
+      refunded.status === 200 && refundedAgain.status === 409 && (await payment(p5))?.status === "refunded",
+      JSON.stringify({ refunded, refundedAgain })
+    );
+    const lateWebhook = await webhook(TOKEN, { payment_request_id: (await payment(p5))?.provider_ref, reference_id: p5 });
+    check(
+      "a late webhook cannot turn refunded money back into a sale",
+      lateWebhook.status === 200 && (await payment(p5))?.status === "refunded" && (await ordersOf(p5)).length === 0,
+      JSON.stringify(lateWebhook)
+    );
+
+    // --- The organiser cancels the show while someone is paying: the open QRIS stops with it, its
+    // seat stays off sale, and the show's paid QRIS order is refunded on the public record too.
+    const lastHold = await api(staffCtx, "POST", "/api/payments", { listingId: L_RATE, quantity: 1 });
+    const pc = String(lastHold.body.id ?? "");
+    check("someone is paying when the show is cancelled", lastHold.status === 200 && (await payment(pc))?.status === "pending", JSON.stringify(lastHold));
+    const cancelShow = await api(staffCtx, "POST", `/api/events/${EVENT}`, { action: "cancel" });
+    check(
+      "staff cancel the show: the open QRIS stops with it",
+      cancelShow.status === 200 && Number(cancelShow.body.holdsClosed) >= 1 && (await payment(pc))?.status === "canceled",
+      JSON.stringify(cancelShow)
+    );
+    check("and its seat does not go back on sale", (await listing(L_RATE))?.status === "cancelled", JSON.stringify(await listing(L_RATE)));
+    if (LEDGER) {
+      const o4 = (await ordersOf(p4))[0]?.id ?? "";
+      const h4 = await until(() => historyOf(keccak256(toHex(`lummy:order:${o4}`))), (h) => h.body.live?.status === "Refunded");
+      const back = h4.body.events?.find((e) => e.kind === "Refunded");
+      check(
+        "the cancelled show's QRIS order is refunded on the public record, with the reason",
+        h4.body.live?.status === "Refunded" && back?.reason === "EventCancelled" && back.amount === String(PRICE),
+        JSON.stringify(h4.body).slice(0, 300)
+      );
+    }
     await Promise.all([buyerCtx.close(), sellerCtx.close(), staffCtx.close()]);
   } catch (e) {
     check("check ran to the end", false, (e as Error).message.split("\n")[0].slice(0, 200));

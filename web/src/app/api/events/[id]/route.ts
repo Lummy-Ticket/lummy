@@ -14,6 +14,7 @@ import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { chainError, operatorSetup, postpone, settle } from "@/lib/chain/server";
 import { queueLedgerSync } from "@/lib/orders/ledger";
+import { closeHoldsOfEvent } from "@/lib/payments/checkout";
 import { DISPUTE_WINDOW_H, EVENT_DURATION_H } from "@/lib/mock/escrow";
 import { HELD, ORDER_SELECT, orderFromRow, type OrderRow } from "@/lib/orders/map";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -63,6 +64,15 @@ async function cancel(admin: Admin, id: string, staffId: string) {
   if (event.status !== "cancelled") {
     const r = await admin.from("events").update({ status: "cancelled" }).eq("id", id);
     if (r.error) return fail(500, r.error.message);
+  }
+
+  // QRIS holds still open on it close first, so their seats come back to listings that then close
+  // with the rest instead of going back on sale.
+  let holds: { closed: number; left: number };
+  try {
+    holds = await closeHoldsOfEvent(admin, id);
+  } catch (e) {
+    return fail(500, (e as Error).message);
   }
 
   // Nothing more is sold. Files of listings that never sold go, like a withdrawal.
@@ -147,7 +157,16 @@ async function cancel(admin: Admin, id: string, staffId: string) {
 
   revalidateTag("catalogue", { expire: 0 });
   return NextResponse.json(
-    { ok: true, listingsClosed: open.data.length, refunded, failed: failures.length, remaining, errors: failures.slice(0, 3) },
+    {
+      ok: true,
+      listingsClosed: open.data.length,
+      holdsClosed: holds.closed,
+      holdsLeft: holds.left,
+      refunded,
+      failed: failures.length,
+      remaining,
+      errors: failures.slice(0, 3),
+    },
     { headers: noStore }
   );
 }

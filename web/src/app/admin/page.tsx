@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import {
   CheckCircle2, XCircle, AlertTriangle, Sparkles, Calendar, CalendarClock, CalendarX, MapPin, Scale, Paperclip,
-  ExternalLink, Gavel, Clock, Loader2, Ticket, MinusCircle,
+  ExternalLink, Gavel, Clock, Loader2, Ticket, MinusCircle, Banknote,
 } from "lucide-react";
+import { PaymentsPanel, usePaymentsOverview } from "@/components/admin/PaymentsPanel";
 import { EvidencePhoto } from "@/components/common/EvidencePhoto";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -184,11 +185,15 @@ function ShowsPanel() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ action: "cancel" }),
       });
-      const j = (await r.json().catch(() => ({}))) as { error?: string; refunded?: number; listingsClosed?: number; failed?: number; remaining?: number };
+      const j = (await r.json().catch(() => ({}))) as {
+        error?: string; refunded?: number; listingsClosed?: number; holdsClosed?: number; holdsLeft?: number; failed?: number; remaining?: number;
+      };
       if (!r.ok) throw new Error(j.error ?? `HTTP ${r.status}`);
+      const stopped = j.holdsClosed ? t(`, ${j.holdsClosed} open payment(s) stopped`, `, ${j.holdsClosed} pembayaran yang sedang berjalan dihentikan`) : "";
       toast.success(
-        t(`Show cancelled: ${j.refunded ?? 0} order(s) refunded, ${j.listingsClosed ?? 0} listing(s) closed`, `Acara dibatalkan: ${j.refunded ?? 0} pesanan direfund, ${j.listingsClosed ?? 0} listing ditutup`)
+        t(`Show cancelled: ${j.refunded ?? 0} order(s) refunded, ${j.listingsClosed ?? 0} listing(s) closed`, `Acara dibatalkan: ${j.refunded ?? 0} pesanan direfund, ${j.listingsClosed ?? 0} listing ditutup`) + stopped
       );
+      if (j.holdsLeft) toast.error(t(`${j.holdsLeft} QRIS could not be stopped yet; it runs out within 15 minutes.`, `${j.holdsLeft} QRIS belum bisa dihentikan; kedaluwarsa paling lama 15 menit lagi.`));
       const left = (j.failed ?? 0) + (j.remaining ?? 0);
       if (left) toast.error(t(`${left} order(s) are still held. Press again, or check the server log.`, `${left} pesanan masih tertahan. Tekan lagi, atau cek log server.`));
       // The catalogue sits in the root layout, and the show has just left it.
@@ -429,7 +434,7 @@ export default function AdminPage() {
   const listings = useSellerListings((s) => s.listings);
   const approveListing = useSellerListings((s) => s.approve);
   const rejectListing = useSellerListings((s) => s.reject);
-  const [tab, setTab] = useState<"claims" | "listings" | "events" | "shows">("claims");
+  const [tab, setTab] = useState<"claims" | "listings" | "events" | "shows" | "payments">("claims");
   // The order whose verdict is on its way, so the wait says what is actually happening.
   const [sending, setSending] = useState<Order | null>(null);
 
@@ -450,6 +455,12 @@ export default function AdminPage() {
     if (action === "approve") router.refresh();
   };
   const pendingEvents = requests.filter((r) => r.status === "pending");
+  // QRIS money that needs a person: read on arrival for the count, and again whenever the tab opens.
+  const payments = usePaymentsOverview(account);
+  const refreshPayments = payments.refresh;
+  useEffect(() => {
+    if (tab === "payments") refreshPayments();
+  }, [tab, refreshPayments]);
 
   // Three queues, each with its own rhythm. Kept apart so a busy day in one
   // does not bury the others, and so a count is visible before opening any.
@@ -458,7 +469,18 @@ export default function AdminPage() {
     { id: "listings" as const, en: "Listings held", id_: "Listing ditahan", Icon: Ticket, count: held.length },
     { id: "events" as const, en: "New events", id_: "Event baru", Icon: Calendar, count: pendingEvents.length },
     // Cancelling acts on real orders, so it is there for staff signed in with an account.
-    ...(account ? [{ id: "shows" as const, en: "Shows", id_: "Acara", Icon: CalendarX, count: 0 }] : []),
+    ...(account
+      ? [
+          { id: "shows" as const, en: "Shows", id_: "Acara", Icon: CalendarX, count: 0 },
+          {
+            id: "payments" as const,
+            en: "Payments",
+            id_: "Pembayaran",
+            Icon: Banknote,
+            count: (payments.data?.needsRefund.length ?? 0) + (payments.data?.stuck.length ?? 0),
+          },
+        ]
+      : []),
   ];
   const doApprove = (r: EventRequest) => { approve(r.id); toast.success(t("Event approved, tickets can be listed", "Event disetujui, tiketnya boleh dijual")); };
 
@@ -518,8 +540,11 @@ export default function AdminPage() {
     <PageContainer width="app">
       <h1 className="text-2xl md:text-3xl font-bold text-neutral-black">{t("Admin console", "Konsol admin")}</h1>
       <p className="text-neutral-gray text-sm mt-1">
-        {t("Three queues: money in dispute, listings held back, and events waiting to open.",
-           "Tiga antrian: dana yang disengketakan, listing yang ditahan, dan event yang menunggu dibuka.")}
+        {account
+          ? t("What needs a person: money in dispute, listings held back, events waiting to open, shows that changed, and payments owed back.",
+              "Yang butuh tangan orang: dana yang disengketakan, listing yang ditahan, event yang menunggu dibuka, acara yang berubah, dan pembayaran yang harus dikembalikan.")
+          : t("Three queues: money in dispute, listings held back, and events waiting to open.",
+              "Tiga antrian: dana yang disengketakan, listing yang ditahan, dan event yang menunggu dibuka.")}
       </p>
 
       <div className="flex flex-wrap gap-2 mt-5 mb-6">
@@ -661,6 +686,7 @@ export default function AdminPage() {
       )}
 
       {mounted && account && tab === "shows" && <ShowsPanel />}
+      {mounted && account && tab === "payments" && <PaymentsPanel data={payments.data} error={payments.error} refresh={payments.refresh} />}
 
       {tab === "events" && (
       <>

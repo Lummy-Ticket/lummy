@@ -710,6 +710,9 @@ export type Database = {
           provider_ref: string | null
           qr_string: string | null
           quantity: number
+          refund_note: string | null
+          refunded_at: string | null
+          refunded_by: string | null
           status: string
           test_mode: boolean
           total: number
@@ -732,6 +735,9 @@ export type Database = {
           provider_ref?: string | null
           qr_string?: string | null
           quantity: number
+          refund_note?: string | null
+          refunded_at?: string | null
+          refunded_by?: string | null
           status?: string
           test_mode: boolean
           total: number
@@ -754,12 +760,22 @@ export type Database = {
           provider_ref?: string | null
           qr_string?: string | null
           quantity?: number
+          refund_note?: string | null
+          refunded_at?: string | null
+          refunded_by?: string | null
           status?: string
           test_mode?: boolean
           total?: number
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "payments_refunded_by_fkey"
+            columns: ["refunded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payments_buyer_id_fkey"
             columns: ["buyer_id"]

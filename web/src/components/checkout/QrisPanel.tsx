@@ -81,12 +81,14 @@ export function QrisPanel({
       en: "This QRIS expired before it was paid. The tickets are back on sale; press Pay for a new code.",
       id: "QRIS ini kedaluwarsa sebelum dibayar. Tiketnya kembali dijual; tekan Bayar untuk kode baru.",
     },
-    canceled: { en: "Payment cancelled. The tickets are back on sale.", id: "Pembayaran dibatalkan. Tiketnya kembali dijual." },
+    // Cancelled by the buyer, or because the show itself was cancelled: either way nothing was paid.
+    canceled: { en: "Payment cancelled. Nothing was charged.", id: "Pembayaran dibatalkan. Tidak ada yang ditagih." },
     failed: { en: "The payment did not go through. Nothing was charged.", id: "Pembayaran tidak berhasil. Tidak ada yang ditagih." },
     unfulfilled: {
       en: "Your payment arrived after the tickets went to another buyer. We will refund it, and the team will email you.",
       id: "Pembayaranmu masuk setelah tiketnya terjual ke pembeli lain. Uangnya kami kembalikan, dan tim kami akan mengirim email.",
     },
+    refunded: { en: "This payment was refunded to you.", id: "Pembayaran ini sudah dikembalikan kepadamu." },
   };
   const ended = closed[p.status];
 

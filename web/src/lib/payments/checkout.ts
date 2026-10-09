@@ -13,7 +13,9 @@ import { queueLedgerSync } from "@/lib/orders/ledger";
 import type { Database } from "@/lib/supabase/types";
 import { GRACE_SECONDS, HOLD_MINUTES } from "./hold";
 import type { PaymentStatus, PaymentView } from "./types";
-import { cancelQris, createQris, QRIS_MAX, readPayment, readQris, XENDIT_PAYMENT_ID, XenditError, type Qris, type XenditConfig } from "./xendit";
+import {
+  cancelQris, createQris, QRIS_MAX, readPayment, readQris, XENDIT_PAYMENT_ID, XenditError, xenditConfig, type Qris, type XenditConfig,
+} from "./xendit";
 
 if (typeof window !== "undefined") throw new Error("lib/payments/checkout hanya boleh dipakai di server");
 
@@ -145,7 +147,8 @@ export async function syncPayment(admin: Admin, cfg: XenditConfig, row: PaymentR
     await ensureOrder(admin, row);
     return reread(admin, row.id);
   }
-  if (row.status === "unfulfilled") return row;
+  // Money waiting for a refund, or already refunded: nothing Xendit says can change it now.
+  if (row.status === "unfulfilled" || row.status === "refunded") return row;
   if (!row.provider_ref) {
     // The request never reached Xendit, so nobody can pay it: close it once its time is up.
     if (row.status === "pending" && Date.parse(row.expires_at) < Date.now()) await close(admin, row.id, "failed");
@@ -228,6 +231,39 @@ export async function cancelHold(admin: Admin, cfg: XenditConfig, row: PaymentRo
   }
   await close(admin, row.id, "canceled");
   return reread(admin, row.id);
+}
+
+/**
+ * The show was cancelled: every QRIS still open on its listings is shut at Xendit and its seats go
+ * back, before the listings themselves close. One paid a moment ago takes its own path, which finds
+ * the show cancelled and leaves the money waiting for a refund. Returns how many closed, and how many
+ * could not be shut yet (they run out with their QRIS, 15 minutes at most).
+ */
+export async function closeHoldsOfEvent(admin: Admin, eventId: string): Promise<{ closed: number; left: number }> {
+  const listings = await admin.from("listings").select("id").eq("event_id", eventId);
+  if (listings.error) throw new Error(listings.error.message);
+  if (!listings.data.length) return { closed: 0, left: 0 };
+  const open = await admin.from("payments").select("*").in("listing_id", listings.data.map((l) => l.id)).eq("status", "pending");
+  if (open.error) throw new Error(open.error.message);
+  const cfg = xenditConfig();
+  let closed = 0;
+  let left = 0;
+  for (const row of open.data) {
+    try {
+      let now = row;
+      if (cfg) now = await cancelHold(admin, cfg, row);
+      else {
+        await close(admin, row.id, "canceled");
+        now = await reread(admin, row.id);
+      }
+      if (now.status === "pending") left++;
+      else closed++;
+    } catch (e) {
+      left++;
+      console.error("[payments] could not close a hold on a cancelled show:", row.id, (e as Error).message);
+    }
+  }
+  return { closed, left };
 }
 
 /**
