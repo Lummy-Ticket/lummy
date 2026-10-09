@@ -107,6 +107,9 @@ select pg_temp.probe('anon', null, 'anon: read barcode_hmac', 'select count(barc
 select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: read payments directly', 'select count(*)::text from public.payments', 'DENIED');
 select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: mark own ledger record final', $q$update public.orders set ledger_status = 'Released' returning id$q$, 'DENIED');
 select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: reads own ledger columns', $q$select count(*)::text from (select ledger_id, ledger_status from public.orders) x$q$, '1');
+-- Who went through which door is for the server: a pass is checked there, never by the browser (docs/09 §8).
+select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: read gate_scans', 'select count(*)::text from public.gate_scans', 'DENIED');
+select pg_temp.probe('authenticated', '44444444-4444-4444-4444-444444444444', 'admin: let a ticket in directly', $q$insert into public.gate_scans (event_id, unit, credential, result) values ('ev-sos', 'order:x', 'pass', 'admitted') returning id::text$q$, 'DENIED');
 
 insert into t_out(line)
   select (case when role = 'member' then 'ok    ' else 'FAIL  ' end) || 'signup metadata cannot set role -> ' || role::text

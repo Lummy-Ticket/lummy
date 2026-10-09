@@ -300,6 +300,67 @@ export type Database = {
         }
         Relationships: []
       }
+      gate_scans: {
+        Row: {
+          created_at: string
+          credential: string
+          event_id: string
+          gate: string
+          id: number
+          order_id: string | null
+          reason: string | null
+          result: string
+          scanned_by: string | null
+          unit: string
+        }
+        Insert: {
+          created_at?: string
+          credential: string
+          event_id: string
+          gate?: string
+          id?: never
+          order_id?: string | null
+          reason?: string | null
+          result: string
+          scanned_by?: string | null
+          unit: string
+        }
+        Update: {
+          created_at?: string
+          credential?: string
+          event_id?: string
+          gate?: string
+          id?: never
+          order_id?: string | null
+          reason?: string | null
+          result?: string
+          scanned_by?: string | null
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gate_scans_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gate_scans_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gate_scans_scanned_by_fkey"
+            columns: ["scanned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ktp_assets: {
         Row: {
           access_open_at: string

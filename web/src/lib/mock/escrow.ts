@@ -291,6 +291,23 @@ export function checkEvidence(
     return { strength: checks.every((c) => c.ok) ? "STRONG" : "WEAK", checks };
   }
 
+  // The gate's own record: the venue's scanner refused this order's pass because its ticket had
+  // already gone in. Nobody photographed anything, so there is nothing to doubt about time or place.
+  if (ev?.gate) {
+    const checks = [
+      {
+        ok: true,
+        label: { en: "Recorded by the gate itself", id: "Dicatat sistem gate sendiri" },
+        detail: {
+          en: `${ev.gate.gate} refused this order's pass: its ticket had already gone in on ${ev.gate.firstUse === "copy" ? "another copy" : "its own barcode"}.`,
+          id: `${ev.gate.gate} menolak pass pesanan ini: tiketnya sudah lebih dulu masuk lewat ${ev.gate.firstUse === "copy" ? "salinan lain" : "barcode aslinya"}.`,
+        },
+      },
+      inTime,
+    ];
+    return { strength: checks.every((c) => c.ok) ? "STRONG" : "WEAK", checks };
+  }
+
   // A real upload is judged on what could be read off it: a check with nothing to go on is
   // "not checked" rather than failed, and only a check that ran and failed weakens it.
   const uploaded = !!ev?.upload;

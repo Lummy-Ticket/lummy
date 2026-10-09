@@ -88,6 +88,28 @@ export async function POST(req: Request) {
       if (shut.error) return fail(500, shut.error.message);
     }
 
+    // Their scans at the door go too (docs/09 §8), so the next rehearsal's door starts empty: by
+    // order, by sample ticket, and by the barcodes of their tickets, which a copy went in on.
+    const doomed = await Promise.all([
+      admin.from("orders").select("id, listing_id").in("buyer_id", demoIds),
+      admin.from("orders").select("id, listing_id").like("id", "or-demo-%"),
+    ]);
+    const doomedError = doomed.find((r) => r.error)?.error;
+    if (doomedError) return fail(500, doomedError.message);
+    const leaving = doomed.flatMap((r) => r.data ?? []).filter((o) => !kept.includes(o.id));
+    if (leaving.length) {
+      const listingIds = [...new Set(leaving.flatMap((o) => (o.listing_id ? [o.listing_id] : [])))];
+      const codes = listingIds.length ? await admin.from("listing_barcodes").select("barcode_hmac").in("listing_id", listingIds) : null;
+      if (codes?.error) return fail(500, codes.error.message);
+      const units = [...leaving.map((o) => `order:${o.id}`), ...(codes?.data ?? []).map((c) => c.barcode_hmac)];
+      const scans = await Promise.all([
+        admin.from("gate_scans").delete().in("order_id", leaving.map((o) => o.id)),
+        admin.from("gate_scans").delete().in("unit", units),
+      ]);
+      const scanError = scans.find((r) => r.error)?.error;
+      if (scanError) return fail(500, scanError.message);
+    }
+
     // The demo accounts' orders, and whatever an earlier reset seeded. Their claims go with them.
     const keep = kept.length ? `(${kept.join(",")})` : null;
     let bought = admin.from("orders").delete().in("buyer_id", demoIds);

@@ -29,8 +29,8 @@ const sections: LegalSection[] = [
         id: "Foto yang kamu lampirkan ke klaim atau jawaban, dan yang tercatat di file-nya: kapan diambil, di mana (GPS, kalau HP menyimpannya), model kamera, aplikasi edit, dan barcode di dalamnya (sebagai hash berkunci).",
       },
       {
-        en: "Orders, payments and claims: what was bought, the amounts, the QRIS payment's status and Xendit's payment number, when the handover documents were opened, what each side wrote, and the decision.",
-        id: "Pesanan, pembayaran, dan klaim: apa yang dibeli, nominalnya, status pembayaran QRIS dan nomor pembayaran dari Xendit, kapan dokumen serah terima dibuka, apa yang ditulis tiap pihak, dan putusannya.",
+        en: "Orders, payments and claims: what was bought, the amounts, the QRIS payment's status and Xendit's payment number, when the handover documents were opened, what each side wrote, and the decision. At a show's door: when, and at which gate, your entry pass was scanned.",
+        id: "Pesanan, pembayaran, dan klaim: apa yang dibeli, nominalnya, status pembayaran QRIS dan nomor pembayaran dari Xendit, kapan dokumen serah terima dibuka, apa yang ditulis tiap pihak, dan putusannya. Di pintu masuk acara: kapan, dan di gate mana, pass masukmu dipindai.",
       },
       {
         en: "We do not accept photos of ID cards yet, and we run no analytics or advertising trackers. The site keeps a sign-in cookie, and your language and sample data in your browser.",
@@ -43,6 +43,7 @@ const sections: LegalSection[] = [
     list: [
       { en: "To run the sale you asked for: list, hold the money, hand the ticket over, pay out or refund.", id: "Menjalankan transaksi yang kamu minta: memasang listing, menahan dana, menyerahkan tiket, mencairkan atau mengembalikan dana." },
       { en: "To stop the same ticket being sold twice and to catch edited files before they go live.", id: "Mencegah tiket yang sama dijual dua kali dan menangkap file editan sebelum tayang." },
+      { en: "To let each ticket through the door once, and to refund you on the spot when someone used it before you.", id: "Membiarkan tiap tiket masuk sekali saja, dan mengembalikan uangmu saat itu juga kalau ada yang memakainya lebih dulu." },
       { en: "To decide claims on evidence from both sides.", id: "Memutus klaim berdasarkan bukti dari kedua pihak." },
     ],
   },
@@ -52,7 +53,7 @@ const sections: LegalSection[] = [
       { en: "Everyone: your listing and your public seller name, a first name and an initial (or \"Lummy seller\" if your profile has no name). Never your email.", id: "Semua orang: listing-mu dan nama publik penjual, nama depan dan inisial (atau \"Lummy seller\" kalau profilmu tanpa nama). Email tidak pernah." },
       { en: "The buyer of your ticket: the whole PDF you uploaded, since that is the ticket.", id: "Pembeli tiketmu: seluruh PDF yang kamu upload, karena itulah tiketnya." },
       { en: "The other side of a claim, and Lummy staff: the photos and notes in that claim.", id: "Pihak lawan dalam klaim, dan staf Lummy: foto dan catatan di klaim itu." },
-      { en: "Anyone, on the public Arbitrum ledger: the escrow's state, amounts and fingerprints of the ticket and the handover. No names, emails or files go on chain.", id: "Siapa pun, di buku besar publik Arbitrum: status escrow, nominal, dan sidik jari tiket serta serah terimanya. Nama, email, dan file tidak pernah masuk chain." },
+      { en: "Anyone, on the public Arbitrum ledger: the state of an escrow or of a QRIS order's record, the amounts, and fingerprints of the payment, the ticket and the handover. No names, emails or files go on chain.", id: "Siapa pun, di buku besar publik Arbitrum: status escrow atau catatan pesanan QRIS, nominalnya, dan sidik jari pembayaran, tiket, serta serah terimanya. Nama, email, dan file tidak pernah masuk chain." },
     ],
   },
   {
@@ -118,7 +119,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage
       title={{ en: "Privacy policy", id: "Kebijakan privasi" }}
-      effective={{ en: "8 Oct 2026", id: "8 Okt 2026" }}
+      effective={{ en: "9 Oct 2026", id: "9 Okt 2026" }}
       intro={{
         en: "What Lummy Ticket keeps about you, why, who can see it, and when it is deleted. Written to match what the app actually does.",
         id: "Apa yang disimpan Lummy Ticket tentang kamu, untuk apa, siapa yang bisa melihatnya, dan kapan dihapus. Ditulis sesuai yang benar-benar dilakukan aplikasinya.",

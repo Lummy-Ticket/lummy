@@ -143,6 +143,16 @@ export interface DisputeEvidence {
   showsBarcode?: boolean | null;
   /** A real upload, and what the server read off it. Absent for the sample files. */
   upload?: EvidenceUpload;
+  /** The venue's gate itself refused this order's pass: the ticket had gone in before (docs/09 §8). */
+  gate?: GateRecord;
+}
+
+export interface GateRecord {
+  scanId: number;
+  gate: string;
+  /** When the ticket first went in, and on what: its own barcode, or a copy (presenter demo). */
+  firstUseAtISO: string;
+  firstUse: "barcode" | "copy";
 }
 
 export interface EvidenceUpload {

@@ -21,6 +21,7 @@ import { useT, useFormatters } from "@/lib/i18n";
 import { EscrowStatusPill } from "@/components/common/EscrowStatusPill";
 import { EscrowSteps } from "@/components/common/EscrowSteps";
 import { EscrowTimeline } from "@/components/common/EscrowTimeline";
+import { EntryPass } from "@/components/tickets/EntryPass";
 import { PageContainer } from "@/components/layout/PageContainer";
 import {useOrders, useUser, explorerTx, explorerAddr, shortHash, phaseOf, msUntilRelease, disputeDeadlineISO, endedAtISO, canRefundPostponed, checkEvidence, mockEvidenceOptions, DISPUTE_WINDOW_H, reasonMeta, availableReasons, reasonBlockedNote, canFileDispute, REMEDY_LABEL, windowMs, windowLabel, withChainSnapshot, type DisputeEvidence, type DisputeReason,
 } from "@/lib/mock";
@@ -755,6 +756,10 @@ export default function OrderDetailPage() {
 
         {/* Documents */}
         <div className="flex flex-col gap-4 min-w-0">
+          {/* The buyer's way in at the door (docs/09 §8), while the order still holds its seats. */}
+          {account && order.buyerId === user?.id && (order.escrowStatus === "LOCKED" || order.escrowStatus === "DISPUTED") && (
+            <EntryPass orderId={order.id} onChange={refreshOrder} />
+          )}
           <div className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
             <h2 className="font-fredoka font-semibold text-lg text-neutral-black mb-3">{t("Handover documents", "Dokumen serah-terima")}</h2>
             {/* The ticket itself, the PDF the seller uploaded. Opening it is logged by the server. */}

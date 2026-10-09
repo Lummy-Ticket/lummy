@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import {
   CheckCircle2, XCircle, AlertTriangle, Sparkles, Calendar, CalendarClock, CalendarX, MapPin, Scale, Paperclip,
-  ExternalLink, Gavel, Clock, Loader2, Ticket, MinusCircle, Banknote,
+  ExternalLink, Gavel, Clock, Loader2, Ticket, MinusCircle, Banknote, DoorOpen,
 } from "lucide-react";
 import { PaymentsPanel, usePaymentsOverview } from "@/components/admin/PaymentsPanel";
 import { EvidencePhoto } from "@/components/common/EvidencePhoto";
@@ -26,6 +26,7 @@ import { useCatalogue } from "@/lib/catalogue";
 import { orderAction, useAccountOrders } from "@/lib/orders/client";
 import { listingAction, useAccountListings } from "@/lib/listings/client";
 import { formatName, reasonText, reviewReasons } from "@/lib/tickets/checks";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SampleBadge } from "@/components/common/SampleBadge";
 
@@ -225,6 +226,12 @@ function ShowsPanel() {
               </div>
             </div>
             <div className="flex flex-wrap gap-2 shrink-0">
+              <Link
+                href={`/gate?event=${encodeURIComponent(e.id)}`}
+                className="inline-flex items-center justify-center gap-1.5 rounded-2xl border-2 bg-neutral-white px-5 py-3.5 font-fredoka font-medium text-sm transition -translate-y-0.5 border-neutral-light-gray-1 text-neutral-gray hover:border-primary-navy hover:text-primary-navy"
+              >
+                <DoorOpen className="w-4 h-4" /> {t("Open the gate", "Buka gate")}
+              </Link>
               <Button.Ghost
                 className="text-sm flex items-center gap-1.5"
                 disabled={busy === e.id}
