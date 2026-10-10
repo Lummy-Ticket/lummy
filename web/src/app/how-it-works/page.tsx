@@ -193,8 +193,8 @@ export default function HowItWorks() {
       Icon: Flag,
       title: t("Go to the show", "Datang ke acara"),
       body: t(
-        `Got in? You do nothing. Turned away at the gate? Take a photo there and file a claim within ${DISPUTE_WINDOW_H} hours of the show ending.`,
-        `Berhasil masuk? Kamu tidak perlu apa-apa. Ditolak di gate? Foto di sana dan ajukan klaim dalam ${DISPUTE_WINDOW_H} jam setelah acara selesai.`
+        `Show your Lummy pass at the door. Where the organiser checks Lummy passes, a ticket someone used before you is refused there and your money comes back on the spot. Anywhere else, got in? You do nothing. Turned away? Take a photo there and file a claim within ${DISPUTE_WINDOW_H} hours of the show ending.`,
+        `Tunjukkan pass Lummy di pintu masuk. Di acara yang penyelenggaranya memeriksa pass Lummy, tiket yang sudah dipakai orang lain ditolak di sana dan uangmu langsung kembali. Di tempat lain, berhasil masuk? Kamu tidak perlu apa-apa. Ditolak? Foto di sana dan ajukan klaim dalam ${DISPUTE_WINDOW_H} jam setelah acara selesai.`
       ),
       state: t(`${DISPUTE_WINDOW_H}h to raise a problem`, `${DISPUTE_WINDOW_H} jam untuk melapor`),
       tone: "open",
@@ -233,8 +233,8 @@ export default function HowItWorks() {
       Icon: XCircle,
       q: t("What if I am turned away at the gate?", "Kalau aku ditolak di gate?"),
       a: t(
-        `File within ${DISPUTE_WINDOW_H} hours with a photo taken there. The time, the venue and the code on screen all have to match, so someone who walked in cannot claim. A person reviews it and decides.`,
-        `Ajukan dalam ${DISPUTE_WINDOW_H} jam dengan foto yang diambil di sana. Waktu, venue, dan kode di layar harus cocok, jadi yang berhasil masuk tidak bisa mengklaim. Orang yang meninjau dan memutus.`
+        `Where the door checks Lummy passes, you file nothing: the refusal itself is the proof and the refund is immediate. Elsewhere, file within ${DISPUTE_WINDOW_H} hours with a photo taken there. The time, the venue and the code on screen all have to match, so someone who walked in cannot claim. A person reviews it and decides.`,
+        `Di pintu yang memeriksa pass Lummy, kamu tidak perlu mengajukan apa pun: penolakannya sendiri buktinya dan refund langsung terjadi. Di tempat lain, ajukan dalam ${DISPUTE_WINDOW_H} jam dengan foto yang diambil di sana. Waktu, venue, dan kode di layar harus cocok, jadi yang berhasil masuk tidak bisa mengklaim. Orang yang meninjau dan memutus.`
       ),
     },
     {
@@ -388,10 +388,10 @@ export default function HowItWorks() {
   const checks = [
     {
       Icon: ScanLine,
-      title: t("AI reads every ticket", "AI membaca tiap tiket"),
+      title: t("Every ticket is read", "Tiap tiket dibaca"),
       body: t(
-        "It fills in the listing and looks for signs the PDF was edited. A high score sends it to a person; it never decides alone.",
-        "Mengisi data listing dan mencari jejak PDF yang diedit. Skor tinggi dikirim ke manusia, bukan diputus sendiri."
+        "The server reads each barcode and checks how the PDF was made and changed. A suspicious file goes to a person; the machine never decides alone. AI that fills the listing in for you comes next.",
+        "Server membaca tiap barcode dan memeriksa cara PDF dibuat dan diubah. File yang mencurigakan dikirim ke manusia, mesin tidak memutus sendiri. AI yang mengisi listing untukmu menyusul."
       ),
     },
     {
