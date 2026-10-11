@@ -119,12 +119,14 @@ export function writeAllowed(req: Request, op: Operator): boolean {
   return writeMode(op) !== "off" && demoKeyAllowed(req);
 }
 
-// Satu antrean per instance server: dua checkout bersamaan tidak berebut nonce operator. Penulisan
-// buku besar ikut antrean ini, karena tanpa kunci khusus ia memakai kunci operator yang sama.
-let queue: Promise<unknown> = Promise.resolve();
-export function serial<T>(fn: () => Promise<T>): Promise<T> {
-  const run = queue.then(fn, fn);
-  queue = run.catch(() => undefined);
+// Satu antrean per kunci penandatangan per instance server: dua transaksi dari kunci yang sama tidak
+// berebut nonce-nya. Buku besar dengan kunci khususnya punya antrean sendiri, jadi tidak menunggu di
+// belakang checkout escrow (atau sebaliknya); tanpa kunci khusus ia ikut antrean operator.
+const queues = new Map<string, Promise<unknown>>();
+export function serial<T>(signer: Address, fn: () => Promise<T>): Promise<T> {
+  const key = signer.toLowerCase();
+  const run = (queues.get(key) ?? Promise.resolve()).then(fn, fn);
+  queues.set(key, run.catch(() => undefined));
   return run;
 }
 
@@ -156,7 +158,7 @@ export async function readListing(t: ChainTarget, id: Hex): Promise<OnchainListi
  * setelah yang terakhir dari serah terima dan `eventEndsAt`.
  */
 export async function openOrder(op: Operator, eventEndsAt: number, ticket?: { barcodeKey: string | null; sha256: string | null }) {
-  return serial(async () => {
+  return serial(op.operator.address, async () => {
     const pc = publicClient(op.chain, op.rpcUrl);
     const balance = await pc.readContract({ address: op.token, abi: tokenAbi, functionName: "balanceOf", args: [op.buyer.address] });
     if (balance < op.price) {
@@ -192,7 +194,7 @@ export async function openOrder(op: Operator, eventEndsAt: number, ticket?: { ba
 
 /** Satu aksi penyelesaian, lalu dana yang teralokasi langsung dikirim ke pemiliknya (withdrawFor). */
 export async function settle(op: Operator, id: Hex, action: SettleAction, toBuyer = BigInt(0)) {
-  return serial(async () => {
+  return serial(op.operator.address, async () => {
     const pc = publicClient(op.chain, op.rpcUrl);
     const as = escrowAs(pc, op.operator, op.chain, op.rpcUrl, op.escrow);
     const r =
@@ -217,7 +219,7 @@ export async function settle(op: Operator, id: Hex, action: SettleAction, toBuye
  * ulang aman. Hasilnya batas window baru menurut kontrak.
  */
 export async function postpone(op: Operator, id: Hex, newEventEndsAt: number) {
-  return serial(async () => {
+  return serial(op.operator.address, async () => {
     const pc = publicClient(op.chain, op.rpcUrl);
     const L = await getListing(pc, op.escrow, id);
     let tx: Hex | null = null;

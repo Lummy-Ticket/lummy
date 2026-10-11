@@ -49,6 +49,21 @@ export type SeedEvent = Omit<EventItem, "fromPrice" | "listingCount">;
 /** Shows that are always tomorrow, at this hour Jakarta time. Mirrored as events.rolling_hour. */
 export const ROLLING_HOUR: Record<string, number> = { "ev-wtf": 14 };
 
+/**
+ * Where each seed venue is, for the location check on claim photos (radius 1.5 km,
+ * lib/evidence/server.ts). Taken from each venue's Wikipedia article on 10 Oct 2026, not guessed.
+ * Ciputra Artpreneur is the theatre inside Ciputra World Jakarta, whose article carries the point.
+ * Mirrored as events.venue_lat and venue_lng.
+ */
+export const VENUE_LOCATION: Record<string, { lat: number; lng: number }> = {
+  "Stadion Utama GBK": { lat: -6.21858, lng: 106.80251 },
+  "Stadion Madya GBK": { lat: -6.21694, lng: 106.79917 },
+  "JIExpo Kemayoran": { lat: -6.1467, lng: 106.84568 },
+  "ICE BSD Hall 10": { lat: -6.30026, lng: 106.6366 },
+  "Sentul International Convention Center": { lat: -6.559, lng: 106.84811 },
+  "Ciputra Artpreneur": { lat: -6.22405, lng: 106.82309 },
+};
+
 // Fixed dates sit after the October demo window. A show that has ended drops out of
 // the catalogue on its own (see getEvents), instead of staying on sale.
 export const seedEvents = (now: number): SeedEvent[] => [

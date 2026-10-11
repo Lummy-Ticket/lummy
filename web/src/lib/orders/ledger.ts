@@ -116,9 +116,9 @@ export async function syncLedger(admin: Admin, orderId: string): Promise<LedgerS
   const want = wanted(row);
   const id = ledgerOrderId(row.id);
   try {
-    // Antrean yang sama dengan escrow, dan catatan dibaca di dalamnya, jadi dua sinkron pesanan yang sama
-    // di instance ini tidak mengirim langkah yang sama dua kali.
-    return await serial(async (): Promise<LedgerSync> => {
+    // Antrean kunci penandatangannya (antrean operator escrow kalau tidak ada kunci khusus), dan catatan
+    // dibaca di dalamnya, jadi dua sinkron pesanan yang sama di instance ini tidak mengirim langkah dua kali.
+    return await serial(account.address, async (): Promise<LedgerSync> => {
       const pc = publicClient(t.chain, t.rpcUrl);
       const as = ledgerAs(t, account);
       const txs: Hex[] = [];
@@ -136,45 +136,55 @@ export async function syncLedger(admin: Admin, orderId: string): Promise<LedgerS
         const listing = row.listing_id
           ? (await admin.from("listings").select("barcode_hmac, ticket_sha256").eq("id", row.listing_id).maybeSingle()).data
           : null;
+        const amount = BigInt(Math.round(Number(row.amount)));
         txs.push(
           await as.open(
             id,
-            BigInt(Math.round(Number(row.amount))),
+            amount,
             paymentRefOf(pay.data.provider_ref!),
             ticketCommitOf(listing?.barcode_hmac ?? null),
             handoverHashOf(id, listing?.ticket_sha256 ?? null),
             want.endsAt
           )
         );
+        // Dari sini catatan diikuti dari efek tiap langkah yang sudah masuk blok, bukan dibaca ulang: RPC
+        // publik bisa menjawab dari node yang tertinggal satu blok, sehingga langkah barusan tidak terlihat.
+        rec = { ...rec, status: "Open", amount, openedAt: rec.now, eventEndsAt: want.endsAt, disputed: false, deadline: want.endsAt + rec.disputeWindow };
         // Dicatat sekarang juga, supaya halaman pesanan sudah bisa menautkan buktinya walau langkah
         // berikutnya gagal.
         await admin.from("orders").update({ ledger_id: id, ledger_chain_id: t.chain.id, ledger_contract: t.ledger, ledger_status: "Open" }).eq("id", row.id);
-        rec = await readRecord(t, id);
       }
 
       if (rec.status === "Open" && want.endsAt > rec.eventEndsAt && !closed(rec)) {
         txs.push(await as.postponeEvent(id, want.endsAt));
-        rec = await readRecord(t, id);
+        rec = { ...rec, eventEndsAt: want.endsAt, deadline: want.endsAt + rec.disputeWindow };
       }
       if (rec.status === "Open" && want.disputed && !rec.disputed) {
         txs.push(await as.raiseDispute(id));
-        rec = await readRecord(t, id);
+        rec = { ...rec, disputed: true };
       }
       if (rec.status === "Open" && want.final) {
-        if (want.toBuyer !== null) txs.push(await as.resolveDispute(id, BigInt(want.toBuyer)));
-        else if (want.final === "Refunded") txs.push(await as.refund(id, want.reason));
-        else if (rec.disputed) return failed("catatan bersengketa, tapi database mencairkan tanpa putusan", true);
-        else {
+        if (want.toBuyer !== null) {
+          txs.push(await as.resolveDispute(id, BigInt(want.toBuyer)));
+          rec = { ...rec, status: want.toBuyer === 0 ? "Released" : "Refunded" };
+        } else if (want.final === "Refunded") {
+          txs.push(await as.refund(id, want.reason));
+          rec = { ...rec, status: "Refunded" };
+        } else if (rec.disputed) {
+          return failed("catatan bersengketa, tapi database mencairkan tanpa putusan", true);
+        } else {
           // Batasnya sama dengan database, tapi jam kontrak bisa tertinggal beberapa detik. Selisih kecil
           // ditunggu; selebihnya disusulkan sinkron berikutnya.
           const behind = rec.deadline - rec.now;
           if (behind >= 0 && behind <= 15) {
             await new Promise((r) => setTimeout(r, (behind + 2) * 1000));
-            rec = await readRecord(t, id);
+            rec = { ...rec, now: (await readRecord(t, id)).now };
           }
-          if (rec.now > rec.deadline) txs.push(await as.release(id));
+          if (rec.now > rec.deadline) {
+            txs.push(await as.release(id));
+            rec = { ...rec, status: "Released" };
+          }
         }
-        rec = await readRecord(t, id);
       }
 
       if (want.final && rec.status !== "Open" && rec.status !== want.final) {

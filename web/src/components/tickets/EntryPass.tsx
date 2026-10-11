@@ -9,6 +9,7 @@ import { QRCodeSVG } from "qrcode.react";
 import toast from "react-hot-toast";
 import { Copy, DoorOpen, QrCode } from "lucide-react";
 import { useFormatters, useT } from "@/lib/i18n";
+import { pollWhileVisible } from "@/lib/poll";
 
 type PassState = { pass: string | null; admitted: { at: string; gate: string } | null; unavailable?: string };
 
@@ -45,13 +46,13 @@ export function EntryPass({ orderId, onChange }: { orderId: string; onChange?: (
     };
     void load();
     // While the pass waits at the door, the card follows what the gate does with it.
-    const timer = setInterval(() => {
-      if (done) clearInterval(timer);
+    const stop = pollWhileVisible(() => {
+      if (done) stop();
       else void load();
     }, 5000);
     return () => {
       alive = false;
-      clearInterval(timer);
+      stop();
     };
   }, [orderId]);
 
@@ -59,7 +60,7 @@ export function EntryPass({ orderId, onChange }: { orderId: string; onChange?: (
 
   if (state.admitted) {
     return (
-      <div data-entry-pass="in" className="bg-secondary-blue-extra rounded-3xl p-5 flex items-start gap-3">
+      <div data-entry-pass="in" role="status" className="bg-secondary-blue-extra rounded-3xl p-5 flex items-start gap-3">
         <DoorOpen className="w-6 h-6 text-secondary-green-dark shrink-0" />
         <div>
           <h2 className="font-fredoka font-semibold text-lg text-neutral-black">{t("You are in", "Kamu sudah masuk")}</h2>

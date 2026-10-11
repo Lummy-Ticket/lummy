@@ -4,6 +4,7 @@
 // Tidak ada kunci di sini. Checkout baru jadi transaksi sungguhan kalau server sanggup menulis DAN
 // perangkat ini memilih mode chain di panel dev, jadi pengunjung biasa dan demo-check tetap di data contoh.
 import { useCallback, useEffect, useState } from "react";
+import { pollWhileVisible } from "@/lib/poll";
 
 export type WriteMode = "off" | "open" | "key";
 
@@ -123,7 +124,7 @@ export const openChainOrder = (eventEndsAt: number) => post<ChainOrderResult>("/
 export const chainAction = (listingId: string, action: "dispute" | "resolve" | "release" | "refund", toBuyer?: string) =>
   post<ChainActionResult>("/api/chain/action", { listingId, action, toBuyer });
 
-/** Status listing langsung dari kontrak, diperbarui berkala. */
+/** Status listing langsung dari kontrak, diperbarui berkala selama halamannya terlihat. */
 export function useChainListing(listingId: string | undefined, intervalMs = 5000) {
   const [data, setData] = useState<ChainListing | null>(null);
   const [nonce, setNonce] = useState(0);
@@ -138,10 +139,10 @@ export function useChainListing(listingId: string | undefined, intervalMs = 5000
         })
         .catch(() => undefined);
     load();
-    const timer = setInterval(load, intervalMs);
+    const stop = pollWhileVisible(load, intervalMs);
     return () => {
       alive = false;
-      clearInterval(timer);
+      stop();
     };
   }, [listingId, intervalMs, nonce]);
   return { data, refresh: () => setNonce((n) => n + 1) };
@@ -184,10 +185,12 @@ export type ChainHistory = {
 export const chainSettled = (s: ChainStatus | undefined) => s === "Released" || s === "Refunded" || s === "Cancelled";
 
 /**
- * Riwayat escrow dari event kontrak, diperbarui berkala sampai escrow selesai. "missing": kontrak tidak
- * mengenal id ini. "failed": chain belum bisa dibaca dan belum ada data sebelumnya.
+ * Riwayat escrow atau catatan buku besar dari event kontrak, diperbarui berkala sampai selesai, dan cuma
+ * selama halamannya terlihat (tab di belakang tidak membebani RPC publik). `source`: kontrak yang memegang
+ * id ini kalau sudah diketahui, supaya server tidak membaca keduanya. "missing": kontrak tidak mengenal id
+ * ini. "failed": chain belum bisa dibaca dan belum ada data sebelumnya.
  */
-export function useChainHistory(listingId: string | undefined, intervalMs = 15000) {
+export function useChainHistory(listingId: string | undefined, intervalMs = 15000, source?: "escrow" | "ledger") {
   const [data, setData] = useState<ChainHistory | null>(null);
   const [state, setState] = useState<"loading" | "ok" | "missing" | "failed">("loading");
   const [nonce, setNonce] = useState(0);
@@ -195,8 +198,9 @@ export function useChainHistory(listingId: string | undefined, intervalMs = 1500
   useEffect(() => {
     if (!listingId) return;
     let alive = true;
+    const url = `/api/chain/history/${listingId}${source ? `?source=${source}` : ""}`;
     const load = () =>
-      fetch(`/api/chain/history/${listingId}`)
+      fetch(url)
         .then(async (r) => {
           if (r.ok) {
             const j = (await r.json()) as ChainHistory;
@@ -216,12 +220,12 @@ export function useChainHistory(listingId: string | undefined, intervalMs = 1500
         alive = false;
       };
     }
-    const timer = setInterval(load, intervalMs);
+    const stop = pollWhileVisible(load, intervalMs);
     return () => {
       alive = false;
-      clearInterval(timer);
+      stop();
     };
-  }, [listingId, intervalMs, nonce, settled]);
+  }, [listingId, intervalMs, nonce, settled, source]);
   // Stabil antar render, supaya aman dipakai sebagai dependensi effect.
   const refresh = useCallback(() => setNonce((n) => n + 1), []);
   return { data, state, refresh };

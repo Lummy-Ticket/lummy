@@ -232,20 +232,21 @@ export function readHistoryCached(t: ChainTarget, id: Hex): Promise<EscrowHistor
 const found = (h: EscrowHistory) => h.live.status !== "None" || h.events.length > 0;
 
 /**
- * Riwayat untuk satu id dari halaman bukti: escrow dulu, lalu buku besar. Id keduanya hash dengan awalan
- * berbeda (`lummy:listing:` dan `lummy:order:`), jadi tidak pernah bertabrakan. Null kalau tidak ada di
- * keduanya.
+ * Riwayat untuk satu id: dari escrow, dari buku besar, atau dari keduanya sekaligus kalau sumbernya tidak
+ * disebut (halaman bukti publik). Id keduanya hash dengan awalan berbeda (`lummy:listing:` dan
+ * `lummy:order:`), jadi tidak pernah bertabrakan. Keduanya dibaca bersamaan, dan yang satu gagal tidak
+ * menjatuhkan yang lain: catatan QRIS tetap terbaca walau RPC escrow sedang menolak. Null kalau tidak ada
+ * di mana pun; galat cuma kalau tidak ketemu dan ada yang gagal dibaca.
  */
-export async function readAnyHistory(id: Hex): Promise<EscrowHistory | null> {
-  const escrow = chainTarget();
-  if (escrow) {
-    const h = await readHistoryCached(escrow, id);
-    if (found(h)) return h;
-  }
-  const ledger = ledgerTarget();
-  if (ledger) {
-    const h = await cached(`${ledger.chain.id}:${ledger.ledger}:${id}`.toLowerCase(), () => readLedgerHistory(ledger, id));
-    if (found(h)) return h;
-  }
+export async function readAnyHistory(id: Hex, source?: HistorySource): Promise<EscrowHistory | null> {
+  const escrow = source === "ledger" ? null : chainTarget();
+  const ledger = source === "escrow" ? null : ledgerTarget();
+  const reads = await Promise.allSettled([
+    escrow ? readHistoryCached(escrow, id) : Promise.resolve(null),
+    ledger ? cached(`${ledger.chain.id}:${ledger.ledger}:${id}`.toLowerCase(), () => readLedgerHistory(ledger, id)) : Promise.resolve(null),
+  ]);
+  for (const r of reads) if (r.status === "fulfilled" && r.value && found(r.value)) return r.value;
+  const failed = reads.find((r): r is PromiseRejectedResult => r.status === "rejected");
+  if (failed) throw failed.reason;
   return null;
 }

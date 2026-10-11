@@ -97,13 +97,13 @@ export default function OrderDetailPage() {
   const { data: live, refresh: refreshLive } = useChainListing(stored?.chain?.listingId);
   const order = useMemo(() => (account && stored && live ? withChainSnapshot(stored, live) : stored), [account, stored, live]);
   // The same escrow told from the contract's own events, for the history below and the public proof page.
-  const { data: history, refresh: refreshHistory } = useChainHistory(stored?.chain?.listingId);
+  const { data: history, refresh: refreshHistory } = useChainHistory(stored?.chain?.listingId, 15000, "escrow");
   const liveStep = live ? `${live.status}:${live.disputed}` : "";
   useEffect(() => {
     if (liveStep) refreshHistory();
   }, [liveStep, refreshHistory]);
   // A QRIS order's public record (docs/09 §7): the same story, from the ledger contract's events.
-  const { data: ledgerHistory, refresh: refreshLedger } = useChainHistory(stored?.ledger?.id);
+  const { data: ledgerHistory, refresh: refreshLedger } = useChainHistory(stored?.ledger?.id, 15000, "ledger");
   const ledgerStep = stored?.ledger ? `${stored.escrowStatus}:${stored.ledger.status}` : "";
   useEffect(() => {
     if (ledgerStep) refreshLedger();
@@ -756,8 +756,8 @@ export default function OrderDetailPage() {
 
         {/* Documents */}
         <div className="flex flex-col gap-4 min-w-0">
-          {/* The buyer's way in at the door (docs/09 §8), while the order still holds its seats. */}
-          {account && order.buyerId === user?.id && (order.escrowStatus === "LOCKED" || order.escrowStatus === "DISPUTED") && (
+          {/* The buyer's way in at the door (docs/09 §8), while the order holds its seats and the show is still on. */}
+          {account && order.buyerId === user?.id && !endedAt && (order.escrowStatus === "LOCKED" || order.escrowStatus === "DISPUTED") && (
             <EntryPass orderId={order.id} onChange={refreshOrder} />
           )}
           <div className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">

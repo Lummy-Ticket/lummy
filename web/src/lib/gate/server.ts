@@ -7,7 +7,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { Hex } from "viem";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { chainError, operatorSetup, settle } from "@/lib/chain/server";
+import { chainError, operatorSetup, readListing, settle } from "@/lib/chain/server";
 import { penaltyFor } from "@/lib/mock/escrow";
 import type { DisputeEvidence } from "@/lib/mock/types";
 import { queueLedgerSync } from "@/lib/orders/ledger";
@@ -117,7 +117,7 @@ async function record(admin: Admin, s: Scan, rows: { unit: string; orderId: stri
     .select("id, created_at");
 }
 
-/** The first admission among these units at this show. */
+/** The first admission among these units at this show; null if it vanished meanwhile (a demo reset). */
 async function firstUse(admin: Admin, eventId: string, units: string[]) {
   const { data, error } = await admin
     .from("gate_scans")
@@ -127,7 +127,7 @@ async function firstUse(admin: Admin, eventId: string, units: string[]) {
     .in("unit", units)
     .order("created_at")
     .limit(1)
-    .single();
+    .maybeSingle();
   if (error) throw new Error(error.message);
   return data;
 }
@@ -164,12 +164,16 @@ async function scanPass(admin: Admin, orderId: string, s: Scan): Promise<GateOut
   if (row.event_id !== s.eventId) return (await refuse("WRONG_SHOW")).outcome;
   if (!HELD.includes(row.escrow_status)) return (await refuse("ORDER_CLOSED")).outcome;
 
-  // Every ticket of the order goes in together, or none: one insert, and the index decides.
-  const admitted = await record(admin, s, units.map((unit) => ({ unit, orderId, credential: "pass" as const, result: "admitted" as const })));
-  if (!admitted.error) return { ...base, result: "admitted", scanId: admitted.data[0].id };
-  if (admitted.error.code !== "23505") throw new Error(admitted.error.message);
-
-  const first = await firstUse(admin, s.eventId, units);
+  // Every ticket of the order goes in together, or none: one insert, and the index decides. Should the
+  // admission it collided with be gone by the time it is looked up, it is simply tried again.
+  let first: Awaited<ReturnType<typeof firstUse>> = null;
+  for (let attempt = 0; attempt < 2 && !first; attempt++) {
+    const admitted = await record(admin, s, units.map((unit) => ({ unit, orderId, credential: "pass" as const, result: "admitted" as const })));
+    if (!admitted.error) return { ...base, result: "admitted", scanId: admitted.data[0].id };
+    if (admitted.error.code !== "23505") throw new Error(admitted.error.message);
+    first = await firstUse(admin, s.eventId, units);
+  }
+  if (!first) throw new Error("gate: tiket ini sedang berubah, pindai lagi");
   const byThisBuyer = first.order_id === orderId;
   const refused = await refuse(byThisBuyer ? "ALREADY_ADMITTED" : "ALREADY_USED");
   const outcome: GateOutcome = { ...refused.outcome, firstUse: { at: first.created_at, credential: first.credential, byThisBuyer } };
@@ -189,7 +193,14 @@ async function scanPass(admin: Admin, orderId: string, s: Scan): Promise<GateOut
 
 async function scanBarcode(admin: Admin, text: string, s: Scan): Promise<GateOutcome> {
   const key = barcodeKey(new TextEncoder().encode(text), pepper());
-  const held = await admin.from("listing_barcodes").select("listing_id").eq("barcode_hmac", key).limit(1).maybeSingle();
+  // The listing that holds it now, before any old one it was withdrawn from.
+  const held = await admin
+    .from("listing_barcodes")
+    .select("listing_id")
+    .eq("barcode_hmac", key)
+    .order("held", { ascending: false })
+    .limit(1)
+    .maybeSingle();
   if (held.error) throw new Error(held.error.message);
   // Not a ticket sold through Lummy: the organiser's own system decides, and Lummy records nothing.
   if (!held.data) return { result: "unknown", reason: "NOT_LUMMY", credential: "barcode" };
@@ -202,12 +213,16 @@ async function scanBarcode(admin: Admin, text: string, s: Scan): Promise<GateOut
     if (r.error) throw new Error(r.error.message);
     return { ...base, result: "refused", reason: "WRONG_SHOW", scanId: r.data[0].id };
   }
-  const admitted = await record(admin, s, [{ unit: key, orderId: null, credential: "barcode", result: "admitted" }]);
-  if (!admitted.error) return { ...base, result: "admitted", scanId: admitted.data[0].id };
-  if (admitted.error.code !== "23505") throw new Error(admitted.error.message);
+  let first: Awaited<ReturnType<typeof firstUse>> = null;
+  for (let attempt = 0; attempt < 2 && !first; attempt++) {
+    const admitted = await record(admin, s, [{ unit: key, orderId: null, credential: "barcode", result: "admitted" }]);
+    if (!admitted.error) return { ...base, result: "admitted", scanId: admitted.data[0].id };
+    if (admitted.error.code !== "23505") throw new Error(admitted.error.message);
+    first = await firstUse(admin, s.eventId, [key]);
+  }
+  if (!first) throw new Error("gate: tiket ini sedang berubah, pindai lagi");
   // Whoever holds this copy is not the one who went in. If that was the Lummy buyer, on their pass,
   // the buyer is fine; this is the copy that was sold twice.
-  const first = await firstUse(admin, s.eventId, [key]);
   const r = await record(admin, s, [{ unit: key, orderId: null, credential: "barcode", result: "refused", reason: "ALREADY_USED" }]);
   if (r.error) throw new Error(r.error.message);
   return {
@@ -227,6 +242,7 @@ export async function simulateCopy(admin: Admin, orderId: string, s: Scan): Prom
   const row = await loadOrder(admin, orderId);
   if (!row) throw new GateError("pesanan tidak ditemukan", 404);
   if (row.event_id !== s.eventId) throw new GateError("pesanan ini untuk acara lain", 409);
+  if (row.chain_id === 42161) return { result: "refused", reason: "LIVE_MONEY", credential: "copy", orderId };
   if (row.payment_id) {
     const pay = await admin.from("payments").select("test_mode").eq("id", row.payment_id).single();
     if (pay.error) throw new Error(pay.error.message);
@@ -266,8 +282,16 @@ async function refundAtGate(
     const op = operatorSetup();
     if (!op) return { error: "mode chain mati: kunci operator belum diset" };
     try {
-      if (!row.disputed) await settle(op, order.chain.listingId as Hex, "dispute");
-      tx = await settle(op, order.chain.listingId as Hex, "resolve", BigInt(order.chain.price));
+      // The contract may be part way already (an earlier try stopped between its two steps), so it
+      // is read first and only what is missing is sent; a refund it already made is just recorded.
+      const id = order.chain.listingId as Hex;
+      const live = await readListing(op, id);
+      if (live.status === "Funded" || live.status === "DisputeWindow") {
+        if (!live.disputed) await settle(op, id, "dispute");
+        tx = await settle(op, id, "resolve", BigInt(order.chain.price));
+      } else if (live.status !== "Refunded") {
+        return { error: `escrow di kontrak sudah ${live.status}` };
+      }
     } catch (e) {
       return { error: chainError(e) };
     }
@@ -302,7 +326,7 @@ async function refundAtGate(
     .in("escrow_status", HELD);
   if (settled.error) return { error: settled.error.message };
   if (row.payment_id) queueLedgerSync(admin, row.id);
-  return { amount, penalty, onChain: !!tx };
+  return { amount, penalty, onChain: !!order.chain };
 }
 
 /** Whether, and when, this order went in through the gate. */

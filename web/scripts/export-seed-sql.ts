@@ -3,7 +3,7 @@
 // Idempotent: re-running the file updates rows in place.
 import fs from "fs";
 import path from "path";
-import { ROLLING_HOUR, SEED_LISTINGS, seedEvents } from "../src/lib/mock/seed";
+import { ROLLING_HOUR, SEED_LISTINGS, seedEvents, VENUE_LOCATION } from "../src/lib/mock/seed";
 import { SEED_EVENT_REQUESTS } from "../src/lib/mock/useEventRequests";
 
 type Value = string | number | boolean | null | undefined;
@@ -44,6 +44,8 @@ const sql = [
       rolling_hour: ROLLING_HOUR[e.id] ?? null,
       venue: e.venue,
       city: e.city,
+      venue_lat: VENUE_LOCATION[e.venue]?.lat ?? null,
+      venue_lng: VENUE_LOCATION[e.venue]?.lng ?? null,
       image_url: e.image.startsWith("/") ? e.image : null,
       featured: !!e.featured,
       transfer_policy: e.transferPolicy ?? null,

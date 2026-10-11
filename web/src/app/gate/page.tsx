@@ -5,7 +5,7 @@
 // first scan is admitted and every later one refused, and when a Lummy buyer's pass is refused
 // because the ticket went in before on someone else's copy, the buyer is refunded right there.
 import dynamic from "next/dynamic";
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { Camera, CameraOff, CheckCircle2, CircleHelp, DoorOpen, Loader2, ScanLine, Users, XCircle } from "lucide-react";
@@ -153,7 +153,7 @@ function GateDoor() {
   const account = useUser((s) => !!s.user?.account);
   const catalogue = useCatalogue();
   const params = useSearchParams();
-  const shows = [...catalogue.events].sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+  const shows = useMemo(() => [...catalogue.events].sort((a, b) => a.dateISO.localeCompare(b.dateISO)), [catalogue.events]);
   const [eventId, setEventId] = useState(params.get("event") ?? "");
   const [gate, setGate] = useState("Gate 1");
   const [camera, setCamera] = useState(false);
@@ -185,6 +185,10 @@ function GateDoor() {
       const j = (await r.json().catch(() => ({}))) as Outcome & { error?: string };
       if (!r.ok) throw new Error(j.error ?? `HTTP ${r.status}`);
       setOutcome(j);
+      // Whoever stands at the door feels the answer before reading it: one short buzz in, three out.
+      navigator.vibrate?.(j.result === "admitted" ? 80 : j.result === "refused" ? [90, 60, 90, 60, 90] : 0);
+      // The field is ready for the next person; the answer stays on screen.
+      if (typeof body.code === "string") setCode("");
       void loadLog();
     } catch (e) {
       toast.error(`${t("Not checked", "Gagal dicek")}: ${e instanceof Error ? e.message : String(e)}`);
@@ -283,7 +287,9 @@ function GateDoor() {
         </Button.Ghost>
       </form>
 
-      <div className="mt-5">{outcome && <ResultCard o={outcome} />}</div>
+      <div className="mt-5" role="status" aria-live="polite">
+        {outcome && <ResultCard o={outcome} />}
+      </div>
 
       {log && (
         <section className="mt-8">

@@ -26,6 +26,7 @@ import { useCatalogue } from "@/lib/catalogue";
 import { orderAction, useAccountOrders } from "@/lib/orders/client";
 import { listingAction, useAccountListings } from "@/lib/listings/client";
 import { formatName, reasonText, reviewReasons } from "@/lib/tickets/checks";
+import { inIndonesia, mapsLink, parseLocation, type LatLng } from "@/lib/events/location";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SampleBadge } from "@/components/common/SampleBadge";
@@ -134,6 +135,94 @@ function localInput(iso: string) {
 }
 
 /**
+ * Where a show's venue is, for the location check on claim photos (docs/config/05). Staff paste
+ * what Google Maps copies, or the Maps link; the point is shown back with a map link before saving.
+ */
+function VenueLocation({
+  point, busy, onSave,
+}: {
+  point: LatLng | undefined;
+  busy: boolean;
+  onSave: (text: string | null) => Promise<boolean>;
+}) {
+  const t = useT();
+  // null: the form is closed.
+  const [text, setText] = useState<string | null>(null);
+  const parsed = text ? parseLocation(text) : null;
+  const outside = !!parsed && !inIndonesia(parsed);
+  const save = async (value: string | null) => {
+    if (await onSave(value)) setText(null);
+  };
+
+  return (
+    <div className="mt-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-gray">
+        <MapPin className="w-3.5 h-3.5 shrink-0" />
+        {point ? (
+          <>
+            <span>
+              {t("Venue on the map", "Venue di peta")}: <span className="font-mono text-neutral-black">{point.lat}, {point.lng}</span>
+            </span>
+            <a href={mapsLink(point)} target="_blank" rel="noreferrer" className="text-primary-navy hover:opacity-80">
+              {t("Check it", "Cek di peta")}
+            </a>
+          </>
+        ) : (
+          <span>{t("No venue location yet: claim photos are not checked against it.", "Lokasi venue belum ada: foto klaim belum dicek terhadapnya.")}</span>
+        )}
+        <button onClick={() => setText(text === null ? "" : null)} className="text-primary-navy font-medium hover:opacity-80 cursor-pointer">
+          {text !== null ? t("Close", "Tutup") : point ? t("Change", "Ubah") : t("Set it", "Isi")}
+        </button>
+      </div>
+      {text !== null && (
+        <form
+          data-venue-form
+          className="mt-2 flex flex-col gap-2"
+          onSubmit={(ev) => {
+            ev.preventDefault();
+            if (parsed && !outside) void save(text);
+          }}
+        >
+          <input
+            value={text}
+            onChange={(ev) => setText(ev.target.value)}
+            aria-label={t("Venue location", "Lokasi venue")}
+            placeholder={t("Paste from Google Maps: -6.21858, 106.80251, or the Maps link", "Tempel dari Google Maps: -6.21858, 106.80251, atau tautan Maps-nya")}
+            className="rounded-xl border border-lummy-500 px-4 py-2.5 text-sm text-neutral-black outline-none"
+          />
+          <div className="text-xs" aria-live="polite">
+            {!text.trim() ? (
+              <span className="text-neutral-gray">{t("In Google Maps, right-click the venue's main entrance and click the numbers at the top to copy them.", "Di Google Maps, klik kanan pintu masuk utama venue, lalu klik angka paling atas untuk menyalinnya.")}</span>
+            ) : !parsed ? (
+              <span className="text-secondary-orange-dark">{t("No point found in that text.", "Tidak ada titik di teks itu.")}</span>
+            ) : outside ? (
+              <span className="text-secondary-orange-dark">{t("That point is outside Indonesia: lat and lng are probably swapped.", "Titik itu di luar Indonesia: lat dan lng mungkin tertukar.")}</span>
+            ) : (
+              <span className="text-neutral-gray">
+                {parsed.lat}, {parsed.lng} ·{" "}
+                <a href={mapsLink(parsed)} target="_blank" rel="noreferrer" className="text-primary-navy">
+                  {t("check it on the map first", "cek dulu di peta")}
+                </a>
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button.Ghost type="submit" className="text-sm" disabled={busy || !parsed || outside}>
+              {t("Save location", "Simpan lokasi")}
+            </Button.Ghost>
+            {point && (
+              <Button.Ghost tone="danger" className="text-sm" disabled={busy} onClick={() => void save(null)}>
+                {t("Clear it", "Hapus")}
+              </Button.Ghost>
+            )}
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
+
+/**
  * Shows still to come, where staff record what an organiser did to one. Cancelled: the server
  * closes its listings and refunds every order still in escrow, fee included; asking twice guards
  * the button. Postponed: the show moves to a later date, never an earlier one, and every order
@@ -147,6 +236,48 @@ function ShowsPanel() {
   const [confirm, setConfirm] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [moving, setMoving] = useState<{ id: string; at: string } | null>(null);
+  // Venue points, for the location check on claim photos. The public catalogue does not carry them.
+  const [locations, setLocations] = useState<Record<string, LatLng> | null>(null);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/events/locations", { cache: "no-store" })
+      .then((r) => (r.ok ? (r.json() as Promise<{ locations: Record<string, LatLng> }>) : null))
+      .then((j) => {
+        if (alive) setLocations(j?.locations ?? {});
+      })
+      .catch(() => {
+        if (alive) setLocations({});
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const place = async (id: string, location: string | null): Promise<boolean> => {
+    setBusy(id);
+    try {
+      const r = await fetch(`/api/events/${encodeURIComponent(id)}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "location", location }),
+      });
+      const j = (await r.json().catch(() => ({}))) as { error?: string; location?: LatLng | null };
+      if (!r.ok) throw new Error(j.error ?? `HTTP ${r.status}`);
+      setLocations((all) => {
+        const next = { ...(all ?? {}) };
+        if (j.location) next[id] = j.location;
+        else delete next[id];
+        return next;
+      });
+      toast.success(j.location ? t("Venue location saved", "Lokasi venue disimpan") : t("Venue location cleared", "Lokasi venue dihapus"));
+      return true;
+    } catch (e) {
+      toast.error(`${t("Not saved", "Gagal disimpan")}: ${e instanceof Error ? e.message : String(e)}`);
+      return false;
+    } finally {
+      setBusy(null);
+    }
+  };
   const upcoming = catalogue.events.filter((e) => !isEventOver(e)).sort((a, b) => a.dateISO.localeCompare(b.dateISO));
 
   const postpone = async (id: string, at: string) => {
@@ -245,6 +376,7 @@ function ShowsPanel() {
               </Button.Ghost>
             </div>
           </div>
+          {locations && <VenueLocation point={locations[e.id]} busy={busy === e.id} onSave={(text) => place(e.id, text)} />}
           {moving?.id === e.id && (
             <form
               data-postpone-form
