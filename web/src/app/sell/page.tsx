@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import {
-  UploadCloud, FileText, ScanLine, CheckCircle2, AlertTriangle, Loader2, ArrowRight, ArrowLeft, Sparkles, ShieldCheck, ChevronDown, Minus, Plus, IdCard, Lock,
+  UploadCloud, FileText, ScanLine, CheckCircle2, AlertTriangle, Loader2, ArrowRight, ArrowLeft, ShieldCheck, ChevronDown, Minus, Plus, IdCard, Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TransferPolicyNote } from "@/components/common/TransferPolicyNote";
@@ -44,7 +44,7 @@ const SAMPLE_NAMES = new Set([...Object.values(SAMPLE_FILES), "tulus-vip-ticket.
 
 const STEPS = [
   { en: "Upload PDF", id: "Upload PDF" },
-  { en: "AI check & details", id: "Cek AI & data" },
+  { en: "Check & details", id: "Cek & data" },
   { en: "Price & publish", id: "Harga & publish" },
 ];
 
@@ -70,8 +70,6 @@ export default function SellPage() {
   const sendsRealFile = !!(check && ticketFile);
   const catalogue = useCatalogue();
   const [fileName, setFileName] = useState<string | null>(null);
-  // The real check is the default once it is offered; picking a sample ticket switches to the demo.
-  const realFile = realUpload && (!!ticketFile || !fileName);
   const events = catalogue.events;
 
   const [step, setStep] = useState(0);
@@ -196,12 +194,10 @@ export default function SellPage() {
     <PageContainer width="form">
       <h1 className="text-2xl md:text-3xl font-bold text-neutral-black">{t("Sell a ticket", "Jual tiket")}</h1>
       <p className="text-neutral-gray mt-1">
-        {realUpload
-          ? t(
-              "Upload the PDF from the organiser. Lummy reads every barcode in it and checks the file was not edited.",
-              "Upload PDF dari penyelenggara. Lummy membaca semua barcode di dalamnya dan mengecek file-nya bukan editan."
-            )
-          : t("Upload the PDF. AI fills in the details and checks it is genuine.", "Upload PDF-nya. AI mengisi datanya otomatis dan mengecek keasliannya.")}
+        {t(
+          "Upload the PDF from the organiser. Lummy reads every barcode in it and checks the file was not edited.",
+          "Upload PDF dari penyelenggara. Lummy membaca semua barcode di dalamnya dan mengecek file-nya bukan editan."
+        )}
       </p>
 
       {/* Steps */}
@@ -210,7 +206,7 @@ export default function SellPage() {
           <div key={s.en} className="flex items-center gap-2">
             <span className={`w-7 h-7 rounded-full grid place-items-center text-xs font-fredoka font-bold ${i <= step ? "bg-primary-navy text-white" : "bg-neutral-light-gray-2 text-neutral-gray"}`}>{i + 1}</span>
             <span className={`text-sm ${i === step ? "text-neutral-black font-medium" : "text-neutral-gray"} hidden sm:block`}>
-              {i === 1 && realUpload ? t("Check & details", "Cek & data") : t(s.en, s.id)}
+              {t(s.en, s.id)}
             </span>
             {i < STEPS.length - 1 && <span className="w-6 h-px bg-neutral-light-gray-1" />}
           </div>
@@ -229,11 +225,11 @@ export default function SellPage() {
             ) : (
             <div data-upload-closed className="border-2 border-dashed border-neutral-light-gray-1 rounded-3xl py-10 px-6 flex flex-col items-center gap-3 text-center bg-secondary-gray-soft/60">
               <UploadCloud className="w-10 h-10 text-neutral-gray" />
-              <span className="font-fredoka font-semibold text-neutral-black">{t("Uploading your own PDF opens with the AI check", "Upload PDF sendiri dibuka bersama cek AI")}</span>
+              <span className="font-fredoka font-semibold text-neutral-black">{t("Uploading your own PDF is off on this server", "Upload PDF sendiri belum aktif di server ini")}</span>
               <span className="text-sm text-neutral-gray max-w-md">
                 {t(
-                  "Until the AI reads real files, a listing is made from one of the sample tickets below. Nothing claims to have checked a file it never read.",
-                  "Sampai AI membaca file asli, listing dibuat dari salah satu tiket contoh di bawah. Tidak ada yang mengaku sudah mengecek file yang tidak pernah dibacanya."
+                  "This server does not read real files yet, so a listing is made from one of the sample tickets below. Nothing claims to have checked a file it never read.",
+                  "Server ini belum membaca file asli, jadi listing dibuat dari salah satu tiket contoh di bawah. Tidak ada yang mengaku sudah mengecek file yang tidak pernah dibacanya."
                 )}
               </span>
             </div>
@@ -305,7 +301,7 @@ export default function SellPage() {
                 ? t("No file handy? List a sample ticket instead", "Gak punya file? Jual tiket contoh saja")
                 : account
                   ? t("Pick a sample ticket to list", "Pilih tiket contoh untuk dijual")
-                  : t("Demo: try the analyser on different tickets", "Demo: coba analisa beberapa jenis tiket")}
+                  : t("Demo: try the check on different tickets", "Demo: coba cek beberapa jenis tiket")}
             </div>
             <div className="flex flex-wrap gap-2">
               {([
@@ -329,24 +325,18 @@ export default function SellPage() {
           </div>
 
           <Button.Primary wrapperClass="w-fit" className="flex items-center gap-2" disabled={analyzing || (realUpload ? !fileName : !fileName && !account)} onClick={analyze}>
-            {analyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : realFile ? <ScanLine className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
-            {analyzing
-              ? realFile
-                ? t("Reading the ticket...", "Membaca tiket...")
-                : t("Analysing...", "Menganalisis...")
-              : realFile
-                ? t("Check the ticket", "Cek tiketnya")
-                : t("Analyse with AI", "Analisis dengan AI")}
+            {analyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4" />}
+            {analyzing ? t("Reading the ticket...", "Membaca tiket...") : t("Check the ticket", "Cek tiketnya")}
           </Button.Primary>
         </div>
       )}
 
-      {/* Step 2: AI result + details */}
+      {/* Step 2: the check + details */}
       {step === 1 && ai && (
         <div className="flex flex-col gap-6">
           <div>
             <h3 className="font-fredoka font-semibold text-neutral-black flex items-center gap-2 mb-3">
-              <ScanLine className="w-5 h-5 text-lummy-500" /> {check ? t("Ticket check", "Cek tiket") : t("AI authenticity check", "Cek keaslian AI")}
+              <ScanLine className="w-5 h-5 text-lummy-500" /> {t("Ticket check", "Cek tiket")}
             </h3>
             <div className="grid sm:grid-cols-3 gap-3">
               <Check ok={!ai.pdfSuspicious} label={t("PDF structure forensics", "Forensik struktur PDF")} detail={ai.pdfSuspicious ? t("Traces of editing or re-export", "Ada jejak edit atau re-export") : t("Clean, no tampering", "Bersih, bukan editan")} />
@@ -422,7 +412,7 @@ export default function SellPage() {
 
           <div>
             <h3 className="font-fredoka font-semibold text-neutral-black mb-3">
-              {check ? t("Ticket details", "Data tiket") : t("Auto-filled details", "Data terisi otomatis")}{" "}
+              {check ? t("Ticket details", "Data tiket") : t("Details from the sample", "Data dari tiket contoh")}{" "}
               <span className="text-neutral-gray font-normal text-sm">{check ? t("(fill in from your ticket)", "(isi sesuai tiketmu)") : t("(check and adjust)", "(cek & sesuaikan)")}</span>
             </h3>
             <div className="grid sm:grid-cols-2 gap-4">
@@ -590,7 +580,7 @@ export default function SellPage() {
                       "A person checks this ticket first, for the reasons shown in the previous step. It will not go live yet, it joins the admin review queue. If it passes, buyers can see it.",
                       "Tiket ini dicek manusia dulu, dengan alasan yang tampil di langkah sebelumnya. Belum langsung tayang, masuk antrian review admin dulu. Kalau lolos, baru bisa dilihat pembeli."
                     )
-                  : t("AI flagged this ticket, either on forgery score or PDF structure. It will not go live yet, it joins the admin review queue. If it passes, buyers can see it.", "AI menandai tiket ini, entah dari skor pemalsuan atau struktur PDF. Belum langsung tayang, masuk antrian review admin dulu. Kalau lolos, baru bisa dilihat pembeli.")}
+                  : t("The check flagged this ticket, on its forgery score or the PDF structure. It will not go live yet, it joins the admin review queue. If it passes, buyers can see it.", "Pengecekan menandai tiket ini, dari skor pemalsuan atau struktur PDF. Belum langsung tayang, masuk antrian review admin dulu. Kalau lolos, baru bisa dilihat pembeli.")}
               </span>
             </div>
           ) : (

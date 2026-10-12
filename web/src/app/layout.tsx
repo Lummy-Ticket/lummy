@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     template: "%s | Lummy",
   },
   description:
-    "Escrow-backed resale marketplace for name-locked concert tickets in Indonesia. Buyer funds stay locked until the show is over, and AI screens every ticket for forgery and duplicate barcodes.",
+    "Escrow-backed resale marketplace for name-locked concert tickets in Indonesia. Buyer funds stay locked until the show is over, and every ticket is checked for duplicate barcodes and signs of editing before it goes on sale.",
   keywords: ["ticket resale", "concert tickets", "Indonesia", "escrow", "anti-scalping", "Lummy", "Lummy Ticket"],
 };
 

@@ -72,15 +72,15 @@ await beat("0:25  sample upload fills the form", async () => {
   await page.goto(`${BASE}/sell`, { waitUntil: "networkidle" });
   await page.getByText("No file handy? Use a sample").click();
   await page.waitForTimeout(300);
-  await page.getByText("Analyse with AI").click();
+  await page.getByText("Check the ticket").click();
   await page.waitForTimeout(2500);
-  return page.getByText("Auto-filled details").isVisible();
+  return page.getByText("Details from the sample").isVisible();
 });
 await beat("0:35  edited ticket scores high", async () => {
   await page.goto(`${BASE}/sell`, { waitUntil: "networkidle" });
   await page.getByText("Edited ticket").click();
   await page.waitForTimeout(300);
-  await page.getByText("Analyse with AI").click();
+  await page.getByText("Check the ticket").click();
   await page.waitForTimeout(2500);
   return page.getByText(/Traces of editing/).isVisible();
 });
@@ -88,7 +88,7 @@ await beat("0:42  duplicate barcode is hard-blocked", async () => {
   await page.goto(`${BASE}/sell`, { waitUntil: "networkidle" });
   await page.getByText("Duplicate barcode").click();
   await page.waitForTimeout(300);
-  await page.getByText("Analyse with AI").click();
+  await page.getByText("Check the ticket").click();
   await page.waitForTimeout(2500);
   await page.getByText("Continue to price").click();
   await page.waitForTimeout(600);
@@ -98,7 +98,7 @@ await beat("0:50  last-minute listing goes to review", async () => {
   await page.goto(`${BASE}/sell`, { waitUntil: "networkidle" });
   await page.getByText("No file handy? Use a sample").click();
   await page.waitForTimeout(250);
-  await page.getByText("Analyse with AI").click();
+  await page.getByText("Check the ticket").click();
   await page.waitForTimeout(2500);
   await page.locator("select").first().selectOption("ev-wtf");
   await page.waitForTimeout(400);

@@ -236,7 +236,7 @@ export const SEED_LISTINGS: Listing[] = [
 export const isBuyable = (l: Listing) =>
   !l.ai.barcodeDuplicate && (!!l.cleared || (!l.ai.pdfSuspicious && l.ai.forgeryScore < 60));
 
-/** Flagged by the checks, then cleared by a person: worth saying so rather than "AI verified". */
+/** Flagged by the checks, then cleared by a person: worth saying so rather than just "Checked". */
 export const clearedByStaff = (l: Listing) => !!l.cleared && (l.ai.pdfSuspicious || l.ai.forgeryScore >= 60);
 
 // The card, the price filter and the event page all read price and count from here,

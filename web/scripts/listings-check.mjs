@@ -93,7 +93,7 @@ async function until(fn, ms = 20000) {
 async function listFromPage(who, sampleLabel, publishLabel) {
   await who.page.goto(`${BASE}/sell`, { waitUntil: "networkidle" });
   await who.page.getByRole("button", { name: sampleLabel }).click();
-  await who.page.getByRole("button", { name: "Analyse with AI" }).click();
+  await who.page.getByRole("button", { name: "Check the ticket" }).click();
   await who.page.getByRole("button", { name: /Continue to price/ }).click();
   await who.page.getByRole("button", { name: publishLabel }).click();
   await who.page.waitForURL((u) => u.pathname === "/seller");

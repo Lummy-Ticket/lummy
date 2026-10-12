@@ -236,13 +236,40 @@ function Panel({ onClose, accounts }: { onClose: () => void; accounts: DemoAccou
   );
 }
 
+/** Set by ?dev=1 on a device that should show the panel; ?dev=0 removes it. */
+const DEV_FLAG = "lummy:dev";
+
+/**
+ * The panel is for presenters and local work, not for visitors: on a phone the floating flask
+ * covers the page and invites a tap that leads nowhere a buyer needs. A local host always shows
+ * it; anywhere else a device opts in once with ?dev=1, which it remembers.
+ */
+function panelWanted(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const q = new URLSearchParams(window.location.search).get("dev");
+    if (q === "1") localStorage.setItem(DEV_FLAG, "1");
+    if (q === "0") localStorage.removeItem(DEV_FLAG);
+    if (localStorage.getItem(DEV_FLAG) === "1") return true;
+  } catch {
+    // Storage blocked: the host decides alone.
+  }
+  return ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
+}
+
 export default function DevPanel() {
-  const t = useT();
   const mounted = useHydrated();
+  // Read once, on the first client render: the panel is either part of this visit or not.
+  const [wanted] = useState(panelWanted);
+  if (!mounted || !wanted) return null;
+  return <Dock />;
+}
+
+function Dock() {
+  const t = useT();
   const [open, setOpen] = useState(false);
-  // Asked at page load, not when the panel opens, so the answer is there before the first click.
+  // Asked when the dock mounts, not when the panel opens, so the answer is there before the first click.
   const accounts = useDemoAccounts();
-  if (!mounted) return null;
 
   return (
     <div className="fixed bottom-5 right-5 z-50">

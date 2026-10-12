@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { AlertTriangle, Loader2, Mail, MailCheck } from "lucide-react";
@@ -26,6 +26,7 @@ function LoginInner() {
   const router = useRouter();
   const params = useSearchParams();
   const login = useUser((s) => s.login);
+  const user = useUser((s) => s.user);
   // From the env, which the server and the browser see alike, so both render the same page.
   const accounts = !!supabasePublicEnv();
   const [email, setEmail] = useState("");
@@ -40,6 +41,12 @@ function LoginInner() {
       : null
   );
   const [role, setRole] = useState<Role>("BUYER");
+
+  // Already signed in with an account (a sign-in link opened in this browser, say): go on to where
+  // the visitor was headed rather than offer a second sign-in.
+  useEffect(() => {
+    if (user?.account) router.replace(safePath(params.get("next")));
+  }, [user, router, params]);
 
   const explain = (e: AuthError) => {
     const msg = `${e.code ?? ""} ${e.message}`.toLowerCase();

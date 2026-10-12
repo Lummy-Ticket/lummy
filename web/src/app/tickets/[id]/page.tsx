@@ -489,14 +489,14 @@ export default function OrderDetailPage() {
                 <div className="text-xs text-secondary-orange-dark/80 mt-1">{t("Filed", "Diajukan")} {formatDateTime(order.dispute.openedAtISO)}</div>
               </div>
               <div className="p-4">
-                {order.dispute.note && <p className="text-xs text-neutral-gray italic mb-3">&ldquo;{t(order.dispute.note.en, order.dispute.note.id)}&rdquo;</p>}
+                {order.dispute.note && t(order.dispute.note.en, order.dispute.note.id).trim() && <p className="text-xs text-neutral-gray italic mb-3">&ldquo;{t(order.dispute.note.en, order.dispute.note.id)}&rdquo;</p>}
                 <div className="flex items-center gap-2 text-xs text-neutral-black mb-2">
                   <Paperclip className="w-3.5 h-3.5 text-neutral-gray shrink-0" />
                   <span className="font-mono truncate">
                     {order.dispute.evidence?.fileName ?? t("Settled from our own records", "Diputus dari catatan kami")}
                   </span>
                   <span className={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${filedCheck?.strength === "STRONG" ? "bg-secondary-green-soft text-secondary-green-dark" : "bg-secondary-pink-soft text-secondary-pink-dark"}`}>
-                    {filedCheck?.strength === "STRONG" ? "STRONG" : "WEAK"}
+                    {filedCheck?.strength === "STRONG" ? t("STRONG", "KUAT") : t("WEAK", "LEMAH")}
                   </span>
                 </div>
                 {account && order.dispute.evidence?.upload && <EvidencePhoto orderId={order.id} side="buyer" evidence={order.dispute.evidence} decidedAtISO={order.dispute.verdict?.decidedAtISO} />}
@@ -670,7 +670,9 @@ export default function OrderDetailPage() {
                   <li className="pl-4 relative">
                     <span className="absolute -left-[7px] top-1 w-3 h-3 rounded-full bg-neutral-light-gray-1 border-2 border-neutral-white" />
                     <span className="text-sm text-neutral-gray">
-                      {deadline
+                      {order.escrowStatus === "DISPUTED"
+                        ? t("Waiting for the claim to be decided", "Menunggu putusan klaim")
+                        : deadline
                         ? t(`Auto-release at ${formatDateTime(deadline)}`, `Cair otomatis pada ${formatDateTime(deadline)}`)
                         : t(`Waiting for the event, then ${win.en}`, `Menunggu acara, lalu ${win.id}`)}
                     </span>
@@ -805,7 +807,7 @@ export default function OrderDetailPage() {
               <span className="w-10 h-10 rounded-xl bg-secondary-blue-soft text-lummy-500 grid place-items-center shrink-0"><FileText className="w-5 h-5" /></span>
               <div>
                 <div className="text-sm font-medium text-neutral-black">{t("Letter of authorisation", "Surat kuasa")}</div>
-                <div className="text-xs text-neutral-gray">{t("Print-ready, e-stamped and e-signed", "Siap print, ber-e-materai dan TTE")}</div>
+                <div className="text-xs text-neutral-gray">{t("Print-ready, e-stamped and e-signed", "Siap print, ber-e-meterai dan TTE")}</div>
               </div>
             </button>
             {order.gateKtp && (
@@ -862,7 +864,7 @@ export default function OrderDetailPage() {
           <p className="mt-3">Untuk mengambil dan menggunakan tiket <b>{order.eventTitle}</b> ({order.tierName}) pada {formatEventDate(order.eventDateISO)}.</p>
           <div className="flex justify-between mt-6 text-xs text-neutral-gray">
             <span>Ditandatangani secara elektronik (TTE)</span>
-            <span className="bg-secondary-gold-soft text-secondary-brown-dark px-2 py-1 rounded">e-Materai Rp10.000</span>
+            <span className="bg-secondary-gold-soft text-secondary-brown-dark px-2 py-1 rounded">e-Meterai Rp10.000</span>
           </div>
         </div>
         <p className="text-xs text-neutral-gray mt-3">{t("The legal document stays in Indonesian, since that is what venue staff and courts read.", "Dokumen hukumnya tetap berbahasa Indonesia, karena itu yang dibaca petugas venue dan pengadilan.")}</p>
@@ -1037,7 +1039,7 @@ export default function OrderDetailPage() {
                   <MapPin className="w-3.5 h-3.5 text-neutral-gray" />{" "}
                   {!needsFile ? t("Our records", "Catatan kami") : evidence?.upload ? t("Read from your photo", "Dibaca dari fotomu") : t("File metadata", "Metadata file")}
                   <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold ${check.strength === "STRONG" ? "bg-secondary-green-soft text-secondary-green-dark" : "bg-secondary-pink-soft text-secondary-pink-dark"}`}>
-                    {check.strength}
+                    {check.strength === "STRONG" ? t("STRONG", "KUAT") : t("WEAK", "LEMAH")}
                   </span>
                 </div>
                 {check.checks.map((c) => <CheckRow key={c.label.en} ok={c.ok} unknown={c.unknown} label={t(c.label.en, c.label.id)} detail={t(c.detail.en, c.detail.id)} />)}

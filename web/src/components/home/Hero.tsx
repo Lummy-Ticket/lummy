@@ -22,7 +22,7 @@ export function Hero({ quickCats }: { quickCats: string[] }) {
     { label: t("Your money", "Uangmu"), value: t("Held in escrow", "Ditahan escrow") },
     { label: t("Seller is paid", "Penjual dibayar"), value: t("After the show", "Setelah acara") },
     { label: t("Price cap", "Batas harga"), value: t(`${CAP_PCT}% of face value`, `${CAP_PCT}% harga asli`) },
-    { label: t("Every ticket", "Tiap tiket"), value: t("Checked by AI", "Dicek AI") },
+    { label: t("Every ticket", "Tiap tiket"), value: t("Checked before sale", "Dicek sebelum dijual") },
   ];
 
   return (

@@ -12,11 +12,21 @@ interface LangState {
   toggle: () => void;
 }
 
-// English is the default. Indonesian is the alternate the audience can switch to.
+/**
+ * A first visit follows the browser: Indonesian when it is the browser's first language (some
+ * Android builds still report the old code "in"), English otherwise. The server always renders
+ * English, and a choice made with the switch is stored and wins from then on.
+ */
+function firstLang(): Lang {
+  if (typeof window === "undefined") return "en";
+  const first = navigator.languages?.[0] ?? navigator.language ?? "";
+  return /^(id|in)\b/i.test(first) ? "id" : "en";
+}
+
 export const useLang = create<LangState>()(
   persist(
     (set, get) => ({
-      lang: "en",
+      lang: firstLang(),
       setLang: (lang) => set({ lang }),
       toggle: () => set({ lang: get().lang === "en" ? "id" : "en" }),
     }),

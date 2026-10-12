@@ -57,7 +57,7 @@ function EvidencePanel({ order }: { order: Order }) {
         <div className="text-sm font-medium text-secondary-orange-dark flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 shrink-0" /> {t(reasonMeta(d.reason).label.en, reasonMeta(d.reason).label.id)}
         </div>
-        {d.note && <p className="text-xs text-secondary-orange-dark/85 mt-1 italic">&ldquo;{t(d.note.en, d.note.id)}&rdquo;</p>}
+        {d.note && t(d.note.en, d.note.id).trim() && <p className="text-xs text-secondary-orange-dark/85 mt-1 italic">&ldquo;{t(d.note.en, d.note.id)}&rdquo;</p>}
       </div>
       <div className="p-4">
         <div className="flex items-center gap-2 text-xs text-neutral-black mb-2">
@@ -66,7 +66,7 @@ function EvidencePanel({ order }: { order: Order }) {
             {d.evidence?.fileName ?? t("Settled from platform records", "Diputus dari catatan platform")}
           </span>
           <span className={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${check.strength === "STRONG" ? "bg-secondary-green-soft text-secondary-green-dark" : "bg-secondary-pink-soft text-secondary-pink-dark"}`}>
-            {check.strength}
+            {check.strength === "STRONG" ? t("STRONG", "KUAT") : t("WEAK", "LEMAH")}
           </span>
         </div>
         {d.evidence?.upload && <EvidencePhoto orderId={order.id} side="buyer" evidence={d.evidence} />}
@@ -832,8 +832,8 @@ export default function AdminPage() {
       <div className="flex items-start gap-2 text-sm text-neutral-gray bg-secondary-blue-extra rounded-2xl p-4 mb-6">
         <Sparkles className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" />
         <span>{t(
-          "New events are verified before their tickets can be sold. AI pre-fills from the first seller's PDF. Face value is a pre-fill: check it against the official source before approving.",
-          "Event baru diverifikasi sebelum tiketnya boleh dijual. AI mengisi awal dari PDF penjual pertama. Harga asli itu isian awal: cek ke sumber resmi sebelum menyetujui."
+          "New events are verified before their tickets can be sold. The details start from the first seller's listing. Face value is a pre-fill: check it against the official source before approving.",
+          "Event baru diverifikasi sebelum tiketnya boleh dijual. Data awalnya dari listing penjual pertama. Harga asli itu isian awal: cek ke sumber resmi sebelum menyetujui."
         )}</span>
       </div>
 
@@ -875,7 +875,7 @@ export default function AdminPage() {
                 </div>
                 <div className="text-xs text-neutral-gray mt-3 flex flex-wrap items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-lummy-500 shrink-0" />
-                  {t("AI can only read", "AI cuma bisa membaca")} <b className="text-neutral-black">{t("one tier", "satu tier")}</b> {t("from the seller's PDF", "dari PDF penjual")} ({r.pdfTier}). {t("An admin fills in the rest from", "Sisanya dilengkapi admin dari")}
+                  {t("The seller's PDF shows only", "PDF penjual cuma memuat")} <b className="text-neutral-black">{t("one tier", "satu tier")}</b> ({r.pdfTier}). {t("An admin fills in the rest from", "Sisanya dilengkapi admin dari")}
                   <a href={`https://${r.organizerRef}`} target="_blank" rel="noreferrer" className="text-primary-navy font-medium hover:opacity-80 inline-flex items-center gap-0.5">{r.organizerRef} <ExternalLink className="w-3 h-3" /></a>
                 </div>
               </div>
@@ -921,7 +921,7 @@ export default function AdminPage() {
         {confirmReq && (
           <>
             <p className="text-sm text-neutral-gray">
-              <b className="text-neutral-black">{confirmReq.title}</b> {t("was flagged by AI", "kena flag AI")} ({t("score", "skor")} {confirmReq.forgeryScore}/100{confirmReq.pdfSuspicious ? t(", PDF structure looks tampered with", ", struktur PDF mencurigakan") : ""}).
+              <b className="text-neutral-black">{confirmReq.title}</b> {t("was flagged by the checks", "kena flag pengecekan")} ({t("score", "skor")} {confirmReq.forgeryScore}/100{confirmReq.pdfSuspicious ? t(", PDF structure looks tampered with", ", struktur PDF mencurigakan") : ""}).
               {t(" Approving lets this ticket be sold. Make sure you checked the document by hand.", " Menyetujui berarti tiket ini boleh dijual. Pastikan kamu sudah cek dokumennya manual.")}
             </p>
             <div className="flex gap-3 mt-5">

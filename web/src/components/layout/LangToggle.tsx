@@ -10,9 +10,9 @@ const OPTIONS: { id: Lang; label: string }[] = [
 ];
 
 /**
- * Language switch. English is the default; Indonesian is one tap away for the
- * local audience. Kept as a visible segmented control rather than a dropdown so
- * it reads as a first-class choice.
+ * Language switch. A first visit follows the browser (see useLang); the other
+ * language is one tap away, in the bar on every screen size. Kept as a visible
+ * segmented control rather than a dropdown so it reads as a first-class choice.
  */
 export function LangToggle({ className }: { className?: string }) {
   const setLang = useLang((s) => s.setLang);

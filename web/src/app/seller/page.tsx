@@ -152,7 +152,7 @@ function ClaimsAgainstYou({
                 <span className="font-fredoka font-bold text-lummy-500 text-nowrap">{formatIDR(o.amount)}</span>
               </div>
 
-              {o.dispute?.note && (
+              {o.dispute?.note && t(o.dispute.note.en, o.dispute.note.id).trim() && (
                 <p className="text-xs text-neutral-gray italic mt-2">&ldquo;{t(o.dispute.note.en, o.dispute.note.id)}&rdquo;</p>
               )}
               {/* What the buyer put forward, so the answer is to the actual evidence. */}

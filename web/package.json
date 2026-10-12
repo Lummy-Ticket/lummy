@@ -10,6 +10,7 @@
     "lint": "eslint",
     "type-check": "tsc --noEmit",
     "demo-check": "node scripts/demo-rehearsal.mjs",
+    "ut:check": "node scripts/user-test-check.mjs",
     "submission-pdf": "node scripts/submission-pdf.mjs",
     "chain:abi": "node scripts/export-abi.mjs",
     "chain:cycle": "tsx scripts/escrow-cycle.ts",

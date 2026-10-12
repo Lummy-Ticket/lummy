@@ -128,7 +128,7 @@ export default function TicketsPage() {
                 <div className="grow min-h-3" aria-hidden />
 
                 <div className="-mx-4 -mb-4 px-4 py-3 rounded-b-2xl bg-secondary-cream-light border-t-2 border-dashed border-neutral-light-gray-1 flex items-center justify-between">
-                  <span className="text-xs text-neutral-gray">{t("Total paid", "Total dibayar")}</span>
+                  <span className="text-xs text-neutral-gray">{t("Ticket price", "Harga tiket")}</span>
                   <span className="font-fredoka font-bold text-lummy-500 flex items-center gap-1">
                     {formatIDR(o.amount)} <ChevronRight className="w-4 h-4 text-neutral-gray group-hover:text-primary-navy transition" />
                   </span>

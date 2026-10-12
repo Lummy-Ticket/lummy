@@ -44,10 +44,10 @@ function ListingRow({ event, listing, qty, cheapest, index }: { event: EventItem
           ) : flagged ? (
             <Badge.Base className="rounded-full bg-secondary-orange-soft text-secondary-orange-dark text-xs flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> {t("Under review", "Dalam review")}</Badge.Base>
           ) : clearedByStaff(listing) ? (
-            // The checks flagged it and a person cleared it: say that, not "AI verified".
+            // The checks flagged it and a person cleared it: say that, not just "Checked".
             <Badge.Base className="rounded-full bg-secondary-blue-extra text-primary-navy text-xs flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> {t("Checked by the Lummy team", "Dicek tim Lummy")}</Badge.Base>
           ) : (
-            <Badge.Base className="rounded-full bg-secondary-green-light text-secondary-green-dark text-xs flex items-center gap-1"><ScanLine className="w-3 h-3" /> {t("AI verified", "Terverifikasi AI")}</Badge.Base>
+            <Badge.Base className="rounded-full bg-secondary-green-light text-secondary-green-dark text-xs flex items-center gap-1"><ScanLine className="w-3 h-3" /> {t("Checked", "Sudah dicek")}</Badge.Base>
           )}
         </div>
         <span className="text-sm text-neutral-gray">
@@ -118,6 +118,8 @@ export default function EventDetailPage() {
   }
   const buyable = visibleListings.filter(isBuyable);
   const cheapest = buyable.length ? Math.min(...buyable.map((l) => l.askPrice)) : 0;
+  // Buyable listings the ticket count hides, so the list adds up to the sidebar's count.
+  const otherQuantities = listings.filter(isBuyable).length - buyable.length;
   const over = isEventOver(event);
   const closed = !resaleAllowed(event.transferPolicy);
 
@@ -214,6 +216,19 @@ export default function EventDetailPage() {
               </div>
             )}
           </div>
+          {visibleListings.length > 0 && otherQuantities > 0 && (
+            <p data-other-quantities className="mt-4 text-xs text-neutral-gray">
+              {otherQuantities === 1
+                ? t(
+                    `1 more listing is for a different number of tickets. Change "How many tickets?" above to see it.`,
+                    `Ada 1 listing lain untuk jumlah tiket berbeda. Ubah "Mau berapa tiket?" di atas untuk melihatnya.`
+                  )
+                : t(
+                    `${otherQuantities} more listings are for a different number of tickets. Change "How many tickets?" above to see them.`,
+                    `Ada ${otherQuantities} listing lain untuk jumlah tiket berbeda. Ubah "Mau berapa tiket?" di atas untuk melihatnya.`
+                  )}
+            </p>
+          )}
           </>
           )}
         </div>

@@ -12,9 +12,15 @@ import { supabaseBrowser } from "@/lib/supabase/browser";
  */
 export function AuthSync() {
   useEffect(() => {
+    const checked = () => useUser.getState().markSessionChecked();
     const sb = supabaseBrowser();
-    if (!sb) return;
+    if (!sb) {
+      checked();
+      return;
+    }
     let alive = true;
+    // Account pages wait for the first read below; should the client ever hang, they stop waiting.
+    const fallback = setTimeout(checked, 5000);
 
     const apply = async (session: Session | null) => {
       if (!session) {
@@ -39,13 +45,21 @@ export function AuthSync() {
       });
     };
 
-    void sb.auth.getSession().then(({ data }) => apply(data.session));
+    void sb.auth
+      .getSession()
+      .then(({ data }) => apply(data.session))
+      .catch(() => undefined)
+      .finally(() => {
+        clearTimeout(fallback);
+        checked();
+      });
     // Calling Supabase inside this callback can deadlock the client, so the work runs next tick.
     const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
       setTimeout(() => void apply(session), 0);
     });
     return () => {
       alive = false;
+      clearTimeout(fallback);
       sub.subscription.unsubscribe();
     };
   }, []);

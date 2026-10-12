@@ -35,9 +35,9 @@ function showEndsAt(dateISO: string) {
 
 function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (
-    <div className="flex justify-between text-sm">
+    <div className="flex justify-between gap-3 text-sm">
       <span className="text-neutral-gray">{label}</span>
-      <span className={bold ? "font-fredoka font-bold text-neutral-black" : "text-neutral-black"}>{value}</span>
+      <span className={`shrink-0 whitespace-nowrap ${bold ? "font-fredoka font-bold text-neutral-black" : "text-neutral-black"}`}>{value}</span>
     </div>
   );
 }
@@ -209,7 +209,7 @@ function CheckoutInner() {
           <div className="flex flex-col gap-2">
             <Row label={qty > 1 ? t(`Tickets (${qty} × ${formatIDR(listing.askPrice)})`, `Tiket (${qty} × ${formatIDR(listing.askPrice)})`) : t("Ticket price", "Harga tiket")} value={formatIDR(subtotal)} />
             <Row label={t("Service fee (5%, min. IDR 25,000)", "Biaya layanan (5%, min. IDR 25.000)")} value={formatIDR(fee)} />
-            <Row label={t("e-stamp + e-signature fee", "e-Materai + biaya TTE")} value={formatIDR(MATERAI)} />
+            <Row label={t("e-stamp + e-signature fee", "e-Meterai + biaya TTE")} value={formatIDR(MATERAI)} />
             <div className="border-t border-dashed border-neutral-light-gray-1 my-1" />
             <Row label={t("Total", "Total")} value={formatIDR(total)} bold />
           </div>
@@ -264,15 +264,21 @@ function CheckoutInner() {
                   )
                 : t("Pay with QRIS from any e-wallet or bank app.", "Bayar dengan QRIS dari e-wallet atau aplikasi bank apa pun.")}
             </p>
+          ) : account ? (
+            <p data-simulated-payment className="text-[11px] text-neutral-gray text-center -mt-2">
+              {t(
+                "Simulated payment: no money moves yet. The order and its escrow rules are saved to your account.",
+                "Pembayaran simulasi: belum ada uang yang berpindah. Pesanan dan aturan escrow-nya tersimpan di akunmu."
+              )}
+            </p>
           ) : (
-            account && (
-              <p data-simulated-payment className="text-[11px] text-neutral-gray text-center -mt-2">
-                {t(
-                  "Simulated payment: no money moves yet. The order and its escrow rules are saved to your account.",
-                  "Pembayaran simulasi: belum ada uang yang berpindah. Pesanan dan aturan escrow-nya tersimpan di akunmu."
-                )}
-              </p>
-            )
+            // A sample account sees the QRIS rail but pays nothing; say so before the tap, not after.
+            <p data-sample-payment className="text-[11px] text-neutral-gray text-center -mt-2">
+              {t(
+                "Sample account: the payment is simulated, so there is no QR code to scan and no money moves.",
+                "Akun contoh: pembayarannya simulasi, jadi tidak ada QR yang perlu discan dan tidak ada uang yang berpindah."
+              )}
+            </p>
           )}
         </div>
       </div>

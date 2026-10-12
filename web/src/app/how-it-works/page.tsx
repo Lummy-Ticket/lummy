@@ -174,7 +174,7 @@ export default function HowItWorks() {
       title: t("Pay with QRIS", "Bayar pakai QRIS"),
       body: t(
         "Like any other app. The ticket price goes into escrow: not to the seller, and not to us. The service fee and the e-stamp are shown before you pay.",
-        "Seperti aplikasi lain. Harga tiketnya masuk escrow: bukan ke penjual, bukan juga ke kami. Biaya layanan dan e-materai tampil sebelum kamu bayar."
+        "Seperti aplikasi lain. Harga tiketnya masuk escrow: bukan ke penjual, bukan juga ke kami. Biaya layanan dan e-meterai tampil sebelum kamu bayar."
       ),
       state: t("Held in escrow", "Ditahan escrow"),
       tone: "held",
@@ -184,7 +184,7 @@ export default function HowItWorks() {
       title: t("Get the paperwork", "Terima dokumennya"),
       body: t(
         "A letter of authorisation, e-stamped and e-signed, ready to print straight away. If the venue checks ID, you can view the seller's ID card close to the show, with your name watermarked across it.",
-        "Surat kuasa ber-e-materai dan TTE, langsung siap print. Kalau venue cek KTP, kamu bisa melihat KTP penjual mendekati acara, dengan namamu sebagai watermark."
+        "Surat kuasa ber-e-meterai dan TTE, langsung siap print. Kalau venue cek KTP, kamu bisa melihat KTP penjual mendekati acara, dengan namamu sebagai watermark."
       ),
       state: t("Still held", "Masih ditahan"),
       tone: "held",
@@ -285,8 +285,8 @@ export default function HowItWorks() {
       Icon: FileUp,
       title: t("Upload the PDF", "Upload PDF-nya"),
       body: t(
-        "AI reads the ticket and fills in the event, tier and seat, so there is almost nothing to type. If the venue checks ID, add a photo of your ID card too.",
-        "AI membaca tiketnya dan mengisi event, tier, dan kursi, jadi hampir tidak ada yang perlu diketik. Kalau venue cek KTP, tambahkan juga foto KTP-mu."
+        "Pick the event and tier, and Lummy reads every barcode in the PDF. If the venue checks ID, add a photo of your ID card too.",
+        "Pilih event dan kategorinya, lalu Lummy membaca semua barcode di PDF-nya. Kalau venue cek KTP, tambahkan juga foto KTP-mu."
       ),
       state: t("Reading the ticket", "Membaca tiket"),
       tone: "idle",
@@ -295,8 +295,8 @@ export default function HowItWorks() {
       Icon: ScanLine,
       title: t("It gets checked", "Tiketnya dicek"),
       body: t(
-        `A barcode already sold on Lummy is blocked outright. AI also looks for signs the PDF was edited; a high score sends it to a person, it never rejects on its own. Listings made in the last ${LATE_LISTING_H} hours before a show are always seen by a person first.`,
-        `Barcode yang pernah dijual di Lummy langsung diblokir. AI juga mencari jejak PDF yang diedit; skor tinggi dikirim ke manusia, bukan ditolak otomatis. Listing yang dibuat ${LATE_LISTING_H} jam terakhir sebelum acara selalu dilihat manusia dulu.`
+        `A barcode already sold on Lummy is blocked outright. The server also looks for signs the PDF was edited; a high score sends it to a person, it never rejects on its own. Listings made in the last ${LATE_LISTING_H} hours before a show are always seen by a person first.`,
+        `Barcode yang pernah dijual di Lummy langsung diblokir. Server juga mencari jejak PDF yang diedit; skor tinggi dikirim ke manusia, bukan ditolak otomatis. Listing yang dibuat ${LATE_LISTING_H} jam terakhir sebelum acara selalu dilihat manusia dulu.`
       ),
       state: t("Checked", "Sudah dicek"),
       tone: "held",
@@ -432,7 +432,7 @@ export default function HowItWorks() {
       <div className="mt-4 flex flex-col gap-2">
         <Line label={t("Ticket price", "Harga tiket")} value={formatIDR(PRICE)} />
         <Line label={t("Service fee (5%, min. IDR 25,000)", "Biaya layanan (5%, min. IDR 25.000)")} value={formatIDR(fee)} />
-        <Line label={t("e-stamp + e-signature", "e-Materai + TTE")} value={formatIDR(MATERAI)} />
+        <Line label={t("e-stamp + e-signature", "e-Meterai + TTE")} value={formatIDR(MATERAI)} />
         <div className="border-t border-neutral-light-gray-1 pt-2 mt-1">
           <Line label={t("You pay", "Kamu bayar")} value={formatIDR(total)} strong />
         </div>

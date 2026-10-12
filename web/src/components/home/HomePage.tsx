@@ -172,7 +172,7 @@ export default function HomePage() {
             <div>
               <h2 className="text-2xl md:text-3xl font-bold">{t("Got a ticket you can't use?", "Punya tiket yang gak kepakai?")}</h2>
               <p className="text-white/85 mt-1">
-                {t("Upload the PDF, AI fills in the details, and you get paid after the show.", "Upload PDF-nya, AI isi datanya, dan kamu dibayar setelah acara.")}
+                {t("Upload the PDF, we check every barcode in it, and you get paid after the show.", "Upload PDF-nya, semua barcode-nya kami cek, dan kamu dibayar setelah acara.")}
               </p>
             </div>
             <Link href="/sell">

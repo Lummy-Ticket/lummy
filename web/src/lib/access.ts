@@ -29,20 +29,23 @@ export function useHydrated() {
 /**
  * Returns true once the page is safe to render for this visitor. Anyone who
  * should not be here is redirected, which is what stops a stale admin console
- * from staying on screen after signing back in as a customer.
+ * from staying on screen after signing back in as a customer. The redirect waits
+ * for the first read of the Supabase session: a sign-in link opened in a fresh
+ * browser lands here signed in, before the store knows it.
  */
 export function useAccessGuard(access: Access) {
   const hydrated = useHydrated();
   const user = useUser((s) => s.user);
+  const sessionChecked = useUser((s) => s.sessionChecked);
   const router = useRouter();
 
   const allowed = access === "public" || (!!user && (access !== "staff" || isStaff(user)));
 
   useEffect(() => {
-    if (!hydrated || allowed) return;
+    if (!hydrated || allowed || !sessionChecked) return;
     // Signed out goes to the door. Signed in at the wrong desk goes home.
     router.replace(user ? "/" : `/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
-  }, [hydrated, allowed, user, router]);
+  }, [hydrated, allowed, sessionChecked, user, router]);
 
   return hydrated && allowed;
 }

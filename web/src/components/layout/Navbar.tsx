@@ -400,7 +400,7 @@ export function Navbar() {
               </span>
             )}
 
-            <LangToggle className="hidden sm:flex" />
+            <LangToggle />
 
             {/* Account menu, or the way in */}
             {me ? (
@@ -494,11 +494,6 @@ export function Navbar() {
                   <UserIcon className="w-4 h-4" /> {t("Sign in", "Masuk")}
                 </Button.Primary>
               ) : null}
-
-              <div className="sm:hidden flex items-center justify-between">
-                <span className="text-sm text-neutral-gray">{t("Language", "Bahasa")}</span>
-                <LangToggle />
-              </div>
             </div>
           </div>
         </div>

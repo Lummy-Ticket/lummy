@@ -47,7 +47,7 @@ const sections: LegalSection[] = [
   {
     title: { en: "Buying", id: "Membeli" },
     list: [
-      { en: "You pay the ticket price plus a service fee (5%, at least Rp25.000) and the e-stamp duty, all shown before you pay. The ticket price is held in escrow; the fee is not.", id: "Kamu membayar harga tiket ditambah biaya layanan (5%, minimal Rp25.000) dan bea e-materai, semuanya terlihat sebelum bayar. Harga tiket ditahan di escrow; biaya layanan tidak." },
+      { en: "You pay the ticket price plus a service fee (5%, at least Rp25.000) and the e-stamp duty, all shown before you pay. The ticket price is held in escrow; the fee is not.", id: "Kamu membayar harga tiket ditambah biaya layanan (5%, minimal Rp25.000) dan bea e-meterai, semuanya terlihat sebelum bayar. Harga tiket ditahan di escrow; biaya layanan tidak." },
       { en: "The ticket file and the handover documents are yours as soon as you pay. When you first open the ticket file is recorded, since it answers a \"never handed over\" claim.", id: "File tiket dan dokumen serah terima jadi milikmu begitu kamu bayar. Kapan kamu pertama membuka file tiket dicatat, karena itu yang menjawab klaim \"tidak diserahkan\"." },
       { en: "Without the organiser on board we cannot promise you get in. What we promise is the money back when you are turned away and can show it.", id: "Tanpa kerja sama penyelenggara, kami tidak bisa menjamin kamu masuk. Yang kami janjikan: uang kembali kalau kamu ditolak dan bisa membuktikannya." },
     ],
