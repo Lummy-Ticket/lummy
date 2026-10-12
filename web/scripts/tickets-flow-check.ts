@@ -9,6 +9,10 @@
  * Then it deletes what it created. It writes to the database the server uses, so run it only where
  * that is fine.
  *
+ * On a server with an AI provider (AI_PROVIDER=fake, or a Gemini key on made-up tickets only, see
+ * docs/config/01), the ticket also fills the form in, and with WRITE=1 publishing reads it again:
+ * a ticket that agrees goes live with what was read, one listed under another category waits.
+ *
  *   BASE=http://localhost:3000 DEMO_KEY=... npm run tickets:flow
  */
 import { createHash } from "crypto";
@@ -28,6 +32,8 @@ const WRITE = process.env.WRITE === "1";
 const EXEC = process.env.CHROME ?? "/opt/google/chrome/chrome";
 /** A second ticket, so the edited one is not a duplicate of the first. */
 const SECOND = "LMY|ev-tulus|VIP|C-14|5555-6666-7777";
+/** A third, a VIP ticket the seller lists as Reguler, for the AI cross-check. */
+const THIRD = "LMY|ev-tulus|VIP|C-15|8888-9999-0000";
 
 const results: { name: string; ok: boolean; note?: string }[] = [];
 const check = (name: string, ok: boolean, note?: string) => results.push({ name, ok, note: ok ? undefined : note });
@@ -101,6 +107,7 @@ async function main() {
     redrawn: await ticketPdf({ codes: [{ text: GENUINE, format: "QRCode", vector: true }], producer: "Canva", creator: "Canva", name: "Budi Santoso" }),
     // Another ticket, re-saved in an editor: flagged, so it waits for staff.
     editedSecond: await rewrite(await genuineTicket(SECOND), "iLovePDF"),
+    third: await genuineTicket(THIRD),
   };
 
   const browser = await chromium.launch({ executablePath: EXEC, args: ["--no-sandbox"] });
@@ -132,6 +139,25 @@ async function main() {
     check("genuine: the seller sees the last characters, never the payload", field === "QR ...2290" && !text.includes(GENUINE), field);
     check("genuine: no claim that AI read the file", !text.includes("AI fills in") && !text.includes("AI check"), text.slice(0, 160));
 
+    // --- The AI step fills the form in, when this server has one. The fixture prints Tulus VIP.
+    const fillOn = ((await (await fetch(`${BASE}/api/tickets/extract`)).json()) as { available?: boolean }).available === true;
+    if (fillOn) {
+      const selects = page.locator("select");
+      // Start from the wrong show, so a fill that changes nothing cannot pass.
+      await selects.nth(0).selectOption("ev-coldplay");
+      await page.getByLabel("Original buyer name").fill("Zahra Amelia");
+      await page.getByRole("button", { name: "Fill in from the ticket" }).click();
+      const result = page.locator("[data-fill-result]");
+      await result.waitFor({ timeout: 60000 });
+      const outcome = await result.getAttribute("data-fill-result");
+      const picked = `${await selects.nth(0).inputValue()} ${await selects.nth(1).inputValue()}`;
+      check("fill: the ticket picks its show and category", outcome === "filled" && picked === "ev-tulus t-tl-vip", `${outcome} ${picked}`);
+      const shown = await result.innerText();
+      check("fill: what was read is shown, with no name in it", shown.includes("VIP") && !/zahra|amelia/i.test(shown), shown);
+    } else {
+      check("fill: off without an AI provider, and the page offers nothing", (await page.locator("[data-fill]").count()) === 0);
+    }
+
     text = await checked(page, "edited.pdf", files.ilovepdf);
     check("iLovePDF: editor named, goes to review", text.includes("Made or re-saved with a PDF editor (iLovePDF)") && text.includes("Flagged"), text.slice(0, 300));
 
@@ -159,6 +185,30 @@ async function main() {
       check("publish: its barcode is held", held.data?.length === 1 && held.data[0].held === true, JSON.stringify(held.data ?? held.error));
       const stored = first.data?.ticket_path ? await admin.storage.from("tickets").download(first.data.ticket_path) : null;
       check("publish: the stored file is the uploaded file", !!stored?.data && sha(new Uint8Array(await stored.data.arrayBuffer())) === sha(files.genuine));
+      if (fillOn) {
+        const ai = (first.data?.checks as { ai?: { model?: string; facts?: { tierId?: string | null }; differs?: string[] } } | null)?.ai;
+        check(
+          "publish: the server read the ticket again, and it agrees, so it is live",
+          !!ai?.model && ai.facts?.tierId === "t-tl-vip" && ai.differs?.length === 0 && first.data?.status === "active",
+          JSON.stringify({ ai, status: first.data?.status })
+        );
+
+        // A VIP ticket listed as Reguler: a cheaper category would lower the cap, a dearer one raise it.
+        await checked(page, "third.pdf", files.third);
+        await page.locator("select").nth(1).selectOption("t-tl-reg");
+        await page.getByRole("button", { name: "Continue to price" }).click();
+        await page.locator("[data-consent]").check();
+        await page.getByRole("button", { name: /^(Publish listing|Submit for review)$/ }).click();
+        await page.waitForURL((u) => u.pathname === "/seller", { timeout: 60000 });
+        const third = await admin.from("listings").select("id, status, checks").eq("ticket_sha256", sha(files.third)).neq("status", "cancelled").maybeSingle();
+        if (third.data) created.push(third.data.id);
+        const thirdAi = (third.data?.checks as { ai?: { differs?: string[] } } | null)?.ai;
+        check(
+          "publish: listed under another category than printed, it waits for a person",
+          third.data?.status === "review" && !!thirdAi?.differs?.includes("tier"),
+          JSON.stringify({ status: third.data?.status, ai: thirdAi })
+        );
+      }
 
       text = await checked(page, "redrawn.pdf", files.redrawn);
       check("same barcode in another file: blocked before publishing", text.includes("Already behind another listing on Lummy"), text.slice(0, 300));

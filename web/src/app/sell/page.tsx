@@ -14,8 +14,8 @@ import {
   isLateListing, LATE_LISTING_H, resaleAllowed,
 } from "@/lib/mock";
 import { SAMPLE_SIGNALS, type SampleTicket } from "@/lib/listings/rules";
-import { ListingError, checkTicketFile, createListing, useTicketReader } from "@/lib/listings/client";
-import { formatName, isDuplicate, reasonText, reviewReasons, toListingChecks, type TicketCheck } from "@/lib/tickets/checks";
+import { ListingError, checkTicketFile, createListing, fillFromTicket, useTicketFill, useTicketReader, type TicketFill } from "@/lib/listings/client";
+import { factDiffs, formatName, isDuplicate, reasonText, reviewReasons, toListingChecks, type TicketCheck } from "@/lib/tickets/checks";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { useCatalogue } from "@/lib/catalogue";
 import { useAccessGuard } from "@/lib/access";
@@ -34,6 +34,27 @@ function Check({ ok, label, detail }: { ok: boolean; label: string; detail: stri
   );
 }
 
+type T = (en: string, id: string) => string;
+
+/** Why the form was not filled in from the ticket, in the seller's words. */
+function fillMessage(outcome: Exclude<TicketFill["outcome"], "filled">, t: T) {
+  switch (outcome) {
+    case "no_text":
+      return t("This PDF has no text to read (a scan or a photo), so fill it in yourself.", "PDF ini tidak punya teks yang bisa dibaca (hasil scan atau foto), jadi isi sendiri ya.");
+    case "no_ticket_page":
+      return t("No page of this PDF reads like a ticket, so fill it in yourself.", "Tidak ada halaman yang terbaca sebagai tiket, jadi isi sendiri ya.");
+    case "personal_data_left":
+      return t(
+        "Something personal could not be taken out safely, so the ticket was not sent. Fill it in yourself.",
+        "Ada data pribadi yang tidak bisa dibuang dengan aman, jadi tiketnya tidak dikirim. Isi sendiri ya."
+      );
+    case "no_shows":
+      return t("No show is on sale to match it with.", "Belum ada acara yang dijual untuk dicocokkan.");
+    default:
+      return t("Filling in is not available right now. Fill it in yourself.", "Isi otomatis sedang tidak tersedia. Isi sendiri ya.");
+  }
+}
+
 /** The sample tickets' file names, as a seller would see them. */
 const SAMPLE_FILES: Record<SampleTicket, string> = {
   good: "tulus-genuine.pdf",
@@ -50,7 +71,7 @@ const STEPS = [
 
 export default function SellPage() {
   const t = useT();
-  const { formatIDR } = useFormatters();
+  const { formatIDR, formatEventDate } = useFormatters();
   const ready = useAccessGuard("account");
   const router = useRouter();
   const addListing = useSellerListings((s) => s.add);
@@ -63,6 +84,10 @@ export default function SellPage() {
   // for demos. `check` is what the server read in that file.
   const reader = useTicketReader(account);
   const realUpload = account && reader === true;
+  // With an AI provider on this server, a real ticket can fill the form in (docs/09 §5.1).
+  const fillAvailable = useTicketFill(realUpload);
+  const [filling, setFilling] = useState(false);
+  const [fill, setFill] = useState<TicketFill | null>(null);
   const [ticketFile, setTicketFile] = useState<File | null>(null);
   const [check, setCheck] = useState<TicketCheck | null>(null);
   // A real ticket carries someone's name and maybe their ID number, so publishing it asks first.
@@ -102,8 +127,12 @@ export default function SellPage() {
   // A duplicate barcode is a hard block. Tampering or a high score does not go live
   // straight away, it queues for admin review; so does a real PDF with no barcode to hold.
   const review = check ? reviewReasons(toListingChecks(check)) : [];
+  // What the ticket prints, once the AI step has filled the form in: another category or day than
+  // the one picked sends the listing to a person, as the server decides again at publish.
+  const facts = fill?.outcome === "filled" ? fill.facts : null;
+  const aiDiffs = facts && event && tier ? factDiffs(facts, { tierId: tier.id, startsAt: event.dateISO }) : [];
   const blocked = check ? isDuplicate(check) : !!ai?.barcodeDuplicate;
-  const flagged = !!ai && !blocked && (check ? review.length > 0 : ai.pdfSuspicious || ai.forgeryScore >= 60);
+  const flagged = !!ai && !blocked && (check ? review.length > 0 || aiDiffs.length > 0 : ai.pdfSuspicious || ai.forgeryScore >= 60);
   // One barcode is one ticket, and the buyer gets the whole PDF, so that count is not the seller's to set.
   const lockedQty = !!check && check.barcodes.length > 0;
   const tooMany = !!check && check.barcodes.length > 8;
@@ -120,6 +149,27 @@ export default function SellPage() {
     setTicketFile(f);
     setFileName(f.name);
     setCheck(null);
+    setFill(null);
+  };
+
+  /** Asks the server to read the show, category, date and price off the ticket, and picks them. */
+  const fillIn = async () => {
+    if (!ticketFile) return;
+    setFilling(true);
+    try {
+      const res = await fillFromTicket(ticketFile, orderer);
+      setFill(res);
+      const ev = res.outcome === "filled" && res.eventId ? catalogue.eventById(res.eventId) : undefined;
+      if (ev && res.outcome === "filled") {
+        setEventId(ev.id);
+        setTierId(ev.tiers.some((x) => x.id === res.facts.tierId) ? res.facts.tierId! : (ev.tiers[0]?.id ?? ""));
+      }
+    } catch (e) {
+      setFill(null);
+      toast.error(`${t("Could not fill it in", "Gagal mengisi otomatis")}: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setFilling(false);
+    }
   };
 
   const analyzeReal = async (file: File) => {
@@ -127,6 +177,7 @@ export default function SellPage() {
     try {
       const res = await checkTicketFile(file);
       setCheck(res);
+      setFill(null);
       setAi({ autofilled: false, forgeryScore: res.score, barcodeDuplicate: isDuplicate(res), pdfSuspicious: res.suspicious });
       setOrderer("");
       setBarcode(res.barcodes.map((b) => `${formatName(b.format)}${b.tail ? ` ...${b.tail}` : ""}`).join(", "));
@@ -163,7 +214,7 @@ export default function SellPage() {
     setPublishing(true);
     try {
       const base = { eventId: event.id, tierId: tier.id, askPrice: price, quantity: qty, splittable: false, gateKtp };
-      const res = await createListing(check && ticketFile ? { ...base, ticket: ticketFile } : { ...base, sample });
+      const res = await createListing(check && ticketFile ? { ...base, ticket: ticketFile, holder: orderer } : { ...base, sample });
       toast.success(res.status === "review" ? t("Submitted for admin review", "Diajukan untuk review admin") : t("Listing is live, protected by escrow.", "Listing tayang, dijaga escrow."));
       router.push("/seller");
       // The catalogue lives in the root layout: fetch it again so the new listing shows.
@@ -415,6 +466,71 @@ export default function SellPage() {
               {check ? t("Ticket details", "Data tiket") : t("Details from the sample", "Data dari tiket contoh")}{" "}
               <span className="text-neutral-gray font-normal text-sm">{check ? t("(fill in from your ticket)", "(isi sesuai tiketmu)") : t("(check and adjust)", "(cek & sesuaikan)")}</span>
             </h3>
+            {check && fillAvailable && (
+              <div data-fill className="mb-4 rounded-2xl border border-lummy-500 bg-secondary-blue-extra p-4 flex flex-col gap-3">
+                <div className="flex items-start gap-3">
+                  <ScanLine className="w-5 h-5 text-lummy-500 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="text-sm font-medium text-neutral-black">{t("Fill this in from your ticket", "Isi dari tiketmu")}</div>
+                    <p className="text-xs text-neutral-gray mt-0.5 leading-relaxed">
+                      {t(
+                        "Gemini, Google's AI, reads the ticket's text once every name and number is taken out, and picks the show and category for you. Type the original buyer's name below first, so it is taken out as well. Check what it fills in.",
+                        "Gemini, AI dari Google, membaca teks tiketnya setelah semua nama dan nomor dibuang, lalu memilihkan acara dan kategorinya. Ketik dulu nama pemesan asli di bawah supaya ikut dibuang. Cek lagi hasilnya."
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <Button.Ghost className="w-fit text-sm" disabled={filling} onClick={() => void fillIn()}>
+                  {filling ? <Loader2 className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4" />}
+                  {filling ? t("Reading the ticket...", "Membaca tiket...") : fill ? t("Fill in again", "Isi ulang") : t("Fill in from the ticket", "Isi dari tiket")}
+                </Button.Ghost>
+                {fill?.outcome === "filled" ? (
+                  <div data-fill-result="filled" className="text-xs text-neutral-black flex flex-col gap-1.5">
+                    <span>
+                      {t("Read from the ticket", "Terbaca dari tiket")}:{" "}
+                      {[
+                        fill.facts.eventTitle,
+                        fill.facts.date && formatEventDate(`${fill.facts.date}T12:00:00+07:00`),
+                        fill.facts.tierPrinted,
+                        fill.facts.seat,
+                        fill.facts.printedPrice && formatIDR(fill.facts.printedPrice),
+                        fill.facts.quantity && fill.facts.quantity > 1 ? t(`${fill.facts.quantity} tickets`, `${fill.facts.quantity} tiket`) : null,
+                      ].filter(Boolean).join(" · ")}
+                    </span>
+                    <span className="text-neutral-gray">
+                      {fill.eventId
+                        ? t("The show and category are picked below. Check them.", "Acara dan kategorinya sudah dipilihkan di bawah. Cek lagi.")
+                        : t("The show was not found in the catalogue: pick it below.", "Acaranya tidak ketemu di katalog: pilih sendiri di bawah.")}
+                    </span>
+                    {aiDiffs.includes("tier") && (
+                      <span className="flex items-start gap-1.5 text-secondary-orange-dark">
+                        <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+                        {t("The category printed on the ticket is not the one picked. Listed like this, a person checks it first.", "Kategori yang tercetak di tiket bukan yang dipilih. Kalau tetap begini, listing dicek admin dulu.")}
+                      </span>
+                    )}
+                    {aiDiffs.includes("date") && event && fill.facts.date && (
+                      <span className="flex items-start gap-1.5 text-secondary-orange-dark">
+                        <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+                        {t(
+                          `The ticket is for ${formatEventDate(`${fill.facts.date}T12:00:00+07:00`)}, the show is on ${formatEventDate(event.dateISO)}. Listed like this, a person checks it first.`,
+                          `Tiketnya untuk ${formatEventDate(`${fill.facts.date}T12:00:00+07:00`)}, acaranya ${formatEventDate(event.dateISO)}. Kalau tetap begini, listing dicek admin dulu.`
+                        )}
+                      </span>
+                    )}
+                    {!!fill.facts.printedPrice && !!faceValue && Math.abs(fill.facts.printedPrice - faceValue) > faceValue / 100 && (
+                      <span className="text-neutral-gray">
+                        {t(
+                          `The printed price, ${formatIDR(fill.facts.printedPrice)}, is not this category's face value of ${formatIDR(faceValue)}. The price band follows the category.`,
+                          `Harga tercetak ${formatIDR(fill.facts.printedPrice)} beda dengan harga asli kategori ini, ${formatIDR(faceValue)}. Batas harga jual tetap mengikuti kategori.`
+                        )}
+                      </span>
+                    )}
+                  </div>
+                ) : fill ? (
+                  <p data-fill-result={fill.outcome} className="text-xs text-secondary-orange-dark">{fillMessage(fill.outcome, t)}</p>
+                ) : null}
+              </div>
+            )}
             <div className="grid sm:grid-cols-2 gap-4">
               <label className="flex flex-col gap-1.5">
                 <span className="text-xs text-neutral-gray">{t("Event", "Event")}</span>
@@ -598,6 +714,11 @@ export default function SellPage() {
                 <Link href="/privacy" target="_blank" className="text-primary-navy font-medium">{t("privacy policy", "kebijakan privasi")}</Link>
                 {t(" and the ", " dan ")}
                 <Link href="/terms" target="_blank" className="text-primary-navy font-medium">{t("terms", "syarat dan ketentuan")}</Link>.
+                {fillAvailable &&
+                  t(
+                    " Its text, with the names and numbers taken out, is read by Gemini, Google's AI, to match the category and date.",
+                    " Teks tiketnya, setelah nama dan nomor dibuang, dibaca Gemini (AI dari Google) untuk mencocokkan kategori dan tanggal."
+                  )}
               </span>
             </label>
           )}

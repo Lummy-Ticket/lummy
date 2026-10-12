@@ -502,6 +502,17 @@ function ListingQueue({
                     {t("Made by", "Dibuat dengan")}: {l.checks.producer}
                   </span>
                 )}
+                {l.checks.ai && (
+                  <span data-listing-ai className={l.checks.ai.differs.length ? "text-secondary-orange-dark" : "text-neutral-gray"}>
+                    {t("Read by", "Dibaca")} {l.checks.ai.model}:{" "}
+                    {[
+                      l.checks.ai.facts.tierPrinted,
+                      l.checks.ai.facts.date,
+                      l.checks.ai.facts.seat,
+                      l.checks.ai.facts.printedPrice ? formatIDR(l.checks.ai.facts.printedPrice) : null,
+                    ].filter(Boolean).join(" · ") || t("nothing printed", "tidak ada yang tercetak")}
+                  </span>
+                )}
                 {l.checks.reasons.map((r) => (
                   <span key={r.code} className="flex items-start gap-1.5 text-secondary-orange-dark">
                     <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" /> {reasonText(r, t)}
@@ -519,7 +530,16 @@ function ListingQueue({
             )}
 
             <p className="text-xs text-neutral-gray mt-3">
-              {why.includes("no_barcode")
+              {why.includes("details_differ")
+                ? (() => {
+                    const d = l.checks?.ai?.differs ?? [];
+                    const what = d.length > 1 ? ["another category and day", "kategori dan tanggal lain"] : d.includes("tier") ? ["another category", "kategori lain"] : ["another day", "tanggal lain"];
+                    return t(
+                      `Held because the ticket prints ${what[0]} than the seller picked. Check the PDF against the listing before clearing it: a cheaper ticket listed under a dearer category gets a higher price cap.`,
+                      `Ditahan karena tiketnya mencetak ${what[1]} dari pilihan penjual. Cocokkan PDF-nya dengan listing sebelum diloloskan: tiket murah yang dipasang di kategori mahal dapat batas harga lebih tinggi.`
+                    );
+                  })()
+                : why.includes("no_barcode")
                 ? t(
                     "Held because no barcode could be read, so nothing stops the same ticket being listed twice. Read the code off the PDF and check it with the organiser before clearing it.",
                     "Ditahan karena tidak ada barcode yang terbaca, jadi tidak ada yang mencegah tiket yang sama dijual dua kali. Baca kodenya dari PDF dan cek ke organizer sebelum diloloskan."

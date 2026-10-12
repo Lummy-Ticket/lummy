@@ -8,6 +8,7 @@
  *   npm run ai:eval -- --model gemini-3.8-flash
  *   npm run ai:eval -- --provider fake                 # offline, no key
  *   npm run ai:eval -- --only wtf-3day-range --show    # one case, with the text the model reads
+ *   npm run ai:eval -- --all-shows                     # every show offered, as the sell page asks
  *
  * The key comes from GEMINI_API_KEY, else from the GEMINI_ lines of ~/.lummy/production.env (it is
  * never printed). The cases are invented, so a free-tier key may read them (docs/config/01).
@@ -16,7 +17,7 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { cleanTicketText } from "../src/lib/tickets/clean";
 import { DEFAULT_GEMINI_MODEL, extractTicketFacts, type Provider, type TicketFacts } from "../src/lib/tickets/ai";
-import { CASES, SHOWS, type EvalCase } from "./ai-eval-cases";
+import { CASES, SHOWS, SHOW_LABEL, type EvalCase } from "./ai-eval-cases";
 
 const arg = (name: string) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -25,6 +26,11 @@ const arg = (name: string) => {
 const provider = (arg("provider") ?? "gemini") as Provider;
 const only = arg("only");
 const show = process.argv.includes("--show");
+// The sell page offers every show on sale, so the model finds the show as well as the category.
+const allShows = process.argv.includes("--all-shows");
+const EVERY_SHOW = {
+  tiers: (Object.keys(SHOWS) as (keyof typeof SHOWS)[]).flatMap((k) => SHOWS[k].map((t) => ({ ...t, show: SHOW_LABEL[k] }))),
+};
 
 if (provider === "gemini" && !process.env.GEMINI_API_KEY) {
   try {
@@ -60,7 +66,7 @@ const seatOk = (want: string[] | null, got: string | null) => {
 
 type Score = Record<"tier" | "date" | "price" | "quantity" | "seat" | "title", boolean>;
 const score = (c: EvalCase, f: TicketFacts): Score => ({
-  tier: f.tierId === c.expect.tierId,
+  tier: f.tierId === (allShows && c.expect.tierIdAllShows !== undefined ? c.expect.tierIdAllShows : c.expect.tierId),
   date: f.date === c.expect.date,
   price: c.expect.printedPrice.includes(f.printedPrice),
   quantity: (f.quantity ?? 1) === c.expect.quantity,
@@ -70,7 +76,7 @@ const score = (c: EvalCase, f: TicketFacts): Score => ({
 
 async function main() {
   const cases = CASES.filter((c) => !only || c.id === only);
-  console.log(`${model}: ${cases.length} made-up tickets\n`);
+  console.log(`${model}: ${cases.length} made-up tickets, ${allShows ? "every show offered" : "the picked show's categories"}\n`);
 
   const totals: Record<keyof Score, number> = { tier: 0, date: 0, price: 0, quantity: 0, seat: 0, title: 0 };
   let answered = 0;
@@ -89,7 +95,7 @@ async function main() {
       continue;
     }
     if (show) console.log(`--- ${c.id}: what the model reads ---\n${clean.text}\n---`);
-    const out = await extractTicketFacts(clean.text, { tiers: [...SHOWS[c.show]] }, { provider, model });
+    const out = await extractTicketFacts(clean.text, allShows ? EVERY_SHOW : { tiers: [...SHOWS[c.show]] }, { provider, model });
     if (!out.ok) {
       failures.push(`${c.id}: ${out.reason}${out.detail ? " (" + out.detail + ")" : ""}`);
       console.log(`FAIL  ${c.id}  no answer: ${out.reason} ${out.detail ?? ""}`);

@@ -1,30 +1,20 @@
 // The AI step of listing a ticket (docs/09 §5.1). The cleaned text of the ticket, and the categories
-// of the show the seller picked, go to a model that answers in a fixed JSON shape. Its answer only
-// pre-fills the form and cross-checks the seller; it decides nothing, and when the model is off,
-// busy or wrong, the seller fills the form in by hand. Gemini with the key from docs/config/01, or a
-// fake provider for tests that never leaves this machine.
+// it may match, go to a model that answers in a fixed JSON shape. Its answer only pre-fills the form
+// and cross-checks the seller; it decides nothing, and when the model is off, busy or wrong, the
+// seller fills the form in by hand. Gemini with the key from docs/config/01, or a fake provider for
+// tests that never leaves this machine.
 import { z } from "zod";
+import type { TicketFacts } from "./checks";
 
 if (typeof window !== "undefined") throw new Error("lib/tickets/ai is server-only");
 
-/** The show the seller says the ticket is for, as the catalogue has it. */
-export type ShowForTicket = { tiers: { id: string; name: string }[] };
+export type { TicketFacts };
 
-/** What the model read off the ticket. Any field can be missing, and none is trusted as it stands. */
-export type TicketFacts = {
-  eventTitle: string | null;
-  /** The show date printed on the ticket, YYYY-MM-DD; the first day of a pass for several days. */
-  date: string | null;
-  venue: string | null;
-  /** One of the show's tiers, or null when none fits what is printed. */
-  tierId: string | null;
-  /** The category as printed, so a person can see what the model matched. */
-  tierPrinted: string | null;
-  seat: string | null;
-  /** The price of one ticket in rupiah, as printed, without fees. */
-  printedPrice: number | null;
-  quantity: number | null;
-};
+/**
+ * The categories the ticket may match: one show's, when the seller has picked it, or every show on
+ * sale, each with `show` saying which, when the page asks the model to find the show as well.
+ */
+export type ShowForTicket = { tiers: { id: string; name: string; show?: string }[] };
 
 export type Provider = "gemini" | "fake";
 
@@ -44,19 +34,20 @@ export function aiProvider(): Provider | null {
 }
 
 /**
- * The model is not told which show the seller picked, only that show's categories: told the title
- * and date, it reports those back instead of what the ticket prints, and the cross-check is lost.
+ * The model is never told which show the seller picked: told one show's title and date, it reports
+ * those back instead of what the ticket prints, and the cross-check is lost. It gets categories only,
+ * one show's, or every show's on sale side by side.
  */
 export function buildPrompt(text: string, show: ShowForTicket) {
   return [
     "You read the text of one event e-ticket and report what is printed on it, as JSON.",
-    "The ticket categories the seller can choose from, as id: name:",
-    ...show.tiers.map((t) => `- ${t.id}: ${t.name}`),
+    "The ticket categories the seller can choose from, as id: name, with the show each belongs to when there are several:",
+    ...show.tiers.map((t) => `- ${t.id}: ${t.name}${t.show ? ` (${t.show})` : ""}`),
     "",
     "Rules:",
     "- Report only what the ticket text says. Use null for anything it does not print.",
     "- Text shown as [x] was removed on purpose: never guess it.",
-    `- tier: the id above whose name matches the category printed on the ticket, written in any way ("CAT3", "Cat. 3" and "Kategori 3" are the same), or "${NONE}" when none does.`,
+    `- tier: the id above whose name matches the category printed on the ticket, written in any way ("CAT3", "Cat. 3" and "Kategori 3" are the same), and whose show matches the ticket's when a show is given; "${NONE}" when none does.`,
     "- date: the show date printed on the ticket, as YYYY-MM-DD. For a pass that covers several days, its first day.",
     "- seat: the seat, row, block or section as printed. null when the ticket gives no place, as with standing, free standing or general admission.",
     "- printedPrice: the price of one ticket in rupiah as printed, without service fees, taxes or a total for several tickets. Digits only.",
@@ -122,13 +113,17 @@ export function parseAnswer(raw: string, show: ShowForTicket): TicketFacts | nul
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /**
- * A deterministic stand-in for tests: picks the longest category name the text spells out and the
- * first rupiah amount. It never leaves the machine and is not meant to be accurate.
+ * A deterministic stand-in for tests: of the categories the text spells out, the one whose show
+ * shares the most words with the text, then the longest name; and the first rupiah amount. It never
+ * leaves the machine and is not meant to be accurate.
  */
 export function fakeFacts(text: string, show: ShowForTicket): TicketFacts {
-  const tier = [...show.tiers]
-    .sort((a, b) => b.name.length - a.name.length)
-    .find((t) => new RegExp(`(^|[^\\p{L}\\p{N}])${escape(t.name)}($|[^\\p{L}\\p{N}])`, "iu").test(text));
+  const words = (s: string) => s.toLowerCase().match(/\p{L}{4,}/gu) ?? [];
+  const inText = new Set(words(text));
+  const shared = (t: ShowForTicket["tiers"][number]) => words(t.show ?? "").filter((w) => inText.has(w)).length;
+  const tier = show.tiers
+    .filter((t) => new RegExp(`(^|[^\\p{L}\\p{N}])${escape(t.name)}($|[^\\p{L}\\p{N}])`, "iu").test(text))
+    .sort((a, b) => shared(b) - shared(a) || b.name.length - a.name.length)[0];
   const amount = /(?:Rp\.?|IDR)\s*(\d{1,3}(?:[.,]\d{3})+)/i.exec(text)?.[1];
   return {
     eventTitle: text.split("\n").find((l) => l.trim() && !/^e-?ticket$/i.test(l.trim()))?.trim() ?? null,

@@ -3,11 +3,13 @@
  * what the prompt and schema carry, how a model's answer is read (a malformed field becomes null, an
  * unknown category becomes none), and how Gemini's replies are handled with fetch stubbed out: a busy
  * model is retried and then left for the seller, a refused request is not retried, a cut-off or
- * non-JSON answer is not trusted, and the key travels in a header, never in the URL.
+ * non-JSON answer is not trusted, and the key travels in a header, never in the URL. Then the
+ * cross-check publishing runs on the answer: another category or day sends a listing to a person.
  *
  *   npm run ai:check
  */
 import { aiProvider, buildPrompt, extractTicketFacts, fakeFacts, parseAnswer, responseSchema, type ShowForTicket } from "../src/lib/tickets/ai";
+import { factDiffs, reviewReasons, showDay, type ListingChecks, type TicketFacts } from "../src/lib/tickets/checks";
 
 const results: { name: string; ok: boolean; note?: string }[] = [];
 const check = (name: string, ok: boolean, note?: string) => results.push({ name, ok, note: ok ? undefined : note });
@@ -65,6 +67,24 @@ async function main() {
   const schema = responseSchema(TULUS) as { properties: { tier: { enum: string[] } }; required: string[] };
   check("the schema only allows the show's categories, or none", JSON.stringify(schema.properties.tier.enum) === JSON.stringify(["t-tl-vip", "t-tl-reg", "none"]));
   check("the schema requires every field", schema.required.length === 8);
+  const every = buildPrompt(TEXT, { tiers: [{ id: "t-cp-cat1", name: "CAT 1", show: "Coldplay: Music of the Spheres, 2026-11-14, Stadion Utama GBK, Jakarta" }] });
+  check("with every show offered, each category says which show it belongs to", every.includes("- t-cp-cat1: CAT 1 (Coldplay: Music of the Spheres, 2026-11-14"));
+  check("the picked show's title is never in the prompt", !prompt.includes("Manusia Tour (") && !prompt.includes("2026-11-07"));
+
+  // --- The cross-check at publish
+  check("a show's day is its date in Jakarta", showDay("2026-11-14T19:00:00+07:00") === "2026-11-14" && showDay("2026-11-14T01:00:00+07:00") === "2026-11-14" && showDay("2026-11-13T23:30:00Z") === "2026-11-14");
+  const facts = (f: Partial<TicketFacts>): TicketFacts => ({ eventTitle: "TULUS", date: "2026-11-07", venue: null, tierId: "t-tl-vip", tierPrinted: "VIP", seat: null, printedPrice: 1_200_000, quantity: 1, ...f });
+  const picked = { tierId: "t-tl-vip", startsAt: "2026-11-07T20:00:00+07:00" };
+  check("the ticket agrees with the seller: nothing to review", factDiffs(facts({}), picked).length === 0);
+  check("another category printed: reviewed", JSON.stringify(factDiffs(facts({ tierId: "t-tl-reg", tierPrinted: "Reguler" }), picked)) === '["tier"]');
+  check("a printed category the show does not have: reviewed", JSON.stringify(factDiffs(facts({ tierId: null, tierPrinted: "VVIP" }), picked)) === '["tier"]');
+  check("no category printed at all: nothing to compare", factDiffs(facts({ tierId: null, tierPrinted: null }), picked).length === 0);
+  check("another day printed: reviewed", JSON.stringify(factDiffs(facts({ date: "2026-11-08" }), picked)) === '["date"]');
+  check("no date printed: nothing to compare", factDiffs(facts({ date: null }), picked).length === 0);
+  const listing: ListingChecks = { barcodes: 1, formats: ["QRCode"], pages: 1, scannedPages: 1, score: 5, suspicious: false, reasons: [], producer: null };
+  check("a clean ticket that agrees goes live", reviewReasons({ ...listing, ai: { model: "m", facts: facts({}), differs: [] } }).length === 0);
+  check("a clean ticket that disagrees waits for a person", reviewReasons({ ...listing, ai: { model: "m", facts: facts({ date: "2026-11-08" }), differs: ["date"] } }).includes("details_differ"));
+  check("no AI step at all changes nothing", reviewReasons({ ...listing, ai: null }).length === 0 && reviewReasons(listing).length === 0);
 
   // --- Reading an answer
   const read = parseAnswer(JSON.stringify(GOOD), TULUS);

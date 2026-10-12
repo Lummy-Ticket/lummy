@@ -2,7 +2,9 @@
 // from the tier, the price must sit in the 50-150% band, a listing flagged by the checks or posted
 // close to doors waits for a person, and a barcode already sold is refused. The ticket is either
 // a real PDF, checked here (lib/tickets) and kept in the private bucket, or one of the sample
-// tickets, whose signals come from the server's own table (lib/listings/rules.ts).
+// tickets, whose signals come from the server's own table (lib/listings/rules.ts). With an AI
+// provider, a real PDF is also read for its category and date (docs/09 §5.1), and a ticket that
+// prints another category or day than the seller picked waits for a person.
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { EVENT_DURATION_H, isLateListing } from "@/lib/mock/escrow";
@@ -14,7 +16,8 @@ import { isDemoEmail } from "@/lib/supabase/demo";
 import { currentUser } from "@/lib/supabase/session";
 import type { Json } from "@/lib/supabase/types";
 import { MAX_TICKET_BYTES, TicketError } from "@/lib/tickets/analyze";
-import { isDuplicate, reviewReasons, toListingChecks } from "@/lib/tickets/checks";
+import { factDiffs, isDuplicate, reviewReasons, toListingChecks, type ListingChecks } from "@/lib/tickets/checks";
+import { readTicketFacts } from "@/lib/tickets/fill";
 import { TICKET_ERRORS, checkTicket, setKey, ticketPepper } from "@/lib/tickets/server";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +36,7 @@ const noStore = { "Cache-Control": "private, no-store" };
 const fail = (status: number, error: string) => NextResponse.json({ error }, { status, headers: noStore });
 const DUPLICATE = "barcode ini sudah pernah dijual di Lummy, jadi listing diblokir";
 
-type Body = { eventId?: unknown; tierId?: unknown; askPrice?: unknown; quantity?: unknown; splittable?: unknown; gateKtp?: unknown; sample?: unknown };
+type Body = { eventId?: unknown; tierId?: unknown; askPrice?: unknown; quantity?: unknown; splittable?: unknown; gateKtp?: unknown; sample?: unknown; holder?: unknown };
 
 const isMultipart = (req: Request) => (req.headers.get("content-type") ?? "").startsWith("multipart/form-data");
 
@@ -55,6 +58,8 @@ async function readBody(req: Request): Promise<{ body: Body; file: File | null }
       quantity: field("quantity"),
       splittable: field("splittable") === "true",
       gateKtp: field("gateKtp") === "true",
+      // The holder's name as the seller typed it, only so the AI step can take it out of the text.
+      holder: field("holder"),
     },
     file: file instanceof File ? file : null,
   };
@@ -130,7 +135,17 @@ export async function POST(req: Request) {
 
   // Duplicate-pass fraud clusters in the hours before doors, so late listings are reviewed too.
   const late = isLateListing(ev.data.starts_at);
-  const checks = ticket ? toListingChecks(ticket.check) : null;
+  let checks: ListingChecks | null = ticket ? toListingChecks(ticket.check) : null;
+  if (ticket && checks) {
+    // What the ticket itself prints, read here from the stored file rather than taken from the page.
+    // Off, busy or unreadable leaves the listing as the other checks decide: the AI step only adds.
+    const tiers = await admin.from("tiers").select("id, name").eq("event_id", eventId);
+    const holder = typeof body.holder === "string" ? body.holder.slice(0, 120) : "";
+    const read = tiers.data?.length
+      ? await readTicketFacts(ticket.bytes, [user.fullName, holder].filter((n) => n.trim()), { tiers: tiers.data }, 15_000).catch(() => null)
+      : null;
+    if (read?.ok) checks = { ...checks, ai: { model: read.model, facts: read.facts, differs: factDiffs(read.facts, { tierId, startsAt: ev.data.starts_at }) } };
+  }
   const status = (checks ? reviewReasons(checks).length > 0 : isFlagged(signals)) || late ? "review" : "active";
   const keys = barcodes.map((b) => b.key);
   const { data, error } = await admin

@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { SellerListing } from "@/lib/mock/useSellerListings";
 import { supabaseBrowser } from "@/lib/supabase/browser";
-import type { ListingChecks, TicketCheck } from "@/lib/tickets/checks";
+import type { ListingChecks, TicketCheck, TicketFacts } from "@/lib/tickets/checks";
 import type { SampleTicket } from "./rules";
 
 /** Whose listings: one seller's (withdrawn ones left out), or everything waiting for review. */
@@ -110,8 +110,11 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 
 type ListingInput = { eventId: string; tierId: string; askPrice: number; quantity: number; splittable: boolean; gateKtp: boolean };
 
+/** The holder's name goes with a real PDF only so the server's AI step can take it out of the text. */
+type TicketInput = { ticket: File; holder?: string };
+
 /** From a real ticket PDF, which the server checks again, or from one of the sample tickets. */
-export function createListing(input: ListingInput & ({ ticket: File } | { sample: SampleTicket })) {
+export function createListing(input: ListingInput & (TicketInput | { sample: SampleTicket })) {
   if (!("ticket" in input)) return post<{ id: string; status: "active" | "review" }>("/api/listings", input);
   const form = new FormData();
   for (const [k, v] of Object.entries(input)) form.append(k, v instanceof File ? v : String(v));
@@ -123,6 +126,36 @@ export function checkTicketFile(file: File) {
   const form = new FormData();
   form.append("ticket", file);
   return post<TicketCheck>("/api/tickets/check", form);
+}
+
+/** What the AI step read off a ticket for the sell form, or why it read nothing (docs/09 §5.1). */
+export type TicketFill =
+  | { outcome: "filled"; facts: TicketFacts; eventId: string | null }
+  | { outcome: "off" | "no_shows" | "no_text" | "no_ticket_page" | "personal_data_left" | "busy" | "failed" | "bad_answer" };
+
+/** Reads the PDF on the server for the form: the show, category, date, seat and printed price. */
+export function fillFromTicket(file: File, holder: string) {
+  const form = new FormData();
+  form.append("ticket", file);
+  if (holder.trim()) form.append("holder", holder.trim());
+  return post<TicketFill>("/api/tickets/extract", form);
+}
+
+/** Whether this deployment fills the form in from a ticket. Null until it has answered; false when not asked. */
+export function useTicketFill(ask: boolean) {
+  const [available, setAvailable] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!ask) return;
+    let alive = true;
+    void fetch("/api/tickets/extract")
+      .then((r) => (r.ok ? (r.json() as Promise<{ available?: boolean }>) : { available: false }))
+      .catch(() => ({ available: false }))
+      .then((j) => alive && setAvailable(!!j.available));
+    return () => {
+      alive = false;
+    };
+  }, [ask]);
+  return ask ? available : false;
 }
 
 /** Whether this deployment checks real PDFs. Null until it has answered; false when not asked. */

@@ -19,6 +19,28 @@ export type TicketCheck = {
   producer: string | null;
 };
 
+/**
+ * What the AI step read off a ticket (docs/09 §5.1, lib/tickets/ai.ts). It holds the show's facts
+ * only: the text it came from had every name and number taken out first.
+ */
+export type TicketFacts = {
+  eventTitle: string | null;
+  /** The show date printed on the ticket, YYYY-MM-DD; the first day of a pass for several days. */
+  date: string | null;
+  venue: string | null;
+  /** One of the offered categories, or null when none fits what is printed. */
+  tierId: string | null;
+  /** The category as printed, so a person can see what was matched. */
+  tierPrinted: string | null;
+  seat: string | null;
+  /** The price of one ticket in rupiah, as printed, without fees. */
+  printedPrice: number | null;
+  quantity: number | null;
+};
+
+/** Where the ticket and the seller disagree: another category, or another day. */
+export type FactDiff = "tier" | "date";
+
 /** Stored with the listing (listings.checks) for its seller and staff: counts, not barcodes. */
 export type ListingChecks = {
   barcodes: number;
@@ -29,7 +51,24 @@ export type ListingChecks = {
   suspicious: boolean;
   reasons: ForensicReason[];
   producer: string | null;
+  /** The AI step at publish, when the server has one: what it read, and where that differs. */
+  ai?: { model: string; facts: TicketFacts; differs: FactDiff[] } | null;
 };
+
+/** A show's date in Jakarta as YYYY-MM-DD, the way a ticket prints it. */
+export const showDay = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+
+/**
+ * Where what the ticket prints disagrees with what the seller picked. Something the ticket does not
+ * print disagrees with nothing; a printed category that fits none of the show's is a difference,
+ * since that is how a cheaper ticket would be listed under a dearer category.
+ */
+export function factDiffs(f: TicketFacts, chosen: { tierId: string; startsAt: string }): FactDiff[] {
+  const out: FactDiff[] = [];
+  if ((f.tierId || f.tierPrinted) && f.tierId !== chosen.tierId) out.push("tier");
+  if (f.date && f.date !== showDay(chosen.startsAt)) out.push("date");
+  return out;
+}
 
 export const toListingChecks = (c: TicketCheck): ListingChecks => ({
   barcodes: c.barcodes.length,
@@ -47,13 +86,15 @@ export const isDuplicate = (c: TicketCheck) => c.sameFile || c.barcodes.some((b)
 
 /**
  * Why a person looks before the listing goes live: a forensic flag or a high score, no barcode
- * to hold (so nothing stops the same ticket being listed twice), or pages left unread.
+ * to hold (so nothing stops the same ticket being listed twice), pages left unread, or a ticket
+ * that prints another category or day than the seller picked.
  */
 export function reviewReasons(c: ListingChecks) {
-  const out: ("flagged" | "no_barcode" | "unread_pages")[] = [];
+  const out: ("flagged" | "no_barcode" | "unread_pages" | "details_differ")[] = [];
   if (c.suspicious || c.score >= 60) out.push("flagged");
   if (c.barcodes === 0) out.push("no_barcode");
   if (c.scannedPages < c.pages) out.push("unread_pages");
+  if (c.ai?.differs.length) out.push("details_differ");
   return out;
 }
 

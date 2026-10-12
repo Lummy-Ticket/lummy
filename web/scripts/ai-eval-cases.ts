@@ -16,6 +16,17 @@ export const SHOWS = {
   timnas: [{ id: "t-tn-vip", name: "VIP" }, { id: "t-tn-cat1", name: "Kategori 1" }, { id: "t-tn-cat2", name: "Kategori 2" }],
 } as const;
 
+/** Each show as the sell page names it to the model when the seller has not picked one yet. */
+export const SHOW_LABEL: Record<keyof typeof SHOWS, string> = {
+  coldplay: "Coldplay: Music of the Spheres, 2026-11-14, Stadion Utama GBK, Jakarta",
+  newjeans: "NewJeans Fan Meeting: Bunnies Jakarta, 2026-10-31, ICE BSD Hall 10, Tangerang",
+  wtf: "We The Fest 2026, 2026-10-16, JIExpo Kemayoran, Jakarta",
+  tulus: "Tulus: Manusia Tour, 2026-11-07, Sentul International Convention Center, Bogor",
+  sos: "Sheila on 7: Tunggu Aku di Jakarta, 2026-12-13, Stadion Madya GBK, Jakarta",
+  pandji: "Pandji Pragiwaksono: Menyala, 2026-11-28, Ciputra Artpreneur, Jakarta",
+  timnas: "Timnas Indonesia vs Jepang, 2026-11-19, Stadion Utama GBK, Jakarta",
+};
+
 export type EvalCase = {
   id: string;
   show: keyof typeof SHOWS;
@@ -33,6 +44,8 @@ export type EvalCase = {
     seat: string[] | null;
     /** A word the reported title must contain. */
     title: string;
+    /** The category when every show is offered, where it differs from the one-show answer. */
+    tierIdAllShows?: string | null;
   };
 };
 
@@ -230,7 +243,7 @@ COLDPLAY: MUSIC OF THE SPHERES
 GBK Jakarta
 CAT 1
 Rp 2.250.000`],
-    expect: { tierId: null, date: "2026-11-14", printedPrice: [2_250_000], quantity: 1, seat: null, title: "coldplay" },
+    expect: { tierId: null, date: "2026-11-14", printedPrice: [2_250_000], quantity: 1, seat: null, title: "coldplay", tierIdAllShows: "t-cp-cat1" },
   },
   {
     id: "injection-in-ticket-text",
