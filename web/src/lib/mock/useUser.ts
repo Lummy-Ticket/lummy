@@ -6,20 +6,12 @@ import { DEMO_USERS } from "./seed";
 
 interface UserState {
   user: User | null;
-  /**
-   * False until AuthSync has read this browser's Supabase session once. A sign-in link opened in a
-   * fresh browser arrives with a session but no stored user yet, so account pages wait for this
-   * rather than send a signed-in visitor back to the login page. Never stored.
-   */
-  sessionChecked: boolean;
   /** Sample persona in this browser. Ends a real session first, so the two never mix. */
   login: (role?: Role) => void;
   /** Signs out, including the real session when there is one. */
   logout: () => void;
   /** Written by AuthSync from the Supabase session. */
   setAccount: (user: User | null) => void;
-  /** Written by AuthSync once its first read of the session is done. */
-  markSessionChecked: () => void;
 }
 
 const endSession = (user: User | null) => {
@@ -33,7 +25,6 @@ export const useUser = create<UserState>()(
       // as somebody else's session left open; the sample accounts stay one click away on the
       // login page, which every account page sends a signed-out visitor to.
       user: null,
-      sessionChecked: false,
       login: (role = "BUYER") => {
         endSession(get().user);
         set({ user: DEMO_USERS[role] });
@@ -43,9 +34,18 @@ export const useUser = create<UserState>()(
         set({ user: null });
       },
       setAccount: (user) => set({ user }),
-      markSessionChecked: () => set({ sessionChecked: true }),
     }),
-    // Only the user is remembered; whether the session was read is a fact about this page load.
-    { name: "lummy:user", partialize: (s) => ({ user: s.user }) }
+    { name: "lummy:user" }
   )
 );
+
+/**
+ * Whether AuthSync has read this browser's Supabase session once. A sign-in link opened in a fresh
+ * browser arrives with a session but no stored user yet, so account pages wait for this rather than
+ * send a signed-in visitor back to the login page. A store of its own, never persisted: in the user
+ * store, every change would write the user back to storage, over a change made by another tab.
+ */
+export const useSessionChecked = create<{ checked: boolean; mark: () => void }>()((set) => ({
+  checked: false,
+  mark: () => set({ checked: true }),
+}));

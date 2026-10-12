@@ -9,8 +9,10 @@
     "start": "next start",
     "lint": "eslint",
     "type-check": "tsc --noEmit",
-    "demo-check": "node scripts/demo-rehearsal.mjs",
-    "ut:check": "node scripts/user-test-check.mjs",
+    "e2e": "playwright test",
+    "e2e:smoke": "playwright test --grep @smoke",
+    "demo-check": "playwright test --project=desktop",
+    "ut:check": "playwright test --project=phone --project=iphone",
     "submission-pdf": "node scripts/submission-pdf.mjs",
     "chain:abi": "node scripts/export-abi.mjs",
     "chain:cycle": "tsx scripts/escrow-cycle.ts",
@@ -70,6 +72,7 @@
     "zxing-wasm": "^3.1.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

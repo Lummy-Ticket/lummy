@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { useUser } from "@/lib/mock";
+import { useSessionChecked, useUser } from "@/lib/mock";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
 /**
@@ -12,7 +12,7 @@ import { supabaseBrowser } from "@/lib/supabase/browser";
  */
 export function AuthSync() {
   useEffect(() => {
-    const checked = () => useUser.getState().markSessionChecked();
+    const checked = () => useSessionChecked.getState().mark();
     const sb = supabaseBrowser();
     if (!sb) {
       checked();

@@ -1,0 +1,95 @@
+import { expect, test } from "@playwright/test";
+import { aiClaims, expectFitsScreen, isLocal, signInSample } from "./support";
+
+// The five user-testing tasks (tasks/user-testing.md), the way a first-time tester meets them on a
+// phone: signed out, in Indonesian, with a sample account only, so nothing reaches the database.
+
+test.describe("user tasks", { tag: "@smoke" }, () => {
+  test("a first visit follows the phone's language, with the switch in the bar", async ({ page, baseURL }) => {
+    await page.goto("/");
+    await expect(page.locator("html")).toHaveAttribute("lang", "id");
+    await expect(page.locator('[data-bar="site"]').getByRole("button", { name: "ID", exact: true })).toHaveAttribute("aria-pressed", "true");
+    const devPanel = page.getByRole("button", { name: /^(Dev panel|Panel dev)$/ });
+    if (isLocal(baseURL)) await expect(devPanel).toBeVisible();
+    else await expect(devPanel).toHaveCount(0);
+    await expectFitsScreen(page);
+  });
+
+  test("no page or link preview claims AI checks tickets", async ({ page }) => {
+    await page.goto("/");
+    expect(await page.locator('meta[name="description"]').getAttribute("content")).not.toMatch(/\bAI\b/);
+    for (const path of ["/", "/events", "/events/ev-tulus", "/how-it-works", "/about"]) {
+      await page.goto(path);
+      await expect(page.locator("html")).toHaveAttribute("lang", "id");
+      expect(aiClaims(await page.locator("body").innerText()), path).toEqual([]);
+      await expectFitsScreen(page);
+    }
+  });
+
+  test("1 a search finds a show and its cheapest price", async ({ page }) => {
+    await page.goto("/");
+    const search = page.getByRole("textbox", { name: "Cari event" }).first();
+    await search.fill("tulus");
+    await search.press("Enter");
+    await expect(page).toHaveURL(/\/events\?q=tulus/);
+    await page.getByRole("link", { name: /Tulus/ }).first().click();
+    await expect(page).toHaveURL(/\/events\/ev-/);
+    await expect(page.getByText("Termurah").first()).toBeVisible();
+    await expect(page.getByText("Mulai dari")).toBeVisible();
+    await expectFitsScreen(page);
+  });
+
+  test("2 one ticket with a sample account, told the payment is simulated, then where the money is", async ({ page }) => {
+    await page.goto("/events/ev-tulus");
+    await page.getByRole("group", { name: "Jumlah tiket" }).getByRole("button", { name: "1", exact: true }).click();
+    await page.getByRole("button", { name: "Beli" }).first().click();
+    await expect(page).toHaveURL(/\/login/);
+    await page.getByRole("button", { name: "Lanjut dengan akun contoh" }).click();
+    await expect(page).toHaveURL(/\/checkout/);
+    await expect(page.locator("[data-sample-payment]")).toBeVisible();
+    await expectFitsScreen(page);
+    await page.getByRole("button", { name: /^Bayar / }).click();
+    await expect(page).toHaveURL(/\/tickets\/or-/);
+    // Task 3: the money is held, and the page says until when.
+    await expect(page.getByText("Dana terkunci").first()).toBeVisible();
+    await expect(page.getByText("Menunggu acara, lalu 48 jam")).toBeVisible();
+    await expectFitsScreen(page);
+  });
+
+  test("3 my tickets shows each ticket's price, not a total that leaves out the fees", async ({ page }) => {
+    await signInSample(page, "/tickets");
+    await expect(page.getByText("Harga tiket").first()).toBeVisible();
+    await expect(page.getByText("Total dibayar")).toHaveCount(0);
+    await expectFitsScreen(page);
+  });
+
+  test("4 a gate claim on the show that has just ended, graded and held", async ({ page }) => {
+    await signInSample(page, "/tickets");
+    await page.getByText(/Tulus: Manusia Tour, Surabaya/).first().click();
+    await page.getByRole("button", { name: "Ada masalah di gate" }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByText("Ditolak di gate", { exact: true }).click();
+    await dialog.getByText("gate-scanner-rejected.jpg").click();
+    await expect(dialog.getByText("KUAT").first()).toBeVisible();
+    await dialog.getByRole("checkbox").check();
+    await dialog.getByRole("button", { name: "Kirim sengketa" }).click();
+    // The payout waits for the decision, with no date of its own, and no empty quote for a claim without a note.
+    await expect(page.getByText("Menunggu putusan klaim")).toBeVisible();
+    await expect(page.getByText(/Cair otomatis pada/)).toHaveCount(0);
+    await expect(page.getByText("“”")).toHaveCount(0);
+    await expectFitsScreen(page);
+  });
+
+  test("5 a sample ticket is checked and listed, with no AI claim", async ({ page }) => {
+    await signInSample(page, "/sell");
+    await page.getByRole("button", { name: "Gak punya file? Pakai contoh" }).click();
+    await page.getByRole("button", { name: "Cek tiketnya" }).click();
+    await expect(page.getByRole("heading", { name: "Cek tiket" })).toBeVisible();
+    await expect(page.getByText("Data dari tiket contoh")).toBeVisible();
+    expect(aiClaims(await page.locator("main").innerText())).toEqual([]);
+    await expectFitsScreen(page);
+    await page.getByRole("button", { name: "Lanjut ke harga" }).click();
+    await page.getByRole("button", { name: /^(Publish listing|Ajukan untuk review)$/ }).click();
+    await expect(page).toHaveURL(/\/seller/);
+  });
+});

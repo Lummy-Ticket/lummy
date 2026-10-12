@@ -2,7 +2,7 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
-import { useUser, type User } from "./mock";
+import { useSessionChecked, useUser, type User } from "./mock";
 
 /**
  * Who a page is for.
@@ -36,7 +36,7 @@ export function useHydrated() {
 export function useAccessGuard(access: Access) {
   const hydrated = useHydrated();
   const user = useUser((s) => s.user);
-  const sessionChecked = useUser((s) => s.sessionChecked);
+  const sessionChecked = useSessionChecked((s) => s.checked);
   const router = useRouter();
 
   const allowed = access === "public" || (!!user && (access !== "staff" || isStaff(user)));

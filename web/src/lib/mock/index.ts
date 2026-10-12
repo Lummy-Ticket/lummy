@@ -1,5 +1,5 @@
 export * from "./types";
-export { useUser } from "./useUser";
+export { useSessionChecked, useUser } from "./useUser";
 export {
   CAP_PCT,
   FLOOR_PCT,
