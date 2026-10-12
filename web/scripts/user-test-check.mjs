@@ -4,18 +4,24 @@
  * database. Run it before each round of testing, against lummy.id or a local server:
  *
  *   BASE=https://lummy.id npm run ut:check
+ *   BASE=https://lummy.id W=412 H=915 npm run ut:check    # another screen size
+ *   BASE=https://lummy.id BROWSER=webkit W=390 H=844 npm run ut:check    # Safari's engine
  *
- * Chrome path can be overridden with CHROME=/path/to/chrome.
+ * Chrome path can be overridden with CHROME=/path/to/chrome, and WebKit's with
+ * WEBKIT=/path/to/pw_run.sh when the cached build is not the one playwright-core expects.
  */
-import { chromium } from "playwright-core";
+import { chromium, webkit } from "playwright-core";
 
 const BASE = process.env.BASE ?? "http://localhost:3000";
 const EXEC = process.env.CHROME ?? "/opt/google/chrome/chrome";
 const local = /\/\/(localhost|127\.0\.0\.1)\b/.test(BASE);
 
-const browser = await chromium.launch({ executablePath: EXEC, args: ["--no-sandbox"] });
+const browser =
+  process.env.BROWSER === "webkit"
+    ? await webkit.launch(process.env.WEBKIT ? { executablePath: process.env.WEBKIT } : {})
+    : await chromium.launch({ executablePath: EXEC, args: ["--no-sandbox"] });
 const context = await browser.newContext({
-  viewport: { width: 360, height: 780 },
+  viewport: { width: Number(process.env.W ?? 360), height: Number(process.env.H ?? 780) },
   isMobile: true,
   hasTouch: true,
   locale: "id-ID",
