@@ -17,7 +17,7 @@ export type Step = {
 
 export const TONE_CHIP: Record<Tone, string> = {
   idle: "bg-secondary-gray-soft text-neutral-gray",
-  held: "bg-secondary-blue-soft text-lummy-500",
+  held: "bg-secondary-blue-soft text-primary-navy-dark",
   open: "bg-secondary-orange-soft text-secondary-orange-dark",
   done: "bg-secondary-green-light text-secondary-green-dark-extra",
 };

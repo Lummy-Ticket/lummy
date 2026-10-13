@@ -31,6 +31,8 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["pdfjs-dist", "@napi-rs/canvas", "zxing-wasm"],
   outputFileTracingIncludes: {
     "/api/tickets/check": TICKET_READER_FILES,
+    // The AI step reads the PDF's text with the same pdf.js before anything is sent.
+    "/api/tickets/extract": TICKET_READER_FILES,
     "/api/listings": TICKET_READER_FILES,
     "/api/orders": PHOTO_READER_FILES,
   },
@@ -38,9 +40,30 @@ const nextConfig: NextConfig = {
     // Poster event = SVG data-URI (offline). Izinkan SVG lewat next/image.
     dangerouslyAllowSVG: true,
     contentDispositionType: "inline",
+    // What Next asks for alongside SVG: an image served by the optimizer runs no script.
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     remotePatterns: [
       {hostname: "i.pravatar.cc"}
     ],
+  },
+  poweredByHeader: false,
+  // None of these were sent before 12 Oct 2026. The CSP only fences who may frame a page, the base
+  // URL, where forms post and plugins; scripts and styles stay as Next serves them.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Strict-Transport-Security", value: "max-age=63072000" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          // The gate's scanner needs the camera, on lummy.id itself; nothing needs the rest.
+          { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=(), payment=(), usb=()" },
+        ],
+      },
+    ];
   },
   async redirects() {
     return [

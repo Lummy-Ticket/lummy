@@ -578,7 +578,7 @@ export default function HowItWorks() {
               <h2 className="text-2xl md:text-3xl font-bold">
                 {side === "buying" ? t("Now go find your ticket", "Sekarang tinggal cari tiketnya") : t("Got a ticket you can't use?", "Punya tiket yang gak kepakai?")}
               </h2>
-              <p className="text-white/85 mt-1">
+              <p className="text-white mt-1">
                 {side === "buying"
                   ? t("Every listing on Lummy works the way this page says.", "Tiap listing di Lummy bekerja seperti yang tertulis di halaman ini.")
                   : t("Upload the PDF and it is live in minutes.", "Upload PDF-nya dan tayang dalam hitungan menit.")}

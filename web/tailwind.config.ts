@@ -24,7 +24,8 @@ const config: Config = {
         secondary: {
           "pink": {
             "light": "#FFEDF1",
-            "dark": "#E56083",
+            // #E56083 before 12 Oct 2026: 2.9:1 on its soft background, too faint for small text.
+            "dark": "#B83560",
             "soft": "#FFEBF9"
           },          
           "cream": {
@@ -33,7 +34,8 @@ const config: Config = {
           },
           "blue":{
             "light": "#F0FAFF",
-            "soft": "#DCEFF8",
+            // #DCEFF8 before 12 Oct 2026: the brand blue read 4.45:1 on it, just under AA for small text.
+            "soft": "#E2F2FA",
             "soft-light": "#DFF5FF",
             "extra": "#FBFEFF"
           },
@@ -47,11 +49,13 @@ const config: Config = {
           },
           "orange": {
             "soft": "#FFF5F2",
-            "dark": "#FF7A27"
+            // #FF7A27 before 12 Oct 2026: 2.6:1 on white, for warnings people must be able to read.
+            "dark": "#C2410C"
           },
           "brown": {
             "soft": "#FFF4E6",
-            "dark": "#AA653A"
+            // #AA653A before 12 Oct 2026: 4.3:1 on cream.
+            "dark": "#8F5230"
           },
           "purple": {
             "soft": "#FFE6FB",
@@ -60,8 +64,9 @@ const config: Config = {
           "green": {
             "light": "#EBFFEF",
             "soft": "#E6F7FF",
-            "dark": "#309C9C",
-            "dark-extra": "#2DAE76"
+            // #309C9C and #2DAE76 before 12 Oct 2026: 3:1 and 2.7:1 on the light greens.
+            "dark": "#1D7A7A",
+            "dark-extra": "#1E7F54"
           },
           "gray": {
             "dark": "#6F8E9D",
@@ -78,7 +83,8 @@ const config: Config = {
         // Neutral Colors
         neutral: {
           "black": "#333333",        // Text, Icons
-          "gray": "#7B8491",          // Text, Icons
+          // Text, Icons. #7B8491 before 12 Oct 2026: 3.8:1 on white; this one is 5:1, and 4.6:1 on gray-soft.
+          "gray": "#677080",
           "disabled-gray": "#B9C6DA", // Text, Card
           "light-gray-1": "#D2D2D2",  // Text, Line
           "light-gray-2": "#F0F0F0",  // Background

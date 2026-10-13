@@ -10,6 +10,7 @@
  */
 import { aiProvider, buildPrompt, extractTicketFacts, fakeFacts, parseAnswer, responseSchema, type ShowForTicket } from "../src/lib/tickets/ai";
 import { factDiffs, reviewReasons, showDay, type ListingChecks, type TicketFacts } from "../src/lib/tickets/checks";
+import { FILL_WINDOW_MS, FILLS_PER_WINDOW, fillAllowed } from "../src/lib/tickets/fill";
 
 const results: { name: string; ok: boolean; note?: string }[] = [];
 const check = (name: string, ok: boolean, note?: string) => results.push({ name, ok, note: ok ? undefined : note });
@@ -85,6 +86,13 @@ async function main() {
   check("a clean ticket that agrees goes live", reviewReasons({ ...listing, ai: { model: "m", facts: facts({}), differs: [] } }).length === 0);
   check("a clean ticket that disagrees waits for a person", reviewReasons({ ...listing, ai: { model: "m", facts: facts({ date: "2026-11-08" }), differs: ["date"] } }).includes("details_differ"));
   check("no AI step at all changes nothing", reviewReasons({ ...listing, ai: null }).length === 0 && reviewReasons(listing).length === 0);
+
+  // --- The brake on fills, per account
+  const t0 = 1_000_000;
+  const tries = Array.from({ length: FILLS_PER_WINDOW + 1 }, (_, i) => fillAllowed("user-a", t0 + i));
+  check(`an account gets ${FILLS_PER_WINDOW} fills in ten minutes, then waits`, tries.slice(0, -1).every(Boolean) && tries[tries.length - 1] === false, JSON.stringify(tries));
+  check("another account is not held up by it", fillAllowed("user-b", t0 + 20));
+  check("once the window has passed, the account may fill again", fillAllowed("user-a", t0 + FILL_WINDOW_MS + 1));
 
   // --- Reading an answer
   const read = parseAnswer(JSON.stringify(GOOD), TULUS);

@@ -16,7 +16,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: CI,
   retries: CI ? 2 : 0,
-  workers: CI ? 2 : undefined,
+  // WebKit in WSL has no GPU and drops its browser under a heavy parallel load; three at a time holds.
+  workers: CI ? 2 : 3,
   timeout: 90_000,
   expect: { timeout: 15_000 },
   globalTimeout: 20 * 60_000,
@@ -24,14 +25,19 @@ export default defineConfig({
   use: {
     baseURL: process.env.BASE_URL ?? process.env.BASE ?? "http://localhost:3000",
     timezoneId: "Asia/Jakarta",
+    // As a visitor who asks for less motion: no smooth scrolling that keeps a button moving while it
+    // is tapped, and no entrance still fading in when a check reads the page. motion:check covers motion.
+    contextOptions: { reducedMotion: "reduce" },
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
   projects: [
-    // The five user-testing tasks (tasks/user-testing.md) on the phones testers bring.
-    { name: "phone", testMatch: /user-tasks/, use: { ...devices["Galaxy S24"], ...chrome, locale: "id-ID" } },
+    // The five user-testing tasks (tasks/user-testing.md) on the phones testers bring, and the
+    // accessibility audit on the Android one.
+    { name: "phone", testMatch: /user-tasks|a11y/, use: { ...devices["Galaxy S24"], ...chrome, locale: "id-ID" } },
     { name: "iphone", testMatch: /user-tasks/, use: { ...devices["iPhone 15"], locale: "id-ID" } },
-    // The demo script (docs/06), in English on a laptop, the way it is presented.
-    { name: "desktop", testMatch: /demo/, use: { ...devices["Desktop Chrome"], ...chrome, locale: "en-US", viewport: { width: 1280, height: 1000 } } },
+    // The demo script (docs/06), in English on a laptop, the way it is presented, and the site's
+    // headers, files and links.
+    { name: "desktop", testMatch: /demo|site/, use: { ...devices["Desktop Chrome"], ...chrome, locale: "en-US", viewport: { width: 1280, height: 1000 } } },
   ],
 });

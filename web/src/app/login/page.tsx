@@ -135,9 +135,9 @@ function LoginInner() {
               </Button.Primary>
               <p className="text-[11px] text-neutral-gray text-center mt-3 leading-relaxed">
                 {t("By signing in you confirm you are 18 or older and agree to the ", "Dengan masuk, kamu menyatakan berusia 18 tahun ke atas dan setuju dengan ")}
-                <Link href="/terms" className="text-primary-navy">{t("terms", "syarat dan ketentuan")}</Link>
+                <Link href="/terms" className="text-primary-navy underline underline-offset-2">{t("terms", "syarat dan ketentuan")}</Link>
                 {t(" and the ", " dan ")}
-                <Link href="/privacy" className="text-primary-navy">{t("privacy policy", "kebijakan privasi")}</Link>.
+                <Link href="/privacy" className="text-primary-navy underline underline-offset-2">{t("privacy policy", "kebijakan privasi")}</Link>.
               </p>
             </form>
           ))}

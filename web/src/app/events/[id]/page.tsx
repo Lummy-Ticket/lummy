@@ -253,16 +253,16 @@ export default function EventDetailPage() {
             <div className="px-6 py-4 bg-secondary-cream-light border-t-2 border-dashed border-neutral-light-gray-1">
               {event.fromPrice > 0 && !over ? (
                 <>
-                  <div className="text-xs text-secondary-brown-dark/80">{t("From", "Mulai dari")}</div>
+                  <div className="text-xs text-secondary-brown-dark">{t("From", "Mulai dari")}</div>
                   <div className="font-fredoka font-bold text-2xl text-neutral-black">{formatIDR(event.fromPrice)}</div>
-                  <p className="text-xs text-secondary-brown-dark/70 mt-1">
+                  <p className="text-xs text-secondary-brown-dark mt-1">
                     {event.listingCount === 1
                       ? t("1 listing you can buy right now", "1 listing yang bisa dibeli sekarang")
                       : t(`${event.listingCount} listings you can buy right now`, `${event.listingCount} listing yang bisa dibeli sekarang`)}
                   </p>
                 </>
               ) : (
-                <p className="text-sm text-secondary-brown-dark/80">
+                <p className="text-sm text-secondary-brown-dark">
                   {closed
                     ? t("Resale is closed by the organiser.", "Resale ditutup oleh penyelenggara.")
                     : t("Nothing on sale right now. Join the waitlist and we will tell you.", "Belum ada yang dijual. Masuk waitlist, nanti kami kabari.")}

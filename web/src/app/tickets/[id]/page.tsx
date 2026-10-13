@@ -418,7 +418,7 @@ export default function OrderDetailPage() {
               <div className="text-sm font-medium text-secondary-pink-dark flex items-center gap-2">
                 <XCircle className="w-4 h-4 shrink-0" /> {t("Event cancelled by the organiser", "Acara dibatalkan penyelenggara")}
               </div>
-              <p className="text-xs text-secondary-pink-dark/90 mt-1.5 leading-relaxed">
+              <p className="text-xs text-secondary-pink-dark mt-1.5 leading-relaxed">
                 {t(
                   "Nobody has to file anything. While the money is still in escrow it simply goes back, and the seller is not charged either: no one is at fault here.",
                   "Tidak ada yang perlu mengajukan apa pun. Selama dananya masih di escrow, uangnya otomatis kembali, dan penjual juga tidak dikenai penalti: di sini tidak ada yang salah."
@@ -436,7 +436,7 @@ export default function OrderDetailPage() {
                   {t(`New date: ${formatEventDate(order.eventDateISO)}`, `Tanggal baru: ${formatEventDate(order.eventDateISO)}`)}
                 </div>
               )}
-              <p className="text-xs text-secondary-brown-dark/90 mt-1.5 leading-relaxed">
+              <p className="text-xs text-secondary-brown-dark mt-1.5 leading-relaxed">
                 {t(
                   "Your ticket stays valid for the new date and the escrow holds until then. If the new date does not work for you, take the money back instead, fee included, until the show starts. No arbiter needed either way.",
                   "Tiketmu tetap berlaku untuk tanggal baru dan escrow menahan dananya sampai saat itu. Kalau tanggal barunya tidak cocok, ambil uangmu kembali, termasuk biaya layanan, selama acaranya belum mulai. Dua-duanya tidak perlu arbiter."
@@ -470,7 +470,7 @@ export default function OrderDetailPage() {
               <div className="mt-2.5 h-1.5 rounded-full bg-neutral-white overflow-hidden">
                 <div className="h-full bg-secondary-brown-dark/70 transition-all" style={{ width: `${elapsed * 100}%` }} />
               </div>
-              <p className="text-xs text-secondary-brown-dark/90 mt-2.5 leading-relaxed">
+              <p className="text-xs text-secondary-brown-dark mt-2.5 leading-relaxed">
                 {t(
                   "Staying silent counts as a valid handover, so the payout goes through on its own.",
                   "Diam berarti serah-terima beres, jadi dananya cair dengan sendirinya."
@@ -486,7 +486,7 @@ export default function OrderDetailPage() {
                 <div className="text-sm font-medium text-secondary-orange-dark flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 shrink-0" /> {filedReason ? t(filedReason.label.en, filedReason.label.id) : ""}
                 </div>
-                <div className="text-xs text-secondary-orange-dark/80 mt-1">{t("Filed", "Diajukan")} {formatDateTime(order.dispute.openedAtISO)}</div>
+                <div className="text-xs text-secondary-orange-dark mt-1">{t("Filed", "Diajukan")} {formatDateTime(order.dispute.openedAtISO)}</div>
               </div>
               <div className="p-4">
                 {order.dispute.note && t(order.dispute.note.en, order.dispute.note.id).trim() && <p className="text-xs text-neutral-gray italic mb-3">&ldquo;{t(order.dispute.note.en, order.dispute.note.id)}&rdquo;</p>}
@@ -966,7 +966,7 @@ export default function OrderDetailPage() {
             <div className="text-sm font-medium text-secondary-pink-dark flex items-center gap-2">
               <XCircle className="w-4 h-4 shrink-0" /> {t("Not a refund case", "Bukan kasus refund")}
             </div>
-            <p className="text-xs text-secondary-pink-dark/90 mt-1.5 leading-relaxed">
+            <p className="text-xs text-secondary-pink-dark mt-1.5 leading-relaxed">
               {t(
                 "The ticket was valid, so the seller kept their side of the deal. Changing plans does not undo that. Before the show you can relist it and get your money back through the market instead.",
                 "Tiketnya valid, jadi penjual sudah memenuhi kewajibannya. Berubah rencana tidak membatalkan itu. Sebelum acara, kamu bisa jual lagi dan balikin uangnya lewat pasar."
@@ -1091,7 +1091,7 @@ export default function OrderDetailPage() {
                   <>
                     {" "}
                     {t("I agree that my photo, with when and where it was taken, is shown to the seller and staff and kept as described in the ", "Saya setuju foto saya, dengan waktu dan lokasi pengambilannya, ditunjukkan ke penjual dan staf dan disimpan seperti dijelaskan di ")}
-                    <Link href="/privacy" target="_blank" className="text-primary-navy font-medium">{t("privacy policy", "kebijakan privasi")}</Link>.
+                    <Link href="/privacy" target="_blank" className="text-primary-navy font-medium underline underline-offset-2">{t("privacy policy", "kebijakan privasi")}</Link>.
                   </>
                 )}
               </span>

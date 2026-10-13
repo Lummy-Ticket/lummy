@@ -84,7 +84,7 @@ export function Hero({ quickCats }: { quickCats: string[] }) {
 
             {/* Stub: the terms, printed like section, row and seat */}
             <div className="bg-secondary-cream-light rounded-b-[30px] lg:rounded-bl-none lg:rounded-r-[30px] px-5 py-7 sm:px-10 lg:px-8 lg:py-10 flex flex-col">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-secondary-brown-dark/70">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-secondary-brown-dark">
                 {t("Lummy resale · Terms", "Lummy resale · Ketentuan")}
               </div>
               <dl className="mt-5 grid grid-cols-2 lg:grid-cols-1 gap-x-6 gap-y-4 lg:gap-y-5">

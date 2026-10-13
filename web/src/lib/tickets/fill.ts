@@ -31,6 +31,27 @@ export async function readTicketFacts(bytes: Uint8Array, names: string[], show: 
   return { ok: true, facts: out.facts, model: out.model };
 }
 
+/**
+ * A model call costs money and quota, so one account gets a few per window. Kept per server
+ * instance: a soft brake for a person clicking again and again, not a wall against a botnet.
+ */
+export const FILL_WINDOW_MS = 10 * 60_000;
+export const FILLS_PER_WINDOW = 10;
+const recent = new Map<string, number[]>();
+
+/** Whether this account may ask for another fill now; counts it when it may. */
+export function fillAllowed(userId: string, now = Date.now()) {
+  // Forget accounts whose window has passed, so the map stays the size of the last ten minutes.
+  if (recent.size > 1_000) for (const [id, times] of recent) if (times.every((t) => now - t >= FILL_WINDOW_MS)) recent.delete(id);
+  const times = (recent.get(userId) ?? []).filter((t) => now - t < FILL_WINDOW_MS);
+  if (times.length >= FILLS_PER_WINDOW) {
+    recent.set(userId, times);
+    return false;
+  }
+  recent.set(userId, [...times, now]);
+  return true;
+}
+
 /** Every category of every show on sale, each with its show, so the model can find the show too. */
 export function catalogueTiers(events: EventItem[]): ShowForTicket {
   return {

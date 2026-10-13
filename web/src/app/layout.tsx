@@ -36,7 +36,7 @@ export const dynamic = "force-dynamic";
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const catalogue = await loadCatalogue();
   return (
-    <html lang="en" className={`${fredoka.variable} ${jakarta.variable} scroll-smooth`}>
+    <html lang="en" className={`${fredoka.variable} ${jakarta.variable} motion-safe:scroll-smooth`}>
       <body className="antialiased min-h-screen flex flex-col relative w-full overflow-x-clip">
         <CatalogueProvider data={catalogue}>
           <AuthSync />

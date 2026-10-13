@@ -1,5 +1,4 @@
-import { expect, test } from "@playwright/test";
-import { persona } from "./support";
+import { expect, persona, test } from "./support";
 
 // Every beat of the demo script (docs/06-demo-script.md), in English on a laptop the way it is
 // presented. Run it before recording: a script that has not been walked through the real app is a

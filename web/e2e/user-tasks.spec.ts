@@ -1,5 +1,4 @@
-import { expect, test } from "@playwright/test";
-import { aiClaims, expectFitsScreen, isLocal, signInSample } from "./support";
+import { aiClaims, expect, expectFitsScreen, isLocal, signInSample, tapUntil, test } from "./support";
 
 // The five user-testing tasks (tasks/user-testing.md), the way a first-time tester meets them on a
 // phone: signed out, in Indonesian, with a sample account only, so nothing reaches the database.
@@ -44,12 +43,10 @@ test.describe("user tasks", { tag: "@smoke" }, () => {
     await page.getByRole("group", { name: "Jumlah tiket" }).getByRole("button", { name: "1", exact: true }).click();
     await page.getByRole("button", { name: "Beli" }).first().click();
     await expect(page).toHaveURL(/\/login/);
-    await page.getByRole("button", { name: "Lanjut dengan akun contoh" }).click();
-    await expect(page).toHaveURL(/\/checkout/);
+    await tapUntil(page, page.getByRole("button", { name: "Lanjut dengan akun contoh" }), (u) => u.pathname === "/checkout");
     await expect(page.locator("[data-sample-payment]")).toBeVisible();
     await expectFitsScreen(page);
-    await page.getByRole("button", { name: /^Bayar / }).click();
-    await expect(page).toHaveURL(/\/tickets\/or-/);
+    await tapUntil(page, page.getByRole("button", { name: /^Bayar / }), (u) => u.pathname.startsWith("/tickets/or-"));
     // Task 3: the money is held, and the page says until when.
     await expect(page.getByText("Dana terkunci").first()).toBeVisible();
     await expect(page.getByText("Menunggu acara, lalu 48 jam")).toBeVisible();

@@ -498,7 +498,7 @@ export default function SellPage() {
                       ].filter(Boolean).join(" · ")}
                     </span>
                     <span className="text-neutral-gray">
-                      {fill.eventId
+                      {fill.eventId && catalogue.eventById(fill.eventId)
                         ? t("The show and category are picked below. Check them.", "Acara dan kategorinya sudah dipilihkan di bawah. Cek lagi.")
                         : t("The show was not found in the catalogue: pick it below.", "Acaranya tidak ketemu di katalog: pilih sendiri di bawah.")}
                     </span>
@@ -711,9 +711,9 @@ export default function SellPage() {
               <input data-consent type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 accent-[#3A6CB4] cursor-pointer" />
               <span className="text-xs text-neutral-gray leading-relaxed">
                 {t("This ticket is mine to sell. I agree that the PDF, with the names and numbers on it, is stored and handed to the buyer as described in the ", "Tiket ini berhak saya jual. Saya setuju PDF-nya, dengan nama dan nomor di dalamnya, disimpan dan diberikan ke pembeli seperti dijelaskan di ")}
-                <Link href="/privacy" target="_blank" className="text-primary-navy font-medium">{t("privacy policy", "kebijakan privasi")}</Link>
+                <Link href="/privacy" target="_blank" className="text-primary-navy font-medium underline underline-offset-2">{t("privacy policy", "kebijakan privasi")}</Link>
                 {t(" and the ", " dan ")}
-                <Link href="/terms" target="_blank" className="text-primary-navy font-medium">{t("terms", "syarat dan ketentuan")}</Link>.
+                <Link href="/terms" target="_blank" className="text-primary-navy font-medium underline underline-offset-2">{t("terms", "syarat dan ketentuan")}</Link>.
                 {fillAvailable &&
                   t(
                     " Its text, with the names and numbers taken out, is read by Gemini, Google's AI, to match the category and date.",

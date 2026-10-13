@@ -57,7 +57,7 @@ function EvidencePanel({ order }: { order: Order }) {
         <div className="text-sm font-medium text-secondary-orange-dark flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 shrink-0" /> {t(reasonMeta(d.reason).label.en, reasonMeta(d.reason).label.id)}
         </div>
-        {d.note && t(d.note.en, d.note.id).trim() && <p className="text-xs text-secondary-orange-dark/85 mt-1 italic">&ldquo;{t(d.note.en, d.note.id)}&rdquo;</p>}
+        {d.note && t(d.note.en, d.note.id).trim() && <p className="text-xs text-secondary-orange-dark mt-1 italic">&ldquo;{t(d.note.en, d.note.id)}&rdquo;</p>}
       </div>
       <div className="p-4">
         <div className="flex items-center gap-2 text-xs text-neutral-black mb-2">

@@ -171,7 +171,7 @@ export default function HomePage() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-5 text-center sm:text-left">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold">{t("Got a ticket you can't use?", "Punya tiket yang gak kepakai?")}</h2>
-              <p className="text-white/85 mt-1">
+              <p className="text-white mt-1">
                 {t("Upload the PDF, we check every barcode in it, and you get paid after the show.", "Upload PDF-nya, semua barcode-nya kami cek, dan kamu dibayar setelah acara.")}
               </p>
             </div>

@@ -9,7 +9,7 @@ import { loadCatalogue } from "@/lib/supabase/catalogue";
 import { currentUser } from "@/lib/supabase/session";
 import { aiProvider } from "@/lib/tickets/ai";
 import { MAX_TICKET_BYTES, TicketError } from "@/lib/tickets/analyze";
-import { catalogueTiers, readTicketFacts } from "@/lib/tickets/fill";
+import { catalogueTiers, fillAllowed, readTicketFacts } from "@/lib/tickets/fill";
 import { TICKET_ERRORS } from "@/lib/tickets/server";
 
 export const dynamic = "force-dynamic";
@@ -18,21 +18,6 @@ export const maxDuration = 60;
 
 const noStore = { "Cache-Control": "private, no-store" };
 const fail = (status: number, error: string, code?: string) => NextResponse.json({ error, code }, { status, headers: noStore });
-
-/**
- * A model call costs money and quota, so one account gets a few per window. Kept per server
- * instance: a soft brake for a person clicking again and again, not a wall against a botnet.
- */
-const WINDOW_MS = 10 * 60_000;
-const PER_WINDOW = 10;
-const recent = new Map<string, number[]>();
-function allowed(userId: string) {
-  const now = Date.now();
-  const times = (recent.get(userId) ?? []).filter((t) => now - t < WINDOW_MS);
-  if (times.length >= PER_WINDOW) return false;
-  recent.set(userId, [...times, now]);
-  return true;
-}
 
 /** Whether this server fills the form in from a ticket. */
 export async function GET() {
@@ -43,7 +28,7 @@ export async function POST(req: Request) {
   if (!aiProvider()) return fail(503, "isi otomatis belum aktif di server ini", "off");
   const user = await currentUser();
   if (!user) return fail(401, "masuk dulu untuk mengisi dari tiket");
-  if (!allowed(user.id)) return fail(429, "terlalu sering, coba lagi beberapa menit lagi");
+  if (!fillAllowed(user.id)) return fail(429, "terlalu sering, coba lagi beberapa menit lagi");
 
   const form = await req.formData().catch(() => null);
   const file = form?.get("ticket");
