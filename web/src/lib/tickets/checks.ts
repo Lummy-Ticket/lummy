@@ -55,6 +55,12 @@ export type ListingChecks = {
   ai?: { model: string; facts: TicketFacts; differs: FactDiff[] } | null;
 };
 
+/**
+ * With the AI step on, a real ticket waits for the original buyer's name, at least this long: the
+ * name is what keeps it out of the text the model reads (lib/tickets/clean.ts).
+ */
+export const MIN_HOLDER_CHARS = 3;
+
 /** A show's date in Jakarta as YYYY-MM-DD, the way a ticket prints it. */
 export const showDay = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
 

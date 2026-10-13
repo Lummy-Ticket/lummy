@@ -9,7 +9,8 @@ import { loadCatalogue } from "@/lib/supabase/catalogue";
 import { currentUser } from "@/lib/supabase/session";
 import { aiProvider } from "@/lib/tickets/ai";
 import { MAX_TICKET_BYTES, TicketError } from "@/lib/tickets/analyze";
-import { catalogueTiers, fillAllowed, readTicketFacts } from "@/lib/tickets/fill";
+import { MIN_HOLDER_CHARS } from "@/lib/tickets/checks";
+import { catalogueTiers, fillAllowed, namesToTakeOut, readTicketFacts } from "@/lib/tickets/fill";
 import { TICKET_ERRORS } from "@/lib/tickets/server";
 
 export const dynamic = "force-dynamic";
@@ -28,14 +29,18 @@ export async function POST(req: Request) {
   if (!aiProvider()) return fail(503, "isi otomatis belum aktif di server ini", "off");
   const user = await currentUser();
   if (!user) return fail(401, "masuk dulu untuk mengisi dari tiket");
-  if (!fillAllowed(user.id)) return fail(429, "terlalu sering, coba lagi beberapa menit lagi");
 
   const form = await req.formData().catch(() => null);
   const file = form?.get("ticket");
   if (!(file instanceof File)) return fail(400, "kirim file PDF tiketnya");
   if (file.size > MAX_TICKET_BYTES) return fail(413, TICKET_ERRORS.too_big, "too_big");
+  // The original buyer's name is what keeps it out of the text the model reads, so it comes first.
   const holder = form?.get("holder");
-  const names = [user.fullName, typeof holder === "string" ? holder.slice(0, 120) : ""].filter((n) => n.trim());
+  const typed = typeof holder === "string" ? holder.trim() : "";
+  if (typed.length < MIN_HOLDER_CHARS) return fail(400, "ketik dulu nama pemesan asli, supaya ikut dibuang sebelum tiketnya dibaca", "need_holder");
+  const names = namesToTakeOut(user, typed);
+  // Counted only once the request could go to the model.
+  if (!fillAllowed(user.id)) return fail(429, "terlalu sering, coba lagi beberapa menit lagi");
 
   const events = ((await loadCatalogue())?.events ?? []).filter((e) => !isEventOver(e) && resaleAllowed(e.transferPolicy));
   if (!events.length) return NextResponse.json({ outcome: "no_shows" }, { headers: noStore });

@@ -80,13 +80,19 @@ export function responseSchema(show: ShowForTicket) {
   };
 }
 
+/** A day that exists: "2026-02-30" has the shape of a date and is none, and would show as another. */
+const realDay = (s: string) => {
+  const d = new Date(`${s}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+};
+
 /** The same shape for us. A field that comes back malformed becomes null rather than sinking the rest. */
 function answerSchema(show: ShowForTicket) {
   const text = (max: number) => z.string().trim().min(1).max(max).nullable().catch(null);
   const tiers: [string, ...string[]] = [NONE, ...show.tiers.map((t) => t.id)];
   return z.object({
     eventTitle: text(200),
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().catch(null),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(realDay).nullable().catch(null),
     venue: text(200),
     tier: z.enum(tiers).catch(NONE),
     tierPrinted: text(100),
@@ -142,6 +148,7 @@ export function fakeFacts(text: string, show: ShowForTicket): TicketFacts {
 const GEMINI = "https://generativelanguage.googleapis.com/v1beta/models";
 const RETRYABLE = new Set([429, 500, 502, 503, 504]);
 const PER_TRY_MS = 12_000;
+const MAX_OUTPUT_TOKENS = 2_048;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 type GeminiReply = {
@@ -164,6 +171,8 @@ async function askGemini(prompt: string, schema: object, o: { key: string; model
           generationConfig: {
             responseMimeType: "application/json",
             responseJsonSchema: schema,
+            // An answer is about a hundred tokens, thinking included; the cap bounds what one call costs.
+            maxOutputTokens: MAX_OUTPUT_TOKENS,
             ...(process.env.GEMINI_THINKING ? { thinkingConfig: { thinkingLevel: process.env.GEMINI_THINKING } } : {}),
           },
         }),

@@ -24,7 +24,8 @@ export async function initWriter() {
   await prepareZXingModule({ overrides: { wasmBinary: wasm.buffer.slice(wasm.byteOffset, wasm.byteOffset + wasm.byteLength) as ArrayBuffer }, fireImmediately: true });
 }
 
-async function drawCode(doc: PDFDocument, page: PDFPage, code: Code) {
+/** Draws a barcode on a page: a PNG image, or shapes when `vector` is set. */
+export async function drawCode(doc: PDFDocument, page: PDFPage, code: Code) {
   const out = await writeBarcode(code.text, { format: code.format, sizeHint: 400, withQuietZones: false });
   if (out.error) throw new Error(out.error);
   const [x, y, w, h] = code.format === "QRCode" ? [120, 150, 180, 180] : [60, 200, 300, 80];

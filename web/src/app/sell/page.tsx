@@ -15,7 +15,7 @@ import {
 } from "@/lib/mock";
 import { SAMPLE_SIGNALS, type SampleTicket } from "@/lib/listings/rules";
 import { ListingError, checkTicketFile, createListing, fillFromTicket, useTicketFill, useTicketReader, type TicketFill } from "@/lib/listings/client";
-import { factDiffs, formatName, isDuplicate, reasonText, reviewReasons, toListingChecks, type TicketCheck } from "@/lib/tickets/checks";
+import { factDiffs, formatName, isDuplicate, MIN_HOLDER_CHARS, reasonText, reviewReasons, toListingChecks, type TicketCheck } from "@/lib/tickets/checks";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { useCatalogue } from "@/lib/catalogue";
 import { useAccessGuard } from "@/lib/access";
@@ -106,6 +106,10 @@ export default function SellPage() {
   const [eventId, setEventId] = useState("ev-tulus");
   const [tierId, setTierId] = useState("t-tl-vip");
   const [orderer, setOrderer] = useState("");
+  // With the AI step on, a real ticket is read by a model, here and again at publish. The original
+  // buyer's name, typed as printed, is what keeps it out of what the model reads, so it comes first.
+  const holderNeeded = !!check && fillAvailable === true;
+  const holderTyped = orderer.trim().length >= MIN_HOLDER_CHARS;
   const [barcode, setBarcode] = useState("");
   const [ai, setAi] = useState<ListingAI | null>(null);
   const [price, setPrice] = useState<number>(0);
@@ -474,13 +478,29 @@ export default function SellPage() {
                     <div className="text-sm font-medium text-neutral-black">{t("Fill this in from your ticket", "Isi dari tiketmu")}</div>
                     <p className="text-xs text-neutral-gray mt-0.5 leading-relaxed">
                       {t(
-                        "Gemini, Google's AI, reads the ticket's text once every name and number is taken out, and picks the show and category for you. Type the original buyer's name below first, so it is taken out as well. Check what it fills in.",
-                        "Gemini, AI dari Google, membaca teks tiketnya setelah semua nama dan nomor dibuang, lalu memilihkan acara dan kategorinya. Ketik dulu nama pemesan asli di bawah supaya ikut dibuang. Cek lagi hasilnya."
+                        "Gemini, Google's AI, reads the ticket's text after the buyer's name, ID and phone numbers, email and order codes are taken out, and picks the show and category for you. Check what it fills in.",
+                        "Gemini, AI dari Google, membaca teks tiketnya setelah nama pemesan, nomor KTP dan HP, email, dan kode pesanan dibuang, lalu memilihkan acara dan kategorinya. Cek lagi hasilnya."
                       )}
                     </p>
                   </div>
                 </div>
-                <Button.Ghost className="w-fit text-sm" disabled={filling} onClick={() => void fillIn()}>
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-xs text-neutral-gray">{t("Original buyer name", "Nama pemesan asli")}</span>
+                  <input
+                    data-holder
+                    value={orderer}
+                    onChange={(e) => setOrderer(e.target.value)}
+                    autoComplete="off"
+                    placeholder={t("As printed on the ticket", "Seperti tercetak di tiket")}
+                    className="rounded-xl border border-lummy-500 bg-neutral-white px-4 py-3 text-sm text-neutral-black outline-none"
+                  />
+                  {!holderTyped && (
+                    <span className="text-xs text-neutral-gray">
+                      {t("Needed to go on: the name is taken out before the ticket is read.", "Wajib diisi untuk lanjut: nama ini dibuang dulu sebelum tiketnya dibaca.")}
+                    </span>
+                  )}
+                </label>
+                <Button.Ghost className="w-fit text-sm" disabled={filling || !holderTyped} onClick={() => void fillIn()}>
                   {filling ? <Loader2 className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4" />}
                   {filling ? t("Reading the ticket...", "Membaca tiket...") : fill ? t("Fill in again", "Isi ulang") : t("Fill in from the ticket", "Isi dari tiket")}
                 </Button.Ghost>
@@ -550,10 +570,12 @@ export default function SellPage() {
                   <ChevronDown className="w-4 h-4 text-neutral-gray absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
               </label>
-              <label className="flex flex-col gap-1.5">
-                <span className="text-xs text-neutral-gray">{t("Original buyer name", "Nama pemesan asli")}</span>
-                <input value={orderer} onChange={(e) => setOrderer(e.target.value)} className="rounded-xl border border-lummy-500 px-4 py-3 text-sm text-neutral-black outline-none" />
-              </label>
+              {!holderNeeded && (
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-xs text-neutral-gray">{t("Original buyer name", "Nama pemesan asli")}</span>
+                  <input value={orderer} onChange={(e) => setOrderer(e.target.value)} className="rounded-xl border border-lummy-500 px-4 py-3 text-sm text-neutral-black outline-none" />
+                </label>
+              )}
               <label className="flex flex-col gap-1.5">
                 <span className="text-xs text-neutral-gray">{check ? t("Barcodes read (last characters)", "Barcode terbaca (karakter terakhir)") : t("Barcode (from the decoder)", "Barcode (dari decoder)")}</span>
                 <input value={barcode || "-"} readOnly className="rounded-xl border border-neutral-light-gray-1 bg-secondary-gray-soft px-4 py-3 text-sm text-neutral-gray font-mono outline-none" />
@@ -586,7 +608,7 @@ export default function SellPage() {
 
           <div className="flex gap-3">
             <Button.Ghost onClick={() => setStep(0)}><ArrowLeft className="w-4 h-4" /> {t("Back", "Kembali")}</Button.Ghost>
-            <Button.Primary className="flex items-center gap-2" disabled={closed || tooMany} onClick={() => { setPrice((p) => Math.min(Math.max(p || cap, floor), cap)); setStep(2); }}>{t("Continue to price", "Lanjut ke harga")} <ArrowRight className="w-4 h-4" /></Button.Primary>
+            <Button.Primary className="flex items-center gap-2" disabled={closed || tooMany || (holderNeeded && !holderTyped)} onClick={() => { setPrice((p) => Math.min(Math.max(p || cap, floor), cap)); setStep(2); }}>{t("Continue to price", "Lanjut ke harga")} <ArrowRight className="w-4 h-4" /></Button.Primary>
           </div>
         </div>
       )}
@@ -716,8 +738,8 @@ export default function SellPage() {
                 <Link href="/terms" target="_blank" className="text-primary-navy font-medium underline underline-offset-2">{t("terms", "syarat dan ketentuan")}</Link>.
                 {fillAvailable &&
                   t(
-                    " Its text, with the names and numbers taken out, is read by Gemini, Google's AI, to match the category and date.",
-                    " Teks tiketnya, setelah nama dan nomor dibuang, dibaca Gemini (AI dari Google) untuk mencocokkan kategori dan tanggal."
+                    " Its text, with the buyer's name, ID and phone numbers, email and order codes taken out, is read by Gemini, Google's AI, to match the category and date.",
+                    " Teks tiketnya, setelah nama pemesan, nomor KTP dan HP, email, dan kode pesanan dibuang, dibaca Gemini (AI dari Google) untuk mencocokkan kategori dan tanggal."
                   )}
               </span>
             </label>

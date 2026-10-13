@@ -16,8 +16,9 @@ import { isDemoEmail } from "@/lib/supabase/demo";
 import { currentUser } from "@/lib/supabase/session";
 import type { Json } from "@/lib/supabase/types";
 import { MAX_TICKET_BYTES, TicketError } from "@/lib/tickets/analyze";
-import { factDiffs, isDuplicate, reviewReasons, toListingChecks, type ListingChecks } from "@/lib/tickets/checks";
-import { readTicketFacts } from "@/lib/tickets/fill";
+import { factDiffs, isDuplicate, MIN_HOLDER_CHARS, reviewReasons, toListingChecks, type ListingChecks } from "@/lib/tickets/checks";
+import { aiProvider } from "@/lib/tickets/ai";
+import { namesToTakeOut, readTicketFacts } from "@/lib/tickets/fill";
 import { TICKET_ERRORS, checkTicket, setKey, ticketPepper } from "@/lib/tickets/server";
 
 export const dynamic = "force-dynamic";
@@ -80,6 +81,10 @@ export async function POST(req: Request) {
   const askPrice = Number(body.askPrice);
   if (!/^[\w-]{1,64}$/.test(eventId) || !/^[\w-]{1,64}$/.test(tierId)) return fail(400, "acara atau kategori tidak dikenal");
   if (!Number.isInteger(askPrice) || askPrice <= 0) return fail(400, "harga harus rupiah utuh");
+  // With the AI step on, a real ticket is read by a model, and the original buyer's name is what
+  // keeps that name out of the text it reads.
+  const holder = typeof body.holder === "string" ? body.holder.trim().slice(0, 120) : "";
+  if (file && aiProvider() && holder.length < MIN_HOLDER_CHARS) return fail(400, "isi nama pemesan asli seperti tercetak di tiket");
 
   // The ticket: a real PDF checked here, or a sample ticket with the server's own signals.
   let signals: ListingAI;
@@ -140,9 +145,8 @@ export async function POST(req: Request) {
     // What the ticket itself prints, read here from the stored file rather than taken from the page.
     // Off, busy or unreadable leaves the listing as the other checks decide: the AI step only adds.
     const tiers = await admin.from("tiers").select("id, name").eq("event_id", eventId);
-    const holder = typeof body.holder === "string" ? body.holder.slice(0, 120) : "";
     const read = tiers.data?.length
-      ? await readTicketFacts(ticket.bytes, [user.fullName, holder].filter((n) => n.trim()), { tiers: tiers.data }, 15_000).catch(() => null)
+      ? await readTicketFacts(ticket.bytes, namesToTakeOut(user, holder), { tiers: tiers.data }, 15_000).catch(() => null)
       : null;
     if (read?.ok) checks = { ...checks, ai: { model: read.model, facts: read.facts, differs: factDiffs(read.facts, { tierId, startsAt: ev.data.starts_at }) } };
   }

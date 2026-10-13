@@ -52,9 +52,16 @@ async function checked(page: Page, name: string, bytes: Uint8Array) {
   return (await page.locator("main").innerText()).replace(/\s+/g, " ");
 }
 
+/** With the AI step on, the original buyer's name comes before going on, typed as a seller would. */
+async function typeHolder(page: Page) {
+  const field = page.locator("[data-holder]");
+  if (await field.count()) await field.fill("Zahra Amelia");
+}
+
 /** Checks the file, then publishes it at the suggested price. */
 async function publish(page: Page, name: string, bytes: Uint8Array) {
   await checked(page, name, bytes);
+  await typeHolder(page);
   await page.getByRole("button", { name: "Continue to price" }).click();
   // A real ticket asks for consent first: the button stays off until the box is ticked.
   const button = page.getByRole("button", { name: /^(Publish listing|Submit for review)$/ });
@@ -145,8 +152,20 @@ async function main() {
       const selects = page.locator("select");
       // Start from the wrong show, so a fill that changes nothing cannot pass.
       await selects.nth(0).selectOption("ev-coldplay");
+      const fillButton = page.getByRole("button", { name: "Fill in from the ticket" });
+      check(
+        "fill: waits for the original buyer's name, and so does going on",
+        (await fillButton.isDisabled()) && (await page.getByRole("button", { name: "Continue to price" }).isDisabled())
+      );
+      const noName = await page.evaluate(async (pdf) => {
+        const form = new FormData();
+        form.append("ticket", new File([new Uint8Array(pdf)], "genuine.pdf", { type: "application/pdf" }));
+        const res = await fetch("/api/tickets/extract", { method: "POST", body: form });
+        return { status: res.status, body: await res.json() };
+      }, [...files.genuine]);
+      check("fill: the server refuses a ticket sent without the buyer's name", noName.status === 400 && noName.body.code === "need_holder", JSON.stringify(noName));
       await page.getByLabel("Original buyer name").fill("Zahra Amelia");
-      await page.getByRole("button", { name: "Fill in from the ticket" }).click();
+      await fillButton.click();
       const result = page.locator("[data-fill-result]");
       await result.waitFor({ timeout: 60000 });
       const outcome = await result.getAttribute("data-fill-result");
@@ -154,6 +173,29 @@ async function main() {
       check("fill: the ticket picks its show and category", outcome === "filled" && picked === "ev-tulus t-tl-vip", `${outcome} ${picked}`);
       const shown = await result.innerText();
       check("fill: what was read is shown, with no name in it", shown.includes("VIP") && !/zahra|amelia/i.test(shown), shown);
+
+      // Every other answer a fill can get, as the page words it, with the route stubbed for each.
+      const said: Record<string, string> = {
+        no_text: "This PDF has no text to read",
+        no_ticket_page: "No page of this PDF reads like a ticket",
+        personal_data_left: "Something personal could not be taken out safely",
+        no_shows: "No show is on sale to match it with",
+        busy: "Filling in is not available right now",
+        bad_answer: "Filling in is not available right now",
+      };
+      const stub = (reply: { status?: number; json: object }) =>
+        page.route("**/api/tickets/extract", (route) => (route.request().method() === "POST" ? route.fulfill(reply) : route.fallback()));
+      for (const [outcome, words] of Object.entries(said)) {
+        await stub({ json: { outcome } });
+        await page.getByRole("button", { name: "Fill in again" }).click();
+        const message = await page.locator(`[data-fill-result="${outcome}"]`).innerText({ timeout: 15000 }).catch(() => "");
+        check(`fill: ${outcome} is said plainly, and the form is left to the seller`, message.includes(words), message);
+        await page.unroute("**/api/tickets/extract");
+      }
+      await stub({ status: 429, json: { error: "terlalu sering, coba lagi beberapa menit lagi" } });
+      await page.getByRole("button", { name: "Fill in again" }).click();
+      check("fill: too many tries says so", await page.getByText("terlalu sering").first().waitFor({ timeout: 15000 }).then(() => true, () => false));
+      await page.unroute("**/api/tickets/extract");
     } else {
       check("fill: off without an AI provider, and the page offers nothing", (await page.locator("[data-fill]").count()) === 0);
     }
@@ -174,6 +216,7 @@ async function main() {
 
     if (WRITE) {
       const admin = adminClient();
+      let thirdId = "";
 
       // --- Publish one, and its barcode is held: the same barcode in another file is refused.
       await publish(page, "genuine.pdf", files.genuine);
@@ -193,15 +236,28 @@ async function main() {
           JSON.stringify({ ai, status: first.data?.status })
         );
 
+        // Sent straight to the server without the buyer's name, a real ticket is refused before it is read.
+        const unnamed = await page.evaluate(async (pdf) => {
+          const form = new FormData();
+          form.append("ticket", new File([new Uint8Array(pdf)], "third.pdf", { type: "application/pdf" }));
+          for (const [k, v] of Object.entries({ eventId: "ev-tulus", tierId: "t-tl-vip", askPrice: "1200000", quantity: "1" })) form.append(k, v);
+          const res = await fetch("/api/listings", { method: "POST", body: form });
+          return { status: res.status, body: await res.json() };
+        }, [...files.third]);
+        if (unnamed.status < 300 && unnamed.body?.id) created.push(unnamed.body.id);
+        check("publish: a real ticket without the buyer's name is refused", unnamed.status === 400 && /nama pemesan/.test(unnamed.body?.error ?? ""), JSON.stringify(unnamed));
+
         // A VIP ticket listed as Reguler: a cheaper category would lower the cap, a dearer one raise it.
         await checked(page, "third.pdf", files.third);
         await page.locator("select").nth(1).selectOption("t-tl-reg");
+        await typeHolder(page);
         await page.getByRole("button", { name: "Continue to price" }).click();
         await page.locator("[data-consent]").check();
         await page.getByRole("button", { name: /^(Publish listing|Submit for review)$/ }).click();
         await page.waitForURL((u) => u.pathname === "/seller", { timeout: 60000 });
         const third = await admin.from("listings").select("id, status, checks").eq("ticket_sha256", sha(files.third)).neq("status", "cancelled").maybeSingle();
         if (third.data) created.push(third.data.id);
+        thirdId = third.data?.id ?? "";
         const thirdAi = (third.data?.checks as { ai?: { differs?: string[] } } | null)?.ai;
         check(
           "publish: listed under another category than printed, it waits for a person",
@@ -212,11 +268,12 @@ async function main() {
 
       text = await checked(page, "redrawn.pdf", files.redrawn);
       check("same barcode in another file: blocked before publishing", text.includes("Already behind another listing on Lummy"), text.slice(0, 300));
+      await typeHolder(page);
       await page.getByRole("button", { name: "Continue to price" }).click();
       check("same barcode: publish button says blocked", await page.getByRole("button", { name: "Blocked (duplicate)" }).isDisabled());
       const direct = await page.evaluate(async (bytes) => {
         const form = new FormData();
-        for (const [k, v] of Object.entries({ eventId: "ev-tulus", tierId: "t-tl-vip", askPrice: "1500000", quantity: "1", splittable: "true", gateKtp: "false" })) form.append(k, v);
+        for (const [k, v] of Object.entries({ eventId: "ev-tulus", tierId: "t-tl-vip", askPrice: "1500000", quantity: "1", splittable: "true", gateKtp: "false", holder: "Budi Santoso" })) form.append(k, v);
         form.append("ticket", new Blob([new Uint8Array(bytes)], { type: "application/pdf" }), "redrawn.pdf");
         const r = await fetch("/api/listings", { method: "POST", body: form });
         return { status: r.status, body: await r.text() };
@@ -231,6 +288,18 @@ async function main() {
       const secondId = second.data?.id ?? "";
 
       await persona(page, "Admin", "/admin");
+      if (thirdId) {
+        // Staff see what the ticket prints next to what was listed, and why it waits.
+        await page.getByRole("button", { name: /^Listings held/ }).click();
+        const card = page.locator(`[data-listing="${thirdId}"]`);
+        const line = await card.locator("[data-listing-ai]").innerText({ timeout: 30000 }).catch(() => "");
+        const why = await card.innerText().catch(() => "");
+        check(
+          "staff: the held listing shows what the ticket prints, and why it waits",
+          line.startsWith("Read by") && line.includes("VIP") && why.includes("prints another category than the seller picked"),
+          `${line} | ${why.slice(0, 240)}`
+        );
+      }
       const approved = await listingAction(page, secondId, "approve");
       const cleared = await admin.from("listings").select("status, cleared_at, pdf_suspicious").eq("id", secondId).single();
       check(

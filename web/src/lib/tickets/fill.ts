@@ -4,7 +4,7 @@
 // than trust what the page says it read.
 import type { EventItem } from "@/lib/mock/types";
 import { aiProvider, extractTicketFacts, type ShowForTicket } from "./ai";
-import { showDay, type TicketFacts } from "./checks";
+import { MIN_HOLDER_CHARS, showDay, type TicketFacts } from "./checks";
 import { prepareForExtraction } from "./extract";
 
 if (typeof window !== "undefined") throw new Error("lib/tickets/fill is server-only");
@@ -29,6 +29,15 @@ export async function readTicketFacts(bytes: Uint8Array, names: string[], show: 
     return { ok: false, reason: out.reason };
   }
   return { ok: true, facts: out.facts, model: out.model };
+}
+
+/**
+ * The names the cleaner takes out of a ticket: the original buyer's as the seller typed it, the
+ * account's own, and the account's email before the @ (a ticket may print it as a username).
+ */
+export function namesToTakeOut(user: { fullName: string; email: string }, holder: string) {
+  const local = user.email.split("@")[0] ?? "";
+  return [holder.slice(0, 120), user.fullName, local.length >= 5 ? local : ""].map((n) => n.trim()).filter((n) => n.length >= MIN_HOLDER_CHARS);
 }
 
 /**

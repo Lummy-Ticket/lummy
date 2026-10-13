@@ -9,8 +9,8 @@
  *   npm run ai:check
  */
 import { aiProvider, buildPrompt, extractTicketFacts, fakeFacts, parseAnswer, responseSchema, type ShowForTicket } from "../src/lib/tickets/ai";
-import { factDiffs, reviewReasons, showDay, type ListingChecks, type TicketFacts } from "../src/lib/tickets/checks";
-import { FILL_WINDOW_MS, FILLS_PER_WINDOW, fillAllowed } from "../src/lib/tickets/fill";
+import { factDiffs, MIN_HOLDER_CHARS, reviewReasons, showDay, type ListingChecks, type TicketFacts } from "../src/lib/tickets/checks";
+import { FILL_WINDOW_MS, FILLS_PER_WINDOW, fillAllowed, namesToTakeOut } from "../src/lib/tickets/fill";
 
 const results: { name: string; ok: boolean; note?: string }[] = [];
 const check = (name: string, ok: boolean, note?: string) => results.push({ name, ok, note: ok ? undefined : note });
@@ -103,6 +103,19 @@ async function main() {
   check("a malformed field becomes null and the rest survive", messy?.date === null && messy.printedPrice === null && messy.quantity === null && messy.seat === null && messy.tierId === "t-tl-vip", JSON.stringify(messy));
   check("text that is not JSON is no answer", parseAnswer("Sure! The ticket is VIP.", TULUS) === null);
   check("a JSON list is no answer", parseAnswer("[1,2]", TULUS) === null);
+  const impossible = parseAnswer(JSON.stringify({ ...GOOD, date: "2026-02-30" }), TULUS);
+  check("a day that does not exist is not read, rather than shown as another", impossible?.date === null && impossible.tierId === "t-tl-vip", JSON.stringify(impossible));
+  check("nor is a thirteenth month", parseAnswer(JSON.stringify({ ...GOOD, date: "2026-13-01" }), TULUS)?.date === null);
+  const wild = parseAnswer(JSON.stringify({ ...GOOD, printedPrice: -5, quantity: 51, eventTitle: "x".repeat(500) }), TULUS);
+  check("a negative price, too many people, an endless title: each becomes null", wild?.printedPrice === null && wild.quantity === null && wild.eventTitle === null, JSON.stringify(wild));
+
+  // --- The names the cleaner is given
+  const user = { fullName: "Luthfi Hadi", email: "luthfi.hadi@example.com" };
+  const names = namesToTakeOut(user, "  Zahra Amelia ");
+  check("the cleaner gets the typed buyer, the account's name and the email before the @", JSON.stringify(names) === JSON.stringify(["Zahra Amelia", "Luthfi Hadi", "luthfi.hadi"]), JSON.stringify(names));
+  const bare = namesToTakeOut({ fullName: "", email: "abc@example.com" }, "Al");
+  check("too short to be a name: nothing, rather than strip every 'al' in the ticket", bare.length === 0, JSON.stringify(bare));
+  check(`the original buyer's name needs at least ${MIN_HOLDER_CHARS} characters`, MIN_HOLDER_CHARS === 3);
 
   // --- The fake provider
   const fake = fakeFacts("NEWJEANS FAN MEETING\nGrade: VIP SOUNDCHECK\nPrice: IDR 2,800,000", NJ);
@@ -151,6 +164,36 @@ async function main() {
     out = await extractTicketFacts(TEXT, TULUS, { provider: "gemini" });
     check("gemini: prose instead of JSON is not trusted", !out.ok && out.reason === "bad_answer");
 
+    check("gemini: the answer's length is capped, so one call's cost is bounded", body.generationConfig?.maxOutputTokens === 2048, JSON.stringify(body.generationConfig));
+
+    for (const [status, code] of [[401, "UNAUTHENTICATED"], [403, "PERMISSION_DENIED"], [404, "NOT_FOUND"]] as const) {
+      calls = stubFetch([{ status, body: { error: { status: code, message: `${code} for this key or model` } } }]);
+      out = await extractTicketFacts(TEXT, TULUS, { provider: "gemini" });
+      check(`gemini: ${status} ${code} is not retried, the seller fills in by hand`, !out.ok && out.reason === "failed" && calls.length === 1, JSON.stringify(out));
+    }
+
+    stubFetch([{ status: 200, body: { promptFeedback: { blockReason: "OTHER" }, usageMetadata: { promptTokenCount: 300 } } }]);
+    out = await extractTicketFacts(TEXT, TULUS, { provider: "gemini" });
+    check("gemini: a blocked prompt, with no answer at all, is not trusted", !out.ok && out.reason === "bad_answer", JSON.stringify(out));
+    stubFetch([reply(GOOD, { finishReason: "SAFETY" })]);
+    out = await extractTicketFacts(TEXT, TULUS, { provider: "gemini" });
+    check("gemini: an answer stopped for safety is not trusted", !out.ok && out.reason === "bad_answer" && out.detail === "SAFETY", JSON.stringify(out));
+
+    // A model that never answers: each try is cut off, and the whole call ends by its deadline.
+    calls = [];
+    globalThis.fetch = ((_url: string | URL, init?: RequestInit) => {
+      calls.push({ url: String(_url), init: init ?? {} });
+      return new Promise<Response>((_, reject) => init?.signal?.addEventListener("abort", () => reject(init.signal!.reason)));
+    }) as typeof fetch;
+    // Node does not wait on AbortSignal.timeout's timer, so with nothing else pending the script
+    // would end mid-check; a server always has its listener keeping it up.
+    const keepAlive = setInterval(() => {}, 1_000);
+    const started = Date.now();
+    out = await extractTicketFacts(TEXT, TULUS, { provider: "gemini", timeoutMs: 4_000 });
+    const took = Date.now() - started;
+    clearInterval(keepAlive);
+    check("gemini: a model that hangs is given up on by the deadline, as busy", !out.ok && out.reason === "busy" && out.detail === "timed out" && took < 5_000, `${JSON.stringify(out)} in ${took} ms, ${calls.length} tries`);
+
     process.env.GEMINI_MODEL = "gemini-3.8-flash";
     process.env.GEMINI_THINKING = "low";
     calls = stubFetch([reply(GOOD)]);
@@ -169,6 +212,12 @@ async function main() {
   console.log(`\n${results.length - failed}/${results.length} checks pass`);
   process.exit(failed ? 1 : 0);
 }
+
+// Ending without the summary, with nothing left to wait on, is a failure, never a silent pass.
+process.on("beforeExit", () => {
+  console.error(`ai:check ended before finishing, after ${results.length} checks`);
+  process.exit(1);
+});
 
 main().catch((e) => {
   console.error(e);
