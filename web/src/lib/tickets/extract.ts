@@ -1,7 +1,7 @@
 // A ticket PDF made ready for the AI extraction (docs/09 §5.1): the text layer of each page and the
 // barcode payloads read off it, both held in memory only, then cleaned by lib/tickets/clean.ts. No
-// model is called here and nothing is stored: the caller sends the cleaned text, or nothing. The
-// provider plugs in after this (Claude or Gemini, decided by the Claude Startups answer).
+// model is called here and nothing is stored: the caller sends the cleaned text, or nothing, to the
+// model in lib/tickets/ai.ts (Gemini, docs/config/01).
 import type { PDFPageProxy } from "pdfjs-dist";
 import { MAX_TICKET_BYTES, mayHoldBarcode, openPdf, readPage, TicketError } from "./analyze";
 import { cleanTicketText, type CleanResult } from "./clean";
