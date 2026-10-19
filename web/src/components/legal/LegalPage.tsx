@@ -25,7 +25,7 @@ export function LegalPage({ title, effective, intro, sections }: { title: Bi; ef
       <div className="mt-10 flex flex-col gap-9">
         {sections.map((s, i) => (
           <section key={s.title.en}>
-            <h2 className="font-fredoka font-semibold text-xl text-neutral-black">
+            <h2 className="font-semibold text-xl text-neutral-black">
               <span className="text-primary-navy/40 mr-2">{i + 1}.</span>
               {t(s.title.en, s.title.id)}
             </h2>

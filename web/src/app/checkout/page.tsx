@@ -37,7 +37,7 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
   return (
     <div className="flex justify-between gap-3 text-sm">
       <span className="text-neutral-gray">{label}</span>
-      <span className={`shrink-0 whitespace-nowrap ${bold ? "font-fredoka font-bold text-neutral-black" : "text-neutral-black"}`}>{value}</span>
+      <span className={`shrink-0 whitespace-nowrap tabular-nums ${bold ? "font-bold text-neutral-black" : "text-neutral-black"}`}>{value}</span>
     </div>
   );
 }
@@ -168,7 +168,7 @@ function CheckoutInner() {
               <Image src={event.image} alt={event.title} fill sizes="96px" className="object-cover" />
             </div>
             <div className="min-w-0">
-              <h3 className="font-fredoka font-semibold text-neutral-black truncate">{event.title}</h3>
+              <h3 className="font-semibold text-neutral-black truncate">{event.title}</h3>
               <p className="text-sm text-neutral-gray">{formatEventDate(event.dateISO)} · {event.city}</p>
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <Badge.Base className="bg-secondary-blue-soft text-lummy-500 text-xs">{tier.name}</Badge.Base>
@@ -182,7 +182,7 @@ function CheckoutInner() {
 
           {/* Payment. QRIS is the one rail: it covers e-wallets and bank apps alike. */}
           <div className="bg-neutral-white rounded-2xl border border-neutral-light-gray-1 p-4">
-            <h2 className="font-fredoka font-semibold text-lg text-neutral-black mb-3">{t("Payment", "Pembayaran")}</h2>
+            <h2 className="font-semibold text-lg text-neutral-black mb-3">{t("Payment", "Pembayaran")}</h2>
             <div className="flex items-center gap-3 p-3 rounded-xl border-2 border-primary-navy bg-secondary-blue-light">
               <span className="w-10 h-10 rounded-lg bg-neutral-white text-primary-navy grid place-items-center shrink-0 border border-lummy-500">
                 <QrCode className="w-5 h-5" />
@@ -205,10 +205,10 @@ function CheckoutInner() {
 
         {/* Right: summary */}
         <div className="lm-in lg:sticky lg:top-24 h-fit bg-neutral-white rounded-3xl border border-lummy-500 p-6 flex flex-col gap-4" style={{ "--d": "140ms" } as React.CSSProperties}>
-          <h2 className="font-fredoka font-semibold text-lg text-neutral-black">{t("Summary", "Rincian")}</h2>
+          <h2 className="font-semibold text-lg text-neutral-black">{t("Summary", "Rincian")}</h2>
           <div className="flex flex-col gap-2">
             <Row label={qty > 1 ? t(`Tickets (${qty} × ${formatIDR(listing.askPrice)})`, `Tiket (${qty} × ${formatIDR(listing.askPrice)})`) : t("Ticket price", "Harga tiket")} value={formatIDR(subtotal)} />
-            <Row label={t("Service fee (5%, min. IDR 25,000)", "Biaya layanan (5%, min. IDR 25.000)")} value={formatIDR(fee)} />
+            <Row label={t("Service fee (5%, min. Rp25,000)", "Biaya layanan (5%, min. Rp25.000)")} value={formatIDR(fee)} />
             <Row label={t("e-stamp + e-signature fee", "e-Meterai + biaya TTE")} value={formatIDR(MATERAI)} />
             <div className="border-t border-dashed border-neutral-light-gray-1 my-1" />
             <Row label={t("Total", "Total")} value={formatIDR(total)} bold />
@@ -219,7 +219,7 @@ function CheckoutInner() {
                 type="checkbox"
                 checked={nameRiskOk}
                 onChange={(e) => setNameRiskOk(e.target.checked)}
-                className="mt-0.5 w-4 h-4 shrink-0 accent-[#3A6CB4] cursor-pointer"
+                className="mt-0.5 w-4 h-4 shrink-0 accent-primary-navy cursor-pointer"
               />
               <span>
                 {t(
@@ -286,7 +286,7 @@ function CheckoutInner() {
       <Modal open={processing} onClose={() => {}}>
         <div className="flex flex-col items-center gap-3 py-4">
           <Loader2 className="w-8 h-8 text-lummy-500 animate-spin" />
-          <p className="font-fredoka font-semibold text-neutral-black">{t("Processing payment...", "Memproses pembayaran...")}</p>
+          <p className="font-semibold text-neutral-black">{t("Processing payment...", "Memproses pembayaran...")}</p>
           <p className="text-sm text-neutral-gray text-center">
             {onchain
               ? t("Locking your money in the escrow contract: listing, payment, handover.", "Mengunci dana di kontrak escrow: listing, pembayaran, serah terima.")

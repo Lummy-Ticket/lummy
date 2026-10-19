@@ -2,7 +2,7 @@
 // Wi-Fi cannot break, and it looks more deliberate than random stock art. Colours are
 // derived from the key, so a given event always renders the same poster.
 const PAIRS: [string, string][] = [
-  ["#3A6CB4", "#8FD3F4"], // navy -> sky
+  ["#0F45B3", "#BDDCFA"], // Biru Lummy -> Biru Muda
   ["#5B7CFA", "#A6C1FF"], // blue -> periwinkle
   ["#7C5CFF", "#D9B8FF"], // indigo -> lilac
   ["#E85D9B", "#FFB6C1"], // pink

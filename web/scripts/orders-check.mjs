@@ -138,7 +138,7 @@ try {
   if (CHAIN) check("checkout: mode chain aktif", await buyer.page.getByText("Chain mode: a real escrow", { exact: false }).isVisible());
   else if (qris) check("checkout: bayar lewat QRIS mode test", true);
   else check("checkout: bilang pembayarannya simulasi", await buyer.page.locator("[data-simulated-payment]").isVisible());
-  await buyer.page.getByRole("button", { name: /^Pay IDR/ }).click();
+  await buyer.page.getByRole("button", { name: /^Pay Rp/ }).click();
   if (qris) await buyer.page.locator("[data-qris-simulate]").click();
   await buyer.page.waitForURL(/\/tickets\/or-/, { timeout: CHAIN ? 120000 : 30000 });
   const orderId = new URL(buyer.page.url()).pathname.split("/").pop();

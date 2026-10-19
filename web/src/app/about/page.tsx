@@ -63,7 +63,7 @@ export default function AboutPage() {
       <div className="relative overflow-hidden rounded-3xl border border-lummy-500 bg-hero-gradient p-6 sm:p-10">
         <div className="grid lg:grid-cols-[1.4fr_1fr] gap-8 items-center">
           <div>
-            <h1 className="font-bold leading-[1.05] text-4xl md:text-5xl tracking-tight">
+            <h1 className="font-fredoka font-semibold leading-[1.05] text-4xl md:text-5xl tracking-tight">
               <span className="lm-line text-neutral-black"><span>{t("Resale, minus the", "Resale, tanpa")}</span></span>
               <span className="lm-line text-primary-navy"><span style={{ "--i": 1 } as React.CSSProperties}>{t("leap of faith.", "untung-untungan.")}</span></span>
             </h1>
@@ -79,7 +79,7 @@ export default function AboutPage() {
             </div>
           </div>
           <div className="hidden lg:flex justify-center">
-            <Image src="/assets/images/mascot.png" alt="Lummy" width={418} height={401} className="w-[280px] h-auto object-contain drop-shadow-xl motion-safe:animate-float" priority />
+            <Image src="/assets/brand/maskot-halo-tanpa-bayangan.svg" alt="Lummy" width={240} height={205} className="w-[340px] h-auto object-contain motion-safe:animate-float" priority />
           </div>
         </div>
       </div>
@@ -93,7 +93,7 @@ export default function AboutPage() {
               <span className="w-10 h-10 rounded-xl bg-neutral-white text-primary-navy grid place-items-center border border-neutral-light-gray-1">
                 <p.Icon className="w-5 h-5" />
               </span>
-              <h3 className="font-fredoka font-semibold text-lg text-neutral-black mt-4">{t(p.en, p.id)}</h3>
+              <h3 className="font-semibold text-lg text-neutral-black mt-4">{t(p.en, p.id)}</h3>
               <p className="text-sm text-neutral-gray mt-1.5 leading-relaxed">{t(p.bodyEn, p.bodyId)}</p>
             </div>
           ))}
@@ -106,9 +106,9 @@ export default function AboutPage() {
         <div data-reveal="stagger" className="grid sm:grid-cols-2 gap-x-10 gap-y-6 mt-6">
           {principles.map((c, i) => (
             <div key={c.en} className="flex gap-4">
-              <span className="font-fredoka font-bold text-2xl text-primary-navy/30 leading-none w-8 shrink-0">{String(i + 1).padStart(2, "0")}</span>
+              <span className="font-bold text-2xl text-primary-navy/30 leading-none w-8 shrink-0">{String(i + 1).padStart(2, "0")}</span>
               <div>
-                <h3 className="font-fredoka font-semibold text-neutral-black">{t(c.en, c.id)}</h3>
+                <h3 className="font-semibold text-neutral-black">{t(c.en, c.id)}</h3>
                 <p className="text-sm text-neutral-gray mt-1.5 leading-relaxed">{t(c.bodyEn, c.bodyId)}</p>
               </div>
             </div>

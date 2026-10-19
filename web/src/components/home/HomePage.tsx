@@ -39,20 +39,20 @@ function ComingUp({ events }: { events: EventItem[] }) {
           <li key={e.id}>
             <Link href={`/events/${e.id}`} className="group flex items-center gap-4 px-4 sm:px-5 py-3.5 hover:bg-secondary-blue-light active:bg-secondary-blue-soft transition-colors">
               <div className="w-12 shrink-0 text-center">
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-primary-navy">{d.toLocaleDateString(locale, { month: "short", timeZone: EVENT_TZ })}</div>
-                <div className="font-fredoka font-bold text-2xl text-neutral-black leading-none mt-0.5">{d.toLocaleDateString(locale, { day: "2-digit", timeZone: EVENT_TZ })}</div>
+                <div className="text-xs font-semibold text-primary-navy">{d.toLocaleDateString(locale, { month: "short", timeZone: EVENT_TZ })}</div>
+                <div className="font-bold text-2xl text-neutral-black leading-none mt-0.5">{d.toLocaleDateString(locale, { day: "2-digit", timeZone: EVENT_TZ })}</div>
               </div>
               <div className="relative w-14 h-14 rounded-xl overflow-hidden border border-lummy-500 shrink-0 hidden sm:block">
                 <Image src={e.image} alt="" fill sizes="56px" className="object-cover transition-transform duration-500 group-hover:scale-110" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="font-fredoka font-semibold text-neutral-black truncate">{e.title}</div>
+                <div className="font-semibold text-neutral-black truncate">{e.title}</div>
                 <div className="text-sm text-neutral-gray truncate">{e.venue}, {e.city}</div>
               </div>
               {e.fromPrice > 0 && (
                 <div className="text-right shrink-0 hidden sm:block">
                   <div className="text-[11px] text-neutral-gray leading-none">{t("From", "Mulai")}</div>
-                  <div className="font-fredoka font-bold text-primary-navy mt-1">{formatIDR(e.fromPrice)}</div>
+                  <div className="tabular-nums font-bold text-primary-navy mt-1">{formatIDR(e.fromPrice)}</div>
                 </div>
               )}
               <ChevronRight className="w-5 h-5 text-neutral-gray shrink-0 transition group-hover:translate-x-1 group-hover:text-primary-navy" />
@@ -139,7 +139,7 @@ export default function HomePage() {
         </div>
         <div data-reveal="stagger" className="mt-8 grid md:grid-cols-2 gap-4">
           <div className="rounded-3xl bg-secondary-gray-soft p-6">
-            <div className="font-fredoka font-semibold text-neutral-gray mb-4">{t("Buying from a DM", "Beli lewat DM")}</div>
+            <div className="font-semibold text-neutral-gray mb-4">{t("Buying from a DM", "Beli lewat DM")}</div>
             <ul className="flex flex-col gap-3.5">
               {COMPARE.map((c) => (
                 <li key={c.dmEn} className="flex gap-3 text-neutral-gray">
@@ -149,8 +149,8 @@ export default function HomePage() {
               ))}
             </ul>
           </div>
-          <div className="rounded-3xl border-2 border-primary-navy bg-neutral-white p-6 shadow-[4px_4px_0px_#245397]">
-            <div className="font-fredoka font-semibold text-primary-navy mb-4">{t("Buying on Lummy", "Beli di Lummy")}</div>
+          <div className="rounded-3xl border-2 border-primary-navy bg-neutral-white p-6 shadow-[4px_4px_0px_#0D3B9A]">
+            <div className="font-semibold text-primary-navy mb-4">{t("Buying on Lummy", "Beli di Lummy")}</div>
             <ul className="flex flex-col gap-3.5">
               {COMPARE.map((c) => (
                 <li key={c.luEn} className="flex gap-3 text-neutral-black">

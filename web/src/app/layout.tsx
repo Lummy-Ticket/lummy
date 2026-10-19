@@ -11,13 +11,15 @@ import { loadCatalogue } from "@/lib/supabase/catalogue";
 import { MotionObserver } from "@/components/motion/MotionObserver";
 
 // Self-hosted at build time: no request to Google on page load, no flash of the
-// fallback font, and nothing to break on venue Wi-Fi. Fredoka carries the brand in
-// headings, prices and buttons; Plus Jakarta Sans (an Indonesian typeface) keeps
-// body copy readable at small sizes.
-const fredoka = Fredoka({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-fredoka" });
+// fallback font, and nothing to break on venue Wi-Fi. Since the brand guideline 1.0
+// (docs/brand), Plus Jakarta Sans (an Indonesian typeface) sets every heading, price,
+// button and line of text; Fredoka only the big display lines, at 500 or 600.
+const fredoka = Fredoka({ subsets: ["latin"], weight: ["500", "600"], variable: "--font-fredoka" });
 const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-jakarta" });
 
 export const metadata: Metadata = {
+  // Absolute URLs for the link preview image (app/opengraph-image.png) wherever the site runs.
+  metadataBase: new URL("https://lummy.id"),
   title: {
     default: "Lummy Ticket: safe concert ticket resale in Indonesia",
     template: "%s | Lummy",

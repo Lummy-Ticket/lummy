@@ -95,7 +95,7 @@ function LoginInner() {
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-5 pt-28 pb-16">
       <div className="w-full max-w-md bg-neutral-white rounded-3xl border border-lummy-500 shadow-lummy-lg p-8">
-        <Image src="/assets/images/mascot.png" alt="" width={418} height={401} className="w-[84px] h-auto mx-auto mb-4" priority />
+        <Image src="/assets/brand/maskot-halo-tanpa-bayangan.svg" alt="" width={240} height={205} className="w-[120px] h-auto mx-auto mb-3" priority />
         <h1 className="text-2xl font-bold text-neutral-black text-center">{t("Sign in to Lummy", "Masuk ke Lummy")}</h1>
         <p className="text-neutral-gray text-sm text-center mt-1">{t("Just an email. No wallet, no seed phrase.", "Cukup email. Tanpa wallet, tanpa seed phrase.")}</p>
 
@@ -109,7 +109,7 @@ function LoginInner() {
           (sentTo ? (
             <div className="mt-6 rounded-2xl bg-secondary-blue-extra p-5 text-center" data-login-state="sent">
               <MailCheck className="w-8 h-8 text-lummy-500 mx-auto" />
-              <p className="font-fredoka font-semibold text-neutral-black mt-2">{t("Check your inbox", "Cek email kamu")}</p>
+              <p className="font-semibold text-neutral-black mt-2">{t("Check your inbox", "Cek email kamu")}</p>
               <p className="text-sm text-neutral-gray mt-1">
                 {t(
                   `We sent a sign-in link to ${sentTo}. Open it on any device; it works once and expires in an hour. Not there in a minute? Check your spam folder.`,
@@ -145,7 +145,7 @@ function LoginInner() {
         <div className={accounts ? "mt-8 pt-6 border-t border-dashed border-neutral-light-gray-1" : "mt-6"}>
           {accounts && (
             <>
-              <p className="font-fredoka font-semibold text-neutral-black">{t("Just looking around?", "Cuma mau lihat-lihat?")}</p>
+              <p className="font-semibold text-neutral-black">{t("Just looking around?", "Cuma mau lihat-lihat?")}</p>
               <p className="text-xs text-neutral-gray mt-0.5">{t("Explore with a sample account. Nothing is saved to a real account.", "Jelajahi dengan akun contoh. Tidak ada yang tersimpan ke akun sungguhan.")}</p>
             </>
           )}

@@ -63,7 +63,7 @@ export function EntryPass({ orderId, onChange }: { orderId: string; onChange?: (
       <div data-entry-pass="in" role="status" className="bg-secondary-blue-extra rounded-3xl p-5 flex items-start gap-3">
         <DoorOpen className="w-6 h-6 text-secondary-green-dark shrink-0" />
         <div>
-          <h2 className="font-fredoka font-semibold text-lg text-neutral-black">{t("You are in", "Kamu sudah masuk")}</h2>
+          <h2 className="font-semibold text-lg text-neutral-black">{t("You are in", "Kamu sudah masuk")}</h2>
           <p className="text-sm text-neutral-gray mt-1">
             {t(`Your pass went in at ${formatDateTime(state.admitted.at)}, ${state.admitted.gate}.`, `Pass-mu masuk ${formatDateTime(state.admitted.at)}, ${state.admitted.gate}.`)}
           </p>
@@ -78,7 +78,7 @@ export function EntryPass({ orderId, onChange }: { orderId: string; onChange?: (
   };
   return (
     <div data-entry-pass="ready" className="bg-neutral-white rounded-3xl border-2 border-primary-navy p-5">
-      <h2 className="font-fredoka font-semibold text-lg text-neutral-black flex items-center gap-2">
+      <h2 className="font-semibold text-lg text-neutral-black flex items-center gap-2">
         <QrCode className="w-5 h-5 text-primary-navy" /> {t("Your entry pass", "Pass masukmu")}
       </h2>
       <div className="mt-4 flex justify-center">

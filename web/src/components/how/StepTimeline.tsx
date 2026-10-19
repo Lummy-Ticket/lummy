@@ -83,17 +83,17 @@ export function StepTimeline({ steps, aside }: { steps: Step[]; aside: (active: 
                 className={cn(
                   "relative z-10 w-12 h-12 shrink-0 rounded-full grid place-items-center border-2 transition-colors duration-300",
                   state === "done" && "bg-primary-navy border-primary-navy text-white",
-                  state === "now" && "bg-primary-sky border-primary-navy text-primary-navy-dark shadow-[3px_3px_0_#245397]",
+                  state === "now" && "bg-primary-sky border-primary-navy text-primary-navy-dark shadow-[3px_3px_0_#0D3B9A]",
                   state === "next" && "bg-neutral-white border-neutral-light-gray-1 text-neutral-gray"
                 )}
               >
                 {state === "done" ? <Check className="w-5 h-5" /> : <s.Icon className="w-5 h-5" />}
               </span>
               <div className="min-w-0 pt-1">
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-primary-navy">
+                <div className="text-xs font-semibold text-primary-navy">
                   {String(i + 1).padStart(2, "0")}
                 </div>
-                <h3 className="font-fredoka font-semibold text-xl text-neutral-black mt-0.5">{s.title}</h3>
+                <h3 className="font-semibold text-xl text-neutral-black mt-0.5">{s.title}</h3>
                 <div className="text-neutral-gray mt-1.5 leading-relaxed max-w-xl">{s.body}</div>
                 <span className={cn("lg:hidden inline-flex mt-3 px-2.5 py-1 rounded-full text-xs font-medium", TONE_CHIP[s.tone])}>{s.state}</span>
               </div>

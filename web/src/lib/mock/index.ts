@@ -24,7 +24,7 @@ export { useAlerts, type AlertChannel, type AlertSub } from "./useAlerts";
 export { useProfile, type PayoutBank } from "./useProfile";
 
 // --- format helpers ---
-export const formatIDR = (n: number) => `IDR ${n.toLocaleString("en-US")}`;
+export const formatIDR = (n: number) => `Rp${n.toLocaleString("en-US")}`;
 
 export const formatEventDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-GB", {

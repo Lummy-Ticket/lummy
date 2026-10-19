@@ -12,7 +12,7 @@ export function TicketFeature({ Icon, title, body, notchBg = "bg-neutral-white" 
         <span className="w-11 h-11 rounded-xl bg-secondary-blue-soft text-lummy-500 grid place-items-center shrink-0">
           <Icon className="w-5 h-5" />
         </span>
-        <h3 className="font-fredoka font-semibold text-neutral-black leading-snug">{title}</h3>
+        <h3 className="font-semibold text-neutral-black leading-snug">{title}</h3>
       </div>
       {/* Card edge sits 24px (mx-6) + 1px (border) outside this line; the notch centres on it */}
       <div aria-hidden className="relative mx-6 border-t-2 border-dashed border-neutral-light-gray-1">

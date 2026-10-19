@@ -38,7 +38,7 @@ export function Modal({
       >
         {title && (
           <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-light-gray-1 sticky top-0 bg-neutral-white rounded-t-3xl z-10">
-            <h4 className="font-fredoka font-semibold text-neutral-black">{title}</h4>
+            <h4 className="font-semibold text-neutral-black">{title}</h4>
             <button onClick={onClose} aria-label={t("Close", "Tutup")} className="text-neutral-gray hover:text-neutral-black hover:rotate-90 transition duration-300 cursor-pointer">
               <X className="w-5 h-5" />
             </button>

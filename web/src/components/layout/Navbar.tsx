@@ -384,7 +384,7 @@ export function Navbar() {
             <Link
               href={SELL.href}
               className={cn(
-                "group hidden lg:inline-flex items-center gap-1.5 h-10 px-4 rounded-full border-2 font-fredoka font-medium text-[15px] transition active:scale-95",
+                "group hidden lg:inline-flex items-center gap-1.5 h-10 px-4 rounded-full border-2 font-semibold text-[15px] transition active:scale-95",
                 isActive(pathname, SELL.href)
                   ? "bg-primary-navy border-primary-navy text-white"
                   : "border-primary-navy text-primary-navy hover:bg-primary-navy hover:text-white"
@@ -408,7 +408,7 @@ export function Navbar() {
             ) : mounted ? (
               <Link
                 href={loginHref}
-                className="hidden lg:inline-flex items-center gap-1.5 h-10 px-4 rounded-full border-2 border-primary-navy bg-primary-sky text-primary-navy-dark font-fredoka font-semibold text-[15px] shadow-[2px_2px_0_#245397] transition hover:-translate-x-px hover:-translate-y-px hover:shadow-[3px_3px_0_#245397] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+                className="hidden lg:inline-flex items-center gap-1.5 h-10 px-4 rounded-full border-2 border-primary-navy bg-primary-sky text-primary-navy-dark font-semibold text-[15px] shadow-[2px_2px_0_#0D3B9A] transition hover:-translate-x-px hover:-translate-y-px hover:shadow-[3px_3px_0_#0D3B9A] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
               >
                 <UserIcon className="w-4 h-4" /> {t("Sign in", "Masuk")}
               </Link>
@@ -444,7 +444,7 @@ export function Navbar() {
                     href={l.href}
                     onClick={() => setSheetOpen(false)}
                     className={cn(
-                      "flex items-center justify-between py-3 border-b border-dashed border-neutral-light-gray-1 font-fredoka text-xl transition-colors",
+                      "flex items-center justify-between py-3 border-b border-dashed border-neutral-light-gray-1 text-xl font-semibold transition-colors",
                       isActive(pathname, l.href) ? "text-primary-navy font-semibold" : "text-neutral-black"
                     )}
                   >
@@ -453,7 +453,7 @@ export function Navbar() {
                 ))}
               </div>
 
-              <Link href={SELL.href} onClick={() => setSheetOpen(false)} className="flex items-center justify-center gap-2 h-12 rounded-2xl border-2 border-primary-navy text-primary-navy font-fredoka font-medium active:scale-[0.98] transition">
+              <Link href={SELL.href} onClick={() => setSheetOpen(false)} className="flex items-center justify-center gap-2 h-12 rounded-2xl border-2 border-primary-navy text-primary-navy font-semibold active:scale-[0.98] transition">
                 <Plus className="w-4 h-4" /> {t(SELL.en, SELL.id)}
               </Link>
 

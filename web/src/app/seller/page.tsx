@@ -27,7 +27,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-neutral-white rounded-2xl border border-neutral-light-gray-1 p-4">
       <div className="text-xs text-neutral-gray">{label}</div>
-      <div className="font-fredoka font-bold text-xl text-neutral-black mt-1">{value}</div>
+      <div className="font-bold text-xl text-neutral-black mt-1">{value}</div>
     </div>
   );
 }
@@ -126,7 +126,7 @@ function ClaimsAgainstYou({
 
   return (
     <div className="mb-8">
-      <h3 className="font-fredoka font-semibold text-neutral-black flex items-center gap-2 mb-1">
+      <h3 className="font-semibold text-neutral-black flex items-center gap-2 mb-1">
         <Scale className="w-4 h-4 text-secondary-orange-dark" /> {t("Claims against you", "Klaim terhadap kamu")}
         <span className="text-neutral-gray font-normal text-sm">({orders.length})</span>
       </h3>
@@ -143,13 +143,13 @@ function ClaimsAgainstYou({
             <div key={o.id} data-claim={o.id} className="bg-neutral-white rounded-2xl border-2 border-secondary-orange-dark/40 p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h4 className="font-fredoka font-semibold text-neutral-black truncate">{o.eventTitle}</h4>
+                  <h4 className="font-semibold text-neutral-black truncate">{o.eventTitle}</h4>
                   <div className="text-xs text-secondary-orange-dark mt-1">
                     {t(reasonMeta(o.dispute!.reason).label.en, reasonMeta(o.dispute!.reason).label.id)}
                     <span className="text-neutral-gray"> · {formatDateTime(o.dispute!.openedAtISO)}</span>
                   </div>
                 </div>
-                <span className="font-fredoka font-bold text-lummy-500 text-nowrap">{formatIDR(o.amount)}</span>
+                <span className="tabular-nums font-bold text-lummy-500 text-nowrap">{formatIDR(o.amount)}</span>
               </div>
 
               {o.dispute?.note && t(o.dispute.note.en, o.dispute.note.id).trim() && (
@@ -335,17 +335,17 @@ export default function SellerPage() {
       {/* The whole model rests on cheating costing more than it earns. That is
           only credible if a seller can see the number before they list. */}
       <div className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5 mb-8">
-        <h3 className="font-fredoka font-semibold text-neutral-black flex items-center gap-2">
+        <h3 className="font-semibold text-neutral-black flex items-center gap-2">
           <ShieldCheck className="w-4 h-4 text-lummy-500" /> {t("Your standing", "Status kamu")}
         </h3>
         <div className="flex flex-wrap gap-x-8 gap-y-3 mt-3">
           <div>
             <div className="text-xs text-neutral-gray">{t("Claims upheld", "Klaim dikabulkan")}</div>
-            <div className={`font-fredoka font-bold text-xl ${upheld ? "text-secondary-pink-dark" : "text-secondary-green-dark"}`}>{upheld}</div>
+            <div className={`font-bold text-xl ${upheld ? "text-secondary-pink-dark" : "text-secondary-green-dark"}`}>{upheld}</div>
           </div>
           <div>
             <div className="text-xs text-neutral-gray">{t("At stake if a ticket fails", "Risiko kalau tiket gagal")}</div>
-            <div className="font-fredoka font-bold text-xl text-neutral-black">{formatIDR(atStake)}</div>
+            <div className="tabular-nums font-bold text-xl text-neutral-black">{formatIDR(atStake)}</div>
           </div>
         </div>
         <p className="text-xs text-neutral-gray mt-3 leading-relaxed">
@@ -356,7 +356,7 @@ export default function SellerPage() {
         </p>
       </div>
 
-      <h3 className="font-fredoka font-semibold text-neutral-black mb-3">{t("Your listings", "Listing kamu")}</h3>
+      <h3 className="font-semibold text-neutral-black mb-3">{t("Your listings", "Listing kamu")}</h3>
       {!mounted || (account && !accountListings) ? (
         <p className="text-neutral-gray text-sm">{t("Loading...", "Memuat...")}</p>
       ) : listings.length === 0 ? (
@@ -370,7 +370,7 @@ export default function SellerPage() {
             <div key={l.id} data-listing={l.id} className="bg-neutral-white rounded-2xl border border-neutral-light-gray-1 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors duration-300 hover:border-lummy-500">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h4 className="font-fredoka font-semibold text-neutral-black truncate">{l.eventTitle}</h4>
+                  <h4 className="font-semibold text-neutral-black truncate">{l.eventTitle}</h4>
                   <Badge.Base className={`text-xs ${l.status === "active" ? "bg-secondary-green-soft text-secondary-green-dark" : l.status === "review" ? "bg-secondary-orange-soft text-secondary-orange-dark" : l.status === "rejected" ? "bg-secondary-pink-soft text-secondary-pink-dark" : "bg-neutral-light-gray-2 text-neutral-gray"}`}>
                     {l.status === "active"
                       ? t("Active", "Aktif")
@@ -393,7 +393,7 @@ export default function SellerPage() {
                 </div>
               </div>
               <div className="flex items-center gap-4 shrink-0">
-                <span className="font-fredoka font-bold text-lummy-500 text-nowrap">{formatIDR(l.askPrice)}{l.quantity > 1 && <span className="text-xs text-neutral-gray font-sans font-normal"> {t("each", "/tiket")}</span>}</span>
+                <span className="tabular-nums font-bold text-lummy-500 text-nowrap">{formatIDR(l.askPrice)}{l.quantity > 1 && <span className="text-xs text-neutral-gray font-sans font-normal"> {t("each", "/tiket")}</span>}</span>
                 {l.status === "active" && (
                   <button onClick={() => setPromote(l)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-lummy-500 text-lummy-500 text-sm hover:bg-secondary-blue-light transition cursor-pointer">
                     <Megaphone className="w-4 h-4" /> {t("Promote", "Promosikan")}

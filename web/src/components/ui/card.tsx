@@ -48,7 +48,7 @@ const Event = (({className, image, date, title, location, category, redirect, so
     const onSale = !soldOut && !!fromPrice;
 
   return (
-        <Link href={redirect} className={cn("group bg-neutral-white border transition duration-300 flex flex-col border-primary-navy rounded-3xl p-2.5 w-full shrink-0 hover:-translate-x-1 hover:-translate-y-1 hover:shadow-[4px_4px_0px_#245397] active:translate-x-0 active:translate-y-0 active:shadow-[1px_1px_0px_#245397] active:duration-100", className)} {...props}>
+        <Link href={redirect} className={cn("group bg-neutral-white border transition duration-300 flex flex-col border-primary-navy rounded-3xl p-2.5 w-full shrink-0 hover:-translate-x-1 hover:-translate-y-1 hover:shadow-[4px_4px_0px_#0D3B9A] active:translate-x-0 active:translate-y-0 active:shadow-[1px_1px_0px_#0D3B9A] active:duration-100", className)} {...props}>
             <div className="relative w-full aspect-[16/10] rounded-2xl overflow-hidden border border-lummy-500">
                 <Image alt="" className={cn("object-cover transition-transform duration-700 group-hover:scale-[1.05]", soldOut && "grayscale-[35%]")} src={image} sizes={CARD_SIZES} loading={eager ? "eager" : undefined} fill />
                 {soldOut && (
@@ -59,7 +59,7 @@ const Event = (({className, image, date, title, location, category, redirect, so
             </div>
 
             <div className="flex flex-col gap-1 px-2 pt-3">
-                <span className="text-xs font-semibold uppercase tracking-wide text-primary-navy">{date}</span>
+                <span className="text-xs font-semibold text-primary-navy">{date}</span>
                 <h3 className="text-lg text-neutral-black font-semibold leading-snug truncate">{title}</h3>
                 <div className="flex w-full items-center gap-1 min-w-0 text-neutral-gray">
                     <MapPin className="w-3.5 h-3.5 shrink-0" />
@@ -73,7 +73,7 @@ const Event = (({className, image, date, title, location, category, redirect, so
                     <>
                         <div className="min-w-0">
                             <div className="text-[11px] text-neutral-gray leading-none">{t("From", "Mulai")}</div>
-                            <div className="font-fredoka font-bold text-lg text-primary-navy leading-tight mt-1">{formatIDR(fromPrice)}</div>
+                            <div className="tabular-nums font-bold text-lg text-primary-navy leading-tight mt-1">{formatIDR(fromPrice)}</div>
                         </div>
                         {!!listingCount && (
                             <span className="text-xs text-neutral-gray shrink-0 pb-0.5">

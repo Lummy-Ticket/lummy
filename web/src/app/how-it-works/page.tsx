@@ -76,7 +76,7 @@ function SideTabs({ side, onPick }: { side: Side; onPick: (s: Side) => void }) {
           tabIndex={side === s.id ? 0 : -1}
           onClick={() => onPick(s.id)}
           className={cn(
-            "relative z-10 flex items-center justify-center gap-2 h-11 rounded-xl font-fredoka font-medium transition-colors duration-300 cursor-pointer",
+            "relative z-10 flex items-center justify-center gap-2 h-11 rounded-xl font-semibold transition-colors duration-300 cursor-pointer",
             side === s.id ? "text-white" : "text-primary-navy hover:text-primary-navy-dark"
           )}
         >
@@ -91,9 +91,9 @@ function SideTabs({ side, onPick }: { side: Side; onPick: (s: Side) => void }) {
 function ExampleCard({ label, children, stub }: { label: string; children: React.ReactNode; stub: React.ReactNode }) {
   const notch = "w-6 h-6 border border-primary-navy bg-neutral-white";
   return (
-    <div className="relative rounded-3xl border border-primary-navy bg-neutral-white shadow-[5px_5px_0_#245397]">
+    <div className="relative rounded-3xl border border-primary-navy bg-neutral-white shadow-[5px_5px_0_#0D3B9A]">
       <div className="px-6 pt-5 pb-5">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-gray">{label}</div>
+        <div className="text-xs font-semibold text-neutral-gray">{label}</div>
         {children}
       </div>
       <div aria-hidden className="relative mx-6 border-t-2 border-dashed border-neutral-light-gray-1">
@@ -109,7 +109,7 @@ function Line({ label, value, strong }: { label: string; value: string; strong?:
   return (
     <div className={cn("flex items-baseline justify-between gap-4 text-sm", strong ? "text-neutral-black font-semibold" : "text-neutral-gray")}>
       <span>{label}</span>
-      <span className={cn("tabular-nums whitespace-nowrap", strong && "font-fredoka text-base text-primary-navy")}>{value}</span>
+      <span className={cn("tabular-nums whitespace-nowrap", strong && "text-base text-primary-navy")}>{value}</span>
     </div>
   );
 }
@@ -422,16 +422,16 @@ export default function HowItWorks() {
       label={t("Example order", "Contoh pesanan")}
       stub={
         <>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-gray mb-2">{t("Where the money is", "Posisi uangnya")}</div>
+          <div className="text-xs font-semibold text-neutral-gray mb-2">{t("Where the money is", "Posisi uangnya")}</div>
           <Status text={buySteps[i].state} note={buyNotes[i]} tone={buySteps[i].tone} />
           <div className="mt-4"><MiniTrack stops={buyTrack} at={buyTrackAt[i]} /></div>
         </>
       }
     >
-      <div className="mt-1 font-fredoka font-semibold text-lg text-neutral-black">{t("CAT 1 · 1 ticket", "CAT 1 · 1 tiket")}</div>
+      <div className="mt-1 font-semibold text-lg text-neutral-black">{t("CAT 1 · 1 ticket", "CAT 1 · 1 tiket")}</div>
       <div className="mt-4 flex flex-col gap-2">
         <Line label={t("Ticket price", "Harga tiket")} value={formatIDR(PRICE)} />
-        <Line label={t("Service fee (5%, min. IDR 25,000)", "Biaya layanan (5%, min. IDR 25.000)")} value={formatIDR(fee)} />
+        <Line label={t("Service fee (5%, min. Rp25,000)", "Biaya layanan (5%, min. Rp25.000)")} value={formatIDR(fee)} />
         <Line label={t("e-stamp + e-signature", "e-Meterai + TTE")} value={formatIDR(MATERAI)} />
         <div className="border-t border-neutral-light-gray-1 pt-2 mt-1">
           <Line label={t("You pay", "Kamu bayar")} value={formatIDR(total)} strong />
@@ -448,18 +448,18 @@ export default function HowItWorks() {
       label={t("Example listing", "Contoh listing")}
       stub={
         <>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-gray mb-2">{t("Status", "Status")}</div>
+          <div className="text-xs font-semibold text-neutral-gray mb-2">{t("Status", "Status")}</div>
           <Status text={sellSteps[i].state} note={sellNotes[i]} tone={sellSteps[i].tone} />
           <div className="mt-4"><MiniTrack stops={sellTrack} at={sellTrackAt[i]} /></div>
         </>
       }
     >
-      <div className="mt-1 font-fredoka font-semibold text-lg text-neutral-black">{t("CAT 1 · 1 ticket", "CAT 1 · 1 tiket")}</div>
+      <div className="mt-1 font-semibold text-lg text-neutral-black">{t("CAT 1 · 1 ticket", "CAT 1 · 1 tiket")}</div>
       <div className="mt-4 flex flex-col gap-2">
         <Line label={t("Face value", "Harga asli")} value={formatIDR(FACE)} />
         <Line
           label={t(`Allowed range (${FLOOR_PCT} to ${CAP_PCT}%)`, `Rentang harga (${FLOOR_PCT} sampai ${CAP_PCT}%)`)}
-          value={`${formatIDR(Math.round((FACE * FLOOR_PCT) / 100)).replace("IDR ", "")} ${t("to", "sampai")} ${formatIDR(Math.round((FACE * CAP_PCT) / 100)).replace("IDR ", "")}`}
+          value={`${formatIDR(Math.round((FACE * FLOOR_PCT) / 100)).replace("Rp", "")} ${t("to", "sampai")} ${formatIDR(Math.round((FACE * CAP_PCT) / 100)).replace("Rp", "")}`}
         />
         <Line label={t(`Your price (+${pct}%)`, `Hargamu (+${pct}%)`)} value={formatIDR(PRICE)} />
         <Line label={t("Listing fee", "Biaya listing")} value={t("Free", "Gratis")} />
@@ -475,11 +475,11 @@ export default function HowItWorks() {
       <section className="relative overflow-hidden bg-hero-gradient pt-28 pb-14">
         <div
           aria-hidden
-          className="absolute inset-0 bg-[radial-gradient(#3A6CB41f_1px,transparent_1px)] [background-size:22px_22px] [mask-image:linear-gradient(to_bottom,black,transparent_85%)]"
+          className="absolute inset-0 bg-[radial-gradient(#0F45B31f_1px,transparent_1px)] [background-size:22px_22px] [mask-image:linear-gradient(to_bottom,black,transparent_85%)]"
         />
         <div className="relative max-w-3xl mx-auto px-5 text-center flex flex-col items-center">
-          <Image src="/assets/images/mascot-powered.svg" alt="" width={96} height={96} priority className="mb-2 drop-shadow-lg lm-in" />
-          <h1 className="font-bold leading-[1.05] text-4xl md:text-6xl tracking-tight">
+          <Image src="/assets/brand/maskot-menunggu-tanpa-bayangan.svg" alt="" width={152} height={130} priority className="mb-1 lm-in" />
+          <h1 className="font-fredoka font-semibold leading-[1.05] text-4xl md:text-6xl tracking-tight">
             <span className="lm-line text-neutral-black"><span>{t("Your money waits", "Uangmu menunggu")}</span></span>
             <span className="lm-line text-primary-navy"><span style={{ "--i": 1 } as React.CSSProperties}>{t("until the show is over.", "sampai acara selesai.")}</span></span>
           </h1>

@@ -350,7 +350,7 @@ function ShowsPanel() {
         <div key={e.id} data-show={e.id} className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="min-w-0">
-              <h3 className="font-fredoka font-semibold text-neutral-black truncate">{e.title}</h3>
+              <h3 className="font-semibold text-neutral-black truncate">{e.title}</h3>
               <div className="text-xs text-neutral-gray mt-1">
                 {formatEventDate(e.dateISO)} · {e.venue}, {e.city} · {t(`${e.listingCount} on sale`, `${e.listingCount} dijual`)}
                 {e.postponed && <span className="text-secondary-brown-dark font-medium"> · {t("postponed", "diundur")}</span>}
@@ -359,7 +359,7 @@ function ShowsPanel() {
             <div className="flex flex-wrap gap-2 shrink-0">
               <Link
                 href={`/gate?event=${encodeURIComponent(e.id)}`}
-                className="inline-flex items-center justify-center gap-1.5 rounded-2xl border-2 bg-neutral-white px-5 py-3.5 font-fredoka font-medium text-sm transition -translate-y-0.5 border-neutral-light-gray-1 text-neutral-gray hover:border-primary-navy hover:text-primary-navy"
+                className="inline-flex items-center justify-center gap-1.5 rounded-2xl border-2 bg-neutral-white px-5 py-3.5 font-semibold text-sm transition -translate-y-0.5 border-neutral-light-gray-1 text-neutral-gray hover:border-primary-navy hover:text-primary-navy"
               >
                 <DoorOpen className="w-4 h-4" /> {t("Open the gate", "Buka gate")}
               </Link>
@@ -460,12 +460,12 @@ function ListingQueue({
           <div key={l.id} data-listing={l.id} className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <h3 className="font-fredoka font-semibold text-neutral-black truncate">{l.eventTitle}</h3>
+                <h3 className="font-semibold text-neutral-black truncate">{l.eventTitle}</h3>
                 <div className="text-xs text-neutral-gray mt-1">
                   {ev ? formatEventDate(ev.dateISO) : ""} · {l.tierName} · {l.quantity}x
                 </div>
               </div>
-              <span className="font-fredoka font-bold text-lummy-500 text-nowrap">{formatIDR(l.askPrice)}</span>
+              <span className="tabular-nums font-bold text-lummy-500 text-nowrap">{formatIDR(l.askPrice)}</span>
             </div>
 
             <div className="flex flex-wrap gap-2 mt-3">
@@ -758,12 +758,12 @@ export default function AdminPage() {
                 <div key={o.id} data-claim={o.id} className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <h3 className="font-fredoka font-semibold text-neutral-black truncate">{o.eventTitle}</h3>
+                      <h3 className="font-semibold text-neutral-black truncate">{o.eventTitle}</h3>
                       <div className="text-xs text-neutral-gray mt-1">
                         {formatEventDate(o.eventDateISO)} · {o.tierName} · {t("Seller", "Penjual")} {o.sellerName}
                       </div>
                     </div>
-                    <span className="font-fredoka font-bold text-lummy-500 text-nowrap">{formatIDR(o.amount)}</span>
+                    <span className="tabular-nums font-bold text-lummy-500 text-nowrap">{formatIDR(o.amount)}</span>
                   </div>
 
                   <EvidencePanel order={o} />
@@ -798,7 +798,7 @@ export default function AdminPage() {
                           <div className="flex items-center gap-2 text-sm font-medium text-neutral-black">
                             {pays ? <CheckCircle2 className="w-4 h-4 text-secondary-green-dark shrink-0" /> : <XCircle className="w-4 h-4 text-neutral-gray shrink-0" />}
                             {t(opt.label.en, opt.label.id)}
-                            {opt.amount > 0 && <span className="ml-auto text-xs font-fredoka font-bold text-lummy-500">{formatIDR(opt.amount)}</span>}
+                            {opt.amount > 0 && <span className="ml-auto text-xs tabular-nums font-bold text-lummy-500">{formatIDR(opt.amount)}</span>}
                           </div>
                           <p className="text-xs text-neutral-gray mt-1">{t(opt.note.en, opt.note.id)}</p>
                         </button>
@@ -865,7 +865,7 @@ export default function AdminPage() {
             <div key={r.id} className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h3 className="font-fredoka font-semibold text-lg text-neutral-black">{r.title}</h3>
+                  <h3 className="font-semibold text-lg text-neutral-black">{r.title}</h3>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-neutral-gray mt-1">
                     <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-primary-navy" /> {formatEventDate(r.dateISO)}</span>
                     <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-primary-navy" /> {r.venue}, {r.city}</span>
@@ -955,7 +955,7 @@ export default function AdminPage() {
       <Modal open={!!sending} onClose={() => {}}>
         <div className="flex flex-col items-center gap-3 py-4">
           <Loader2 className="w-8 h-8 text-lummy-500 animate-spin" />
-          <p className="font-fredoka font-semibold text-neutral-black">
+          <p className="font-semibold text-neutral-black">
             {sending?.chain ? t("Sending the verdict to the contract...", "Mengirim putusan ke kontrak...") : t("Recording the verdict...", "Mencatat putusan...")}
           </p>
           <p className="text-sm text-neutral-gray text-center">

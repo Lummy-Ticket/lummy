@@ -51,7 +51,7 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
             aria-label={t("Search events", "Cari event")}
             className="flex-1 outline-none bg-transparent text-neutral-black placeholder:text-neutral-gray min-w-0"
           />
-          <button type="submit" className="shrink-0 bg-primary-navy hover:bg-primary-navy-dark active:scale-95 text-white font-fredoka font-medium rounded-xl px-5 py-2.5 text-sm transition cursor-pointer">
+          <button type="submit" className="shrink-0 bg-primary-navy hover:bg-primary-navy-dark active:scale-95 text-white font-semibold rounded-xl px-5 py-2.5 text-sm transition cursor-pointer">
             {t("Search", "Cari")}
           </button>
         </form>

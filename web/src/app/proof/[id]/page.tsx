@@ -132,7 +132,7 @@ export default function ProofPage() {
   if (!valid || state === "missing") {
     return (
       <PageContainer width="form">
-        <h1 className="font-fredoka font-semibold text-2xl text-neutral-black">{t("Not found", "Tidak ditemukan")}</h1>
+        <h1 className="font-semibold text-2xl text-neutral-black">{t("Not found", "Tidak ditemukan")}</h1>
         <p className="text-sm text-neutral-gray mt-2">
           {t(
             "There is no escrow or order record with this ID in our contracts. A record appears a moment after the payment, so try again shortly, or check the link you were given.",
@@ -168,10 +168,10 @@ export default function ProofPage() {
   const ledger = data.source === "ledger";
   return (
     <PageContainer width="form">
-      <div className="text-xs font-semibold uppercase tracking-wide text-lummy-500 flex items-center gap-1.5">
+      <div className="text-xs font-semibold text-lummy-500 flex items-center gap-1.5">
         <ShieldCheck className="w-4 h-4" /> {ledger ? t("Order record", "Catatan pesanan") : t("Escrow proof", "Bukti escrow")}
       </div>
-      <h1 className="font-fredoka font-semibold text-2xl sm:text-3xl text-neutral-black mt-2">{t(where.en, where.id)}</h1>
+      <h1 className="font-semibold text-2xl sm:text-3xl text-neutral-black mt-2">{t(where.en, where.id)}</h1>
       <p className="text-sm text-neutral-gray mt-2">
         {ledger
           ? t(
@@ -189,7 +189,7 @@ export default function ProofPage() {
       </div>
 
       <div className="mt-4 bg-secondary-blue-extra rounded-3xl p-5">
-        <h2 className="font-fredoka font-semibold text-lg text-neutral-black">{t("Rules the contract enforces", "Aturan yang dijaga kontrak")}</h2>
+        <h2 className="font-semibold text-lg text-neutral-black">{t("Rules the contract enforces", "Aturan yang dijaga kontrak")}</h2>
         <ul className="mt-3 flex flex-col gap-2.5">
           {(ledger ? LEDGER_RULES : RULES).map((r) => (
             <li key={r.en} className="flex gap-2 text-sm text-neutral-black">

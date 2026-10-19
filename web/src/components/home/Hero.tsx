@@ -30,12 +30,12 @@ export function Hero({ quickCats }: { quickCats: string[] }) {
       <div className="max-w-7xl mx-auto px-5 lg:px-10">
         <div className="relative motion-safe:animate-rise">
           <Image
-            src="/assets/images/mascot.png"
+            src="/assets/brand/maskot-halo-tanpa-bayangan.svg"
             alt=""
-            width={418}
-            height={401}
+            width={240}
+            height={205}
             loading="eager"
-            className="hidden lg:block absolute -top-[62px] right-[118px] w-28 h-auto pointer-events-none"
+            className="hidden lg:block absolute -top-[70px] right-[104px] w-36 h-auto pointer-events-none"
           />
 
           {/* The offset shadow is its own layer, so the bottom notch can bite it too. On a
@@ -47,7 +47,7 @@ export function Hero({ quickCats }: { quickCats: string[] }) {
             {/* Main part */}
             <div className="px-5 py-8 sm:px-10 sm:py-12 lg:px-14 lg:py-14 flex flex-col gap-6">
               {/* Two set lines, each sliding up out of its own clip */}
-              <h1 className="font-bold leading-[1.05] text-[2.15rem] sm:text-6xl xl:text-7xl tracking-tight">
+              <h1 className="font-fredoka font-semibold leading-[1.05] text-[2.15rem] sm:text-6xl xl:text-7xl tracking-tight">
                 <span className="lm-line text-neutral-black"><span>{t("Buy resale tickets", "Beli tiket resale")}</span></span>{" "}
                 <span className="lm-line text-primary-navy"><span style={{ "--i": 1 } as React.CSSProperties}>{t("without the fear.", "tanpa takut ketipu.")}</span></span>
               </h1>
@@ -84,14 +84,14 @@ export function Hero({ quickCats }: { quickCats: string[] }) {
 
             {/* Stub: the terms, printed like section, row and seat */}
             <div className="bg-secondary-cream-light rounded-b-[30px] lg:rounded-bl-none lg:rounded-r-[30px] px-5 py-7 sm:px-10 lg:px-8 lg:py-10 flex flex-col">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-secondary-brown-dark">
+              <div className="text-xs font-semibold text-secondary-brown-dark">
                 {t("Lummy resale · Terms", "Lummy resale · Ketentuan")}
               </div>
               <dl className="mt-5 grid grid-cols-2 lg:grid-cols-1 gap-x-6 gap-y-4 lg:gap-y-5">
                 {terms.map((x, i) => (
                   <div key={x.label} className="lm-in" style={{ "--i": i, "--d": "420ms" } as React.CSSProperties}>
-                    <dt className="text-[11px] font-semibold uppercase tracking-wider text-neutral-gray">{x.label}</dt>
-                    <dd className="font-fredoka font-semibold text-lg text-neutral-black leading-tight mt-0.5">{x.value}</dd>
+                    <dt className="text-xs font-semibold text-neutral-gray">{x.label}</dt>
+                    <dd className="font-semibold text-lg text-neutral-black leading-tight mt-0.5">{x.value}</dd>
                   </div>
                 ))}
               </dl>

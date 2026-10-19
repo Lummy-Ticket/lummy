@@ -32,22 +32,24 @@ function ListingRow({ event, listing, qty, cheapest, index }: { event: EventItem
   return (
     // CSS entrance, not data-reveal: the rows are rendered on the server and on screen at load,
     // so they must not wait for hydration to show (it cost ~0.4s on a slow phone).
-    <div style={{ "--i": index, "--d": "220ms" } as React.CSSProperties} className={`lm-in relative bg-neutral-white rounded-2xl border p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition duration-300 ${highlight ? "border-primary-navy border-2" : "border-neutral-light-gray-1"} ${buyable ? "hover:border-primary-navy hover:shadow-[3px_3px_0_#245397] hover:-translate-y-0.5" : ""} ${buyable ? "" : "bg-secondary-gray-soft/60"}`}>
+    <div style={{ "--i": index, "--d": "220ms" } as React.CSSProperties} className={`lm-in relative bg-neutral-white rounded-2xl border p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition duration-300 ${highlight ? "border-primary-navy border-2" : "border-neutral-light-gray-1"} ${buyable ? "hover:border-primary-navy hover:shadow-[3px_3px_0_#0D3B9A] hover:-translate-y-0.5" : ""} ${buyable ? "" : "bg-secondary-gray-soft/60"}`}>
       {highlight && (
-        <span className="absolute -top-2.5 left-4 rounded-full bg-primary-navy px-2.5 py-0.5 text-[11px] font-semibold text-white">{t("Cheapest", "Termurah")}</span>
+        <span className="absolute -top-2.5 left-4 rounded-full border border-neutral-light-gray-1 bg-neutral-white px-2.5 py-0.5 text-[11px] font-semibold text-neutral-gray">{t("Cheapest", "Termurah")}</span>
       )}
       <div className="flex flex-col gap-1.5 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-fredoka font-semibold text-lg text-neutral-black">{tier?.name}</span>
+          <span className="font-semibold text-lg text-neutral-black">{tier?.name}</span>
+          {/* Brand guideline 1.0: colour only where it asks for attention. Every ticket on sale has
+              been checked, so "Checked" is gray like "Cheapest"; review and duplicates keep theirs. */}
           {dup ? (
             <Badge.Base className="rounded-full bg-secondary-pink-soft text-secondary-pink-dark text-xs flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> {t("Duplicate barcode", "Barcode duplikat")}</Badge.Base>
           ) : flagged ? (
             <Badge.Base className="rounded-full bg-secondary-orange-soft text-secondary-orange-dark text-xs flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> {t("Under review", "Dalam review")}</Badge.Base>
           ) : clearedByStaff(listing) ? (
             // The checks flagged it and a person cleared it: say that, not just "Checked".
-            <Badge.Base className="rounded-full bg-secondary-blue-extra text-primary-navy text-xs flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> {t("Checked by the Lummy team", "Dicek tim Lummy")}</Badge.Base>
+            <Badge.Base className="rounded-full border border-neutral-light-gray-1 bg-neutral-white text-neutral-gray text-xs flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> {t("Checked by the Lummy team", "Dicek tim Lummy")}</Badge.Base>
           ) : (
-            <Badge.Base className="rounded-full bg-secondary-green-light text-secondary-green-dark text-xs flex items-center gap-1"><ScanLine className="w-3 h-3" /> {t("Checked", "Sudah dicek")}</Badge.Base>
+            <Badge.Base className="rounded-full border border-neutral-light-gray-1 bg-neutral-white text-neutral-gray text-xs flex items-center gap-1"><ScanLine className="w-3 h-3" /> {t("Checked", "Sudah dicek")}</Badge.Base>
           )}
         </div>
         <span className="text-sm text-neutral-gray">
@@ -66,7 +68,7 @@ function ListingRow({ event, listing, qty, cheapest, index }: { event: EventItem
       </div>
       <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0">
         <div className="sm:text-right">
-          <div className="font-fredoka font-bold text-xl text-primary-navy text-nowrap">{formatIDR(listing.askPrice)}<span className="text-xs text-neutral-gray font-sans font-normal"> {t("each", "/tiket")}</span></div>
+          <div className="tabular-nums font-bold text-xl text-primary-navy text-nowrap">{formatIDR(listing.askPrice)}<span className="text-xs text-neutral-gray font-sans font-normal"> {t("each", "/tiket")}</span></div>
           {qty > 1 && <div className="text-xs text-neutral-gray text-nowrap">{t(`${qty} tickets · ${formatIDR(total)}`, `${qty} tiket · ${formatIDR(total)}`)}</div>}
         </div>
         {buyable ? (
@@ -110,7 +112,7 @@ export default function EventDetailPage() {
   if (!event) {
     return (
       <div className="max-w-4xl mx-auto px-5 lg:px-10 pt-28 pb-16 text-center flex flex-col items-center gap-4">
-        <Image src="/assets/images/mascot-confused.svg" alt="" width={120} height={120} />
+        <Image src="/assets/brand/maskot-bingung.svg" alt="" width={152} height={130} />
         <p className="text-neutral-gray">{t("Event not found.", "Event tidak ditemukan.")}</p>
         <Link href="/events"><Button.Secondary>{t("Back to browse", "Balik ke jelajah")}</Button.Secondary></Link>
       </div>
@@ -154,13 +156,13 @@ export default function EventDetailPage() {
 
           {over ? (
             <div className="mt-10 rounded-2xl bg-secondary-gray-soft p-6 text-center">
-              <p className="font-fredoka font-semibold text-neutral-black">{t("This show has ended", "Acara ini sudah selesai")}</p>
+              <p className="font-semibold text-neutral-black">{t("This show has ended", "Acara ini sudah selesai")}</p>
               <p className="text-sm text-neutral-gray mt-1">{t("Tickets for it are no longer on sale.", "Tiketnya sudah tidak dijual lagi.")}</p>
               <Link href="/events" className="inline-block mt-4"><Button.Secondary className="text-sm">{t("See what is coming up", "Lihat acara berikutnya")}</Button.Secondary></Link>
             </div>
           ) : closed ? (
             <div className="mt-10 rounded-2xl bg-secondary-pink-soft p-6 text-center">
-              <p className="font-fredoka font-semibold text-neutral-black">{t("Resale is not allowed for this show", "Tiket acara ini tidak boleh dijual ulang")}</p>
+              <p className="font-semibold text-neutral-black">{t("Resale is not allowed for this show", "Tiket acara ini tidak boleh dijual ulang")}</p>
               <p className="text-sm text-neutral-gray mt-1">{t("The organiser forbids it, so Lummy does not open listings here.", "Penyelenggara melarangnya, jadi Lummy tidak membuka listing di sini.")}</p>
             </div>
           ) : (
@@ -184,7 +186,7 @@ export default function EventDetailPage() {
           </div>
 
           <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-            <h2 className="font-fredoka font-semibold text-xl text-neutral-black">
+            <h2 className="font-semibold text-xl text-neutral-black">
               {t("Tickets for sale", "Tiket yang dijual")} <span className="text-neutral-gray font-normal text-base">({visibleListings.length})</span>
             </h2>
             {visibleListings.length > 1 && (
@@ -237,7 +239,7 @@ export default function EventDetailPage() {
         <aside className="lm-in lg:sticky lg:top-24 h-fit flex flex-col gap-4" style={{ "--d": "160ms" } as React.CSSProperties}>
           <div className="bg-neutral-white rounded-3xl border border-lummy-500 overflow-hidden">
             <div className="p-6">
-              <div className="flex items-center gap-2 text-primary-navy font-fredoka font-semibold">
+              <div className="flex items-center gap-2 text-primary-navy font-semibold">
                 <Lock className="w-5 h-5" /> {t("Protected by escrow", "Dilindungi escrow")}
               </div>
               <ul className="mt-4 flex flex-col gap-2.5 text-sm text-neutral-gray">
@@ -254,7 +256,7 @@ export default function EventDetailPage() {
               {event.fromPrice > 0 && !over ? (
                 <>
                   <div className="text-xs text-secondary-brown-dark">{t("From", "Mulai dari")}</div>
-                  <div className="font-fredoka font-bold text-2xl text-neutral-black">{formatIDR(event.fromPrice)}</div>
+                  <div className="tabular-nums font-bold text-2xl text-neutral-black">{formatIDR(event.fromPrice)}</div>
                   <p className="text-xs text-secondary-brown-dark mt-1">
                     {event.listingCount === 1
                       ? t("1 listing you can buy right now", "1 listing yang bisa dibeli sekarang")

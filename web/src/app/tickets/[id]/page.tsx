@@ -385,13 +385,13 @@ export default function OrderDetailPage() {
         {/* Escrow */}
         <div className="bg-neutral-white rounded-3xl border border-lummy-500 p-6 min-w-0">
           <div className="flex items-center justify-between gap-3 mb-4">
-            <span className="font-fredoka font-semibold text-neutral-black flex items-center gap-2">
+            <span className="font-semibold text-neutral-black flex items-center gap-2">
               <Lock className="w-5 h-5 text-lummy-500" /> {t("Escrow", "Escrow")}
             </span>
             <EscrowStatusPill phase={phase} />
           </div>
 
-          <div className="font-fredoka font-bold text-3xl text-neutral-black mb-1">{formatIDR(order.amount)}</div>
+          <div className="tabular-nums font-bold text-3xl text-neutral-black mb-1">{formatIDR(order.amount)}</div>
           <p className="text-sm text-neutral-gray">
             {phase === "PRE_EVENT" && t("Held until the show is over. Not in our account, and not in the seller's.", "Ditahan sampai konser selesai. Bukan di rekening kami, bukan juga di penjual.")}
             {phase === "WINDOW_OPEN" && t("The show is over. Funds stay locked while the dispute window runs.", "Konser sudah selesai. Dana tetap terkunci selama masa sengketa berjalan.")}
@@ -691,7 +691,7 @@ export default function OrderDetailPage() {
           ) : (
             <button
               onClick={() => setShowDispute(true)}
-              className="mt-5 w-full px-4 py-3.5 rounded-2xl border-2 border-secondary-orange-dark bg-secondary-orange-soft text-secondary-orange-dark font-fredoka font-medium hover:bg-secondary-orange-dark hover:text-white transition cursor-pointer flex items-center justify-center gap-2"
+              className="mt-5 w-full px-4 py-3.5 rounded-2xl border-2 border-secondary-orange-dark bg-secondary-orange-soft text-secondary-orange-dark font-semibold hover:bg-secondary-orange-dark hover:text-white transition cursor-pointer flex items-center justify-center gap-2"
             >
               <AlertTriangle className="w-4 h-4" /> {t("Something went wrong at the gate", "Ada masalah di gate")}
             </button>
@@ -763,7 +763,7 @@ export default function OrderDetailPage() {
             <EntryPass orderId={order.id} onChange={refreshOrder} />
           )}
           <div className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
-            <h2 className="font-fredoka font-semibold text-lg text-neutral-black mb-3">{t("Handover documents", "Dokumen serah-terima")}</h2>
+            <h2 className="font-semibold text-lg text-neutral-black mb-3">{t("Handover documents", "Dokumen serah-terima")}</h2>
             {/* The ticket itself, the PDF the seller uploaded. Opening it is logged by the server. */}
             {account && order.ticketFile && (
               order.escrowStatus === "REFUNDED" || ticketGone ? (
@@ -822,7 +822,7 @@ export default function OrderDetailPage() {
           </div>
           {/* Settlement rules: the policy that makes the guarantee credible */}
           <div className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
-            <h2 className="font-fredoka font-semibold text-lg text-neutral-black mb-3">{t("How this order settles", "Cara pesanan ini selesai")}</h2>
+            <h2 className="font-semibold text-lg text-neutral-black mb-3">{t("How this order settles", "Cara pesanan ini selesai")}</h2>
             <ul className="flex flex-col gap-3 text-sm text-neutral-gray leading-relaxed">
               <li className="flex gap-2.5">
                 <Clock className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" />
@@ -857,7 +857,7 @@ export default function OrderDetailPage() {
       {/* Letter of authorisation */}
       <Modal open={showKuasa} onClose={() => setShowKuasa(false)} title={t("Letter of authorisation", "Surat kuasa")}>
         <div className="bg-secondary-gray-soft rounded-2xl p-6 text-sm text-neutral-black leading-relaxed" lang="id">
-          <p className="text-center font-fredoka font-bold text-base mb-4">SURAT KUASA</p>
+          <p className="text-center font-bold text-base mb-4">SURAT KUASA</p>
           <p>Yang bertanda tangan di bawah ini memberi kuasa kepada:</p>
           <p className="mt-2"><b>Penerima:</b> {user?.name ?? "Pembeli"}</p>
           <p><b>Pemberi:</b> {order.sellerName}</p>
@@ -876,7 +876,7 @@ export default function OrderDetailPage() {
         {!ktpOpen ? (
           <div className="flex flex-col items-center text-center gap-3 py-2">
             <span className="w-14 h-14 rounded-2xl bg-secondary-blue-soft text-lummy-500 grid place-items-center"><Lock className="w-7 h-7" /></span>
-            <h4 className="font-fredoka font-semibold text-neutral-black">{t("Unlocks near the event", "Terbuka mendekati acara")}</h4>
+            <h4 className="font-semibold text-neutral-black">{t("Unlocks near the event", "Terbuka mendekati acara")}</h4>
             <p className="text-sm text-neutral-gray max-w-sm">
               {t(
                 "To keep the seller's exposure narrow, the ID photo only opens close to the show or when you are at the gate. Once open it stays available until the event passes, then it is purged.",
@@ -951,7 +951,7 @@ export default function OrderDetailPage() {
                 name="dispute-reason"
                 checked={reason === r.id}
                 onChange={() => { setReason(r.id); if (!r.eligible) { setEvidence(null); setAttested(false); } }}
-                className="mt-0.5 accent-[#3A6CB4] cursor-pointer"
+                className="mt-0.5 accent-primary-navy cursor-pointer"
               />
               <span className="min-w-0">
                 <span className="block text-sm text-neutral-black">{t(r.label.en, r.label.id)}</span>
@@ -1071,7 +1071,7 @@ export default function OrderDetailPage() {
             </label>
 
             <label className="flex items-start gap-2.5 mt-4 cursor-pointer">
-              <input type="checkbox" checked={attested} onChange={(e) => setAttested(e.target.checked)} className="mt-0.5 accent-[#3A6CB4] cursor-pointer" />
+              <input type="checkbox" checked={attested} onChange={(e) => setAttested(e.target.checked)} className="mt-0.5 accent-primary-navy cursor-pointer" />
               <span className="text-xs text-neutral-gray leading-relaxed">
                 {reason === "NOT_DELIVERED"
                   ? t(
@@ -1108,7 +1108,7 @@ export default function OrderDetailPage() {
       <Modal open={acting} onClose={() => {}}>
         <div className="flex flex-col items-center gap-3 py-4">
           <Loader2 className="w-8 h-8 text-lummy-500 animate-spin" />
-          <p className="font-fredoka font-semibold text-neutral-black">
+          <p className="font-semibold text-neutral-black">
             {onchain ? t("Sending transaction...", "Mengirim transaksi...") : t("Updating your order...", "Memperbarui pesanan...")}
           </p>
           <p className="text-sm text-neutral-gray">{t("One moment.", "Sebentar.")}</p>

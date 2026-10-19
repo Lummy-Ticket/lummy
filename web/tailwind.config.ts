@@ -13,11 +13,13 @@ const config: Config = {
         "sans": ["var(--font-jakarta)", "system-ui", "sans-serif"],
       },
       colors: {
+        // Values from the brand guideline 1.0 (docs/brand, 19 Oct 2026), the two blues of Joan's mark.
+        // Before it: navy #3A6CB4, navy-dark #245397, sky #B1E7FF.
         // Primary Colors
         primary: {
-          "navy": "#3A6CB4", // Text, Button, Logo, Icons
-          "navy-dark": "#245397",
-          "sky": "#B1E7FF",   // Button, Logo, Illustrations
+          "navy": "#0F45B3", // Biru Lummy: text, buttons, logo, icons. 8.3:1 on white.
+          "navy-dark": "#0D3B9A", // Pressed and hover
+          "sky": "#BDDCFA",   // Biru Muda: buttons, mascot, illustrations
         },
 
         // Secondary Colors
@@ -33,11 +35,13 @@ const config: Config = {
             "soft": "#FFF4E2"
           },
           "blue":{
-            "light": "#F0FAFF",
+            // Biru Pucat. #F0FAFF before 19 Oct 2026.
+            "light": "#EEF5FE",
             // #DCEFF8 before 12 Oct 2026: the brand blue read 4.45:1 on it, just under AA for small text.
-            "soft": "#E2F2FA",
+            // #E2F2FA before 19 Oct 2026; the brand blue reads 6.8:1 on this one.
+            "soft": "#D8EAFC",
             "soft-light": "#DFF5FF",
-            "extra": "#FBFEFF"
+            "extra": "#F6FAFE" // #FBFEFF before 19 Oct 2026
           },
           "indigo": {
             "dark": "#4B4BB4",
@@ -82,9 +86,10 @@ const config: Config = {
 
         // Neutral Colors
         neutral: {
-          "black": "#333333",        // Text, Icons
-          // Text, Icons. #7B8491 before 12 Oct 2026: 3.8:1 on white; this one is 5:1, and 4.6:1 on gray-soft.
-          "gray": "#677080",
+          "black": "#1C2B4B",        // Tinta: text, icons. #333333 before 19 Oct 2026.
+          // Text, Icons. #7B8491 before 12 Oct 2026: 3.8:1 on white. #677080 before 19 Oct 2026;
+          // this one is 5.4:1 on white and 5:1 on gray-soft.
+          "gray": "#5F6B7F",
           "disabled-gray": "#B9C6DA", // Text, Card
           "light-gray-1": "#D2D2D2",  // Text, Line
           "light-gray-2": "#F0F0F0",  // Background
@@ -92,18 +97,19 @@ const config: Config = {
         },
 
         // Legacy color compatibility
+        // The blue scale of the brand guideline: 500 is Biru Lummy, 200 Biru Muda, 50 Biru Pucat.
         lummy: {
-          50: "#F0FAFF",
-          100: "#DCEFF8",
-          200: "#B1E7FF",
-          300: "#3A6CB4",
-          400: "#3A6CB4",
-          500: "#3A6CB4", // Primary Navy Blue
-          600: "#2E5A99",
-          700: "#23477A",
-          800: "#17345C",
-          900: "#0B213E",
-          950: "#05182F",
+          50: "#EEF5FE",
+          100: "#D8EAFC",
+          200: "#BDDCFA",
+          300: "#77A0DE",
+          400: "#4372C8",
+          500: "#0F45B3", // Primary Navy Blue
+          600: "#0D3B9A",
+          700: "#0B3281",
+          800: "#092868",
+          900: "#071E4F",
+          950: "#041536",
         },
 
         // Pastel category colors

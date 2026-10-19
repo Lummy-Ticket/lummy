@@ -55,7 +55,7 @@ export function Footer() {
         </div>
         {cols.map((c) => (
           <div key={c.en} className="flex flex-col gap-3">
-            <h6 className="font-fredoka font-semibold text-neutral-black text-base">{t(c.en, c.id)}</h6>
+            <h6 className="font-semibold text-neutral-black text-base">{t(c.en, c.id)}</h6>
             {c.links.map((l) => (
               <Link key={l.en} href={l.href} className="text-neutral-gray text-sm hover:text-primary-navy transition">
                 {t(l.en, l.id)}

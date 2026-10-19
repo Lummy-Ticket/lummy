@@ -259,7 +259,7 @@ export default function SellPage() {
       <div className="flex items-center gap-2 mt-6 mb-8">
         {STEPS.map((s, i) => (
           <div key={s.en} className="flex items-center gap-2">
-            <span className={`w-7 h-7 rounded-full grid place-items-center text-xs font-fredoka font-bold ${i <= step ? "bg-primary-navy text-white" : "bg-neutral-light-gray-2 text-neutral-gray"}`}>{i + 1}</span>
+            <span className={`w-7 h-7 rounded-full grid place-items-center text-xs font-bold ${i <= step ? "bg-primary-navy text-white" : "bg-neutral-light-gray-2 text-neutral-gray"}`}>{i + 1}</span>
             <span className={`text-sm ${i === step ? "text-neutral-black font-medium" : "text-neutral-gray"} hidden sm:block`}>
               {t(s.en, s.id)}
             </span>
@@ -280,7 +280,7 @@ export default function SellPage() {
             ) : (
             <div data-upload-closed className="border-2 border-dashed border-neutral-light-gray-1 rounded-3xl py-10 px-6 flex flex-col items-center gap-3 text-center bg-secondary-gray-soft/60">
               <UploadCloud className="w-10 h-10 text-neutral-gray" />
-              <span className="font-fredoka font-semibold text-neutral-black">{t("Uploading your own PDF is off on this server", "Upload PDF sendiri belum aktif di server ini")}</span>
+              <span className="font-semibold text-neutral-black">{t("Uploading your own PDF is off on this server", "Upload PDF sendiri belum aktif di server ini")}</span>
               <span className="text-sm text-neutral-gray max-w-md">
                 {t(
                   "This server does not read real files yet, so a listing is made from one of the sample tickets below. Nothing claims to have checked a file it never read.",
@@ -318,7 +318,7 @@ export default function SellPage() {
             className={`border-2 border-dashed border-lummy-500 rounded-3xl py-12 flex flex-col items-center gap-3 text-center hover:bg-secondary-blue-light transition cursor-pointer ${dragging ? "bg-secondary-blue-light scale-[1.01]" : ""}`}
           >
             <UploadCloud className="w-10 h-10 text-lummy-500" />
-            <span className="font-fredoka font-semibold text-neutral-black">{t("Upload your ticket PDF", "Upload PDF tiketmu")}</span>
+            <span className="font-semibold text-neutral-black">{t("Upload your ticket PDF", "Upload PDF tiketmu")}</span>
             <span className="text-sm text-neutral-gray">
               {realUpload
                 ? t("The PDF from the organiser, up to 4 MB. Drop it here or click to choose", "PDF dari penyelenggara, maksimal 4 MB. Tarik ke sini atau klik untuk pilih")
@@ -390,7 +390,7 @@ export default function SellPage() {
       {step === 1 && ai && (
         <div className="flex flex-col gap-6">
           <div>
-            <h3 className="font-fredoka font-semibold text-neutral-black flex items-center gap-2 mb-3">
+            <h3 className="font-semibold text-neutral-black flex items-center gap-2 mb-3">
               <ScanLine className="w-5 h-5 text-lummy-500" /> {t("Ticket check", "Cek tiket")}
             </h3>
             <div className="grid sm:grid-cols-3 gap-3">
@@ -466,7 +466,7 @@ export default function SellPage() {
           </div>
 
           <div>
-            <h3 className="font-fredoka font-semibold text-neutral-black mb-3">
+            <h3 className="font-semibold text-neutral-black mb-3">
               {check ? t("Ticket details", "Data tiket") : t("Details from the sample", "Data dari tiket contoh")}{" "}
               <span className="text-neutral-gray font-normal text-sm">{check ? t("(fill in from your ticket)", "(isi sesuai tiketmu)") : t("(check and adjust)", "(cek & sesuaikan)")}</span>
             </h3>
@@ -584,7 +584,7 @@ export default function SellPage() {
                 <span className="text-xs text-neutral-gray">{t("Tickets in this PDF", "Jumlah tiket dalam PDF ini")}</span>
                 {lockedQty ? (
                   <div data-locked-qty className="flex items-center gap-3">
-                    <span className="font-fredoka font-bold text-lg text-neutral-black w-8 text-center">{check!.barcodes.length}</span>
+                    <span className="font-bold text-lg text-neutral-black w-8 text-center">{check!.barcodes.length}</span>
                     <span className="text-xs text-neutral-gray">
                       {t(
                         "One ticket per barcode read. The buyer receives the whole file, so every ticket in it is sold together, seated as printed.",
@@ -595,7 +595,7 @@ export default function SellPage() {
                 ) : (
                 <div className="flex items-center gap-3">
                   <button type="button" onClick={() => setQty((q) => Math.max(1, q - 1))} className="w-10 h-10 rounded-xl border border-lummy-500 grid place-items-center text-lummy-500 hover:bg-secondary-blue-light transition cursor-pointer"><Minus className="w-4 h-4" /></button>
-                  <span className="font-fredoka font-bold text-lg text-neutral-black w-8 text-center">{qty}</span>
+                  <span className="font-bold text-lg text-neutral-black w-8 text-center">{qty}</span>
                   <button type="button" onClick={() => setQty((q) => Math.min(8, q + 1))} className="w-10 h-10 rounded-xl border border-lummy-500 grid place-items-center text-lummy-500 hover:bg-secondary-blue-light transition cursor-pointer"><Plus className="w-4 h-4" /></button>
                   <span className="text-xs text-neutral-gray">{t("Sold as one set, seated together.", "Dijual sebagai 1 set, duduk bersebelahan.")}{qty > 1 ? t(` All ${qty} at once.`, ` ${qty} tiket sekaligus.`) : ""}</span>
                 </div>
@@ -623,9 +623,9 @@ export default function SellPage() {
             </div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-neutral-gray">{t("Your asking price, per ticket", "Harga jual kamu, per tiket")}</span>
-              <span className="font-fredoka font-bold text-xl text-lummy-500">{formatIDR(price)}</span>
+              <span className="tabular-nums font-bold text-xl text-lummy-500">{formatIDR(price)}</span>
             </div>
-            <input type="range" min={floor} max={cap} step={10000} value={price} onChange={(e) => setPrice(Number(e.target.value))} className="w-full accent-[#3A6CB4] cursor-pointer" />
+            <input type="range" min={floor} max={cap} step={10000} value={price} onChange={(e) => setPrice(Number(e.target.value))} className="w-full accent-primary-navy cursor-pointer" />
             <div className="flex justify-between items-center text-xs text-neutral-gray mt-2">
               <span className="flex flex-col"><span>{formatIDR(floor)}</span><span className="text-[10px]">{t("min 50%", "min 50%")}</span></span>
               <span className={`font-medium ${markup >= 0 ? "text-secondary-green-dark" : "text-secondary-orange-dark"}`}>{markup >= 0 ? `+${markup}%` : `${markup}%`} {t("vs face value", "dari harga asli")}</span>
@@ -634,7 +634,7 @@ export default function SellPage() {
             {qty > 1 && (
               <div className="mt-4 pt-4 border-t border-dashed border-neutral-light-gray-1 flex justify-between text-sm">
                 <span className="text-neutral-gray">{t(`Total for ${qty} tickets (one set)`, `Total ${qty} tiket (1 set)`)}</span>
-                <span className="font-fredoka font-bold text-neutral-black">{formatIDR(price * qty)}</span>
+                <span className="tabular-nums font-bold text-neutral-black">{formatIDR(price * qty)}</span>
               </div>
             )}
           </div>
@@ -642,12 +642,12 @@ export default function SellPage() {
           <div className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-6">
             <label className="flex items-start justify-between gap-4 cursor-pointer">
               <span>
-                <span className="block font-fredoka font-semibold text-neutral-black">{t("The venue checks ID at the gate", "Venue cek KTP di gate")}</span>
+                <span className="block font-semibold text-neutral-black">{t("The venue checks ID at the gate", "Venue cek KTP di gate")}</span>
                 <span className="block text-sm text-neutral-gray mt-0.5">
                   {t("The buyer will need a photo of your ID card next to the letter of authorisation.", "Pembeli butuh foto KTP kamu di samping surat kuasa.")}
                 </span>
               </span>
-              <input type="checkbox" checked={gateKtp} onChange={(e) => setGateKtp(e.target.checked)} className="mt-1 w-5 h-5 shrink-0 accent-[#3A6CB4] cursor-pointer" />
+              <input type="checkbox" checked={gateKtp} onChange={(e) => setGateKtp(e.target.checked)} className="mt-1 w-5 h-5 shrink-0 accent-primary-navy cursor-pointer" />
             </label>
             {nameChecked && !gateKtp && (
               <p className="mt-3 flex items-start gap-2 text-xs text-secondary-orange-dark">
@@ -730,7 +730,7 @@ export default function SellPage() {
 
           {sendsRealFile && (
             <label className="flex items-start gap-2.5 cursor-pointer">
-              <input data-consent type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 accent-[#3A6CB4] cursor-pointer" />
+              <input data-consent type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 accent-primary-navy cursor-pointer" />
               <span className="text-xs text-neutral-gray leading-relaxed">
                 {t("This ticket is mine to sell. I agree that the PDF, with the names and numbers on it, is stored and handed to the buyer as described in the ", "Tiket ini berhak saya jual. Saya setuju PDF-nya, dengan nama dan nomor di dalamnya, disimpan dan diberikan ke pembeli seperti dijelaskan di ")}
                 <Link href="/privacy" target="_blank" className="text-primary-navy font-medium underline underline-offset-2">{t("privacy policy", "kebijakan privasi")}</Link>

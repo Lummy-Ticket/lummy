@@ -46,7 +46,7 @@ export function Faq({ items, defaultOpen = -1 }: { items: FaqItem[]; defaultOpen
                     <it.Icon className="w-4 h-4" />
                   </span>
                 )}
-                <span className="flex-1 font-fredoka font-semibold text-neutral-black text-base md:text-lg">{it.q}</span>
+                <span className="flex-1 font-semibold text-neutral-black text-base md:text-lg">{it.q}</span>
                 <span
                   className={cn(
                     "w-8 h-8 rounded-full border grid place-items-center shrink-0 transition duration-300",

@@ -23,7 +23,7 @@ function Toggle({ label, checked, onChange, small }: { label: string; checked: b
   return (
     <label className={cn("flex items-center justify-between gap-2 cursor-pointer", small ? "mt-2 text-[11px] text-neutral-gray" : "text-xs text-neutral-black")}>
       {label}
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="accent-[#3A6CB4] cursor-pointer" />
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="accent-primary-navy cursor-pointer" />
     </label>
   );
 }
@@ -110,7 +110,7 @@ function Panel({ onClose, accounts }: { onClose: () => void; accounts: DemoAccou
   return (
     <div className="w-64 rounded-2xl border border-lummy-500 bg-neutral-white shadow-lummy-lg p-4">
       <div className="flex items-center justify-between mb-3">
-        <span className="font-fredoka font-semibold text-neutral-black flex items-center gap-2">
+        <span className="font-semibold text-neutral-black flex items-center gap-2">
           <FlaskConical className="w-4 h-4 text-secondary-pink-dark" /> {t("Dev panel", "Panel dev")}
         </span>
         <button onClick={onClose} className="text-neutral-gray cursor-pointer">

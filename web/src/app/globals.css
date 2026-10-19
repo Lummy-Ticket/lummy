@@ -54,13 +54,15 @@
     @apply border-gray-200;
   }
   body {
-    @apply bg-white text-gray-900 font-sans;
+    @apply bg-white text-neutral-black font-sans;
     /* Plus Jakarta Sans sets its spaces tight; a touch more keeps short labels
        like "How it works" from reading as one word on 1x screens. */
     word-spacing: 0.04em;
   }
+  /* Brand guideline 1.0 (docs/brand): headings are Plus Jakarta Sans. Fredoka is left to the
+     logo and the big display lines, which say font-fredoka themselves, and never at 700. */
   h1, h2, h3, h4, h5, h6 {
-    @apply font-bold font-fredoka;
+    @apply font-bold font-sans;
   }
   h1 {
     @apply text-4xl md:text-6xl leading-tight;
@@ -101,7 +103,7 @@
   }
   /* A11y: ring fokus keyboard-only (gak muncul pas klik mouse), warna brand. */
   :focus-visible {
-    outline: 2px solid #3A6CB4;
+    outline: 2px solid #0F45B3;
     outline-offset: 2px;
   }
 }
@@ -259,7 +261,7 @@ input[type=number]::-webkit-inner-spin-button {
   height: 1.25rem;
   border-radius: 9999px;
   background: #ffffff;
-  border: 2px solid #3A6CB4;
+  border: 2px solid #0F45B3;
   cursor: pointer;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
@@ -269,7 +271,7 @@ input[type=number]::-webkit-inner-spin-button {
   height: 1.25rem;
   border-radius: 9999px;
   background: #ffffff;
-  border: 2px solid #3A6CB4;
+  border: 2px solid #0F45B3;
   cursor: pointer;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }

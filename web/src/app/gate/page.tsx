@@ -81,7 +81,7 @@ function ResultCard({ o }: { o: Outcome }) {
     return (
       <div data-gate-result="unknown" className="rounded-3xl bg-neutral-light-gray-1 p-6 text-center">
         <CircleHelp className="w-10 h-10 mx-auto text-neutral-gray" />
-        <div className="font-fredoka font-bold text-2xl text-neutral-black mt-2">{t("Not a Lummy ticket", "Bukan tiket Lummy")}</div>
+        <div className="font-bold text-2xl text-neutral-black mt-2">{t("Not a Lummy ticket", "Bukan tiket Lummy")}</div>
         <p className="text-sm text-neutral-gray mt-2">
           {t("This code was never sold through Lummy. The organiser's own system decides on it.", "Kode ini tidak pernah dijual lewat Lummy. Sistem penyelenggara sendiri yang memutuskan.")}
         </p>
@@ -93,7 +93,7 @@ function ResultCard({ o }: { o: Outcome }) {
     return (
       <div data-gate-result="admitted" className="rounded-3xl bg-secondary-blue-extra border-2 border-secondary-green-dark p-6 text-center">
         <CheckCircle2 className="w-12 h-12 mx-auto text-secondary-green-dark" />
-        <div className="font-fredoka font-bold text-3xl text-secondary-green-dark mt-2">{t("Admitted", "Silakan masuk")}</div>
+        <div className="font-bold text-3xl text-secondary-green-dark mt-2">{t("Admitted", "Silakan masuk")}</div>
         {ticket && <div className="text-sm text-neutral-black mt-2">{ticket}</div>}
         {what && <div className="text-xs text-neutral-gray mt-1">{t(`On ${what.en}`, `Lewat ${what.id}`)}</div>}
         {o.credential === "copy" && (
@@ -111,7 +111,7 @@ function ResultCard({ o }: { o: Outcome }) {
   return (
     <div data-gate-result="refused" data-gate-reason={o.reason} className="rounded-3xl bg-secondary-pink-soft border-2 border-secondary-orange-dark p-6 text-center">
       <XCircle className="w-12 h-12 mx-auto text-secondary-orange-dark" />
-      <div className="font-fredoka font-bold text-3xl text-secondary-orange-dark mt-2">{t("Refused", "Ditolak")}</div>
+      <div className="font-bold text-3xl text-secondary-orange-dark mt-2">{t("Refused", "Ditolak")}</div>
       {reason && <div className="text-sm font-medium text-neutral-black mt-1">{t(reason.en, reason.id)}</div>}
       {ticket && <div className="text-sm text-neutral-black mt-2">{ticket}</div>}
       {o.firstUse && (
@@ -220,7 +220,7 @@ function GateDoor() {
   const field = "rounded-xl border border-lummy-500 px-4 py-2.5 text-sm text-neutral-black outline-none bg-neutral-white";
   return (
     <PageContainer width="form">
-      <div className="text-xs font-semibold uppercase tracking-wide text-lummy-500 flex items-center gap-1.5">
+      <div className="text-xs font-semibold text-lummy-500 flex items-center gap-1.5">
         <DoorOpen className="w-4 h-4" /> {t("At the door", "Di pintu masuk")}
       </div>
       <h1 className="text-2xl md:text-3xl font-bold text-neutral-black mt-2">{t("Gate scanner", "Pemindai gate")}</h1>
@@ -294,7 +294,7 @@ function GateDoor() {
       {log && (
         <section className="mt-8">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="font-fredoka font-semibold text-lg text-neutral-black">{t("At this door", "Di pintu ini")}</h2>
+            <h2 className="font-semibold text-lg text-neutral-black">{t("At this door", "Di pintu ini")}</h2>
             <span className="text-xs text-neutral-gray inline-flex items-center gap-1.5">
               <Users className="w-3.5 h-3.5" /> {t(`${log.admitted} in · ${log.refused} refused`, `${log.admitted} masuk · ${log.refused} ditolak`)}
             </span>

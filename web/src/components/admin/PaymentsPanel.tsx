@@ -103,13 +103,13 @@ function NeedsRefund({ p, onDone }: { p: StaffPayment; onDone: () => void }) {
     <div data-refund={p.id} className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="font-fredoka font-semibold text-neutral-black truncate">{p.eventTitle || t("Unknown show", "Acara tidak diketahui")}</h3>
+          <h3 className="font-semibold text-neutral-black truncate">{p.eventTitle || t("Unknown show", "Acara tidak diketahui")}</h3>
           <div className="text-xs text-neutral-gray mt-1">
             {t("Paid", "Dibayar")} {p.paidAt ? formatDateTime(p.paidAt) : "-"}
             {p.testMode && <> · {t("Xendit test mode", "mode uji Xendit")}</>}
           </div>
         </div>
-        <span className="font-fredoka font-bold text-lummy-500 text-nowrap">{formatIDR(p.total)}</span>
+        <span className="tabular-nums font-bold text-lummy-500 text-nowrap">{formatIDR(p.total)}</span>
       </div>
 
       <div className="mt-3 flex flex-col gap-1.5 text-sm">
@@ -198,12 +198,12 @@ function Stuck({ s, onDone }: { s: StuckRecord; onDone: () => void }) {
     <div data-stuck={s.id} className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="font-fredoka font-semibold text-neutral-black truncate">{s.eventTitle}</h3>
+          <h3 className="font-semibold text-neutral-black truncate">{s.eventTitle}</h3>
           <div className="text-xs text-neutral-gray mt-1">
             {t("Order", "Pesanan")} <span className="font-mono">{s.id}</span> · {s.escrowStatus}
           </div>
         </div>
-        <span className="font-fredoka font-bold text-lummy-500 text-nowrap">{formatIDR(s.amount)}</span>
+        <span className="tabular-nums font-bold text-lummy-500 text-nowrap">{formatIDR(s.amount)}</span>
       </div>
       <p className="text-xs mt-3 rounded-xl px-3 py-2 bg-secondary-gold-soft text-secondary-brown-dark flex gap-2">
         <AlertTriangle className="w-4 h-4 shrink-0" />
@@ -256,7 +256,7 @@ function Recent({ p }: { p: StaffPayment }) {
         </div>
       </div>
       <div className="text-right shrink-0">
-        <div className="text-sm font-fredoka font-semibold text-neutral-black">{formatIDR(p.total)}</div>
+        <div className="text-sm tabular-nums font-semibold text-neutral-black">{formatIDR(p.total)}</div>
         <StatusChip status={p.status} />
       </div>
     </li>
@@ -278,7 +278,7 @@ export function PaymentsPanel({ data, error, refresh }: { data: PaymentsOverview
     );
   }
 
-  const heading = "font-fredoka font-semibold text-lg text-neutral-black mb-3";
+  const heading = "font-semibold text-lg text-neutral-black mb-3";
   return (
     <div className="flex flex-col gap-8">
       <p className="text-sm text-neutral-gray">
@@ -339,7 +339,7 @@ export function PaymentsPanel({ data, error, refresh }: { data: PaymentsOverview
               <li key={p.id} className="py-3 border-b border-dashed border-neutral-light-gray-1 last:border-0">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-sm text-neutral-black truncate">{p.eventTitle}</span>
-                  <span className="text-sm font-fredoka font-semibold text-neutral-black shrink-0">{formatIDR(p.total)}</span>
+                  <span className="text-sm tabular-nums font-semibold text-neutral-black shrink-0">{formatIDR(p.total)}</span>
                 </div>
                 <div className="text-xs text-neutral-gray mt-0.5">
                   {p.refundedAt ? formatDateTime(p.refundedAt) : ""} · {p.buyer?.name}

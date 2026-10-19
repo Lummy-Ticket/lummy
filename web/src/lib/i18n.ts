@@ -89,8 +89,9 @@ export function useFormatters() {
         new Date(iso).toLocaleString(locale, {
           day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
         }),
-      // Rupiah either way; only the digit grouping follows the language.
-      formatIDR: (n: number) => `IDR ${n.toLocaleString(lang === "id" ? "id-ID" : "en-US")}`,
+      // Rupiah either way, written Rp1.250.000 as the brand guideline 1.0 asks (IDR 1.250.000
+      // before 19 Oct 2026); only the digit grouping follows the language.
+      formatIDR: (n: number) => `Rp${n.toLocaleString(lang === "id" ? "id-ID" : "en-US")}`,
       formatCountdown: (ms: number) => {
         const [h, m, sec] = lang === "id" ? ["j", "m", "d"] : ["h", "m", "s"];
         if (!Number.isFinite(ms) || ms <= 0) return `00${h} 00${m} 00${sec}`;

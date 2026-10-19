@@ -180,7 +180,7 @@ function EventsInner() {
         </div>
       ) : (
         <div className="flex flex-col items-center text-center py-16 gap-4">
-          <Image src="/assets/images/mascot-confused.svg" alt="" width={120} height={120} />
+          <Image src="/assets/brand/maskot-bingung.svg" alt="" width={152} height={130} />
           <p className="text-neutral-gray">{t("Nothing matches. Try clearing a filter or a different keyword.", "Tidak ada yang cocok. Coba hapus filter atau pakai kata kunci lain.")}</p>
           <Button.Secondary onClick={clearAll}>{t("Clear filters", "Hapus filter")}</Button.Secondary>
         </div>

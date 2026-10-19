@@ -18,7 +18,7 @@ export function NotifyCard({ event }: { event: EventItem }) {
 
   return (
     <div className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
-      <h4 className="font-fredoka font-semibold text-neutral-black flex items-center gap-2 mb-1">
+      <h4 className="font-semibold text-neutral-black flex items-center gap-2 mb-1">
         <Bell className="w-4 h-4 text-lummy-500" /> {t("Alerts & waitlist", "Notifikasi & waitlist")}
       </h4>
       <p className="text-xs text-neutral-gray mb-3">{t(`We will ping you on ${CH_LABEL[channel]}. Change it in your profile.`, `Kami kabari lewat ${CH_LABEL[channel]}. Ubah di profil.`)}</p>

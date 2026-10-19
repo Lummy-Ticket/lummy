@@ -94,7 +94,7 @@ export function QrisPanel({
 
   return (
     <div data-qris-panel data-qris-status={p.status} className="flex flex-col items-center gap-4 p-6 text-center">
-      <div className="flex items-center gap-2 font-fredoka font-semibold text-lg text-neutral-black">
+      <div className="flex items-center gap-2 font-semibold text-lg text-neutral-black">
         <QrCode className="w-5 h-5 text-lummy-500" /> {t("Pay with QRIS", "Bayar dengan QRIS")}
       </div>
 
@@ -104,7 +104,7 @@ export function QrisPanel({
             <QRCodeSVG value={p.qrString ?? ""} size={208} marginSize={1} level="M" aria-label={t("QRIS code", "Kode QRIS")} />
           </div>
           <div>
-            <div className="font-fredoka font-bold text-xl text-neutral-black">{formatIDR(p.amount)}</div>
+            <div className="tabular-nums font-bold text-xl text-neutral-black">{formatIDR(p.amount)}</div>
             <div className="text-xs text-neutral-gray mt-0.5">
               {left > 0 ? t(`Valid for ${clock}`, `Berlaku ${clock}`) : t("Time is up. Checking with Xendit...", "Waktu habis. Mengecek ke Xendit...")}
             </div>

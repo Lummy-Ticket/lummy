@@ -27,7 +27,7 @@ const PROFILE_COLUMNS = "full_name, phone, payout_bank, payout_number, kyc";
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-6">
-      <h3 className="font-fredoka font-semibold text-neutral-black mb-4">{title}</h3>
+      <h3 className="font-semibold text-neutral-black mb-4">{title}</h3>
       {children}
     </div>
   );
