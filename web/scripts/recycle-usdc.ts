@@ -1,11 +1,14 @@
 // Kembalikan USDC testnet dari wallet seller ke wallet pembeli simulasi, supaya demo bisa berputar
 // tanpa faucet. Seller cuma menandatangani otorisasi ERC-3009 (tanpa gas), operator yang mengirim.
+// Dengan --from dan --to, dari pembeli atau seller ke alamat mana pun: wallet demo tim diisi dari
+// sini, bukan dari faucet, dan penerimanya tidak butuh ETH.
 //   npm run chain:recycle [-- --amount 5]      (tanpa --amount: seluruh saldo seller)
+//   npm run chain:recycle -- --from buyer --to 0xAlamatWalletDemo --amount 5
 // Membaca ~/.lummy/testnet.env. Khusus Arbitrum Sepolia.
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { bytesToHex, createWalletClient, formatUnits, http, parseAbi, parseUnits, type Hex } from "viem";
+import { bytesToHex, createWalletClient, formatUnits, http, isAddress, parseAbi, parseUnits, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { arbitrumSepolia } from "viem/chains";
 import { RPC_URLS, USDC_DECIMALS } from "../src/lib/chain/config";
@@ -35,25 +38,35 @@ async function main() {
   const rpcUrl = process.env.RPC_URL ?? RPC_URLS[chain.id];
   const token = DEPLOYMENTS[chain.id]?.token;
   if (!token) throw new Error("belum ada deployment Arbitrum Sepolia di deployments.ts");
-  const seller = privateKeyToAccount(e.SELLER_PRIVATE_KEY as Hex);
+  const arg = (name: string) => {
+    const i = process.argv.indexOf(`--${name}`);
+    return i > 0 ? process.argv[i + 1] : undefined;
+  };
+  const fromName = arg("from") ?? "seller";
+  if (fromName !== "seller" && fromName !== "buyer") throw new Error("--from harus seller atau buyer");
+  const signer = privateKeyToAccount((fromName === "seller" ? e.SELLER_PRIVATE_KEY : e.BUYER_PRIVATE_KEY) as Hex);
   const operator = privateKeyToAccount(e.OPERATOR_PRIVATE_KEY as Hex);
-  const buyer = e.BUYER_ADDRESS as Hex;
+  const toArg = arg("to") ?? "buyer";
+  const to = (toArg === "buyer" ? e.BUYER_ADDRESS : toArg === "seller" ? e.SELLER_ADDRESS : toArg) as Hex;
+  if (!isAddress(to)) throw new Error(`--to bukan alamat: ${toArg}`);
+  if (to.toLowerCase() === signer.address.toLowerCase()) throw new Error("pengirim dan penerima sama");
+  const toName = toArg === "buyer" || toArg === "seller" ? toArg : `${to.slice(0, 6)}…${to.slice(-4)}`;
   const pc = publicClient(chain, rpcUrl);
 
   const read = (functionName: "name" | "version") => pc.readContract({ address: token, abi: fiatTokenAbi, functionName });
   const balanceOf = (a: Hex) => pc.readContract({ address: token, abi: fiatTokenAbi, functionName: "balanceOf", args: [a] });
 
-  const available = await balanceOf(seller.address);
-  const i = process.argv.indexOf("--amount");
-  const value = i > 0 ? parseUnits(process.argv[i + 1], USDC_DECIMALS) : available;
+  const available = await balanceOf(signer.address);
+  const amount = arg("amount");
+  const value = amount ? parseUnits(amount, USDC_DECIMALS) : available;
   if (value === BigInt(0) || value > available) {
-    throw new Error(`saldo seller ${formatUnits(available, USDC_DECIMALS)} USDC, tidak cukup untuk ${formatUnits(value, USDC_DECIMALS)}`);
+    throw new Error(`saldo ${fromName} ${formatUnits(available, USDC_DECIMALS)} USDC, tidak cukup untuk ${formatUnits(value, USDC_DECIMALS)}`);
   }
 
   const now = (await pc.getBlock()).timestamp;
   const nonce = bytesToHex(crypto.getRandomValues(new Uint8Array(32)));
-  const message = { from: seller.address, to: buyer, value, validAfter: BigInt(0), validBefore: now + BigInt(3600), nonce };
-  const signature = await seller.signTypedData({
+  const message = { from: signer.address, to, value, validAfter: BigInt(0), validBefore: now + BigInt(3600), nonce };
+  const signature = await signer.signTypedData({
     domain: { name: await read("name"), version: await read("version"), chainId: chain.id, verifyingContract: token },
     types: {
       TransferWithAuthorization: [
@@ -78,8 +91,8 @@ async function main() {
   });
   const r = await pc.waitForTransactionReceipt({ hash });
   if (r.status !== "success") throw new Error(`tx ${hash} revert`);
-  console.log(`${formatUnits(value, USDC_DECIMALS)} USDC dari seller ke pembeli, dikirim operator: https://sepolia.arbiscan.io/tx/${hash}`);
-  console.log(`saldo pembeli sekarang ${formatUnits(await balanceOf(buyer), USDC_DECIMALS)} USDC`);
+  console.log(`${formatUnits(value, USDC_DECIMALS)} USDC dari ${fromName} ke ${toName}, dikirim operator: https://sepolia.arbiscan.io/tx/${hash}`);
+  console.log(`saldo ${toName} sekarang ${formatUnits(await balanceOf(to), USDC_DECIMALS)} USDC`);
 }
 
 main().catch((err: unknown) => {
