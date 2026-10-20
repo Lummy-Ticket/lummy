@@ -21,8 +21,8 @@ const sections: LegalSection[] = [
         id: "Akunmu: alamat email, serta nama, nomor WhatsApp, dan rekening pencairan kalau kamu mengisinya di profil. Masuk lewat link di email, jadi kami tidak pernah menyimpan password.",
       },
       {
-        en: "A ticket PDF you upload to sell. It usually carries the orderer's name and may carry an ID number, email or phone. We keep the file and its fingerprint (sha256). Barcodes read from it are kept only as a keyed hash: the code itself is never stored, and you see its last four characters.",
-        id: "PDF tiket yang kamu upload untuk dijual. Biasanya memuat nama pemesan, dan bisa memuat NIK, email, atau nomor HP. Kami menyimpan file dan sidik jarinya (sha256). Barcode yang terbaca hanya disimpan sebagai hash berkunci: kodenya sendiri tidak pernah disimpan, dan kamu cuma melihat empat karakter terakhirnya.",
+        en: "A ticket PDF you upload to sell. It usually carries the orderer's name and may carry an ID number, email or phone. We keep the file and its fingerprint (sha256). Barcodes read from it are kept only as a keyed hash: the code itself is never stored, and you see its last four characters. When you publish it, we also keep what the AI read from it (see below): the show, date, venue, category, seat, printed price and how many people it admits.",
+        id: "PDF tiket yang kamu upload untuk dijual. Biasanya memuat nama pemesan, dan bisa memuat NIK, email, atau nomor HP. Kami menyimpan file dan sidik jarinya (sha256). Barcode yang terbaca hanya disimpan sebagai hash berkunci: kodenya sendiri tidak pernah disimpan, dan kamu cuma melihat empat karakter terakhirnya. Saat kamu mem-publish-nya, kami juga menyimpan yang dibaca AI darinya (lihat di bawah): acara, tanggal, venue, kategori, kursi, harga tercetak, dan untuk berapa orang.",
       },
       {
         en: "A photo you attach to a claim or an answer, and what is written in the file: when it was taken, where (GPS, when the phone kept it), the camera model, any editing app, and the barcodes in it (as a keyed hash).",
@@ -43,6 +43,7 @@ const sections: LegalSection[] = [
     list: [
       { en: "To run the sale you asked for: list, hold the money, hand the ticket over, pay out or refund.", id: "Menjalankan transaksi yang kamu minta: memasang listing, menahan dana, menyerahkan tiket, mencairkan atau mengembalikan dana." },
       { en: "To stop the same ticket being sold twice and to catch edited files before they go live.", id: "Mencegah tiket yang sama dijual dua kali dan menangkap file editan sebelum tayang." },
+      { en: "To fill in the sell form from your ticket, and to check that the category and date you picked are the ones printed on it.", id: "Mengisi form jual dari tiketmu, dan mengecek bahwa kategori dan tanggal yang kamu pilih memang yang tercetak di tiket." },
       { en: "To let each ticket through the door once, and to refund you on the spot when someone used it before you.", id: "Membiarkan tiap tiket masuk sekali saja, dan mengembalikan uangmu saat itu juga kalau ada yang memakainya lebih dulu." },
       { en: "To decide claims on evidence from both sides.", id: "Memutus klaim berdasarkan bukti dari kedua pihak." },
     ],
@@ -64,7 +65,11 @@ const sections: LegalSection[] = [
       { en: `Mailspace: sends the sign-in email and holds our team inbox (${CONTACT_EMAIL}), where your messages to us arrive.`, id: `Mailspace: mengirim email untuk masuk dan menyimpan kotak masuk tim (${CONTACT_EMAIL}), tempat pesanmu ke kami masuk.` },
       { en: "Arbitrum (a public blockchain): the escrow ledger described above.", id: "Arbitrum (blockchain publik): buku besar escrow seperti di atas." },
       { en: "Xendit: takes QRIS payments. For now it runs in test mode, so no real money moves, and it receives only the amount and a payment number, never your name or email.", id: "Xendit: menerima pembayaran QRIS. Untuk sekarang berjalan di mode test, jadi tidak ada uang sungguhan yang berpindah, dan Xendit hanya menerima nominal dan nomor pembayaran, tidak pernah nama atau emailmu." },
-      { en: "Before we turn on reading ticket details automatically with an AI service, or take real payments, this page will say so first.", id: "Sebelum kami menyalakan pembacaan data tiket otomatis dengan layanan AI, atau menerima pembayaran sungguhan, halaman ini akan menyebutnya lebih dulu." },
+      {
+        en: "Anthropic (Claude, an AI service): when you fill the sell form in from your ticket, and when you publish it, our server sends Anthropic the ticket's text with the buyer's name, ID and phone numbers, email and order codes taken out. The PDF itself is never sent, and if an ID number, email or phone number is still found after that, nothing is sent. Anthropic does not use it to train its models, and deletes it within 30 days, or keeps it for up to 2 years only if it is flagged for breaking Anthropic's usage policy.",
+        id: "Anthropic (Claude, layanan AI): saat kamu mengisi form jual dari tiketmu dan saat kamu mem-publish-nya, server kami mengirim ke Anthropic teks tiketnya setelah nama pemesan, nomor KTP dan HP, email, dan kode pesanan dibuang. File PDF-nya tidak pernah dikirim, dan kalau setelah itu masih ada NIK, email, atau nomor HP, tidak ada yang dikirim. Anthropic tidak memakainya untuk melatih model, dan menghapusnya dalam 30 hari, atau menyimpannya sampai 2 tahun hanya kalau ditandai melanggar kebijakan pemakaian Anthropic.",
+      },
+      { en: "Before we take real payments, this page will say so first.", id: "Sebelum kami menerima pembayaran sungguhan, halaman ini akan menyebutnya lebih dulu." },
     ],
     body: [{ en: "This means your data is stored outside Indonesia.", id: "Artinya datamu disimpan di luar Indonesia." }],
   },
@@ -119,7 +124,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage
       title={{ en: "Privacy policy", id: "Kebijakan privasi" }}
-      effective={{ en: "9 Oct 2026", id: "9 Okt 2026" }}
+      effective={{ en: "20 Oct 2026", id: "20 Okt 2026" }}
       intro={{
         en: "What Lummy Ticket keeps about you, why, who can see it, and when it is deleted. Written to match what the app actually does.",
         id: "Apa yang disimpan Lummy Ticket tentang kamu, untuk apa, siapa yang bisa melihatnya, dan kapan dihapus. Ditulis sesuai yang benar-benar dilakukan aplikasinya.",
