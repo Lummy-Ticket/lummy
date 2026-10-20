@@ -14,15 +14,32 @@ const TIME_BUDGET_MS = 20_000;
 const DPI = 150;
 const MAX_IMAGE = 4_000_000;
 
+/**
+ * What a glyph the font maps to no character becomes. pdf.js gives it as U+0000, most often for a
+ * ligature: tiket.com's e-tickets print "fi" that way, so "confirmed" read "con rmed" and an email
+ * starting "luthfi" lost "luth" to the cleaner (20 Oct 2026). It stays inside its word as U+FFFD,
+ * which the cleaner's email and name patterns accept in place of those letters.
+ */
+export const UNMAPPED = "�";
+
+/** pdf.js text items joined line by line. A glyph with no character joins its neighbours with no space. */
+export function joinTextItems(items: { str: string; hasEOL?: boolean }[]) {
+  let out = "";
+  for (const item of items) {
+    const str = item.str.replace(/\u0000/g, UNMAPPED);
+    if (str && /^�+$/.test(str)) {
+      out = out.replace(/ $/, "") + str + (item.hasEOL ? "\n" : "");
+      continue;
+    }
+    out += str + (item.hasEOL ? "\n" : " ");
+  }
+  return out;
+}
+
 /** A page's text layer, line by line as pdf.js reports it. */
 async function pageText(page: PDFPageProxy): Promise<string> {
   const content = await page.getTextContent();
-  let out = "";
-  for (const item of content.items) {
-    if (!("str" in item)) continue;
-    out += item.str + (item.hasEOL ? "\n" : " ");
-  }
-  return out;
+  return joinTextItems(content.items.flatMap((item) => ("str" in item ? [item] : [])));
 }
 
 export type TicketText = { pages: string[]; payloads: string[] };

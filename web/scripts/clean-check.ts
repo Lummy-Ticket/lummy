@@ -11,7 +11,7 @@
  */
 import { PDFDocument } from "pdf-lib";
 import { cleanTicketText, isTicketPage, MAX_CLEAN_CHARS, type CleanResult } from "../src/lib/tickets/clean";
-import { prepareForExtraction } from "../src/lib/tickets/extract";
+import { joinTextItems, prepareForExtraction } from "../src/lib/tickets/extract";
 import { GENUINE, initWriter, ticketPdf } from "./ticket-fixtures";
 
 const results: { name: string; ok: boolean; note?: string }[] = [];
@@ -84,6 +84,31 @@ const inline = clean(["E-TICKET Coldplay · Tanggal: 15 November 2025 · Nama: S
 check("a name inside a line goes, the rest of the line stays", inline.ok && !text(inline).includes("Siti") && text(inline).includes("Kategori: CAT 2") && text(inline).includes("Kursi: A-15"), JSON.stringify(inline));
 const partial = clean(["E-TICKET Coldplay\nTanggal: 15 November 2025\nWelcome SITI!"], ["Siti Rahma"], []);
 check("part of a name on its own goes too", partial.ok && !/siti/i.test(text(partial)), JSON.stringify(partial));
+
+// --- A glyph the font maps to no character (U+0000 from pdf.js), as tiket.com prints "fi": it stays
+// inside its word, so an email and a name are each still one thing to take out (found 20 Oct 2026
+// on real e-tickets, where "luth" was left in front of a removed email).
+const joined = joinTextItems([
+  { str: "Email luth" }, { str: "\u0000" }, { str: "hadi77@example.com", hasEOL: true },
+  { str: "Lokasi Penukaran Tiket: to be con" }, { str: "\u0000" }, { str: "rmed", hasEOL: true },
+]);
+check("a glyph with no character joins its neighbours with no space", joined.includes("luth�hadi77@example.com") && joined.includes("con�rmed"), JSON.stringify(joined));
+const ligature = clean(
+  [`E-TICKET Day6 3rd World Tour\nTanggal Dipilih Sab, 19 Okt 2024\nOrange (Seating Number)\nDetail Pemesan\n${joined}\nSelamat datang Luth�Hadi\nTeman: RA�I\nHalo luth�!`],
+  ["Luthfi Hadi", "Raffi"],
+  []
+);
+const lig = text(ligature);
+check("an email split by such a glyph goes whole", ligature.ok && !/luth|hadi77|example/i.test(lig), JSON.stringify(ligature));
+check("a typed name printed with ligatures goes, joined or not to the next word", ligature.ok && !/hadi/i.test(lig) && !/ra�i/i.test(lig), lig);
+check("the rest stays, ligatures and all", ligature.ok && lig.includes("con�rmed") && lig.includes("19 Okt 2024") && lig.includes("Orange (Seating Number)"), lig);
+const ligLeft = clean(["E-TICKET Coldplay\nTanggal: 15 November 2025\nVenue: GBK\nWelcome LUTH� HADI"], ["Luthfi Hadi"], []);
+check("so the name is not left behind for the last look either", ligLeft.ok && !/luth|hadi/i.test(text(ligLeft)), JSON.stringify(ligLeft));
+
+// --- An address or handle with a space by its @ is taken out, rather than stopping the whole ticket.
+const handle = clean(["E-TICKET Tulus: Manusia Tour\nKategori: VIP\nInstagram @promotor.id\nInfo: cs @promotor.co.id\nBerlaku pada 30 Jul 2023 @ 09.00 - 23.00"], [], []);
+check("an address or handle with a space before its @ goes, and the ticket is still read", handle.ok && !text(handle).includes("promotor"), JSON.stringify(handle));
+check("a time after an @ is not an address", handle.ok && text(handle).includes("30 Jul 2023 @ 09.00 - 23.00"), text(handle));
 
 // --- Dates, prices and names of shows are not personal data: none of them is taken or stops the text.
 const page = (body: string, names: string[] = []) => clean([`E-TICKET Tulus: Manusia Tour\nKategori: VIP\n${body}`], names, []);

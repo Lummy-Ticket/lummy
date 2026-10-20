@@ -68,7 +68,12 @@ const LABELLED = new RegExp(`\\b(${LABELS.join("|")})\\s*(?:#|no\\.?)?\\s*[:：=
 const NAME_ROW = new RegExp(`^([ \\t]*(?:${NAME_LABELS.join("|")}))[ \\t]+(?![:：=#]|\\[x\\])((?:(?![ \\t](?:${FIELDS})\\b)[^\\n|;·•])+)`, "gim");
 const HEADER_ROW = new RegExp(`^[ \\t]*(?:${NAME_LABELS.join("|")})(?:[ \\t/|·•]+(?:${LABELS.join("|")}|${FIELDS})\\.?)*[ \\t]*[:：]?[ \\t]*$`, "i");
 
-const EMAIL = /[\p{L}\p{N}._%+-]+@[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+/gu;
+// U+FFFD in these is a glyph the PDF's font left without a character, most often a ligature such as
+// "fi" (lib/tickets/extract.ts): it may sit in an email or a name in place of two or three letters.
+const EMAIL = /[\p{L}\p{N}._%+\-�]+@[\p{L}\p{N}\-�]+(?:\.[\p{L}\p{N}\-�]+)+/gu;
+// The same with a space on either side of the @, as some tickets print a promoter's address or
+// handle ("Instagram @promotor.id"). It must end in letters, so "30 Jul 2023 @ 09.00" stays.
+const SPACED_EMAIL = /[\p{L}\p{N}._%+\-�]+ ?@ ?[\p{L}\p{N}\-�]+(?:\.[\p{L}\p{N}\-�]+)*\.\p{L}{2,}(?![\p{L}\p{N}])/gu;
 // Indonesian NIK: 16 digits, sometimes grouped with spaces, dots or dashes.
 const NIK = /\b\d{4}[ .-]?\d{4}[ .-]?\d{4}[ .-]?\d{4}\b/g;
 // Indonesian mobile numbers: +62 / 62 / 0, then 8 and the next digit together (so the date
@@ -91,7 +96,7 @@ const notACode = (m: string) => WORD_DATE.test(m) || /^[A-Za-z/_-]*(?:19|20)\d\d
 // The last look before anything leaves, wider than the patterns above on purpose: an email with
 // spaces around its @, a number with brackets or slashes. Anything here stops the text.
 const LOOSE = {
-  email: /[\p{L}\p{N}._%+-]+\s*(?:@|\(at\)|\[at\])\s*[\p{L}\p{N}-]+\s*(?:\.|\(dot\)|\[dot\])\s*[\p{L}]{2,}/gu,
+  email: /[\p{L}\p{N}._%+\-�]+\s*(?:@|\(at\)|\[at\])\s*[\p{L}\p{N}\-�]+\s*(?:\.|\(dot\)|\[dot\])\s*[\p{L}]{2,}/gu,
   nik: /\b(?:\d[ .\-/]?){15}\d\b/g,
   phone: /(?:\+\s?62|\b62|\(?\b0)\s?\(?\s?8\d(?:[\s.\-()/]{0,2}\d){6,10}/g,
 };
@@ -100,8 +105,29 @@ const LOOSE = {
 const AMOUNT_OR_DATE = /^(?:\d{1,3}(?:[.,]\d{3})+(?:,\d{2})?|\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{1,2}[.:]\d{2})$/;
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-/** A name as it may be printed: any case, any spacing between its words. */
-const nameRegex = (name: string) => new RegExp(name.trim().split(/\s+/).map(escape).join("\\s+"), "gi");
+
+// The letters a ligature glyph left without a character can stand for, as it may sit in a word:
+// "ffi" as one glyph, or "ff" then "i", or "f" then "fi".
+const LIGATURES: Record<string, string> = {
+  ffi: "ffi|�|�i|f�",
+  ffl: "ffl|�|�l|f�",
+  ff: "ff|�",
+  fi: "fi|�",
+  fl: "fl|�",
+};
+/** One word of a name, matching it also as printed with a ligature: "Luthfi" as "Luth�". */
+const nameWord = (w: string) =>
+  w
+    .split(/(ffi|ffl|ff|fi|fl)/i)
+    .map((part, i) => (i % 2 ? `(?:${LIGATURES[part.toLowerCase()]})` : escape(part)))
+    .join("");
+// After a ligature the glyph may have taken the space with it ("Luth�Hadi").
+const WORD_GAP = "(?:\\s+|(?<=\\uFFFD))";
+const WORD_END = "(?:(?![\\p{L}\\p{N}])|(?<=\\uFFFD))";
+/** A name as it may be printed: any case, any spacing between its words, ligatures or not. */
+const nameRegex = (name: string) => new RegExp(name.trim().split(/\s+/).map(nameWord).join(WORD_GAP), "giu");
+/** One word of a name on its own, as a whole word. */
+const wordRegex = (word: string) => new RegExp(`(?<![\\p{L}\\p{N}])${nameWord(word)}${WORD_END}`, "giu");
 
 function count(text: string, re: RegExp) {
   return [...text.matchAll(re)].length;
@@ -171,6 +197,7 @@ export function cleanTicketText(input: CleanInput): CleanResult {
     return `${label} ${MARK}`;
   });
   text = strip(text, EMAIL, "email");
+  text = strip(text, SPACED_EMAIL, "email");
   text = strip(text, NIK, "nik");
   text = strip(text, PHONE, "phone");
   text = strip(text, LANDLINE, "phone");
@@ -178,7 +205,7 @@ export function cleanTicketText(input: CleanInput): CleanResult {
   text = strip(text, MIXED_CODE, "code", notACode);
   text = strip(text, PREFIXED_NUMBER, "code");
   for (const n of names) text = strip(text, nameRegex(n), "name");
-  for (const w of nameWords) text = strip(text, new RegExp(`\\b${escape(w)}\\b`, "gi"), "name");
+  for (const w of nameWords) text = strip(text, wordRegex(w), "name");
   text = text.replace(/(?:\[x\][ \t]*){2,}/g, `${MARK} `).trim();
 
   // Fail closed: look again, wider, and for anything we were told to remove.
