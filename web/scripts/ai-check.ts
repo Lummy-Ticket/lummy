@@ -114,8 +114,20 @@ async function main() {
   // --- Reading an answer
   const read = parseAnswer(JSON.stringify(GOOD), TULUS);
   check("a good answer reads in full", read?.tierId === "t-tl-vip" && read.date === "2026-11-07" && read.printedPrice === 1_200_000 && read.seat === "Row C No. 12", JSON.stringify(read));
-  check("none becomes no category", parseAnswer(JSON.stringify({ ...GOOD, tier: "none" }), TULUS)?.tierId === null);
-  check("a category from another show becomes no category", parseAnswer(JSON.stringify({ ...GOOD, tier: "t-cp-cat1" }), TULUS)?.tierId === null);
+  const none = (tierPrinted: string | null, show = TULUS) => parseAnswer(JSON.stringify({ ...GOOD, tier: "none", tierPrinted }), show)?.tierId;
+  check("none, with a category the show does not have, becomes no category", none("VVIP") === null && none("Early Bird VIP") === null);
+  check("none, with no category printed, becomes no category", none(null) === null);
+  check("a category from another show, printed as one this show does not have, becomes no category", parseAnswer(JSON.stringify({ ...GOOD, tier: "t-cp-cat1", tierPrinted: "CAT 1" }), TULUS)?.tierId === null);
+  const spelt = ["VIP", "reguler", "CAT. 1", "Cat1", "CATEGORY 1", "Kategori 1"].map((p) => none(p, p.startsWith("C") || p.startsWith("K") ? NJ : TULUS));
+  check(
+    "none, for a category copied out as the show names it apart from case, spaces, dots and Category or Kategori for CAT, becomes that category",
+    JSON.stringify(spelt) === JSON.stringify(["t-tl-vip", "t-tl-reg", "t-nj-cat1", "t-nj-cat1", "t-nj-cat1", "t-nj-cat1"]),
+    JSON.stringify(spelt)
+  );
+  check("but not for another number", none("Category 2", NJ) === null && none("CAT 11", NJ) === null);
+  check("nor when two of the show's categories share that name", none("VIP", { tiers: [{ id: "a", name: "VIP" }, { id: "b", name: "V.I.P." }] }) === null && none("CAT 1", { tiers: [{ id: "a", name: "CAT 1" }, { id: "b", name: "Kategori 1" }] }) === null);
+  const everyShow: ShowForTicket = { tiers: [{ id: "t-tl-vip", name: "VIP", show: "Tulus" }, { id: "t-cp-cat1", name: "CAT 1", show: "Coldplay" }] };
+  check("nor when every show is offered, where none can mean a show not on sale", none("VIP", everyShow) === null);
   const messy = parseAnswer(JSON.stringify({ ...GOOD, date: "7 Nov 2026", printedPrice: "1.200.000", quantity: 0, seat: "" }), TULUS);
   check("a malformed field becomes null and the rest survive", messy?.date === null && messy.printedPrice === null && messy.quantity === null && messy.seat === null && messy.tierId === "t-tl-vip", JSON.stringify(messy));
   check("text that is not JSON is no answer", parseAnswer("Sure! The ticket is VIP.", TULUS) === null);
