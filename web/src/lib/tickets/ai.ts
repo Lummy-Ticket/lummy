@@ -1,8 +1,9 @@
 // The AI step of listing a ticket (docs/09 §5.1). The cleaned text of the ticket, and the categories
 // it may match, go to a model that answers in a fixed JSON shape. Its answer only pre-fills the form
 // and cross-checks the seller; it decides nothing, and when the model is off, busy or wrong, the
-// seller fills the form in by hand. Gemini with the key from docs/config/01, or a fake provider for
-// tests that never leaves this machine.
+// seller fills the form in by hand. Claude with the key from docs/config/01, Gemini on made-up
+// tickets only, or a fake provider for tests that never leaves this machine.
+import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import type { TicketFacts } from "./checks";
 
@@ -16,21 +17,30 @@ export type { TicketFacts };
  */
 export type ShowForTicket = { tiers: { id: string; name: string; show?: string }[] };
 
-export type Provider = "gemini" | "fake";
+export type Provider = "claude" | "gemini" | "fake";
 
 export type ExtractOutcome =
   | { ok: true; facts: TicketFacts; provider: Provider; model: string; ms: number; tokens: { in: number; out: number } }
   | { ok: false; reason: "off" | "busy" | "failed" | "bad_answer"; detail?: string };
 
+/** The cheap, fast Claude, chosen on 20 Oct 2026 for cost; CLAUDE_MODEL can name another. */
+export const DEFAULT_CLAUDE_MODEL = "claude-haiku-5-5";
 export const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite";
 const NONE = "none";
 
-/** Which provider this server uses: AI_PROVIDER=fake for tests, off to stop it, else Gemini once a key is set. */
+/**
+ * Which provider this server uses: AI_PROVIDER=fake for tests, off to stop it, claude or gemini to
+ * pick one; else Claude once its key is set, then Gemini. A provider without its key is none.
+ */
 export function aiProvider(): Provider | null {
   const p = process.env.AI_PROVIDER;
   if (p === "fake") return "fake";
   if (p === "off") return null;
-  return process.env.GEMINI_API_KEY ? "gemini" : null;
+  const claude = !!process.env.ANTHROPIC_API_KEY;
+  const gemini = !!process.env.GEMINI_API_KEY;
+  if (p === "claude") return claude ? "claude" : null;
+  if (p === "gemini") return gemini ? "gemini" : null;
+  return claude ? "claude" : gemini ? "gemini" : null;
 }
 
 /**
@@ -61,7 +71,7 @@ export function buildPrompt(text: string, show: ShowForTicket) {
   ].join("\n");
 }
 
-/** The answer's shape, for the model (a JSON Schema subset Gemini accepts). */
+/** The answer's shape, for the model (a JSON Schema subset both providers accept). */
 export function responseSchema(show: ShowForTicket) {
   const nullable = (type: "string" | "integer", description: string) => ({ type: [type, "null"], description });
   return {
@@ -143,13 +153,76 @@ export function fakeFacts(text: string, show: ShowForTicket): TicketFacts {
   };
 }
 
-// Gemini, over its REST API: a JSON answer held to the schema above. No temperature is set, since
-// Google asks for the default on Gemini 3 models; GEMINI_THINKING can set thinkingLevel for a trial.
-const GEMINI = "https://generativelanguage.googleapis.com/v1beta/models";
-const RETRYABLE = new Set([429, 500, 502, 503, 504]);
+// Both providers answer in JSON held to the schema above, under one deadline: a busy model or a
+// dropped connection gets up to three tries, and a refused request only one.
+const RETRYABLE = new Set([408, 429, 500, 502, 503, 504, 529]);
 const PER_TRY_MS = 12_000;
+// An answer is about a hundred tokens, thinking included; the cap bounds what one call costs.
 const MAX_OUTPUT_TOKENS = 2_048;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+type Ask = { key: string; model: string; deadline: number };
+type Reply =
+  | { ok: true; text: string; tokens: { in: number; out: number } }
+  | { ok: false; reason: "busy" | "failed" | "bad_answer"; detail: string };
+/** One try's result: a reply to keep, or why it is worth trying again. */
+type Try = Reply | { ok: false; reason: "again"; detail: string };
+
+async function withRetries(deadline: number, once: (ms: number) => Promise<Try>): Promise<Reply> {
+  let last = "no answer";
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const left = deadline - Date.now();
+    if (left < 1_500) break;
+    const r = await once(Math.min(left, PER_TRY_MS));
+    if (r.ok || r.reason !== "again") return r;
+    last = r.detail;
+    // Spread out so a burst of sellers does not retry in step: about 1 s, then 3 s.
+    if (attempt < 2) await sleep(Math.min(deadline - Date.now(), (attempt === 0 ? 1_000 : 3_000) * (0.75 + Math.random() / 2)));
+  }
+  return { ok: false, reason: "busy", detail: last };
+}
+
+// Claude, through Anthropic's SDK, with its own retries off so the deadline above holds. Haiku 5.5
+// thinks before answering unless told not to; low effort keeps it short (CLAUDE_EFFORT for a trial).
+// It takes no temperature, and thinking is billed as output.
+const EFFORTS = ["low", "medium", "high"] as const;
+
+async function askClaude(prompt: string, schema: object, o: Ask): Promise<Reply> {
+  const client = new Anthropic({ apiKey: o.key, maxRetries: 0 });
+  const effort = EFFORTS.find((e) => e === process.env.CLAUDE_EFFORT) ?? "low";
+  return withRetries(o.deadline, async (ms) => {
+    let msg: Anthropic.Message;
+    try {
+      msg = await client.messages.create(
+        {
+          model: o.model,
+          max_tokens: MAX_OUTPUT_TOKENS,
+          output_config: { effort, format: { type: "json_schema", schema: { ...schema, additionalProperties: false } } },
+          messages: [{ role: "user", content: prompt }],
+        },
+        { timeout: ms }
+      );
+    } catch (e) {
+      if (e instanceof Anthropic.APIConnectionTimeoutError) return { ok: false, reason: "again", detail: "timed out" };
+      if (e instanceof Anthropic.APIConnectionError) return { ok: false, reason: "again", detail: "network error" };
+      if (e instanceof Anthropic.APIError && e.status) {
+        const err = (e.error as { error?: { type?: string; message?: string } } | undefined)?.error;
+        const status = `HTTP ${e.status} ${err?.type ?? ""}`.trim();
+        if (RETRYABLE.has(e.status)) return { ok: false, reason: "again", detail: status };
+        return { ok: false, reason: "failed", detail: `${status}: ${String(err?.message ?? "").slice(0, 160)}` };
+      }
+      return { ok: false, reason: "failed", detail: e instanceof Error ? e.message.slice(0, 160) : "unknown error" };
+    }
+    // A refusal, or an answer cut off at the cap, may not hold to the schema.
+    if (msg.stop_reason !== "end_turn") return { ok: false, reason: "bad_answer", detail: msg.stop_reason ?? "no stop reason" };
+    const text = msg.content.map((b) => (b.type === "text" ? b.text : "")).join("");
+    return { ok: true, text, tokens: { in: msg.usage.input_tokens, out: msg.usage.output_tokens } };
+  });
+}
+
+// Gemini, over its REST API. No temperature is set, since Google asks for the default on Gemini 3
+// models; GEMINI_THINKING can set thinkingLevel for a trial.
+const GEMINI = "https://generativelanguage.googleapis.com/v1beta/models";
 
 type GeminiReply = {
   candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[];
@@ -157,11 +230,8 @@ type GeminiReply = {
   error?: { status?: string; message?: string };
 };
 
-async function askGemini(prompt: string, schema: object, o: { key: string; model: string; deadline: number }) {
-  let last = "no answer";
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const left = o.deadline - Date.now();
-    if (left < 1_500) break;
+async function askGemini(prompt: string, schema: object, o: Ask): Promise<Reply> {
+  return withRetries(o.deadline, async (ms) => {
     try {
       const res = await fetch(`${GEMINI}/${encodeURIComponent(o.model)}:generateContent`, {
         method: "POST",
@@ -171,24 +241,30 @@ async function askGemini(prompt: string, schema: object, o: { key: string; model
           generationConfig: {
             responseMimeType: "application/json",
             responseJsonSchema: schema,
-            // An answer is about a hundred tokens, thinking included; the cap bounds what one call costs.
             maxOutputTokens: MAX_OUTPUT_TOKENS,
             ...(process.env.GEMINI_THINKING ? { thinkingConfig: { thinkingLevel: process.env.GEMINI_THINKING } } : {}),
           },
         }),
-        signal: AbortSignal.timeout(Math.min(left, PER_TRY_MS)),
+        signal: AbortSignal.timeout(ms),
       });
       const body = (await res.json().catch(() => ({}))) as GeminiReply;
-      if (res.ok) return { ok: true as const, body };
-      last = `HTTP ${res.status} ${body.error?.status ?? ""}`.trim();
-      if (!RETRYABLE.has(res.status)) return { ok: false as const, retryable: false, detail: `${last}: ${String(body.error?.message ?? "").slice(0, 160)}` };
+      if (!res.ok) {
+        const status = `HTTP ${res.status} ${body.error?.status ?? ""}`.trim();
+        if (RETRYABLE.has(res.status)) return { ok: false, reason: "again", detail: status };
+        return { ok: false, reason: "failed", detail: `${status}: ${String(body.error?.message ?? "").slice(0, 160)}` };
+      }
+      const candidate = body.candidates?.[0];
+      if (candidate?.finishReason && candidate.finishReason !== "STOP") return { ok: false, reason: "bad_answer", detail: candidate.finishReason };
+      const u = body.usageMetadata ?? {};
+      return {
+        ok: true,
+        text: candidate?.content?.parts?.map((p) => p.text ?? "").join("") ?? "",
+        tokens: { in: u.promptTokenCount ?? 0, out: (u.candidatesTokenCount ?? 0) + (u.thoughtsTokenCount ?? 0) },
+      };
     } catch (e) {
-      last = e instanceof Error && e.name === "TimeoutError" ? "timed out" : "network error";
+      return { ok: false, reason: "again", detail: e instanceof Error && e.name === "TimeoutError" ? "timed out" : "network error" };
     }
-    // Spread out so a burst of sellers does not retry in step: about 1 s, then 3 s.
-    if (attempt < 2) await sleep(Math.min(o.deadline - Date.now(), (attempt === 0 ? 1_000 : 3_000) * (0.75 + Math.random() / 2)));
-  }
-  return { ok: false as const, retryable: true, detail: last };
+  });
 }
 
 /** What the ticket says, from the cleaned text (lib/tickets/clean.ts) and the picked show's categories. */
@@ -204,24 +280,15 @@ export async function extractTicketFacts(
     return { ok: true, facts: fakeFacts(text, show), provider, model: "fake", ms: Date.now() - t0, tokens: { in: 0, out: 0 } };
   }
 
-  const key = process.env.GEMINI_API_KEY;
+  const claude = provider === "claude";
+  const key = claude ? process.env.ANTHROPIC_API_KEY : process.env.GEMINI_API_KEY;
   if (!key) return { ok: false, reason: "off" };
-  const model = opts.model ?? process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL;
-  const r = await askGemini(buildPrompt(text, show), responseSchema(show), { key, model, deadline: t0 + (opts.timeoutMs ?? 20_000) });
-  if (!r.ok) return { ok: false, reason: r.retryable ? "busy" : "failed", detail: r.detail };
+  const model = opts.model ?? (claude ? process.env.CLAUDE_MODEL || DEFAULT_CLAUDE_MODEL : process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL);
+  const ask = claude ? askClaude : askGemini;
+  const r = await ask(buildPrompt(text, show), responseSchema(show), { key, model, deadline: t0 + (opts.timeoutMs ?? 20_000) });
+  if (!r.ok) return { ok: false, reason: r.reason, detail: r.detail };
 
-  const candidate = r.body.candidates?.[0];
-  if (candidate?.finishReason && candidate.finishReason !== "STOP") return { ok: false, reason: "bad_answer", detail: candidate.finishReason };
-  const facts = parseAnswer(candidate?.content?.parts?.map((p) => p.text ?? "").join("") ?? "", show);
+  const facts = parseAnswer(r.text, show);
   if (!facts) return { ok: false, reason: "bad_answer", detail: "not the JSON asked for" };
-  const u = r.body.usageMetadata ?? {};
-  return {
-    ok: true,
-    facts,
-    provider,
-    model,
-    ms: Date.now() - t0,
-    // Thinking is billed as output.
-    tokens: { in: u.promptTokenCount ?? 0, out: (u.candidatesTokenCount ?? 0) + (u.thoughtsTokenCount ?? 0) },
-  };
+  return { ok: true, facts, provider, model, ms: Date.now() - t0, tokens: r.tokens };
 }

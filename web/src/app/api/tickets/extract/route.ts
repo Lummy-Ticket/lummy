@@ -1,7 +1,7 @@
 // Fills the sell form in from a ticket PDF (docs/09 §5.1): the text, with every name and number taken
 // out, goes to the model with the categories of every show on sale, and the answer comes back as a
 // suggestion the seller confirms. Nothing is stored. Off unless this server has an AI provider
-// (docs/config/01), so lummy.id answers "not available" until billing and the key are in place.
+// (docs/config/01), so lummy.id answers "not available" until the Claude key is in place there.
 import { NextResponse } from "next/server";
 import { isEventOver } from "@/lib/mock/seed";
 import { resaleAllowed } from "@/lib/mock/transfer";
@@ -20,9 +20,10 @@ export const maxDuration = 60;
 const noStore = { "Cache-Control": "private, no-store" };
 const fail = (status: number, error: string, code?: string) => NextResponse.json({ error, code }, { status, headers: noStore });
 
-/** Whether this server fills the form in from a ticket. */
+/** Whether this server fills the form in from a ticket, and which AI reads it, for the page to name. */
 export async function GET() {
-  return NextResponse.json({ available: !!aiProvider() }, { headers: noStore });
+  const by = aiProvider();
+  return NextResponse.json({ available: !!by, by }, { headers: noStore });
 }
 
 export async function POST(req: Request) {

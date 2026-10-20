@@ -1,7 +1,7 @@
 /**
  * The AI step's own rules (lib/tickets/ai.ts, docs/09 §5.1), offline: which provider a server uses,
  * what the prompt and schema carry, how a model's answer is read (a malformed field becomes null, an
- * unknown category becomes none), and how Gemini's replies are handled with fetch stubbed out: a busy
+ * unknown category becomes none), and how Claude's and Gemini's replies are handled with fetch stubbed out: a busy
  * model is retried and then left for the seller, a refused request is not retried, a cut-off or
  * non-JSON answer is not trusted, and the key travels in a header, never in the URL. Then the
  * cross-check publishing runs on the answer: another category or day sends a listing to a person.
@@ -50,15 +50,32 @@ const reply = (answer: unknown, extra: Record<string, unknown> = {}) => ({
   },
 });
 const busy = (status: number) => ({ status, body: { error: { status: status === 429 ? "RESOURCE_EXHAUSTED" : "UNAVAILABLE", message: "try later" } } });
+/** A Messages API reply: Haiku 5.5 thinks first, so the answer is the text block after it. */
+const claudeReply = (answer: unknown, extra: Record<string, unknown> = {}) => ({
+  status: 200,
+  body: {
+    id: "msg_test", type: "message", role: "assistant", model: "claude-haiku-5-5",
+    content: [{ type: "thinking", thinking: "", signature: "sig" }, { type: "text", text: typeof answer === "string" ? answer : JSON.stringify(answer) }],
+    stop_reason: "end_turn", stop_sequence: null,
+    usage: { input_tokens: 300, output_tokens: 110 },
+    ...extra,
+  },
+});
+const claudeError = (status: number, type: string, message = "try later") => ({ status, body: { type: "error", error: { type, message } } });
+const header = (c: Call | undefined, name: string) => new Headers(c?.init.headers as HeadersInit | undefined).get(name);
 
 async function main() {
   const realFetch = globalThis.fetch;
 
   // --- Which provider
-  withEnv({ AI_PROVIDER: "fake", GEMINI_API_KEY: undefined }, () => check("AI_PROVIDER=fake picks the fake provider", aiProvider() === "fake"));
-  withEnv({ AI_PROVIDER: "off", GEMINI_API_KEY: "k" }, () => check("AI_PROVIDER=off turns it off even with a key", aiProvider() === null));
-  withEnv({ AI_PROVIDER: undefined, GEMINI_API_KEY: "k" }, () => check("a key alone turns Gemini on", aiProvider() === "gemini"));
-  withEnv({ AI_PROVIDER: undefined, GEMINI_API_KEY: undefined }, () => check("no key, no provider: the seller fills in by hand", aiProvider() === null));
+  withEnv({ AI_PROVIDER: "fake", ANTHROPIC_API_KEY: undefined, GEMINI_API_KEY: undefined }, () => check("AI_PROVIDER=fake picks the fake provider", aiProvider() === "fake"));
+  withEnv({ AI_PROVIDER: "off", ANTHROPIC_API_KEY: "k", GEMINI_API_KEY: "k" }, () => check("AI_PROVIDER=off turns it off even with keys", aiProvider() === null));
+  withEnv({ AI_PROVIDER: undefined, ANTHROPIC_API_KEY: "k", GEMINI_API_KEY: undefined }, () => check("a Claude key alone turns Claude on", aiProvider() === "claude"));
+  withEnv({ AI_PROVIDER: undefined, ANTHROPIC_API_KEY: undefined, GEMINI_API_KEY: "k" }, () => check("a Gemini key alone turns Gemini on", aiProvider() === "gemini"));
+  withEnv({ AI_PROVIDER: undefined, ANTHROPIC_API_KEY: "k", GEMINI_API_KEY: "k" }, () => check("with both keys, Claude reads the tickets", aiProvider() === "claude"));
+  withEnv({ AI_PROVIDER: "gemini", ANTHROPIC_API_KEY: "k", GEMINI_API_KEY: "k" }, () => check("AI_PROVIDER=gemini picks Gemini over Claude", aiProvider() === "gemini"));
+  withEnv({ AI_PROVIDER: "claude", ANTHROPIC_API_KEY: undefined, GEMINI_API_KEY: "k" }, () => check("AI_PROVIDER=claude without its key is off, not Gemini", aiProvider() === null));
+  withEnv({ AI_PROVIDER: undefined, ANTHROPIC_API_KEY: undefined, GEMINI_API_KEY: undefined }, () => check("no key, no provider: the seller fills in by hand", aiProvider() === null));
 
   // --- What the model is given
   const prompt = buildPrompt(TEXT, TULUS);
@@ -123,6 +140,87 @@ async function main() {
   check("fake: the first rupiah amount", fake.printedPrice === 2_800_000);
   const viaFake = await extractTicketFacts(TEXT, TULUS, { provider: "fake" });
   check("fake: answers without a key or a network", viaFake.ok && viaFake.model === "fake");
+
+  // --- Claude, with fetch stubbed (the SDK sends through it)
+  process.env.ANTHROPIC_API_KEY = "test-key-not-real";
+  delete process.env.CLAUDE_MODEL;
+  delete process.env.CLAUDE_EFFORT;
+  // Node does not wait on a timer that only aborts a request, so with nothing else pending the
+  // script would end mid-check; a server always has its listener keeping it up.
+  const awake = setInterval(() => {}, 1_000);
+  try {
+    let calls = stubFetch([claudeReply(GOOD)]);
+    let out = await extractTicketFacts(TEXT, TULUS, { provider: "claude" });
+    const body = JSON.parse(String(calls[0]?.init.body ?? "{}"));
+    check("claude: a good reply becomes facts, past the thinking block", out.ok && out.facts.tierId === "t-tl-vip" && out.facts.seat === "Row C No. 12", JSON.stringify(out));
+    check("claude: goes to the Messages API", calls[0]?.url === "https://api.anthropic.com/v1/messages", calls[0]?.url);
+    check("claude: the default model is Haiku 5.5", body.model === "claude-haiku-5-5" && out.ok && out.model === "claude-haiku-5-5", body.model);
+    check("claude: the key goes in a header, never in the URL", header(calls[0], "x-api-key") === "test-key-not-real" && !calls[0]?.url.includes("test-key"));
+    const format = body.output_config?.format;
+    check("claude: asks for JSON held to the schema, closed to other fields", format?.type === "json_schema" && !!format.schema?.properties?.tier && format.schema.additionalProperties === false, JSON.stringify(body.output_config));
+    check("claude: low effort, no temperature, no prefill", body.output_config?.effort === "low" && body.temperature === undefined && body.messages?.length === 1 && body.messages[0].role === "user");
+    check("claude: the answer's length is capped, so one call's cost is bounded", body.max_tokens === 2048, String(body.max_tokens));
+    check("claude: the prompt is the same as Gemini's", body.messages?.[0]?.content === buildPrompt(TEXT, TULUS));
+    check("claude: thinking is counted in the output tokens it reports", out.ok && out.tokens.in === 300 && out.tokens.out === 110, JSON.stringify(out.ok && out.tokens));
+
+    calls = stubFetch([claudeError(529, "overloaded_error"), claudeReply(GOOD)]);
+    out = await extractTicketFacts(TEXT, TULUS, { provider: "claude" });
+    check("claude: an overloaded model is tried again", out.ok && calls.length === 2, `${calls.length} calls`);
+
+    calls = stubFetch([claudeError(429, "rate_limit_error"), claudeError(429, "rate_limit_error"), claudeError(429, "rate_limit_error")]);
+    out = await extractTicketFacts(TEXT, TULUS, { provider: "claude" });
+    check("claude: still busy after three tries, the seller fills in by hand", !out.ok && out.reason === "busy" && calls.length === 3 && /429/.test(out.detail ?? ""), JSON.stringify(out));
+
+    calls = stubFetch([new Error("socket hang up"), claudeReply(GOOD)]);
+    out = await extractTicketFacts(TEXT, TULUS, { provider: "claude" });
+    check("claude: a dropped connection is tried again", out.ok && calls.length === 2, `${calls.length} calls`);
+
+    for (const [status, type] of [[400, "invalid_request_error"], [401, "authentication_error"], [403, "permission_error"], [404, "not_found_error"]] as const) {
+      calls = stubFetch([claudeError(status, type, `${type} for this key or model`)]);
+      out = await extractTicketFacts(TEXT, TULUS, { provider: "claude" });
+      check(`claude: ${status} ${type} is not retried and says why`, !out.ok && out.reason === "failed" && calls.length === 1 && out.detail?.includes(type) === true, JSON.stringify(out));
+    }
+
+    stubFetch([claudeReply(GOOD, { stop_reason: "max_tokens" })]);
+    out = await extractTicketFacts(TEXT, TULUS, { provider: "claude" });
+    check("claude: a cut-off answer is not trusted", !out.ok && out.reason === "bad_answer" && out.detail === "max_tokens", JSON.stringify(out));
+    stubFetch([claudeReply("", { stop_reason: "refusal", stop_details: { type: "refusal", category: null, explanation: null } })]);
+    out = await extractTicketFacts(TEXT, TULUS, { provider: "claude" });
+    check("claude: a refusal is not trusted", !out.ok && out.reason === "bad_answer" && out.detail === "refusal", JSON.stringify(out));
+    stubFetch([claudeReply("I could not read this ticket.")]);
+    out = await extractTicketFacts(TEXT, TULUS, { provider: "claude" });
+    check("claude: prose instead of JSON is not trusted", !out.ok && out.reason === "bad_answer");
+
+    // A model that never answers: each try is cut off, and the whole call ends by its deadline.
+    calls = [];
+    globalThis.fetch = ((_url: string | URL, init?: RequestInit) => {
+      calls.push({ url: String(_url), init: init ?? {} });
+      return new Promise<Response>((_, reject) => init?.signal?.addEventListener("abort", () => reject(init.signal!.reason)));
+    }) as typeof fetch;
+    const started = Date.now();
+    out = await extractTicketFacts(TEXT, TULUS, { provider: "claude", timeoutMs: 4_000 });
+    const took = Date.now() - started;
+    check("claude: a model that hangs is given up on by the deadline, as busy", !out.ok && out.reason === "busy" && out.detail === "timed out" && took < 5_000, `${JSON.stringify(out)} in ${took} ms, ${calls.length} tries`);
+
+    process.env.CLAUDE_MODEL = "claude-sonnet-5-5";
+    process.env.CLAUDE_EFFORT = "medium";
+    calls = stubFetch([claudeReply(GOOD)]);
+    out = await extractTicketFacts(TEXT, TULUS, { provider: "claude" });
+    const tried = JSON.parse(String(calls[0]?.init.body ?? "{}"));
+    check("claude: CLAUDE_MODEL and CLAUDE_EFFORT are honoured", tried.model === "claude-sonnet-5-5" && tried.output_config?.effort === "medium" && out.ok && out.model === "claude-sonnet-5-5");
+    process.env.CLAUDE_EFFORT = "turbo";
+    calls = stubFetch([claudeReply(GOOD)]);
+    await extractTicketFacts(TEXT, TULUS, { provider: "claude" });
+    check("claude: an effort it does not know falls back to low", JSON.parse(String(calls[0]?.init.body ?? "{}")).output_config?.effort === "low");
+  } finally {
+    clearInterval(awake);
+    globalThis.fetch = realFetch;
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.CLAUDE_MODEL;
+    delete process.env.CLAUDE_EFFORT;
+  }
+  const noKey = await extractTicketFacts(TEXT, TULUS, { provider: "claude" });
+  check("claude: without its key, the step is off", !noKey.ok && noKey.reason === "off");
 
   // --- Gemini, with fetch stubbed
   process.env.GEMINI_API_KEY = "test-key-not-real";

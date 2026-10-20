@@ -9,7 +9,7 @@
  * Then it deletes what it created. It writes to the database the server uses, so run it only where
  * that is fine.
  *
- * On a server with an AI provider (AI_PROVIDER=fake, or a Gemini key on made-up tickets only, see
+ * On a server with an AI provider (AI_PROVIDER=fake, or a Claude or Gemini key on made-up tickets, see
  * docs/config/01), the ticket also fills the form in, and with WRITE=1 publishing reads it again:
  * a ticket that agrees goes live with what was read, one listed under another category waits.
  *
@@ -147,8 +147,14 @@ async function main() {
     check("genuine: no claim that AI read the file", !text.includes("AI fills in") && !text.includes("AI check"), text.slice(0, 160));
 
     // --- The AI step fills the form in, when this server has one. The fixture prints Tulus VIP.
-    const fillOn = ((await (await fetch(`${BASE}/api/tickets/extract`)).json()) as { available?: boolean }).available === true;
+    const info = (await (await fetch(`${BASE}/api/tickets/extract`)).json()) as { available?: boolean; by?: string | null };
+    const fillOn = info.available === true;
     if (fillOn) {
+      // The page tells the seller who reads the ticket: the AI this server uses, and no other.
+      const NAMED: Record<string, string> = { claude: "Claude (Anthropic's AI)", gemini: "Gemini (Google's AI)", fake: "A test stand-in on this server" };
+      const box = await page.locator("[data-fill]").innerText();
+      const others = Object.entries(NAMED).filter(([k]) => k !== info.by).map(([, v]) => v);
+      check("fill: the page names the AI this server uses, and no other", !!info.by && box.includes(NAMED[info.by] ?? "?") && !others.some((o) => box.includes(o)), `${info.by}: ${box.slice(0, 200)}`);
       const selects = page.locator("select");
       // Start from the wrong show, so a fill that changes nothing cannot pass.
       await selects.nth(0).selectOption("ev-coldplay");

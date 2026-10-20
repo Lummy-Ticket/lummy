@@ -43,6 +43,7 @@
     "perf:probe": "node scripts/perf-probe.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0",
     "@hookform/resolvers": "^5.2.2",
     "@napi-rs/canvas": "^1.0.9",
     "@recharts/devtools": "^0.0.5",

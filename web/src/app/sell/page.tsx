@@ -14,7 +14,7 @@ import {
   isLateListing, LATE_LISTING_H, resaleAllowed,
 } from "@/lib/mock";
 import { SAMPLE_SIGNALS, type SampleTicket } from "@/lib/listings/rules";
-import { ListingError, checkTicketFile, createListing, fillFromTicket, useTicketFill, useTicketReader, type TicketFill } from "@/lib/listings/client";
+import { FILL_BY, ListingError, checkTicketFile, createListing, fillFromTicket, useTicketFill, useTicketReader, type TicketFill } from "@/lib/listings/client";
 import { factDiffs, formatName, isDuplicate, MIN_HOLDER_CHARS, reasonText, reviewReasons, toListingChecks, type TicketCheck } from "@/lib/tickets/checks";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { useCatalogue } from "@/lib/catalogue";
@@ -84,8 +84,10 @@ export default function SellPage() {
   // for demos. `check` is what the server read in that file.
   const reader = useTicketReader(account);
   const realUpload = account && reader === true;
-  // With an AI provider on this server, a real ticket can fill the form in (docs/09 §5.1).
-  const fillAvailable = useTicketFill(realUpload);
+  // With an AI provider on this server, a real ticket can fill the form in (docs/09 §5.1), and the
+  // page names the provider wherever it says the ticket is read.
+  const fillBy = useTicketFill(realUpload);
+  const fillName = fillBy ? FILL_BY[fillBy] : null;
   const [filling, setFilling] = useState(false);
   const [fill, setFill] = useState<TicketFill | null>(null);
   const [ticketFile, setTicketFile] = useState<File | null>(null);
@@ -108,7 +110,7 @@ export default function SellPage() {
   const [orderer, setOrderer] = useState("");
   // With the AI step on, a real ticket is read by a model, here and again at publish. The original
   // buyer's name, typed as printed, is what keeps it out of what the model reads, so it comes first.
-  const holderNeeded = !!check && fillAvailable === true;
+  const holderNeeded = !!check && !!fillName;
   const holderTyped = orderer.trim().length >= MIN_HOLDER_CHARS;
   const [barcode, setBarcode] = useState("");
   const [ai, setAi] = useState<ListingAI | null>(null);
@@ -470,7 +472,7 @@ export default function SellPage() {
               {check ? t("Ticket details", "Data tiket") : t("Details from the sample", "Data dari tiket contoh")}{" "}
               <span className="text-neutral-gray font-normal text-sm">{check ? t("(fill in from your ticket)", "(isi sesuai tiketmu)") : t("(check and adjust)", "(cek & sesuaikan)")}</span>
             </h3>
-            {check && fillAvailable && (
+            {check && fillName && (
               <div data-fill className="mb-4 rounded-2xl border border-lummy-500 bg-secondary-blue-extra p-4 flex flex-col gap-3">
                 <div className="flex items-start gap-3">
                   <ScanLine className="w-5 h-5 text-lummy-500 shrink-0 mt-0.5" />
@@ -478,8 +480,8 @@ export default function SellPage() {
                     <div className="text-sm font-medium text-neutral-black">{t("Fill this in from your ticket", "Isi dari tiketmu")}</div>
                     <p className="text-xs text-neutral-gray mt-0.5 leading-relaxed">
                       {t(
-                        "Gemini, Google's AI, reads the ticket's text after the buyer's name, ID and phone numbers, email and order codes are taken out, and picks the show and category for you. Check what it fills in.",
-                        "Gemini, AI dari Google, membaca teks tiketnya setelah nama pemesan, nomor KTP dan HP, email, dan kode pesanan dibuang, lalu memilihkan acara dan kategorinya. Cek lagi hasilnya."
+                        `${fillName.en} reads the ticket's text after the buyer's name, ID and phone numbers, email and order codes are taken out, and picks the show and category for you. Check what it fills in.`,
+                        `${fillName.id} membaca teks tiketnya setelah nama pemesan, nomor KTP dan HP, email, dan kode pesanan dibuang, lalu memilihkan acara dan kategorinya. Cek lagi hasilnya.`
                       )}
                     </p>
                   </div>
@@ -736,10 +738,10 @@ export default function SellPage() {
                 <Link href="/privacy" target="_blank" className="text-primary-navy font-medium underline underline-offset-2">{t("privacy policy", "kebijakan privasi")}</Link>
                 {t(" and the ", " dan ")}
                 <Link href="/terms" target="_blank" className="text-primary-navy font-medium underline underline-offset-2">{t("terms", "syarat dan ketentuan")}</Link>.
-                {fillAvailable &&
+                {fillName &&
                   t(
-                    " Its text, with the buyer's name, ID and phone numbers, email and order codes taken out, is read by Gemini, Google's AI, to match the category and date.",
-                    " Teks tiketnya, setelah nama pemesan, nomor KTP dan HP, email, dan kode pesanan dibuang, dibaca Gemini (AI dari Google) untuk mencocokkan kategori dan tanggal."
+                    ` ${fillName.en} reads its text, with the buyer's name, ID and phone numbers, email and order codes taken out, to match the category and date.`,
+                    ` ${fillName.id} membaca teks tiketnya, setelah nama pemesan, nomor KTP dan HP, email, dan kode pesanan dibuang, untuk mencocokkan kategori dan tanggal.`
                   )}
               </span>
             </label>

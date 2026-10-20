@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { SellerListing } from "@/lib/mock/useSellerListings";
 import { supabaseBrowser } from "@/lib/supabase/browser";
+import type { Provider } from "@/lib/tickets/ai";
 import type { ListingChecks, TicketCheck, TicketFacts } from "@/lib/tickets/checks";
 import type { SampleTicket } from "./rules";
 
@@ -141,21 +142,31 @@ export function fillFromTicket(file: File, holder: string) {
   return post<TicketFill>("/api/tickets/extract", form);
 }
 
-/** Whether this deployment fills the form in from a ticket. Null until it has answered; false when not asked. */
+/** How the sell page names the AI that reads a ticket, so the seller is told who reads it. */
+export const FILL_BY: Record<Provider, { en: string; id: string }> = {
+  claude: { en: "Claude (Anthropic's AI)", id: "Claude (AI dari Anthropic)" },
+  gemini: { en: "Gemini (Google's AI)", id: "Gemini (AI dari Google)" },
+  fake: { en: "A test stand-in on this server", id: "Model tiruan untuk tes di server ini" },
+};
+
+/**
+ * Which AI fills the form in from a ticket on this deployment. Null until it has answered; false
+ * when none does, or when not asked.
+ */
 export function useTicketFill(ask: boolean) {
-  const [available, setAvailable] = useState<boolean | null>(null);
+  const [by, setBy] = useState<Provider | false | null>(null);
   useEffect(() => {
     if (!ask) return;
     let alive = true;
     void fetch("/api/tickets/extract")
-      .then((r) => (r.ok ? (r.json() as Promise<{ available?: boolean }>) : { available: false }))
-      .catch(() => ({ available: false }))
-      .then((j) => alive && setAvailable(!!j.available));
+      .then((r) => (r.ok ? (r.json() as Promise<{ by?: string | null }>) : {}))
+      .catch(() => ({}))
+      .then((j: { by?: string | null }) => alive && setBy(j.by && j.by in FILL_BY ? (j.by as Provider) : false));
     return () => {
       alive = false;
     };
   }, [ask]);
-  return ask ? available : false;
+  return ask ? by : false;
 }
 
 /** Whether this deployment checks real PDFs. Null until it has answered; false when not asked. */
