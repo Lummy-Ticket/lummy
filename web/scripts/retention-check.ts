@@ -164,6 +164,8 @@ async function main() {
     await page.goto(BASE, { waitUntil: "networkidle" });
     await page.evaluate((k) => {
       localStorage.setItem("lummy:demo-accounts", "1");
+      // The Dev Panel shows off localhost only on a device that opted in (DevPanel.tsx).
+      localStorage.setItem("lummy:dev", "1");
       if (k) localStorage.setItem("lummy:demo-key", k);
     }, DEMO_KEY);
     // The buyer's home is "/", so the switch starts elsewhere: landing there is what says it is done.

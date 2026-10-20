@@ -171,7 +171,7 @@ async function pdfChecks() {
   });
   const r = await prepareForExtraction(pdf, ["Zahra Amelia"]);
   const out = r.ok ? r.text : "";
-  check("a real PDF: its ticket text goes, cleaned", r.ok && out.includes("TULUS - Tur Manusia 2026") && out.includes("Istora Senayan") && out.includes("Rp 1.250.000"), JSON.stringify(r).slice(0, 300));
+  check("a real PDF: its ticket text goes, cleaned", r.ok && out.includes("TULUS - Tur Manusia 2026") && out.includes("SICC Bogor") && out.includes("7 November 2026") && out.includes("Rp 1.250.000"), JSON.stringify(r).slice(0, 300));
   check(
     "the code the decoder read is gone from the text, with the name, email, phone and order code",
     r.ok && r.removed.payload >= 1 && !out.includes("8842-7731-2290") && !/zahra/i.test(out) && !out.includes("0813") && !out.includes("TL77QX19"),

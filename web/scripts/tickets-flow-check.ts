@@ -133,6 +133,8 @@ async function main() {
     await page.goto(BASE, { waitUntil: "networkidle" });
     await page.evaluate((key) => {
       localStorage.setItem("lummy:demo-accounts", "1");
+      // The Dev Panel shows off localhost only on a device that opted in (DevPanel.tsx).
+      localStorage.setItem("lummy:dev", "1");
       if (key) localStorage.setItem("lummy:demo-key", key);
     }, DEMO_KEY);
     await page.reload({ waitUntil: "networkidle" });

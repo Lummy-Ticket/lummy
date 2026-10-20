@@ -310,6 +310,8 @@ try {
   // From the Dev Panel, as a presenter would: two clicks, then the page loads again.
   await buyer.page.evaluate((key) => {
     localStorage.setItem("lummy:demo-accounts", "1");
+    // The Dev Panel shows off localhost only on a device that opted in (DevPanel.tsx).
+    localStorage.setItem("lummy:dev", "1");
     if (key) localStorage.setItem("lummy:demo-key", key);
   }, DEMO_KEY);
   await buyer.page.goto(`${BASE}/tickets`, { waitUntil: "networkidle" });
