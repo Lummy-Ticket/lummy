@@ -209,7 +209,7 @@ function CheckoutInner() {
           <div className="flex flex-col gap-2">
             <Row label={qty > 1 ? t(`Tickets (${qty} × ${formatIDR(listing.askPrice)})`, `Tiket (${qty} × ${formatIDR(listing.askPrice)})`) : t("Ticket price", "Harga tiket")} value={formatIDR(subtotal)} />
             <Row label={t("Service fee (5%, min. Rp25,000)", "Biaya layanan (5%, min. Rp25.000)")} value={formatIDR(fee)} />
-            <Row label={t("e-stamp + e-signature fee", "e-Meterai + biaya TTE")} value={formatIDR(MATERAI)} />
+            {MATERAI > 0 && <Row label={t("e-stamp + e-signature fee", "e-Meterai + biaya TTE")} value={formatIDR(MATERAI)} />}
             <div className="border-t border-dashed border-neutral-light-gray-1 my-1" />
             <Row label={t("Total", "Total")} value={formatIDR(total)} bold />
           </div>

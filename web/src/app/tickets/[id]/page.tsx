@@ -28,6 +28,8 @@ import {useOrders, useUser, explorerTx, explorerAddr, shortHash, phaseOf, msUnti
 import { chainAction, chainWritable, useChainHistory, useChainInfo, useChainListing, usdcText } from "@/lib/chain/client";
 import { DEPLOYMENTS, LEDGERS } from "@/lib/chain/deployments";
 import { OrderError, orderAction, uploadEvidence, useAccountOrders } from "@/lib/orders/client";
+import { useCatalogue } from "@/lib/catalogue";
+import { FEATURES } from "@/lib/features";
 
 /** The escrow that new on-chain orders go to, shown even on sample orders so anyone can inspect it. */
 const LIVE_ESCROW = DEPLOYMENTS[421614]?.escrow;
@@ -114,6 +116,8 @@ export default function OrderDetailPage() {
   const [now, setNow] = useState(() => Date.now());
   const [acting, setActing] = useState(false);
   const [showKuasa, setShowKuasa] = useState(false);
+  const [drafting, setDrafting] = useState(false);
+  const catalogue = useCatalogue();
   const [showKtp, setShowKtp] = useState(false);
   const [ktpOpen, setKtpOpen] = useState(false);
   const [showProof, setShowProof] = useState(false);
@@ -807,14 +811,23 @@ export default function OrderDetailPage() {
               <span className="w-10 h-10 rounded-xl bg-secondary-blue-soft text-lummy-500 grid place-items-center shrink-0"><FileText className="w-5 h-5" /></span>
               <div>
                 <div className="text-sm font-medium text-neutral-black">{t("Letter of authorisation", "Surat kuasa")}</div>
-                <div className="text-xs text-neutral-gray">{t("Print-ready, e-stamped and e-signed", "Siap print, ber-e-meterai dan TTE")}</div>
+                <div className="text-xs text-neutral-gray">
+                  {FEATURES.eStamp
+                    ? t("Print-ready, e-stamped and e-signed", "Siap print, ber-e-meterai dan TTE")
+                    : t("A draft to download; the seller signs it on a Rp10,000 stamp", "Draf untuk diunduh; penjual tanda tangan di atas meterai Rp10.000")}
+                </div>
               </div>
             </button>
-            {order.gateKtp && (
+            {/* The ID card on the gate: a sample persona still sees the stand-in, labelled; an account
+                sees it only once Lummy really stores ID cards (lib/features.ts). */}
+            {order.gateKtp && (FEATURES.sellerIdCard || !account) && (
               <button onClick={() => { setShowKtp(true); openDoc("sellerId"); }} className="mt-3 w-full flex items-center gap-3 p-3 rounded-2xl border border-neutral-light-gray-1 hover:border-lummy-500 transition cursor-pointer text-left">
                 <span className="w-10 h-10 rounded-xl bg-secondary-pink-soft text-secondary-pink-dark grid place-items-center shrink-0"><CreditCard className="w-5 h-5" /></span>
                 <div>
-                  <div className="text-sm font-medium text-neutral-black">{t("Seller ID card (gate check)", "Foto KTP penjual (cek gate)")}</div>
+                  <div className="text-sm font-medium text-neutral-black">
+                    {t("Seller ID card (gate check)", "Foto KTP penjual (cek gate)")}
+                    {!FEATURES.sellerIdCard && <span className="ml-1.5 text-xs font-normal text-neutral-gray">{t("(sample)", "(contoh)")}</span>}
+                  </div>
                   <div className="text-xs text-neutral-gray">{ktpOpen ? t("Unlocked, view-only", "Terbuka, hanya bisa dilihat") : t("Unlocks when you are at the gate", "Terbuka saat kamu di gate")}</div>
                 </div>
               </button>
@@ -862,13 +875,54 @@ export default function OrderDetailPage() {
           <p className="mt-2"><b>Penerima:</b> {user?.name ?? "Pembeli"}</p>
           <p><b>Pemberi:</b> {order.sellerName}</p>
           <p className="mt-3">Untuk mengambil dan menggunakan tiket <b>{order.eventTitle}</b> ({order.tierName}) pada {formatEventDate(order.eventDateISO)}.</p>
-          <div className="flex justify-between mt-6 text-xs text-neutral-gray">
-            <span>Ditandatangani secara elektronik (TTE)</span>
-            <span className="bg-secondary-gold-soft text-secondary-brown-dark px-2 py-1 rounded">e-Meterai Rp10.000</span>
-          </div>
+          {FEATURES.eStamp ? (
+            <div className="flex justify-between mt-6 text-xs text-neutral-gray">
+              <span>Ditandatangani secara elektronik (TTE)</span>
+              <span className="bg-secondary-gold-soft text-secondary-brown-dark px-2 py-1 rounded">e-Meterai Rp10.000</span>
+            </div>
+          ) : (
+            <div className="flex justify-between items-end mt-6 text-xs text-neutral-gray">
+              <span>Tanda tangan Pemberi Kuasa</span>
+              <span className="border border-dashed border-neutral-gray px-2 py-3 rounded">Meterai Rp10.000</span>
+            </div>
+          )}
         </div>
-        <p className="text-xs text-neutral-gray mt-3">{t("The legal document stays in Indonesian, since that is what venue staff and courts read.", "Dokumen hukumnya tetap berbahasa Indonesia, karena itu yang dibaca petugas venue dan pengadilan.")}</p>
-        <Button.Primary wrapperClass="w-full mt-4" className="w-full text-sm" onClick={() => toast(t("Print / download (demo)", "Print / unduh (demo)"))}>{t("Print letter", "Print surat")}</Button.Primary>
+        <p className="text-xs text-neutral-gray mt-3">
+          {FEATURES.eStamp
+            ? t("The legal document stays in Indonesian, since that is what venue staff and courts read.", "Dokumen hukumnya tetap berbahasa Indonesia, karena itu yang dibaca petugas venue dan pengadilan.")
+            : t(
+                "A draft in Indonesian, the language venue staff read. The seller writes in their full name and ID number, signs it on a Rp10,000 stamp, and gives it to you with a copy of their ID card. Lummy does not sign it or add an e-stamp yet.",
+                "Draf berbahasa Indonesia, bahasa yang dibaca petugas venue. Penjual mengisi nama lengkap dan NIK, menandatanganinya di atas meterai Rp10.000, lalu menyerahkannya kepadamu bersama fotokopi KTP-nya. Lummy belum menandatanganinya atau membubuhkan e-meterai."
+              )}
+        </p>
+        <Button.Primary
+          wrapperClass="w-full mt-4"
+          className="w-full text-sm"
+          disabled={drafting}
+          onClick={async () => {
+            setDrafting(true);
+            try {
+              const { downloadLetter } = await import("@/lib/docs/letter");
+              const ev = catalogue.eventById(order.eventId);
+              await downloadLetter({
+                id: order.id,
+                eventTitle: order.eventTitle,
+                eventDateISO: order.eventDateISO,
+                venue: ev?.venue,
+                city: ev?.city,
+                tierName: order.tierName,
+                quantity: order.quantity,
+                buyerName: user?.name,
+              });
+            } catch (e) {
+              toast.error(`${t("The draft could not be made", "Draf gagal dibuat")}: ${e instanceof Error ? e.message : String(e)}`);
+            } finally {
+              setDrafting(false);
+            }
+          }}
+        >
+          {t("Download draft (PDF)", "Unduh draf (PDF)")}
+        </Button.Primary>
       </Modal>
 
       {/* Seller ID */}

@@ -7,6 +7,7 @@
 // prints another category or day than the seller picked waits for a person.
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
+import { FEATURES } from "@/lib/features";
 import { EVENT_DURATION_H, isLateListing } from "@/lib/mock/escrow";
 import { resaleAllowed } from "@/lib/mock/transfer";
 import type { ListingAI } from "@/lib/mock/types";
@@ -166,7 +167,9 @@ export async function POST(req: Request) {
       // The buyer of any part would receive the whole file, every barcode in it, so a real
       // ticket's set is never split, whatever the request says.
       splittable: !ticket && body.splittable === true,
-      gate_ktp: body.gateKtp === true,
+      // Lummy stores no ID card yet (lib/features.ts), so none can be staged, whatever the request
+      // says: a staged ID is what makes a refusal over the name nobody's fault.
+      gate_ktp: FEATURES.sellerIdCard && body.gateKtp === true,
       // A real ticket stays out of the catalogue until its barcodes are held and its file is stored.
       status: ticket ? "review" : status,
       late_listing: late,

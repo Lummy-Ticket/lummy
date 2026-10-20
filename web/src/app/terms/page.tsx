@@ -4,6 +4,7 @@
 // "Kebijakan sengketa & refund"; lib/mock/escrow.ts). Change the rules and this page together.
 // A draft until counsel has reviewed it.
 import { CONTACT_EMAIL, CONTROLLER, LegalPage, type LegalSection } from "@/components/legal/LegalPage";
+import { FEATURES } from "@/lib/features";
 
 const sections: LegalSection[] = [
   {
@@ -47,7 +48,12 @@ const sections: LegalSection[] = [
   {
     title: { en: "Buying", id: "Membeli" },
     list: [
-      { en: "You pay the ticket price plus a service fee (5%, at least Rp25.000) and the e-stamp duty, all shown before you pay. The ticket price is held in escrow; the fee is not.", id: "Kamu membayar harga tiket ditambah biaya layanan (5%, minimal Rp25.000) dan bea e-meterai, semuanya terlihat sebelum bayar. Harga tiket ditahan di escrow; biaya layanan tidak." },
+      FEATURES.eStamp
+        ? { en: "You pay the ticket price plus a service fee (5%, at least Rp25.000) and the e-stamp duty, all shown before you pay. The ticket price is held in escrow; the fee is not.", id: "Kamu membayar harga tiket ditambah biaya layanan (5%, minimal Rp25.000) dan bea e-meterai, semuanya terlihat sebelum bayar. Harga tiket ditahan di escrow; biaya layanan tidak." }
+        : { en: "You pay the ticket price plus a service fee (5%, at least Rp25.000), both shown before you pay. The ticket price is held in escrow; the fee is not.", id: "Kamu membayar harga tiket ditambah biaya layanan (5%, minimal Rp25.000), keduanya terlihat sebelum bayar. Harga tiket ditahan di escrow; biaya layanan tidak." },
+      ...(FEATURES.eStamp
+        ? []
+        : [{ en: "Where the venue checks names, Lummy gives you a draft letter of authorisation with the order's details. The seller signs it on a Rp10.000 stamp and gives it to you with a copy of their ID card. Lummy does not sign it, add an e-stamp or store ID cards yet.", id: "Kalau venue mengecek nama, Lummy memberimu draf surat kuasa berisi data pesanan. Penjual menandatanganinya di atas meterai Rp10.000 dan menyerahkannya kepadamu bersama fotokopi KTP-nya. Lummy belum menandatanganinya, membubuhkan e-meterai, atau menyimpan KTP." }]),
       { en: "The ticket file and the handover documents are yours as soon as you pay. When you first open the ticket file is recorded, since it answers a \"never handed over\" claim.", id: "File tiket dan dokumen serah terima jadi milikmu begitu kamu bayar. Kapan kamu pertama membuka file tiket dicatat, karena itu yang menjawab klaim \"tidak diserahkan\"." },
       { en: "Without the organiser on board we cannot promise you get in. What we promise is the money back when you are turned away and can show it.", id: "Tanpa kerja sama penyelenggara, kami tidak bisa menjamin kamu masuk. Yang kami janjikan: uang kembali kalau kamu ditolak dan bisa membuktikannya." },
     ],
@@ -89,7 +95,7 @@ export default function TermsPage() {
   return (
     <LegalPage
       title={{ en: "Terms of use", id: "Syarat dan ketentuan" }}
-      effective={{ en: "8 Oct 2026", id: "8 Okt 2026" }}
+      effective={{ en: "20 Oct 2026", id: "20 Okt 2026" }}
       intro={{
         en: "The rules of buying and selling on Lummy Ticket. They are the same rules the app enforces.",
         id: "Aturan jual beli di Lummy Ticket. Isinya sama dengan aturan yang dijalankan aplikasinya.",

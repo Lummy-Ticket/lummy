@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { expect, persona, test } from "./support";
 
 // Every beat of the demo script (docs/06-demo-script.md), in English on a laptop the way it is
@@ -51,6 +52,12 @@ test.describe("demo script", { tag: "@smoke" }, () => {
     await page.getByRole("button", { name: /^Pay / }).click();
     await expect(page).toHaveURL(/\/tickets\/or-/);
     await expect(page.getByText("Letter of authorisation").first()).toBeVisible();
+    // The letter is a real draft to download, a PDF with the order on it, not a picture of one.
+    await page.getByRole("button", { name: /Letter of authorisation/ }).click();
+    const [draft] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Download draft (PDF)" }).click()]);
+    expect(draft.suggestedFilename()).toMatch(/^draf-surat-kuasa-or-.+\.pdf$/);
+    expect(readFileSync(await draft.path()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
+    await page.keyboard.press("Escape");
     await page.getByText("Verify it yourself on-chain").click();
     // A sample order says so and links the live contract; a chain-mode order lists its transactions.
     await expect(page.getByText("This is a sample order").or(page.getByText("Escrow contract")).first()).toBeVisible();

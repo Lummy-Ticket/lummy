@@ -59,11 +59,13 @@ export async function expectFitsScreen(page: Page) {
 }
 
 /**
- * Lines that claim AI does something today. Saying AI never sees an ID card, or that it is still to
- * come, is fine; claiming it reads, checks or verifies tickets on a page a visitor sees is not.
+ * Lines that claim AI does something it does not. Saying AI never sees an ID card, or that it is
+ * still to come, is fine. Since 20 Oct 2026 Claude fills the sell form in from a real ticket's
+ * cleaned text, so a line that names Claude describes what is live; a line that says AI checks or
+ * verifies tickets is still not true, since the checks are the barcode reader and the PDF forensics.
  */
 export const aiClaims = (text: string) =>
-  text.split("\n").filter((l) => /\bAI\b/.test(l) && !/dikirim ke AI|sent to AI|menyusul|comes next|layanan AI|AI service/.test(l));
+  text.split("\n").filter((l) => /\bAI\b/.test(l) && !/dikirim ke AI|sent to AI|menyusul|comes next|layanan AI|AI service|\bClaude\b/.test(l));
 
 /** The sample personas of lib/mock/seed.ts, switched the way the demo switches them. */
 const PERSONAS = {

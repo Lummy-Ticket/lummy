@@ -9,6 +9,7 @@
 // fails. CHAIN=1 also pays the checkout through the escrow contract the server points at (the
 // server needs the operator keys, and the claim and verdict then run on chain too).
 //   BASE=http://127.0.0.1:3000 DEMO_KEY=... npm run orders:check
+import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { chromium } from "playwright-core";
 
@@ -148,7 +149,8 @@ try {
 
   const [o1] = await orderOf(L1);
   check("pesanan tersimpan untuk akun pembeli dan penjual", o1?.id === orderId && o1.buyer_id === buyer.user.id && o1.seller_id === seller.user.id);
-  check("harga, biaya layanan dan materai dihitung server", o1?.amount === 700000 && o1.fee === 35000 && o1.materai === 12000, `${o1?.amount}/${o1?.fee}/${o1?.materai}`);
+  // No e-stamp is charged until a licensed provider adds one (web/src/lib/features.ts, eStamp).
+  check("harga dan biaya layanan dihitung server, tanpa biaya materai", o1?.amount === 700000 && o1.fee === 35000 && o1.materai === 0, `${o1?.amount}/${o1?.fee}/${o1?.materai}`);
   const endsAt = new Date(o1?.event_ends_at).getTime();
   if (CHAIN) {
     check("escrow on-chain tercatat", /^0x[0-9a-f]{64}$/.test(o1?.onchain_listing_id ?? "") && !!o1.tx_fund && o1.escrow_status === "DisputeWindow", o1?.escrow_status);
@@ -182,8 +184,12 @@ try {
   await buyer.page.getByRole("button", { name: /Letter of authorisation/ }).click();
   const opened = await until(async () => (await orderOf(L1))[0]?.docs_letter_at);
   check("membuka surat kuasa tercatat di database", !!opened);
+  // The draft is a real PDF to download, with the order on it.
+  const [draft] = await Promise.all([buyer.page.waitForEvent("download"), buyer.page.getByRole("button", { name: "Download draft (PDF)" }).click()]);
+  const draftHead = readFileSync(await draft.path()).subarray(0, 5).toString("latin1");
+  check("draf surat kuasa terunduh sebagai PDF", draft.suggestedFilename() === `draf-surat-kuasa-${orderId}.pdf` && draftHead === "%PDF-", `${draft.suggestedFilename()} ${draftHead}`);
   await buyer.page.keyboard.press("Escape");
-  await buyer.page.getByRole("button", { name: "Print letter" }).waitFor({ state: "hidden" });
+  await buyer.page.getByRole("button", { name: "Download draft (PDF)" }).waitFor({ state: "hidden" });
   await buyer.act(orderId, { action: "docs", which: "letter" });
   check("buka kedua tidak menggeser catatan", (await orderOf(L1))[0]?.docs_letter_at === opened);
   check("penjual tidak bisa mencatat buka dokumen", (await seller.act(orderId, { action: "docs", which: "letter" })).status() === 403);

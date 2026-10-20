@@ -18,6 +18,7 @@ import { FILL_BY, ListingError, checkTicketFile, createListing, fillFromTicket, 
 import { factDiffs, formatName, isDuplicate, MIN_HOLDER_CHARS, reasonText, reviewReasons, toListingChecks, type TicketCheck } from "@/lib/tickets/checks";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { useCatalogue } from "@/lib/catalogue";
+import { FEATURES } from "@/lib/features";
 import { useAccessGuard } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters } from "@/lib/i18n";
@@ -641,10 +642,17 @@ export default function SellPage() {
             )}
           </div>
 
+          {/* Staging an ID card for the gate. Lummy does not store ID cards yet (lib/features.ts), so an
+              account does not see this, and the server ignores it; a sample persona keeps the stand-in,
+              labelled, for the demo. The transfer note above tells a seller what to do instead. */}
+          {(FEATURES.sellerIdCard || !account) && (
           <div className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-6">
             <label className="flex items-start justify-between gap-4 cursor-pointer">
               <span>
-                <span className="block font-semibold text-neutral-black">{t("The venue checks ID at the gate", "Venue cek KTP di gate")}</span>
+                <span className="block font-semibold text-neutral-black">
+                  {t("The venue checks ID at the gate", "Venue cek KTP di gate")}
+                  {!FEATURES.sellerIdCard && <span className="ml-1.5 text-xs font-normal text-neutral-gray">{t("(sample)", "(contoh)")}</span>}
+                </span>
                 <span className="block text-sm text-neutral-gray mt-0.5">
                   {t("The buyer will need a photo of your ID card next to the letter of authorisation.", "Pembeli butuh foto KTP kamu di samping surat kuasa.")}
                 </span>
@@ -694,6 +702,7 @@ export default function SellPage() {
               </div>
             )}
           </div>
+          )}
 
           {late && !blocked && (
             <div className="flex items-start gap-2 text-sm text-secondary-brown-dark bg-secondary-gold-soft rounded-2xl p-4">

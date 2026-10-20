@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/common/Modal";
 import { EvidencePhoto } from "@/components/common/EvidencePhoto";
 import { isDemoEmail } from "@/lib/supabase/demo";
+import { FEATURES } from "@/lib/features";
 import { PageContainer } from "@/components/layout/PageContainer";
 import {
   useSellerListings, useOrders, useUser, reasonMeta, mockSellerEvidence,
@@ -384,7 +385,7 @@ export default function SellerPage() {
                 <div className="text-xs text-neutral-gray mt-1 flex items-center gap-3 flex-wrap">
                   <span>{l.tierName}{l.quantity > 1 ? t(` · ${l.quantity} tickets`, ` · ${l.quantity} tiket`) : ""}</span>
                   {!account && <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {l.views}</span>}
-                  {l.gateKtp && <span>{t("ID card staged for the gate", "KTP siap untuk gate")}</span>}
+                  {l.gateKtp && (FEATURES.sellerIdCard || !account) && <span>{t("ID card staged for the gate", "KTP siap untuk gate")}</span>}
                   {payoutNote(l) && (
                     <span className="flex items-center gap-1 text-lummy-500">
                       <Clock className="w-3 h-3" /> {payoutNote(l)}

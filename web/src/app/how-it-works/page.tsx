@@ -17,6 +17,7 @@ import { Faq, type FaqItem } from "@/components/how/Faq";
 import { cn } from "@/lib/utils";
 import { useFormatters, useT } from "@/lib/i18n";
 import { CAP_PCT, FLOOR_PCT, DISPUTE_WINDOW_H, LATE_LISTING_H, SELLER_PENALTY_PCT, MATERAI, platformFee } from "@/lib/mock";
+import { FEATURES } from "@/lib/features";
 
 // One ticket, followed from both sides: the buyer's order and the seller's listing are the
 // same sale, so the numbers on the two tabs agree. Illustrative, and computed with the
@@ -173,8 +174,12 @@ export default function HowItWorks() {
       Icon: QrCode,
       title: t("Pay with QRIS", "Bayar pakai QRIS"),
       body: t(
-        "Like any other app. The ticket price goes into escrow: not to the seller, and not to us. The service fee and the e-stamp are shown before you pay.",
-        "Seperti aplikasi lain. Harga tiketnya masuk escrow: bukan ke penjual, bukan juga ke kami. Biaya layanan dan e-meterai tampil sebelum kamu bayar."
+        FEATURES.eStamp
+          ? "Like any other app. The ticket price goes into escrow: not to the seller, and not to us. The service fee and the e-stamp are shown before you pay."
+          : "Like any other app. The ticket price goes into escrow: not to the seller, and not to us. The service fee is shown before you pay.",
+        FEATURES.eStamp
+          ? "Seperti aplikasi lain. Harga tiketnya masuk escrow: bukan ke penjual, bukan juga ke kami. Biaya layanan dan e-meterai tampil sebelum kamu bayar."
+          : "Seperti aplikasi lain. Harga tiketnya masuk escrow: bukan ke penjual, bukan juga ke kami. Biaya layanan tampil sebelum kamu bayar."
       ),
       state: t("Held in escrow", "Ditahan escrow"),
       tone: "held",
@@ -183,8 +188,12 @@ export default function HowItWorks() {
       Icon: FileText,
       title: t("Get the paperwork", "Terima dokumennya"),
       body: t(
-        "A letter of authorisation, e-stamped and e-signed, ready to print straight away. If the venue checks ID, you can view the seller's ID card close to the show, with your name watermarked across it.",
-        "Surat kuasa ber-e-meterai dan TTE, langsung siap print. Kalau venue cek KTP, kamu bisa melihat KTP penjual mendekati acara, dengan namamu sebagai watermark."
+        FEATURES.eStamp && FEATURES.sellerIdCard
+          ? "A letter of authorisation, e-stamped and e-signed, ready to print straight away. If the venue checks ID, you can view the seller's ID card close to the show, with your name watermarked across it."
+          : "A draft letter of authorisation with the order's details, ready to download. Where the venue checks names, the seller signs it on a Rp10,000 stamp and gives it to you with a copy of their ID card. Certified e-signatures and e-stamps come later.",
+        FEATURES.eStamp && FEATURES.sellerIdCard
+          ? "Surat kuasa ber-e-meterai dan TTE, langsung siap print. Kalau venue cek KTP, kamu bisa melihat KTP penjual mendekati acara, dengan namamu sebagai watermark."
+          : "Draf surat kuasa berisi data pesanan, langsung bisa diunduh. Kalau venue mengecek nama, penjual menandatanganinya di atas meterai Rp10.000 dan menyerahkannya bersama fotokopi KTP-nya kepadamu. Tanda tangan elektronik tersertifikasi dan e-meterai menyusul."
       ),
       state: t("Still held", "Masih ditahan"),
       tone: "held",
@@ -285,8 +294,12 @@ export default function HowItWorks() {
       Icon: FileUp,
       title: t("Upload the PDF", "Upload PDF-nya"),
       body: t(
-        "Pick the event and tier, and Lummy reads every barcode in the PDF. If the venue checks ID, add a photo of your ID card too.",
-        "Pilih event dan kategorinya, lalu Lummy membaca semua barcode di PDF-nya. Kalau venue cek KTP, tambahkan juga foto KTP-mu."
+        FEATURES.sellerIdCard
+          ? "Pick the event and tier, and Lummy reads every barcode in the PDF. If the venue checks ID, add a photo of your ID card too."
+          : "Pick the event and tier, and Lummy reads every barcode in the PDF.",
+        FEATURES.sellerIdCard
+          ? "Pilih event dan kategorinya, lalu Lummy membaca semua barcode di PDF-nya. Kalau venue cek KTP, tambahkan juga foto KTP-mu."
+          : "Pilih event dan kategorinya, lalu Lummy membaca semua barcode di PDF-nya."
       ),
       state: t("Reading the ticket", "Membaca tiket"),
       tone: "idle",
@@ -315,8 +328,12 @@ export default function HowItWorks() {
       Icon: Lock,
       title: t("A buyer pays", "Pembeli membayar"),
       body: t(
-        "The money goes into escrow and the buyer gets the letter of authorisation straight away. Your ID card photo, if you added one, is stored encrypted, shown only close to the show with the buyer's name across it, and deleted after.",
-        "Uangnya masuk escrow dan pembeli langsung menerima surat kuasa. Foto KTP-mu, kalau ada, disimpan terenkripsi, hanya tampil mendekati acara dengan nama pembeli di atasnya, lalu dihapus setelahnya."
+        FEATURES.sellerIdCard
+          ? "The money goes into escrow and the buyer gets the letter of authorisation straight away. Your ID card photo, if you added one, is stored encrypted, shown only close to the show with the buyer's name across it, and deleted after."
+          : "The money goes into escrow and the buyer can download the draft letter of authorisation straight away. Where the venue checks names, you sign it on a Rp10,000 stamp and give it to the buyer with a copy of your ID card; Lummy does not store ID cards yet.",
+        FEATURES.sellerIdCard
+          ? "Uangnya masuk escrow dan pembeli langsung menerima surat kuasa. Foto KTP-mu, kalau ada, disimpan terenkripsi, hanya tampil mendekati acara dengan nama pembeli di atasnya, lalu dihapus setelahnya."
+          : "Uangnya masuk escrow dan pembeli langsung bisa mengunduh draf surat kuasa. Kalau venue mengecek nama, kamu menandatanganinya di atas meterai Rp10.000 dan menyerahkannya ke pembeli bersama fotokopi KTP-mu; Lummy belum menyimpan KTP."
       ),
       state: t("Sold, held in escrow", "Terjual, ditahan escrow"),
       tone: "held",
@@ -390,8 +407,8 @@ export default function HowItWorks() {
       Icon: ScanLine,
       title: t("Every ticket is read", "Tiap tiket dibaca"),
       body: t(
-        "The server reads each barcode and checks how the PDF was made and changed. A suspicious file goes to a person; the machine never decides alone. AI that fills the listing in for you comes next.",
-        "Server membaca tiap barcode dan memeriksa cara PDF dibuat dan diubah. File yang mencurigakan dikirim ke manusia, mesin tidak memutus sendiri. AI yang mengisi listing untukmu menyusul."
+        "The server reads each barcode and checks how the PDF was made and changed. A suspicious file goes to a person; the machine never decides alone. With a real PDF, Claude (Anthropic's AI) reads its text after names and numbers are taken out, and fills in the show and tier for you to check.",
+        "Server membaca tiap barcode dan memeriksa cara PDF dibuat dan diubah. File yang mencurigakan dikirim ke manusia, mesin tidak memutus sendiri. Untuk PDF asli, Claude (AI dari Anthropic) membaca teksnya setelah nama dan nomor dibuang, lalu mengisi acara dan kategorinya untuk kamu cek."
       ),
     },
     {
@@ -432,7 +449,7 @@ export default function HowItWorks() {
       <div className="mt-4 flex flex-col gap-2">
         <Line label={t("Ticket price", "Harga tiket")} value={formatIDR(PRICE)} />
         <Line label={t("Service fee (5%, min. Rp25,000)", "Biaya layanan (5%, min. Rp25.000)")} value={formatIDR(fee)} />
-        <Line label={t("e-stamp + e-signature", "e-Meterai + TTE")} value={formatIDR(MATERAI)} />
+        {MATERAI > 0 && <Line label={t("e-stamp + e-signature", "e-Meterai + TTE")} value={formatIDR(MATERAI)} />}
         <div className="border-t border-neutral-light-gray-1 pt-2 mt-1">
           <Line label={t("You pay", "Kamu bayar")} value={formatIDR(total)} strong />
         </div>

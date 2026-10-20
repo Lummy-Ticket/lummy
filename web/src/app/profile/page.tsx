@@ -172,7 +172,8 @@ export default function ProfilePage() {
         {verified ? (
           <div className="flex items-center gap-3">
             <Badge.Base className="bg-secondary-green-soft text-secondary-green-dark text-sm inline-flex items-center gap-1"><BadgeCheck className="w-4 h-4" /> {t("Verified", "Terverifikasi")}</Badge.Base>
-            <span className="text-sm text-neutral-gray">via Privy.id (PSrE)</span>
+            {/* A sample persona verifies with one click, which no PSrE stands behind (lib/features.ts). */}
+            <span className="text-sm text-neutral-gray">via Privy.id (PSrE){!account && ` ${t("(sample)", "(contoh)")}`}</span>
           </div>
         ) : account ? (
           <p className="text-sm text-neutral-gray">

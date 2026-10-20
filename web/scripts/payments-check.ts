@@ -34,6 +34,7 @@ import { chromium, type Browser, type BrowserContext } from "playwright-core";
 import { createPublicClient, http, keccak256, toHex, zeroAddress, type Address } from "viem";
 import { arbitrumSepolia } from "viem/chains";
 import { ledgerAbi } from "../src/lib/chain/abi";
+import { MATERAI } from "../src/lib/mock/util";
 import type { Database } from "../src/lib/supabase/types";
 
 try {
@@ -61,7 +62,8 @@ const L_BIG = "ls-zz-pay-big"; // above the QRIS ceiling
 const L_RATE = "ls-zz-pay-rate"; // for the cap on new holds
 const LISTINGS = [L1, L2, L_BIG, L_RATE];
 const PRICE = 550_000;
-const TOTAL = PRICE + Math.max(Math.round(PRICE * 0.05), 25_000) + 12_000;
+// The e-stamp is charged only once a licensed provider adds it (lib/features.ts), so MATERAI is 0 now.
+const TOTAL = PRICE + Math.max(Math.round(PRICE * 0.05), 25_000) + MATERAI;
 
 const results: { name: string; ok: boolean; note?: string }[] = [];
 const check = (name: string, ok: boolean, note?: string) => results.push({ name, ok, note: ok ? undefined : note });
@@ -213,7 +215,7 @@ async function main() {
     );
     // One open hold per buyer is the database's rule too, not only the route's.
     const second2 = await admin.from("payments").insert({
-      buyer_id: buyer, listing_id: L2, quantity: 1, amount: PRICE, fee: TOTAL - PRICE - 12_000, materai: 12_000, total: TOTAL,
+      buyer_id: buyer, listing_id: L2, quantity: 1, amount: PRICE, fee: TOTAL - PRICE - MATERAI, materai: MATERAI, total: TOTAL,
       test_mode: true, expires_at: new Date(Date.now() + 15 * 60_000).toISOString(),
     });
     check("the database refuses a second open hold for the same buyer", second2.error?.code === "23505", JSON.stringify(second2.error));
