@@ -167,22 +167,25 @@ export default function EventDetailPage() {
             </div>
           ) : (
           <>
-          {/* Ticket count, Viagogo style: filters to sets that can satisfy it */}
+          {/* Ticket count, Viagogo style: filters to sets that can satisfy it. Up to 8, the most one
+              listing holds (api/listings): a set that cannot be split shows only at its own count, so
+              a 7 or 8 behind a "6+" was never seen, and "6+" bought exactly 6. */}
           <div className="mt-10 mb-5 flex items-center gap-3 flex-wrap">
             <span className="text-sm text-neutral-gray">{t("How many tickets?", "Mau berapa tiket?")}</span>
-            <div className="flex items-center gap-1 bg-secondary-gray-soft rounded-full p-1" role="group" aria-label={t("Number of tickets", "Jumlah tiket")}>
-              {[1, 2, 3, 4, 5, 6].map((n) => (
+            <div className="flex items-center gap-0.5 sm:gap-1 bg-secondary-gray-soft rounded-full p-1" role="group" aria-label={t("Number of tickets", "Jumlah tiket")}>
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
                 <button
                   key={n}
                   onClick={() => setQty(n)}
                   aria-pressed={qty === n}
-                  className={`w-9 h-9 rounded-full text-sm transition cursor-pointer active:scale-90 ${qty === n ? "bg-primary-navy text-white font-medium" : "text-neutral-gray hover:text-primary-navy"}`}
+                  className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full text-sm transition cursor-pointer active:scale-90 ${qty === n ? "bg-primary-navy text-white font-medium" : "text-neutral-gray hover:text-primary-navy"}`}
                 >
-                  {n}{n === 6 ? "+" : ""}
+                  {n}
                 </button>
               ))}
             </div>
             {qty > 1 && <span className="text-xs text-neutral-gray">{t("Sets are always seated together", "Satu set pasti duduk bersebelahan")}</span>}
+            {qty === 8 && <span className="text-xs text-neutral-gray">{t("Need more than 8? Buy from more than one listing.", "Butuh lebih dari 8? Beli dari beberapa listing.")}</span>}
           </div>
 
           <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">

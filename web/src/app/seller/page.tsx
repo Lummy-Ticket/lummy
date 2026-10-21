@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { Plus, Eye, Megaphone, Copy, ExternalLink, ShieldCheck, Search, Clock, Scale, Paperclip, CheckCircle2, Camera, Loader2 } from "lucide-react";
+import { Plus, Eye, Megaphone, Copy, ExternalLink, ShieldCheck, Search, Clock, Scale, Paperclip, CheckCircle2, Camera, Loader2, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/common/Modal";
@@ -24,11 +24,12 @@ import { orderAction, uploadEvidence, useAccountOrders } from "@/lib/orders/clie
 import { listingAction, useAccountListings } from "@/lib/listings/client";
 import { useRouter } from "next/navigation";
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="bg-neutral-white rounded-2xl border border-neutral-light-gray-1 p-4">
       <div className="text-xs text-neutral-gray">{label}</div>
       <div className="font-bold text-xl text-neutral-black mt-1">{value}</div>
+      {hint && <div className="text-[11px] text-neutral-gray mt-1 leading-snug">{hint}</div>}
     </div>
   );
 }
@@ -310,6 +311,27 @@ export default function SellerPage() {
       : t(`Pays out ${formatEventDate(due.toISOString())}`, `Cair ${formatEventDate(due.toISOString())}`);
   };
 
+  // The seller is the one who signs the letter of authorisation, so the draft is here too, for each
+  // sale of a show that may check names (any rule but "open", including one nobody has confirmed),
+  // whether the set sold out or some of its seats are still on sale.
+  const letterOrders = (l: SellerListing) => {
+    if (catalogue.eventById(l.eventId)?.transferPolicy === "open") return [];
+    return mine.filter((o) => o.listingId === l.id && o.escrowStatus !== "REFUNDED");
+  };
+  const [drafting, setDrafting] = useState<string | null>(null);
+  const draftLetter = async (o: Order) => {
+    setDrafting(o.id);
+    try {
+      const { downloadLetter } = await import("@/lib/docs/letter");
+      const ev = catalogue.eventById(o.eventId);
+      await downloadLetter({ id: o.id, eventTitle: o.eventTitle, eventDateISO: o.eventDateISO, venue: ev?.venue, city: ev?.city, tierName: o.tierName, quantity: o.quantity });
+    } catch (e) {
+      toast.error(`${t("The draft could not be made", "Draf gagal dibuat")}: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setDrafting(null);
+    }
+  };
+
   if (!ready) return <PageGate />;
 
   return (
@@ -324,11 +346,15 @@ export default function SellerPage() {
         <Stat label={t("Sold", "Terjual")} value={String(sold.length)} />
         {/* Views are not counted for real listings yet, and a 0 would say nobody looked. */}
         {account ? (
-          <Stat label={t("In review", "Direview")} value={String(inReview.length)} />
+          <Stat label={t("Waiting for review", "Menunggu review")} value={String(inReview.length)} hint={t("Checked by staff before going live", "Dicek staf dulu sebelum tayang")} />
         ) : (
           <Stat label={t("Total views", "Total dilihat")} value={views.toLocaleString(lang === "id" ? "id-ID" : "en-US")} />
         )}
-        <Stat label={t("If everything sells", "Kalau semua terjual")} value={formatIDR(est)} />
+        <Stat
+          label={t("If everything sells", "Kalau semua terjual")}
+          value={formatIDR(est)}
+          hint={t("What you receive if every active listing sells; the buyer pays the service fee", "Yang kamu terima kalau semua listing aktif terjual; biaya layanan dibayar pembeli")}
+        />
       </div>
 
       <ClaimsAgainstYou orders={claims} onReply={reply} account={account} sampleFiles={!account || isDemoEmail(user?.email ?? "")} />
@@ -393,7 +419,21 @@ export default function SellerPage() {
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-4 shrink-0">
+              <div className="flex items-center gap-4 shrink-0 flex-wrap">
+                {letterOrders(l).map((o, i, all) => (
+                  <button
+                    key={o.id}
+                    data-draft-letter={o.id}
+                    disabled={drafting === o.id}
+                    onClick={() => void draftLetter(o)}
+                    title={t("Sign it on a Rp10,000 stamp and give it to the buyer with a copy of your ID card", "Tanda tangani di atas meterai Rp10.000, lalu serahkan ke pembeli bersama fotokopi KTP-mu")}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-lummy-500 text-lummy-500 text-sm hover:bg-secondary-blue-light transition cursor-pointer disabled:opacity-60"
+                  >
+                    {drafting === o.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                    {t("Letter draft", "Draf surat kuasa")}
+                    {all.length > 1 ? ` ${i + 1}` : ""}
+                  </button>
+                ))}
                 <span className="tabular-nums font-bold text-lummy-500 text-nowrap">{formatIDR(l.askPrice)}{l.quantity > 1 && <span className="text-xs text-neutral-gray font-sans font-normal"> {t("each", "/tiket")}</span>}</span>
                 {l.status === "active" && (
                   <button onClick={() => setPromote(l)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-lummy-500 text-lummy-500 text-sm hover:bg-secondary-blue-light transition cursor-pointer">

@@ -220,6 +220,10 @@ try {
   const card = seller.page.locator(`[data-claim="${orderId}"]`);
   await card.waitFor();
   check("klaim muncul di dasbor penjual", await card.isVisible());
+  // The seller signs the letter, so the draft is on their side too (a show that checks names).
+  const [sellerDraft] = await Promise.all([seller.page.waitForEvent("download"), seller.page.locator(`[data-draft-letter="${orderId}"]`).click()]);
+  const sellerHead = readFileSync(await sellerDraft.path()).subarray(0, 5).toString("latin1");
+  check("penjual bisa mengunduh draf surat kuasa", sellerDraft.suggestedFilename() === `draf-surat-kuasa-${orderId}.pdf` && sellerHead === "%PDF-", `${sellerDraft.suggestedFilename()} ${sellerHead}`);
   await card.getByRole("button", { name: "Answer this claim" }).click();
   await card.getByPlaceholder("What actually happened, in your words...").fill("Tiketnya sesuai listing, ini chat serah terimanya.");
   await card.getByRole("button", { name: "handover-chat.png" }).click();

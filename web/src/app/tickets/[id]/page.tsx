@@ -30,6 +30,7 @@ import { DEPLOYMENTS, LEDGERS } from "@/lib/chain/deployments";
 import { OrderError, orderAction, uploadEvidence, useAccountOrders } from "@/lib/orders/client";
 import { useCatalogue } from "@/lib/catalogue";
 import { FEATURES } from "@/lib/features";
+import { CONTACT_EMAIL } from "@/components/legal/LegalPage";
 
 /** The escrow that new on-chain orders go to, shown even on sample orders so anyone can inspect it. */
 const LIVE_ESCROW = DEPLOYMENTS[421614]?.escrow;
@@ -862,6 +863,10 @@ export default function OrderDetailPage() {
             </ul>
             <div className="mt-4 pt-3 border-t border-dashed border-neutral-light-gray-1 text-xs text-neutral-gray">
               {t("Order", "Pesanan")} <span className="font-medium tracking-wide text-neutral-black">{order.id.toUpperCase()}</span> · {t("placed", "dibuat")} {formatDateTime(order.createdAtISO)}
+            </div>
+            <div className="mt-1.5 text-xs text-neutral-gray">
+              {t("Help with this order:", "Bantuan untuk pesanan ini:")}{" "}
+              <a href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(`Pesanan ${order.id.toUpperCase()}`)}`} className="text-primary-navy font-medium">{CONTACT_EMAIL}</a>
             </div>
           </div>
         </div>

@@ -4,6 +4,7 @@ import type React from "react";
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { CONTACT_EMAIL } from "@/components/legal/LegalPage";
 import Image from "next/image";
 import toast from "react-hot-toast";
 import { ArrowLeft, Lock, ShieldCheck, Loader2, QrCode } from "lucide-react";
@@ -280,6 +281,12 @@ function CheckoutInner() {
               )}
             </p>
           )}
+          {/* What happens if it goes wrong, said at the till, and who to ask (user feedback, 16 Oct). */}
+          <p className="text-[11px] text-neutral-gray text-center">
+            <Link href="/how-it-works#coverage" className="text-primary-navy font-medium">{t("What if something goes wrong?", "Kalau ada masalah, bagaimana?")}</Link>
+            {" · "}
+            {t("Help:", "Bantuan:")} <a href={`mailto:${CONTACT_EMAIL}`} className="text-primary-navy font-medium">{CONTACT_EMAIL}</a>
+          </p>
         </div>
       </div>
 
