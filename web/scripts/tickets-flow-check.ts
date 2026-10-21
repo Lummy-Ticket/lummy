@@ -244,6 +244,13 @@ async function main() {
           JSON.stringify({ ai, status: first.data?.status })
         );
 
+        // The seat the ticket prints reaches the buyer's listing (16 Oct feedback: "where would I sit?").
+        const seat = (ai?.facts as { seat?: string | null } | undefined)?.seat;
+        await page.goto(`${BASE}/events/ev-tulus`, { waitUntil: "networkidle" });
+        await page.getByRole("group", { name: "Number of tickets" }).getByRole("button", { name: "1", exact: true }).click();
+        const shown = await page.locator(`[data-listing="${first.data?.id}"] [data-listing-seat]`).innerText({ timeout: 15000 }).catch(() => "");
+        check("publish: the printed seat is on the buyer's listing", !!seat && shown.includes(seat), `${seat} | ${shown}`);
+
         // Sent straight to the server without the buyer's name, a real ticket is refused before it is read.
         const unnamed = await page.evaluate(async (pdf) => {
           const form = new FormData();

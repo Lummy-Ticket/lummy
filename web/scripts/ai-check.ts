@@ -150,6 +150,8 @@ async function main() {
   const fake = fakeFacts("NEWJEANS FAN MEETING\nGrade: VIP SOUNDCHECK\nPrice: IDR 2,800,000", NJ);
   check("fake: the longest category name that fits wins", fake.tierId === "t-nj-vip", JSON.stringify(fake));
   check("fake: the first rupiah amount", fake.printedPrice === 2_800_000);
+  check("fake: no place printed, no seat", fake.seat === null);
+  check("fake: the first line naming a place is the seat", fakeFacts("TULUS\nVIP - Row C - Seat 12 - SICC Bogor", TULUS).seat === "VIP - Row C - Seat 12 - SICC Bogor");
   const viaFake = await extractTicketFacts(TEXT, TULUS, { provider: "fake" });
   check("fake: answers without a key or a network", viaFake.ok && viaFake.model === "fake");
 

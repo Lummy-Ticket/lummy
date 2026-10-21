@@ -123,6 +123,21 @@ test.describe("demo script", { tag: "@smoke" }, () => {
   test("the show's name rule is on the event page", async ({ page }) => {
     await page.goto("/events/ev-coldplay");
     await expect(page.getByText("Named ticket, letter accepted").first()).toBeVisible();
+    // Sellers cannot stage an ID card yet (lib/features.ts), so no listing claims one or is blamed for lacking one.
+    await expect(page.getByText(/ID checked at the gate|ID card not staged/)).toHaveCount(0);
+  });
+
+  test("a listing held for a check says when it can be bought", async ({ page }) => {
+    await page.goto("/events/ev-newjeans");
+    await expect(page.locator('[data-listing="ls-3"] [data-review-why]')).toContainText("once the Lummy team has checked the file");
+  });
+
+  test("what is not live says so: the review target, and no real payout yet", async ({ page }) => {
+    await persona(page, "seller");
+    await page.goto("/seller");
+    await expect(page.locator("[data-review-note]").first()).toContainText("within 24 hours");
+    await page.goto("/profile");
+    await expect(page.locator("[data-payout-test]")).toContainText("no real money is paid out");
   });
 
   test("an ID-match show has the buyer confirm the risk before paying", async ({ page }) => {

@@ -18,7 +18,7 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import {
   useEventRequests, useOrders, useSellerListings, useUser, isEventOver,
   checkEvidence, reasonMeta, suggestedRationale, disputeDeadlineISO,
-  remedyOptions, suggestedRemedy, penaltyFor, SELLER_PENALTY_PCT, REMEDY_LABEL, partialAmount,
+  remedyOptions, suggestedRemedy, penaltyFor, SELLER_PENALTY_PCT, REMEDY_LABEL, partialAmount, REVIEW_TARGET_H,
   type ChainSettlement, type EventRequest, type Order, type Remedy, type SellerListing,
 } from "@/lib/mock";
 import { chainAction } from "@/lib/chain/client";
@@ -426,6 +426,7 @@ function ListingQueue({
   const t = useT();
   const { formatIDR, formatEventDate } = useFormatters();
   const catalogue = useCatalogue();
+  const [now] = useState(() => Date.now());
   const decide = async (fn: (id: string) => void | Promise<void>, id: string, done: () => void) => {
     try {
       await fn(id);
@@ -456,6 +457,9 @@ function ListingQueue({
         const ev = catalogue.eventById(l.eventId);
         const risky = l.ai.pdfSuspicious || l.ai.forgeryScore >= 60;
         const why = l.checks ? reviewReasons(l.checks) : [];
+        // The seller is told staff aim for REVIEW_TARGET_H; the queue says who has waited past it.
+        // Only for accounts' listings: a sample's date is made up.
+        const waited = sampleFiles ? Math.floor((now - Date.parse(l.createdAtISO)) / 3_600_000) : null;
         return (
           <div key={l.id} data-listing={l.id} className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
             <div className="flex items-start justify-between gap-3">
@@ -469,6 +473,13 @@ function ListingQueue({
             </div>
 
             <div className="flex flex-wrap gap-2 mt-3">
+              {waited !== null && (
+                <Badge.Base data-review-wait className={`text-xs flex items-center gap-1 ${waited >= REVIEW_TARGET_H ? "bg-secondary-pink-soft text-secondary-pink-dark" : "bg-secondary-gray-soft text-neutral-gray"}`}>
+                  <Clock className="w-3 h-3" />
+                  {waited < 1 ? t("Waiting under an hour", "Menunggu kurang dari 1 jam") : t(`Waiting ${waited} h`, `Menunggu ${waited} jam`)}
+                  {waited >= REVIEW_TARGET_H && t(`, past the ${REVIEW_TARGET_H} h target`, `, lewat target ${REVIEW_TARGET_H} jam`)}
+                </Badge.Base>
+              )}
               {l.lateListing && (
                 <Badge.Base className="bg-secondary-gold-soft text-secondary-brown-dark text-xs flex items-center gap-1">
                   <Clock className="w-3 h-3" /> {t("Listed close to doors", "Dipasang mepet acara")}

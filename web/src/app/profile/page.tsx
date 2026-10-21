@@ -12,6 +12,7 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import { isStaff, useAccessGuard, useHydrated } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
 import { useT } from "@/lib/i18n";
+import { FEATURES } from "@/lib/features";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
 const CHANNELS: { id: AlertChannel; label: string }[] = [
@@ -247,6 +248,14 @@ export default function ProfilePage() {
               </div>
             </label>
             {savedBank && <p className="text-xs text-secondary-green-dark">{t("Saved", "Tersimpan")}: {savedBank} · {savedNumber}</p>}
+            {!FEATURES.payouts && (
+              <p data-payout-test className="text-xs text-neutral-gray">
+                {t(
+                  "Lummy is still in test mode, so no real money is paid out to this account yet.",
+                  "Lummy masih mode uji, jadi belum ada uang sungguhan yang cair ke rekening ini."
+                )}
+              </p>
+            )}
             <Button.Primary wrapperClass="w-fit" className="text-sm" onClick={() => void savePayout()}>{t("Save account", "Simpan rekening")}</Button.Primary>
           </div>
         </Section>

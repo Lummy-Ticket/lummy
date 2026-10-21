@@ -142,10 +142,17 @@ try {
   check("pembeli lain tidak bisa melihat listing yang direview", !(await buyer.sees(held?.id)));
   check("penjual dan staf bisa melihatnya", (await seller.sees(held?.id)) && (await staff.sees(held?.id)));
   check("penjual tidak bisa meloloskan listingnya sendiri", (await seller.act(held?.id, "approve")).status() === 403);
+  // A held listing is not a silence with no end: the seller sees the target, staff see the wait.
+  await seller.page.goto(`${BASE}/seller`, { waitUntil: "networkidle" });
+  const reviewNote = seller.page.locator(`[data-listing="${held?.id}"] [data-review-note]`);
+  await reviewNote.waitFor();
+  check("penjual melihat target review 24 jam", (await reviewNote.innerText()).includes("within 24 hours"), await reviewNote.innerText());
   await staff.page.goto(`${BASE}/admin`, { waitUntil: "networkidle" });
   await staff.page.getByRole("button", { name: /Listings held/ }).click();
   const card = staff.page.locator(`[data-listing="${held?.id}"]`);
   await card.waitFor();
+  const wait = await card.locator("[data-review-wait]").innerText();
+  check("antrean staf menunjukkan lama menunggu", /^Waiting under an hour$/.test(wait.trim()), wait);
   await card.getByRole("button", { name: /Clear listing/ }).click();
   const cleared = await until(async () => (await listingOf(held?.id))?.status === "active");
   check("staf meloloskan dari konsol, listing tayang", cleared && (await inCatalogue(held?.id)));

@@ -600,7 +600,7 @@ export default function SellPage() {
                   <button type="button" onClick={() => setQty((q) => Math.max(1, q - 1))} className="w-10 h-10 rounded-xl border border-lummy-500 grid place-items-center text-lummy-500 hover:bg-secondary-blue-light transition cursor-pointer"><Minus className="w-4 h-4" /></button>
                   <span className="font-bold text-lg text-neutral-black w-8 text-center">{qty}</span>
                   <button type="button" onClick={() => setQty((q) => Math.min(8, q + 1))} className="w-10 h-10 rounded-xl border border-lummy-500 grid place-items-center text-lummy-500 hover:bg-secondary-blue-light transition cursor-pointer"><Plus className="w-4 h-4" /></button>
-                  <span className="text-xs text-neutral-gray">{t("Sold as one set, seated together.", "Dijual sebagai 1 set, duduk bersebelahan.")}{qty > 1 ? t(` All ${qty} at once.`, ` ${qty} tiket sekaligus.`) : ""}</span>
+                  <span className="text-xs text-neutral-gray">{t("Sold as one set, placed as printed.", "Dijual sebagai 1 set, posisinya sesuai yang tercetak.")}{qty > 1 ? t(` All ${qty} at once.`, ` ${qty} tiket sekaligus.`) : ""}</span>
                 </div>
                 )}
               </label>

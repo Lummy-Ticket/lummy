@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Hero } from "@/components/home/Hero";
 import { TicketBand } from "@/components/ui/ticket-band";
 import { useT, useFormatters, useActiveLang, EVENT_TZ } from "@/lib/i18n";
-import type { EventItem } from "@/lib/mock";
+import { DISPUTE_WINDOW_H, SELLER_PENALTY_PCT, type EventItem } from "@/lib/mock";
 import { useCatalogue } from "@/lib/catalogue";
 
 function SectionHead({ title, href }: { title: string; href?: string }) {
@@ -64,8 +64,10 @@ function ComingUp({ events }: { events: EventItem[] }) {
   );
 }
 
+type CompareRow = { dmEn: string; dmId: string; luEn: string; luId: string };
+
 // How resale works today versus here. Each row is a real failure of buying through a DM.
-const COMPARE = [
+const COMPARE: CompareRow[] = [
   {
     dmEn: "You transfer to a stranger's bank account", dmId: "Transfer ke rekening orang asing",
     luEn: "Your money waits in escrow until the show is over", luId: "Uangmu ditahan escrow sampai acara selesai",
@@ -83,6 +85,61 @@ const COMPARE = [
     luEn: "Turned away with proof? You get it back", luId: "Ditolak dengan bukti? Uangmu kembali",
   },
 ];
+
+// The same for the seller (16 Oct feedback: Lummy has two sides, so the seller gets the same room).
+// Each Lummy row is something the site does today: the file is released only to a paid order,
+// there is no chat, a claim needs evidence and the seller answers it, and Promote writes the post.
+const COMPARE_SELL: CompareRow[] = [
+  {
+    dmEn: "The buyer sends a fake transfer screenshot", dmId: "Pembeli kirim bukti transfer palsu",
+    luEn: "Your ticket file goes out only after the payment is in escrow", luId: "File tiketmu baru terkirim setelah pembayarannya masuk escrow",
+  },
+  {
+    dmEn: "Haggling and the same questions, one chat at a time", dmId: "Ditawar dan ditanya hal yang sama, satu per satu",
+    luEn: "List once at a fixed price; buyers pay without a chat", luId: "Pasang sekali dengan harga pas, pembeli bayar tanpa chat",
+  },
+  {
+    dmEn: "Called a scammer, with no way to answer", dmId: "Dituduh penipu tanpa bisa membela diri",
+    luEn: "A buyer's claim needs proof, and you answer it", luId: "Klaim pembeli butuh bukti, dan kamu bisa menjawabnya",
+  },
+  {
+    dmEn: "Posting in every group so someone sees it", dmId: "Posting di semua grup biar ada yang lihat",
+    luEn: "Your listing sits on the show's page, with a post ready for X", luId: "Listingmu ada di halaman acaranya, plus caption siap untuk X",
+  },
+];
+
+function Compare({ rows, dmTitle, luTitle, link }: { rows: CompareRow[]; dmTitle: string; luTitle: string; link: { href: string; label: string } }) {
+  const t = useT();
+  return (
+    <div data-reveal="stagger" className="mt-8 grid md:grid-cols-2 gap-4">
+      <div className="rounded-3xl bg-secondary-gray-soft p-6">
+        <div className="font-semibold text-neutral-gray mb-4">{dmTitle}</div>
+        <ul className="flex flex-col gap-3.5">
+          {rows.map((c) => (
+            <li key={c.dmEn} className="flex gap-3 text-neutral-gray">
+              <span className="w-5 h-5 rounded-full bg-neutral-light-gray-1/70 grid place-items-center shrink-0 mt-0.5"><X className="w-3 h-3" /></span>
+              {t(c.dmEn, c.dmId)}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="rounded-3xl border-2 border-primary-navy bg-neutral-white p-6 shadow-[4px_4px_0px_#0D3B9A]">
+        <div className="font-semibold text-primary-navy mb-4">{luTitle}</div>
+        <ul className="flex flex-col gap-3.5">
+          {rows.map((c) => (
+            <li key={c.luEn} className="flex gap-3 text-neutral-black">
+              <span className="w-5 h-5 rounded-full bg-primary-navy text-white grid place-items-center shrink-0 mt-0.5"><Check className="w-3 h-3" /></span>
+              {t(c.luEn, c.luId)}
+            </li>
+          ))}
+        </ul>
+        <Link href={link.href} className="group mt-6 inline-flex items-center gap-1 text-sm font-medium text-primary-navy">
+          <span className="lm-underline">{link.label}</span> <ArrowRight className="w-4 h-4 transition group-hover:translate-x-1" />
+        </Link>
+      </div>
+    </div>
+  );
+}
 
 export default function HomePage() {
   const t = useT();
@@ -137,33 +194,30 @@ export default function HomePage() {
             {t("Most resale in Indonesia still happens in chats and comment sections. Here is what changes.", "Kebanyakan resale di Indonesia masih lewat chat dan kolom komentar. Ini bedanya.")}
           </p>
         </div>
-        <div data-reveal="stagger" className="mt-8 grid md:grid-cols-2 gap-4">
-          <div className="rounded-3xl bg-secondary-gray-soft p-6">
-            <div className="font-semibold text-neutral-gray mb-4">{t("Buying from a DM", "Beli lewat DM")}</div>
-            <ul className="flex flex-col gap-3.5">
-              {COMPARE.map((c) => (
-                <li key={c.dmEn} className="flex gap-3 text-neutral-gray">
-                  <span className="w-5 h-5 rounded-full bg-neutral-light-gray-1/70 grid place-items-center shrink-0 mt-0.5"><X className="w-3 h-3" /></span>
-                  {t(c.dmEn, c.dmId)}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="rounded-3xl border-2 border-primary-navy bg-neutral-white p-6 shadow-[4px_4px_0px_#0D3B9A]">
-            <div className="font-semibold text-primary-navy mb-4">{t("Buying on Lummy", "Beli di Lummy")}</div>
-            <ul className="flex flex-col gap-3.5">
-              {COMPARE.map((c) => (
-                <li key={c.luEn} className="flex gap-3 text-neutral-black">
-                  <span className="w-5 h-5 rounded-full bg-primary-navy text-white grid place-items-center shrink-0 mt-0.5"><Check className="w-3 h-3" /></span>
-                  {t(c.luEn, c.luId)}
-                </li>
-              ))}
-            </ul>
-            <Link href="/how-it-works" className="group mt-6 inline-flex items-center gap-1 text-sm font-medium text-primary-navy">
-              <span className="lm-underline">{t("How the protection works", "Cara perlindungannya bekerja")}</span> <ArrowRight className="w-4 h-4 transition group-hover:translate-x-1" />
-            </Link>
-          </div>
+        <Compare
+          rows={COMPARE}
+          dmTitle={t("Buying from a DM", "Beli lewat DM")}
+          luTitle={t("Buying on Lummy", "Beli di Lummy")}
+          link={{ href: "/how-it-works", label: t("How the protection works", "Cara perlindungannya bekerja") }}
+        />
+      </section>
+
+      <section data-home-sell className="max-w-7xl mx-auto px-5 lg:px-10 mt-20">
+        <div data-reveal className="max-w-2xl">
+          <h2 className="text-2xl md:text-3xl font-bold text-neutral-black">{t("Selling? Skip the DM drama", "Mau jual? Gak perlu drama DM")}</h2>
+          <p className="text-neutral-gray mt-2">
+            {t(
+              `Sell in a chat and the risk is all yours. Here the payment is held before your ticket changes hands, and it is yours ${DISPUTE_WINDOW_H} hours after the show if no claim stands. Listing is free; a ticket that fails costs you the sale plus ${SELLER_PENALTY_PCT}%.`,
+              `Jual lewat chat, risikonya kamu tanggung sendiri. Di sini pembayarannya ditahan dulu sebelum tiketmu berpindah tangan, dan jadi milikmu ${DISPUTE_WINDOW_H} jam setelah acara kalau tidak ada klaim yang terbukti. Pasang listing gratis; tiket yang gagal bikin penjualannya batal plus penalti ${SELLER_PENALTY_PCT}%.`
+            )}
+          </p>
         </div>
+        <Compare
+          rows={COMPARE_SELL}
+          dmTitle={t("Selling in a DM", "Jual lewat DM")}
+          luTitle={t("Selling on Lummy", "Jual di Lummy")}
+          link={{ href: "/how-it-works#selling", label: t("How selling works", "Cara jualan") }}
+        />
       </section>
 
       <section data-reveal className="max-w-7xl mx-auto px-5 lg:px-10 mt-20 mb-4">

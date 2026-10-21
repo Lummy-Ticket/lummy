@@ -160,13 +160,15 @@ export function fakeFacts(text: string, show: ShowForTicket): TicketFacts {
     .filter((t) => new RegExp(`(^|[^\\p{L}\\p{N}])${escape(t.name)}($|[^\\p{L}\\p{N}])`, "iu").test(text))
     .sort((a, b) => shared(b) - shared(a) || b.name.length - a.name.length)[0];
   const amount = /(?:Rp\.?|IDR)\s*(\d{1,3}(?:[.,]\d{3})+)/i.exec(text)?.[1];
+  // The first line naming a place, whole: enough for the checks to follow a seat to the listing.
+  const seat = /^.*\b(?:row|seat|section|block|baris|kursi|blok|tribun)\b.*$/im.exec(text)?.[0].trim().slice(0, 100);
   return {
     eventTitle: text.split("\n").find((l) => l.trim() && !/^e-?ticket$/i.test(l.trim()))?.trim() ?? null,
     date: null,
     venue: null,
     tierId: tier?.id ?? null,
     tierPrinted: tier?.name ?? null,
-    seat: null,
+    seat: seat || null,
     printedPrice: amount ? Number(amount.replace(/[.,]/g, "")) : null,
     quantity: 1,
   };

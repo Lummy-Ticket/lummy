@@ -17,6 +17,7 @@ import {
 } from "@/lib/mock";
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 import { useCatalogue } from "@/lib/catalogue";
+import { FEATURES } from "@/lib/features";
 
 function ListingRow({ event, listing, qty, cheapest, index }: { event: EventItem; listing: Listing; qty: number; cheapest?: boolean; index: number }) {
   const t = useT();
@@ -32,7 +33,7 @@ function ListingRow({ event, listing, qty, cheapest, index }: { event: EventItem
   return (
     // CSS entrance, not data-reveal: the rows are rendered on the server and on screen at load,
     // so they must not wait for hydration to show (it cost ~0.4s on a slow phone).
-    <div style={{ "--i": index, "--d": "220ms" } as React.CSSProperties} className={`lm-in relative bg-neutral-white rounded-2xl border p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition duration-300 ${highlight ? "border-primary-navy border-2" : "border-neutral-light-gray-1"} ${buyable ? "hover:border-primary-navy hover:shadow-[3px_3px_0_#0D3B9A] hover:-translate-y-0.5" : ""} ${buyable ? "" : "bg-secondary-gray-soft/60"}`}>
+    <div data-listing={listing.id} style={{ "--i": index, "--d": "220ms" } as React.CSSProperties} className={`lm-in relative bg-neutral-white rounded-2xl border p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition duration-300 ${highlight ? "border-primary-navy border-2" : "border-neutral-light-gray-1"} ${buyable ? "hover:border-primary-navy hover:shadow-[3px_3px_0_#0D3B9A] hover:-translate-y-0.5" : ""} ${buyable ? "" : "bg-secondary-gray-soft/60"}`}>
       {highlight && (
         <span className="absolute -top-2.5 left-4 rounded-full border border-neutral-light-gray-1 bg-neutral-white px-2.5 py-0.5 text-[11px] font-semibold text-neutral-gray">{t("Cheapest", "Termurah")}</span>
       )}
@@ -52,19 +53,34 @@ function ListingRow({ event, listing, qty, cheapest, index }: { event: EventItem
             <Badge.Base className="rounded-full border border-neutral-light-gray-1 bg-neutral-white text-neutral-gray text-xs flex items-center gap-1"><ScanLine className="w-3 h-3" /> {t("Checked", "Sudah dicek")}</Badge.Base>
           )}
         </div>
+        {/* Only what the ticket prints: no seat printed is not proof of standing, so nothing is guessed. */}
+        {listing.seat && (
+          <span data-listing-seat className="text-sm text-neutral-black break-words">
+            {t("On the ticket", "Posisi di tiket")}: {listing.seat}
+          </span>
+        )}
         <span className="text-sm text-neutral-gray">
           {t(`Face value ${formatIDR(listing.faceValue)}`, `Harga asli ${formatIDR(listing.faceValue)}`)}
           <span className={markup > 0 ? "text-neutral-black" : "text-secondary-green-dark"}> ({markup > 0 ? "+" : ""}{markup}%)</span>
         </span>
         <span className="text-xs text-neutral-gray">
           {listing.sellerName}
-          {listing.gateKtp ? t(" · ID checked at the gate", " · KTP dicek di gate") : ""}
+          {/* Until sellers can stage an ID card (FEATURES.sellerIdCard), no listing has one, so a mark
+              per listing would only tell the sample listings apart; the name rule is in the sidebar. */}
+          {FEATURES.sellerIdCard && listing.gateKtp ? t(" · ID checked at the gate", " · KTP dicek di gate") : ""}
           {/* Where the gate checks names, a listing without the seller's ID card is the risky one. */}
-          {!listing.gateKtp && (event.transferPolicy === "letter" || event.transferPolicy === "id_match") && (
+          {FEATURES.sellerIdCard && !listing.gateKtp && (event.transferPolicy === "letter" || event.transferPolicy === "id_match") && (
             <span className="text-secondary-orange-dark">{t(" · seller's ID card not staged", " · KTP penjual belum disiapkan")}</span>
           )}
           {listing.splittable && listing.quantity > qty ? t(` · ${listing.quantity - qty} more in this set`, ` · sisa ${listing.quantity - qty} di set ini`) : ""}
         </span>
+        {/* 16 Oct feedback: a cheaper ticket "in review" left the buyer asking until when. No time
+            is promised to a buyer, since a person may also reject it. */}
+        {flagged && (
+          <span data-review-why className="text-xs text-secondary-orange-dark">
+            {t("Can be bought once the Lummy team has checked the file, if it passes", "Bisa dibeli setelah tim Lummy mengecek file-nya, kalau lolos")}
+          </span>
+        )}
       </div>
       <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0">
         <div className="sm:text-right">
@@ -184,7 +200,9 @@ export default function EventDetailPage() {
                 </button>
               ))}
             </div>
-            {qty > 1 && <span className="text-xs text-neutral-gray">{t("Sets are always seated together", "Satu set pasti duduk bersebelahan")}</span>}
+            {/* Not "always seated together": a standing ticket has no seat, and Lummy only knows the
+                tickets come from one listing and sit as printed. */}
+            {qty > 1 && <span className="text-xs text-neutral-gray">{t("Tickets bought together come from one listing, placed as printed", "Tiket yang dibeli sekaligus dari satu listing, posisinya sesuai yang tercetak")}</span>}
             {qty === 8 && <span className="text-xs text-neutral-gray">{t("Need more than 8? Buy from more than one listing.", "Butuh lebih dari 8? Beli dari beberapa listing.")}</span>}
           </div>
 

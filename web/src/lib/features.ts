@@ -15,4 +15,10 @@ export const FEATURES = {
    * cannot stage an ID card, and the buyer's page offers none.
    */
   sellerIdCard: false,
+  /**
+   * Real money: QRIS in live mode and payouts to the seller's bank account through Xendit
+   * xenPlatform (docs/04 §5). Needs the business entity and Xendit's KYB first. Until then QRIS runs
+   * in Xendit's test mode, a payout is an entry in the ledger, and the payout account says so.
+   */
+  payouts: false,
 } as const;

@@ -25,6 +25,15 @@ test.describe("user tasks", { tag: "@smoke" }, () => {
     }
   });
 
+  test("the home page gives selling the same room as buying", async ({ page }) => {
+    await page.goto("/");
+    const sell = page.locator("[data-home-sell]");
+    await sell.scrollIntoViewIfNeeded();
+    await expect(sell.getByText("Jual di Lummy")).toBeVisible();
+    await expect(sell.getByRole("link", { name: "Cara jualan" })).toHaveAttribute("href", "/how-it-works#selling");
+    await expectFitsScreen(page);
+  });
+
   test("1 a search finds a show and its cheapest price", async ({ page }) => {
     await page.goto("/");
     const search = page.getByRole("textbox", { name: "Cari event" }).first();

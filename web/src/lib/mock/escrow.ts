@@ -28,6 +28,12 @@ export const GATE_GRACE_H = 3;
  * They still go live, but only after a human has looked at them.
  */
 export const LATE_LISTING_H = 48;
+/**
+ * How long a held listing should wait for a person, at most. A target the team keeps (the staff
+ * queue marks what has waited longer), not something the code enforces: the seller sees it so a
+ * held listing is not a silence with no end.
+ */
+export const REVIEW_TARGET_H = 24;
 /** Charged to a seller whose ticket failed, on top of losing the sale. */
 export const SELLER_PENALTY_PCT = 40;
 

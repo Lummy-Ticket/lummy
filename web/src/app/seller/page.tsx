@@ -10,11 +10,12 @@ import { Modal } from "@/components/common/Modal";
 import { EvidencePhoto } from "@/components/common/EvidencePhoto";
 import { isDemoEmail } from "@/lib/supabase/demo";
 import { FEATURES } from "@/lib/features";
+import { CONTACT_EMAIL } from "@/components/legal/LegalPage";
 import { PageContainer } from "@/components/layout/PageContainer";
 import {
   useSellerListings, useOrders, useUser, reasonMeta, mockSellerEvidence,
   sellerPenalty, SELLER_PENALTY_PCT,
-  EVENT_DURATION_H, DISPUTE_WINDOW_H, type SellerListing, type Order, type DisputeEvidence,
+  EVENT_DURATION_H, DISPUTE_WINDOW_H, REVIEW_TARGET_H, type SellerListing, type Order, type DisputeEvidence,
 } from "@/lib/mock";
 import { useAccessGuard, useHydrated } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
@@ -311,6 +312,17 @@ export default function SellerPage() {
       : t(`Pays out ${formatEventDate(due.toISOString())}`, `Cair ${formatEventDate(due.toISOString())}`);
   };
 
+  // A held listing says how long it has waited against the team's target (16 Oct feedback: "until
+  // when?"), so it is never a silence with no end. A sample has no real wait to count.
+  const reviewNote = (l: SellerListing) => {
+    if (l.status !== "review") return null;
+    const target = t(`Staff aim to check it within ${REVIEW_TARGET_H} hours`, `Target dicek staf: ${REVIEW_TARGET_H} jam`);
+    if (!account) return target;
+    const waited = Math.floor((now - Date.parse(l.createdAtISO)) / 3_600_000);
+    if (waited >= REVIEW_TARGET_H) return t(`Waiting over ${REVIEW_TARGET_H} hours? Write to ${CONTACT_EMAIL}`, `Sudah lebih dari ${REVIEW_TARGET_H} jam? Tulis ke ${CONTACT_EMAIL}`);
+    return waited >= 1 ? `${target} · ${t(`waiting ${waited} h`, `sudah ${waited} jam`)}` : target;
+  };
+
   // The seller is the one who signs the letter of authorisation, so the draft is here too, for each
   // sale of a show that may check names (any rule but "open", including one nobody has confirmed),
   // whether the set sold out or some of its seats are still on sale.
@@ -346,7 +358,7 @@ export default function SellerPage() {
         <Stat label={t("Sold", "Terjual")} value={String(sold.length)} />
         {/* Views are not counted for real listings yet, and a 0 would say nobody looked. */}
         {account ? (
-          <Stat label={t("Waiting for review", "Menunggu review")} value={String(inReview.length)} hint={t("Checked by staff before going live", "Dicek staf dulu sebelum tayang")} />
+          <Stat label={t("Waiting for review", "Menunggu review")} value={String(inReview.length)} hint={t(`Checked by staff before going live, within ${REVIEW_TARGET_H} hours`, `Dicek staf dulu sebelum tayang, target ${REVIEW_TARGET_H} jam`)} />
         ) : (
           <Stat label={t("Total views", "Total dilihat")} value={views.toLocaleString(lang === "id" ? "id-ID" : "en-US")} />
         )}
@@ -412,6 +424,11 @@ export default function SellerPage() {
                   <span>{l.tierName}{l.quantity > 1 ? t(` · ${l.quantity} tickets`, ` · ${l.quantity} tiket`) : ""}</span>
                   {!account && <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {l.views}</span>}
                   {l.gateKtp && (FEATURES.sellerIdCard || !account) && <span>{t("ID card staged for the gate", "KTP siap untuk gate")}</span>}
+                  {reviewNote(l) && (
+                    <span data-review-note className="flex items-center gap-1 text-secondary-orange-dark">
+                      <Clock className="w-3 h-3" /> {reviewNote(l)}
+                    </span>
+                  )}
                   {payoutNote(l) && (
                     <span className="flex items-center gap-1 text-lummy-500">
                       <Clock className="w-3 h-3" /> {payoutNote(l)}

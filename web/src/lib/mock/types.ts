@@ -71,13 +71,16 @@ export interface Listing {
   sellerName: string;
   askPrice: number; // IDR PER TICKET (Viagogo style: per ticket, not per set)
   faceValue: number; // IDR per ticket
-  quantity: number; // tickets in one set / PDF (seated together)
+  quantity: number; // tickets in one set / PDF
   splittable: boolean; // true = part of the set can be bought; false = all or nothing
   status: ListingStatus;
   gateKtp: boolean; // venue checks ID at the gate, so the seller ID photo is needed
   ai: ListingAI;
   /** Staff looked at it and let it through, which overrides a flag (never a duplicate). */
   cleared?: boolean;
+  /** The seat, row, block or section printed on the ticket, as the AI step read it at publish
+   *  (listings.checks). Absent when nothing was printed or nothing read it, as with a sample. */
+  seat?: string | null;
 }
 
 // --- Escrow -----------------------------------------------------------------
