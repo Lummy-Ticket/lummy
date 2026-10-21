@@ -34,6 +34,14 @@ test.describe("user tasks", { tag: "@smoke" }, () => {
     await expectFitsScreen(page);
   });
 
+  test("the seller's name says why no record is needed", async ({ page }) => {
+    await page.goto("/events/ev-coldplay");
+    const row = page.locator('[data-listing="ls-1"]');
+    await row.locator("[data-seller-info]").click();
+    await expect(row.locator("[data-seller-note]")).toContainText("tidak perlu memercayai penjualnya");
+    await expectFitsScreen(page);
+  });
+
   test("1 a search finds a show and its cheapest price", async ({ page }) => {
     await page.goto("/");
     const search = page.getByRole("textbox", { name: "Cari event" }).first();

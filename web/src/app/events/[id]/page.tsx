@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { NotifyCard } from "@/components/events/NotifyCard";
 import { TransferPolicyNote } from "@/components/common/TransferPolicyNote";
 import {
-  getTier, isBuyable, clearedByStaff, isEventOver, resaleAllowed, CAP_PCT, type Listing, type EventItem,
+  getTier, isBuyable, clearedByStaff, isEventOver, resaleAllowed, CAP_PCT, SELLER_PENALTY_PCT, type Listing, type EventItem,
 } from "@/lib/mock";
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 import { useCatalogue } from "@/lib/catalogue";
@@ -29,6 +29,7 @@ function ListingRow({ event, listing, qty, cheapest, index }: { event: EventItem
   const buyable = isBuyable(listing);
   const flagged = !dup && !buyable;
   const highlight = cheapest && buyable;
+  const [aboutSeller, setAboutSeller] = useState(false);
 
   return (
     // CSS entrance, not data-reveal: the rows are rendered on the server and on screen at load,
@@ -64,7 +65,17 @@ function ListingRow({ event, listing, qty, cheapest, index }: { event: EventItem
           <span className={markup > 0 ? "text-neutral-black" : "text-secondary-green-dark"}> ({markup > 0 ? "+" : ""}{markup}%)</span>
         </span>
         <span className="text-xs text-neutral-gray">
-          {listing.sellerName}
+          {/* 16 Oct feedback: buyers tap the seller's name for a record. There is none to show yet,
+              so the name answers what the record would be for: why this seller need not be trusted. */}
+          <button
+            type="button"
+            data-seller-info
+            aria-expanded={aboutSeller}
+            onClick={() => setAboutSeller((v) => !v)}
+            className="underline decoration-dotted underline-offset-2 hover:text-primary-navy transition cursor-pointer"
+          >
+            {listing.sellerName}
+          </button>
           {/* Until sellers can stage an ID card (FEATURES.sellerIdCard), no listing has one, so a mark
               per listing would only tell the sample listings apart; the name rule is in the sidebar. */}
           {FEATURES.sellerIdCard && listing.gateKtp ? t(" · ID checked at the gate", " · KTP dicek di gate") : ""}
@@ -74,6 +85,15 @@ function ListingRow({ event, listing, qty, cheapest, index }: { event: EventItem
           )}
           {listing.splittable && listing.quantity > qty ? t(` · ${listing.quantity - qty} more in this set`, ` · sisa ${listing.quantity - qty} di set ini`) : ""}
         </span>
+        {aboutSeller && (
+          <p data-seller-note className="text-xs text-neutral-gray bg-secondary-gray-soft rounded-xl p-3 max-w-md leading-relaxed">
+            {t(
+              `Lummy does not show seller records yet, and you do not have to trust the seller: your money is held in escrow until the show is over, and if you are turned away with proof, it comes back. A seller whose ticket fails loses the sale and pays a ${SELLER_PENALTY_PCT}% penalty.`,
+              `Lummy belum menampilkan riwayat penjual, dan kamu tidak perlu memercayai penjualnya: uangmu ditahan escrow sampai acara selesai, dan kalau ditolak di gate dengan bukti, uangmu kembali. Penjual yang tiketnya gagal kehilangan penjualannya dan kena penalti ${SELLER_PENALTY_PCT}%.`
+            )}{" "}
+            <Link href="/how-it-works#coverage" className="text-primary-navy font-medium">{t("When something goes wrong", "Kalau ada masalah")}</Link>
+          </p>
+        )}
         {/* 16 Oct feedback: a cheaper ticket "in review" left the buyer asking until when. No time
             is promised to a buyer, since a person may also reject it. */}
         {flagged && (
