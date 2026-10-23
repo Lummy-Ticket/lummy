@@ -2,7 +2,10 @@
 // sale (lib/email/notify). Every read and write goes through the account's own session, so the
 // table's row rules decide (supabase/migrations, alert_subscriptions): an account only ever sees,
 // adds or removes its own. A sample persona keeps its alerts in the browser instead (lib/mock/useAlerts).
-//   GET                                          the account's alerts, newest first
+// The cap of MAX_ALERTS and the check that a tier is the show's are this route's only: the row rules
+// let an account insert its own rows straight through the Data API, past both. Neither matters to
+// the emails, which go once per person per listing, and a tier that is not the show's never matches.
+//   GET                                         the account's alerts, newest first
 //   POST { action: "subscribe", eventId, tierId? }  follow a show, or one tier of it
 //   POST { action: "unsubscribe", id }            stop one
 import { NextResponse } from "next/server";
@@ -12,7 +15,7 @@ import { currentUser } from "@/lib/supabase/session";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-/** One account follows at most this many shows and tiers, which bounds what one listing can send. */
+/** Through this route, one account follows at most this many shows and tiers (a tidy list, not a guard). */
 const MAX_ALERTS = 50;
 const ID = /^[a-z0-9-]{3,64}$/;
 const COLUMNS = "id, event_id, tier_id, created_at, events(title), tiers(name)";
@@ -65,7 +68,7 @@ export async function POST(req: Request) {
   const tierId = typeof body.tierId === "string" && body.tierId ? body.tierId : null;
   if (!ID.test(eventId) || (tierId !== null && !ID.test(tierId))) return fail(400, "acara atau kategori tidak dikenal");
 
-  // The table checks that both exist, not that the tier is the show's.
+  // The table checks that both exist, not that the tier is the show's; only this route does.
   const found = tierId
     ? await sb.from("tiers").select("id").eq("id", tierId).eq("event_id", eventId).maybeSingle()
     : await sb.from("events").select("id").eq("id", eventId).maybeSingle();
