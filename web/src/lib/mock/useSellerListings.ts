@@ -33,7 +33,7 @@ const SEED: SellerListing[] = [
     createdAtISO: "2026-07-28T09:00:00+07:00",
   },
   {
-    id: "sl-2", eventId: "ev-demo-fest", eventTitle: "Lummy Demo Fest (acara contoh)",
+    id: "sl-2", eventId: "ev-demo-fest", eventTitle: "Lummy Demo Fest (sample event)",
     tierName: "CAT 1", askPrice: 1_650_000, faceValue: 1_500_000, quantity: 1, status: "sold", views: 310,
     ai: { autofilled: true, forgeryScore: 6, barcodeDuplicate: false, pdfSuspicious: false },
     createdAtISO: "2026-07-15T14:00:00+07:00",

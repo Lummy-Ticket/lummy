@@ -77,3 +77,15 @@ All photos come from Wikimedia Commons under the licence named for each file. Ea
 ## Note
 
 The licences cover the photographs only. Some Commons pages (for example the Simple Plan and Boyz II Men files) add a personality-rights or publicity-rights notice for the people shown, so these photos illustrate the listed events and do not imply endorsement by the artists.
+
+## ev-sbw-2026.jpg
+
+- Photo: Singapore (SG), Marina Bay, Night View, 2019 (4682)
+- Author: Dietmar Rabich
+- Licence: CC BY-SA 4.0 (Creative Commons Attribution-ShareAlike 4.0 International), https://creativecommons.org/licenses/by-sa/4.0/
+- Source: https://commons.wikimedia.org/wiki/File:Singapore_(SG),_Marina_Bay,_Night_View_--_2019_--_4682.jpg
+- Changes: cropped to 16:9 and resized
+
+## ev-demo-fest.jpg
+
+- Lummy's own brand art (the celebrating mascot and the white logo from docs/brand), made for the sample show. No third-party licence.

@@ -11,7 +11,8 @@ insert into public.events (id, title, category, starts_at, rolling_hour, venue, 
   ('ev-dwp-2026', 'Djakarta Warehouse Project 2026', 'Music', '2026-12-11T19:00:00+07:00', null, 'JIExpo Kemayoran', 'Jakarta', -6.1467, 106.84568, '/assets/events/ev-dwp-2026.jpg', 'Photo of JIExpo Kemayoran: Midori, CC BY 3.0, via Wikimedia Commons', false, null, 'ID', 'IDR'),
   ('ev-bbw-2026', 'Binance Blockchain Week 2026', 'Technology', '2026-11-28T09:00:00+07:00', null, 'Queen Sirikit National Convention Center', 'Bangkok', 13.723992, 100.559222, '/assets/events/ev-bbw-2026.jpg', 'Photo of the convention centre: กสิณธร ราชโอรส, CC BY-SA 4.0, via Wikimedia Commons', true, null, 'TH', 'USDC'),
   ('ev-devcon-8', 'Devcon 8', 'Technology', '2026-11-03T09:00:00+05:30', null, 'Jio World Centre', 'Mumbai', null, null, '/assets/events/ev-devcon-8.jpg', 'Photo of the Jio World Centre: Fuzheado, CC0, via Wikimedia Commons', false, null, 'IN', 'USDC'),
-  ('ev-demo-fest', 'Lummy Demo Fest (acara contoh)', 'Music', '2026-01-02T07:00:00.000Z', 14, 'JIExpo Kemayoran', 'Jakarta', -6.1467, 106.84568, null, null, false, 'id_match', 'ID', 'IDR')
+  ('ev-sbw-2026', 'Singapore Blockchain Week 2026', 'Technology', '2026-11-13T09:00:00+08:00', null, 'Singapore & Johor', 'Singapore', null, null, '/assets/events/ev-sbw-2026.jpg', 'Photo of Marina Bay: Dietmar Rabich, CC BY-SA 4.0, via Wikimedia Commons', false, null, 'SG', 'USDC'),
+  ('ev-demo-fest', 'Lummy Demo Fest (sample event)', 'Music', '2026-01-02T07:00:00.000Z', 14, 'JIExpo Kemayoran', 'Jakarta', -6.1467, 106.84568, '/assets/events/ev-demo-fest.jpg', null, false, 'id_match', 'ID', 'IDR')
 on conflict (id) do update set title = excluded.title, category = excluded.category, starts_at = excluded.starts_at, rolling_hour = excluded.rolling_hour, venue = excluded.venue, city = excluded.city, venue_lat = excluded.venue_lat, venue_lng = excluded.venue_lng, image_url = excluded.image_url, image_credit = excluded.image_credit, featured = excluded.featured, transfer_policy = excluded.transfer_policy, country = excluded.country, currency = excluded.currency;
 
 insert into public.tiers (id, event_id, name, face_value, sort) values
@@ -46,6 +47,10 @@ insert into public.tiers (id, event_id, name, face_value, sort) values
   ('t-bbw-full', 'ev-bbw-2026', 'Full Pass', 129000000, 1),
   ('t-devcon-early', 'ev-devcon-8', 'Early Bird', 349000000, 0),
   ('t-devcon-ga', 'ev-devcon-8', 'General Admission', 499000000, 1),
+  ('t-sbw-general', 'ev-sbw-2026', 'General', 88000000, 0),
+  ('t-sbw-corporate', 'ev-sbw-2026', 'Corporate', 388000000, 1),
+  ('t-sbw-professional', 'ev-sbw-2026', 'Professional', 688000000, 2),
+  ('t-sbw-vip', 'ev-sbw-2026', 'VIP', 988000000, 3),
   ('t-demo-vip', 'ev-demo-fest', 'VIP', 2800000, 0),
   ('t-demo-cat1', 'ev-demo-fest', 'CAT 1', 1500000, 1),
   ('t-demo-3day', 'ev-demo-fest', '3-Day Pass', 1850000, 2),
@@ -77,6 +82,8 @@ insert into public.listings (id, event_id, tier_id, seller_name, ask_price, face
   ('ls-bbw-2', 'ev-bbw-2026', 't-bbw-early', 'Mei L.', 24000000, 19000000, 2, true, false, 'active', true, 6, false, false),
   ('ls-bbw-3', 'ev-bbw-2026', 't-bbw-full', 'Daniel K.', 139000000, 129000000, 1, false, false, 'active', true, 8, false, false),
   ('ls-devcon-1', 'ev-devcon-8', 't-devcon-ga', 'Priya S.', 520000000, 499000000, 1, false, false, 'active', true, 5, false, false),
+  ('ls-sbw-1', 'ev-sbw-2026', 't-sbw-general', 'Wei Jie T.', 75000000, 88000000, 1, false, false, 'active', true, 5, false, false),
+  ('ls-sbw-2', 'ev-sbw-2026', 't-sbw-corporate', 'Nur A.', 420000000, 388000000, 1, false, false, 'active', true, 8, false, false),
   ('ls-devcon-2', 'ev-devcon-8', 't-devcon-early', 'Kenji M.', 399000000, 349000000, 1, false, false, 'active', true, 7, false, false),
   ('ls-3', 'ev-demo-fest', 't-demo-cat1', 'Dinda K.', 1650000, 1500000, 2, true, true, 'active', true, 74, true, false),
   ('ls-4', 'ev-demo-fest', 't-demo-1day', 'Bagas W.', 950000, 850000, 1, false, false, 'active', true, 5, false, true),

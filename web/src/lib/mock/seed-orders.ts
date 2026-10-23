@@ -3,7 +3,7 @@
 // accounts get the same five in the database when a presenter resets them. Dates for the
 // settled ones are relative to the moment they are made, which keeps the 48h countdown live.
 // The upcoming one is a real show in the catalogue. The settled ones are past samples, named
-// "(contoh)" with a generated poster: no real show happened on those relative dates.
+// "(sample)" with a generated poster: no real show happened on those relative dates.
 import { eventPoster } from "../poster";
 import { eventArt } from "./seed";
 import type { Order } from "./types";
@@ -24,7 +24,7 @@ export function seedOrders(now: number = Date.now()): Order[] {
     {
       // Show ended 6 hours ago: dispute window running, roughly 42h on the clock.
       id: "or-seed-2", listingId: "ls-x1", eventId: "ev-past-tulus",
-      eventTitle: "Tulus: Manusia Tour, Surabaya (contoh)",
+      eventTitle: "Tulus: Manusia Tour, Surabaya (sample)",
       eventImage: eventPoster("ev-past-tulus"),
       eventDateISO: ago(10), tierName: "Festival", sellerName: "Bagas W.",
       quantity: 1, amount: 950_000, gateKtp: false, escrowStatus: "LOCKED",
@@ -33,7 +33,7 @@ export function seedOrders(now: number = Date.now()): Order[] {
     {
       // Nobody filed anything, so the contract paid the seller by itself.
       id: "or-seed-3", listingId: "ls-x2", eventId: "ev-past-fest",
-      eventTitle: "Festival musik Agustus (contoh)",
+      eventTitle: "Festival musik Agustus (sample)",
       eventImage: eventPoster("ev-past-fest"),
       eventDateISO: "2026-08-09T20:00:00+07:00", tierName: "GA", sellerName: "Rizky T.",
       quantity: 1, amount: 1_250_000, gateKtp: false, escrowStatus: "RELEASED",
@@ -43,7 +43,7 @@ export function seedOrders(now: number = Date.now()): Order[] {
     {
       // Filed 20h ago with gate-time evidence, still with the arbiter.
       id: "or-seed-4", listingId: "ls-x3", eventId: "ev-past-pandji",
-      eventTitle: "Pandji Pragiwaksono: Menyala, Bandung (contoh)",
+      eventTitle: "Pandji Pragiwaksono: Menyala, Bandung (sample)",
       eventImage: eventPoster("ev-past-pandji"),
       eventDateISO: ago(30), tierName: "Silver", sellerName: "Zahra Amelia",
       quantity: 1, amount: 430_000, gateKtp: false, escrowStatus: "DISPUTED",
@@ -67,7 +67,7 @@ export function seedOrders(now: number = Date.now()): Order[] {
     {
       // Arbiter sided with the buyer, so the escrow refunded instead of paying out.
       id: "or-seed-5", listingId: "ls-x4", eventId: "ev-past-sheila",
-      eventTitle: "Sheila on 7: Tunggu Aku, Yogyakarta (contoh)",
+      eventTitle: "Sheila on 7: Tunggu Aku, Yogyakarta (sample)",
       eventImage: eventPoster("ev-past-sheila"),
       eventDateISO: ago(21 * 24), tierName: "Tribune", sellerName: "Farhan A.",
       quantity: 2, amount: 700_000, gateKtp: false, escrowStatus: "REFUNDED",

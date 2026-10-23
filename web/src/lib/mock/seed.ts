@@ -14,8 +14,8 @@ export const DEMO_USERS: Record<Role, User> = {
 
 // Photos of the real shows: freely licensed (CC BY, CC BY-SA, CC0) from Wikimedia Commons, cropped
 // to 16:9, with the credit their licence asks for shown under the photo on the show's page
-// (public/assets/events/CREDITS.md). A show without one, and the sample show on purpose, gets a
-// generated poster instead.
+// (public/assets/events/CREDITS.md). The sample show uses Lummy's own brand art, and a show
+// without either gets a generated poster.
 const PHOTOS: Record<string, { image: string; imageCredit: string }> = {
   "ev-ye-jakarta": { image: "/assets/events/ev-ye-jakarta.jpg", imageCredit: "Photo: Matete Plays, CC BY-SA 4.0, via Wikimedia Commons" },
   "ev-gnr-jakarta": { image: "/assets/events/ev-gnr-jakarta.jpg", imageCredit: "Photo: Raph_PH, CC BY 2.0, via Wikimedia Commons" },
@@ -26,6 +26,7 @@ const PHOTOS: Record<string, { image: string; imageCredit: string }> = {
   "ev-dwp-2026": { image: "/assets/events/ev-dwp-2026.jpg", imageCredit: "Photo of JIExpo Kemayoran: Midori, CC BY 3.0, via Wikimedia Commons" },
   "ev-bbw-2026": { image: "/assets/events/ev-bbw-2026.jpg", imageCredit: "Photo of the convention centre: กสิณธร ราชโอรส, CC BY-SA 4.0, via Wikimedia Commons" },
   "ev-devcon-8": { image: "/assets/events/ev-devcon-8.jpg", imageCredit: "Photo of the Jio World Centre: Fuzheado, CC0, via Wikimedia Commons" },
+  "ev-sbw-2026": { image: "/assets/events/ev-sbw-2026.jpg", imageCredit: "Photo of Marina Bay: Dietmar Rabich, CC BY-SA 4.0, via Wikimedia Commons" },
 };
 const art = (id: string) => PHOTOS[id] ?? { image: eventPoster(id) };
 /** A show's picture, for orders that snapshot it. */
@@ -172,10 +173,21 @@ export const seedEvents = (now: number): SeedEvent[] => [
     ],
   },
   {
-    // The sample: a generated poster and its name say so, and the page says it again.
-    id: "ev-demo-fest", title: "Lummy Demo Fest (acara contoh)", category: "Music",
+    id: "ev-sbw-2026", title: "Singapore Blockchain Week 2026", category: "Technology",
+    dateISO: "2026-11-13T09:00:00+08:00", venue: "Singapore & Johor", city: "Singapore",
+    ...art("ev-sbw-2026"), transferPolicy: null, country: "SG", currency: "USDC",
+    tiers: [
+      { id: "t-sbw-general", name: "General", faceValue: 88_000_000 },
+      { id: "t-sbw-corporate", name: "Corporate", faceValue: 388_000_000 },
+      { id: "t-sbw-professional", name: "Professional", faceValue: 688_000_000 },
+      { id: "t-sbw-vip", name: "VIP", faceValue: 988_000_000 },
+    ],
+  },
+  {
+    // The sample: its brand picture and its name say so.
+    id: "ev-demo-fest", title: "Lummy Demo Fest (sample event)", category: "Music",
     dateISO: tomorrowWIB(ROLLING_HOUR["ev-demo-fest"], now), venue: "JIExpo Kemayoran", city: "Jakarta",
-    image: eventPoster("ev-demo-fest"), transferPolicy: "id_match",
+    image: "/assets/events/ev-demo-fest.jpg", transferPolicy: "id_match",
     tiers: [
       { id: "t-demo-vip", name: "VIP", faceValue: 2_800_000 },
       { id: "t-demo-cat1", name: "CAT 1", faceValue: 1_500_000 },
@@ -219,6 +231,8 @@ export const SEED_LISTINGS: Listing[] = [
   { id: "ls-bbw-2", eventId: "ev-bbw-2026", tierId: "t-bbw-early", sellerName: "Mei L.", askPrice: 24_000_000, faceValue: 19_000_000, quantity: 2, splittable: true, status: "active", gateKtp: false, ai: ok(6) },
   { id: "ls-bbw-3", eventId: "ev-bbw-2026", tierId: "t-bbw-full", sellerName: "Daniel K.", askPrice: 139_000_000, faceValue: 129_000_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(8) },
   { id: "ls-devcon-1", eventId: "ev-devcon-8", tierId: "t-devcon-ga", sellerName: "Priya S.", askPrice: 520_000_000, faceValue: 499_000_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(5) },
+  { id: "ls-sbw-1", eventId: "ev-sbw-2026", tierId: "t-sbw-general", sellerName: "Wei Jie T.", askPrice: 75_000_000, faceValue: 88_000_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(5) },
+  { id: "ls-sbw-2", eventId: "ev-sbw-2026", tierId: "t-sbw-corporate", sellerName: "Nur A.", askPrice: 420_000_000, faceValue: 388_000_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(8) },
   { id: "ls-devcon-2", eventId: "ev-devcon-8", tierId: "t-devcon-early", sellerName: "Kenji M.", askPrice: 399_000_000, faceValue: 349_000_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(7) },
   // The sample show: a flagged listing ("under review", cannot be bought), a duplicate barcode,
   // an ID-match checkout, and clean ones beside them.
