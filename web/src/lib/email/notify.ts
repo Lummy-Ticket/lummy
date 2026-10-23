@@ -124,20 +124,67 @@ export function notifyShowCancelled(admin: Admin, orderIds: string[]) {
 }
 
 /**
+ * A show's followers hear about new tickets at most once in this many hours, however many sellers
+ * list: at most four alert emails a day per show they follow. After the first one the show's page
+ * lists whatever comes next, so more emails the same afternoon would be noise, and this bounds what
+ * any number of accounts can send to one show's followers.
+ */
+const SHOW_QUIET_H = 6;
+/** One seller's listings on a show reach its followers at most once in this many hours. */
+const SELLER_QUIET_H = 24;
+
+type LiveListing = { id: string; event_id: string; seller_id: string | null; created_at: string; cleared_at: string | null };
+
+/**
+ * Why this listing's followers are not told, or null when they are. Listing costs nothing and a
+ * listing can be withdrawn and posted again, so without this a seller could email every follower
+ * of a show in a loop. Only listings that came before this one count, so of two at once the first
+ * is told; a listing held back still counts, so posting again gains nothing.
+ */
+async function heldBack(admin: Admin, l: LiveListing): Promise<string | null> {
+  const count = (q: PromiseLike<{ count: number | null; error: { message: string } | null }>) =>
+    Promise.resolve(q).then((r) => {
+      if (r.error) throw new Error(r.error.message);
+      return r.count ?? 0;
+    });
+  const others = () => admin.from("listings").select("id", { count: "exact", head: true }).eq("event_id", l.event_id).neq("id", l.id);
+  const sellerFrom = new Date(Date.parse(l.created_at) - SELLER_QUIET_H * H).toISOString();
+  // Live from its clearance when staff cleared it, from its posting otherwise.
+  const liveAt = l.cleared_at ?? l.created_at;
+  const showFrom = new Date(Date.parse(liveAt) - SHOW_QUIET_H * H).toISOString();
+  const [sameSeller, cleared, posted] = await Promise.all([
+    l.seller_id ? count(others().eq("seller_id", l.seller_id).gte("created_at", sellerFrom).lt("created_at", l.created_at)) : 0,
+    count(others().gte("cleared_at", showFrom).lt("cleared_at", liveAt)),
+    // Live as soon as it was posted: never held, so no clearance. One withdrawn while still held
+    // counts too, which only ever holds back more.
+    count(others().is("cleared_at", null).in("status", ["active", "sold", "cancelled"]).gte("created_at", showFrom).lt("created_at", liveAt)),
+  ]);
+  if (sameSeller) return `its seller listed on this show in the ${SELLER_QUIET_H} hours before`;
+  if (cleared + posted) return `another listing of this show went live in the ${SHOW_QUIET_H} hours before`;
+  return null;
+}
+
+/**
  * A listing just went on sale: saved active (api/listings), or cleared by staff from review
  * (api/listings/[id]). Everyone following its show, or its tier, hears once, however many of their
- * alerts match; the seller does not. A listing goes on sale only once (one conditional update moves
- * it out of review, and nothing moves it back), so nobody hears twice about the same listing.
+ * alerts match; the seller does not; and not at all when heldBack says so. A listing goes on sale
+ * only once (one conditional update moves it out of review, and nothing moves it back), so nobody
+ * hears twice about the same listing.
  */
 export function notifyListingLive(admin: Admin, listingId: string) {
   queueEmails(`listing ${listingId}`, async () => {
     const { data: listing, error } = await admin
       .from("listings")
-      .select("id, event_id, tier_id, seller_id, ask_price, quantity, status")
+      .select("id, event_id, tier_id, seller_id, ask_price, quantity, status, created_at, cleared_at")
       .eq("id", listingId)
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!listing || listing.status !== "active") return [];
+    const why = await heldBack(admin, listing);
+    if (why) {
+      console.info("[email] new-ticket alert held back:", listing.id, why);
+      return [];
+    }
     const [ev, tier, subs] = await Promise.all([
       admin.from("catalogue_events").select("title, starts_at, status, currency").eq("id", listing.event_id).maybeSingle(),
       admin.from("tiers").select("name").eq("id", listing.tier_id).maybeSingle(),

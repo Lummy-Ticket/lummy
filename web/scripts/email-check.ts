@@ -12,9 +12,12 @@
  *   1. Each order paid emails its buyer, with the total and a link to the order.
  *   2. A claim emails the seller, with a link to the seller page, and the buyer a receipt; staff rule,
  *      and both hear the ruling. Neither email names the other side.
- *   3. Alerts through /api/alerts: a listing posted live, and one staff clear from review, email each
- *      follower once, however many of their alerts match; not the seller, not someone following
- *      another tier, not someone who stopped following.
+ *   3. Alerts through /api/alerts: a listing staff clear from review, and later one posted live,
+ *      email each follower once, however many of their alerts match; not its seller, not someone
+ *      following another tier, not someone who stopped following. In between, the throttle: the
+ *      same seller again within a day (even after withdrawing and posting again), or anyone within
+ *      six hours of the show's last live listing, tells nobody. Time is moved by setting the show's
+ *      listings back.
  *   4. Staff cancel the show: the order still held is refunded and its buyer hears it; the order
  *      already settled by the ruling sends nothing.
  *   5. Then the whole run's mail is counted: exactly the emails above, nothing twice, nothing to the
@@ -51,7 +54,7 @@ const EMAILS = [BUYER_EMAIL, SELLER_EMAIL, STAFF_EMAIL, FOLLOWER_EMAIL, DEMO_EMA
 const EVENT = "ev-zz-mail";
 const TITLE = "Uji Email";
 const TIER_A = "t-zz-mail-a"; // the orders
-const TIER_B = "t-zz-mail-b"; // a listing posted live
+const TIER_B = "t-zz-mail-b"; // listings posted live
 const TIER_C = "t-zz-mail-c"; // a listing held for review, then cleared
 const L1 = "ls-zz-mail-1"; // bought, claimed, ruled
 const L2 = "ls-zz-mail-2"; // bought, still held when the show is cancelled
@@ -148,9 +151,11 @@ async function main() {
         { id: TIER_B, event_id: EVENT, name: "VIP", face_value: 1_000_000 },
         { id: TIER_C, event_id: EVENT, name: "Tribun", face_value: 300_000 },
       ]),
+      // Posted two days ago, so they hold back none of the alerts below.
       await admin.from("listings").insert(
         [L1, L2, L3].map((id) => ({
-          id, event_id: EVENT, tier_id: TIER_A, seller_id: seller, seller_name: "Email S.", ask_price: PRICE, face_value: 500_000, quantity: 1, splittable: false, status: "active" as const,
+          id, event_id: EVENT, tier_id: TIER_A, seller_id: seller, seller_name: "Email S.", ask_price: PRICE, face_value: 500_000, quantity: 1, splittable: false,
+          status: "active" as const, created_at: iso(Date.now() - 2 * 86_400_000),
         }))
       ),
     ];
@@ -248,53 +253,94 @@ async function main() {
     const stranger = await api(buyerCtx, "POST", "/api/alerts", { action: "unsubscribe", id: alertId(fShow) });
     check("nobody else can stop it", stranger.status === 404, JSON.stringify(stranger));
 
-    // A listing posted live, on the VIP tier: the follower once (two alerts match), the buyer once.
-    const liveB = await api(sellerCtx, "POST", "/api/listings", { eventId: EVENT, tierId: TIER_B, askPrice: 1_100_000, quantity: 1, sample: "good" });
-    const lb = String(liveB.body.id ?? "");
-    check("the seller posts a VIP listing and it goes live", liveB.status === 200 && liveB.body.status === "active", JSON.stringify(liveB));
-    const aboutB = await waitFor((m) => m.kind === "tickets-listed" && m.ref === lb, 2);
-    await sleep(1500); // anything sent twice would have landed by now
-    const aboutBAll = inbox().filter((m) => m.kind === "tickets-listed" && m.ref === lb);
-    check(
-      "the follower and the VIP follower hear about it, once each",
-      aboutBAll.length === 2 && aboutBAll.filter((m) => m.to === FOLLOWER_EMAIL).length === 1 && aboutBAll.filter((m) => m.to === BUYER_EMAIL).length === 1,
-      JSON.stringify(aboutBAll.map((m) => m.to))
-    );
-    const alertB = aboutB.find((m) => m.to === FOLLOWER_EMAIL);
-    check(
-      "the alert: its subject, the price per ticket, the show's page, and that listings are still samples",
-      alertB?.subject === `Tiket baru / New tickets: ${TITLE}` && alertB.text.includes("Rp1.100.000") && linked(alertB, `${SITE}/events/${EVENT}`) && alertB.text.includes("not real tickets for sale"),
-      alertB?.text.slice(0, 500)
-    );
+    /** Posts a listing on the show; `sample` "good" goes live at once, "edited" waits for review. */
+    const post = (ctx: BrowserContext, tierId: string, askPrice: number, sample: "good" | "edited", quantity = 1) =>
+      api(ctx, "POST", "/api/listings", { eventId: EVENT, tierId, askPrice, quantity, sample });
+    /** The alerts a listing sent, once anything sent twice would have landed too. */
+    const alertsAbout = async (id: string, expected: number) => {
+      if (expected) await waitFor((m) => m.ref === id, expected);
+      await sleep(expected ? 1500 : 3000);
+      return inbox().filter((m) => m.ref === id);
+    };
+    /** Moves every listing of the show back in time, as if it had been posted (and cleared) `ms` ago. */
+    const age = async (ms: number) => {
+      const at = iso(Date.now() - ms);
+      const posted = await admin.from("listings").update({ created_at: at }).eq("event_id", EVENT);
+      const cleared = await admin.from("listings").update({ cleared_at: at }).eq("event_id", EVENT).not("cleared_at", "is", null);
+      if (posted.error || cleared.error) throw new Error(`age: ${(posted.error ?? cleared.error)!.message}`);
+    };
 
     // A listing held for review, on a tier the buyer does not follow: nothing until staff clear it.
-    const heldC = await api(sellerCtx, "POST", "/api/listings", { eventId: EVENT, tierId: TIER_C, askPrice: 330_000, quantity: 2, sample: "edited" });
+    const heldC = await post(sellerCtx, TIER_C, 330_000, "edited", 2);
     const lc = String(heldC.body.id ?? "");
     check("a flagged listing waits for review", heldC.status === 200 && heldC.body.status === "review", JSON.stringify(heldC));
-    await sleep(2000);
-    check("and nobody hears about it yet", inbox().filter((m) => m.ref === lc).length === 0, JSON.stringify(inbox().filter((m) => m.ref === lc).map((m) => m.to)));
+    check("and nobody hears about it yet", (await alertsAbout(lc, 0)).length === 0);
     const cleared = await api(staffCtx, "POST", `/api/listings/${lc}`, { action: "approve" });
     const clearedAgain = await api(staffCtx, "POST", `/api/listings/${lc}`, { action: "approve" });
     check("staff clear it, once", cleared.status === 200 && clearedAgain.status === 409, JSON.stringify({ cleared, clearedAgain }));
-    await waitFor((m) => m.kind === "tickets-listed" && m.ref === lc);
-    await sleep(1500);
-    const aboutC = inbox().filter((m) => m.ref === lc);
+    const aboutC = await alertsAbout(lc, 1);
     check(
-      "cleared, it reaches the show's follower only: not the VIP follower, not the seller, not the demo account",
+      "cleared, it reaches the show's follower only: not the VIP follower, not its seller, not the demo account",
       aboutC.length === 1 && aboutC[0].to === FOLLOWER_EMAIL && aboutC[0].text.includes("2 tiket Tribun"),
       JSON.stringify(aboutC.map((m) => m.to))
     );
+    check(
+      "the alert: its subject, the price per ticket, the show's page, and that listings are still samples",
+      aboutC[0]?.subject === `Tiket baru / New tickets: ${TITLE}` && aboutC[0].text.includes("Rp330.000") && linked(aboutC[0], `${SITE}/events/${EVENT}`) &&
+        aboutC[0].text.includes("not real tickets for sale"),
+      aboutC[0]?.text.slice(0, 500)
+    );
 
-    // Stopping works: the buyer leaves the VIP tier, and the next VIP listing reaches only the follower.
+    // Held back: posting again, or withdrawing and posting again, cannot email the followers in a loop.
+    const liveB = await post(sellerCtx, TIER_B, 1_100_000, "good");
+    const lb = String(liveB.body.id ?? "");
+    check("the seller's next listing goes live", liveB.status === 200 && liveB.body.status === "active", JSON.stringify(liveB));
+    check("but tells nobody: same seller within a day, and the show had a listing go live within six hours", (await alertsAbout(lb, 0)).length === 0);
+    const pulled = await api(sellerCtx, "POST", `/api/listings/${lb}`, { action: "withdraw" });
+    const liveB2 = await post(sellerCtx, TIER_B, 1_100_000, "good");
+    const lb2 = String(liveB2.body.id ?? "");
+    check(
+      "withdrawn and posted again, it still tells nobody",
+      pulled.status === 200 && liveB2.body.status === "active" && (await alertsAbout(lb2, 0)).length === 0,
+      JSON.stringify({ pulled: pulled.status, liveB2: liveB2.status })
+    );
+    const liveD = await post(staffCtx, TIER_B, 1_000_000, "good");
+    const ld = String(liveD.body.id ?? "");
+    check("another seller's listing within six hours tells nobody either", liveD.body.status === "active" && (await alertsAbout(ld, 0)).length === 0, JSON.stringify(liveD));
+    await age(8 * 3_600_000);
+    const liveE = await post(sellerCtx, TIER_B, 1_050_000, "good");
+    const le = String(liveE.body.id ?? "");
+    check(
+      "eight hours later the show is quiet again, but this seller listed within a day: nobody",
+      liveE.body.status === "active" && (await alertsAbout(le, 0)).length === 0,
+      JSON.stringify(liveE)
+    );
+
+    // A day on, the next listing is told: once to each follower however many alerts match, to the
+    // seller too now that it is not theirs, never to the demo account.
+    await age(2 * 86_400_000);
+    const liveF = await post(staffCtx, TIER_B, 1_200_000, "good");
+    const lf = String(liveF.body.id ?? "");
+    const aboutF = await alertsAbout(lf, 3);
+    check(
+      "a day later the next VIP listing reaches each follower once: the show's follower (two alerts match), the VIP follower, the seller",
+      liveF.body.status === "active" && aboutF.length === 3 && [FOLLOWER_EMAIL, BUYER_EMAIL, SELLER_EMAIL].every((to) => aboutF.filter((m) => m.to === to).length === 1),
+      JSON.stringify(aboutF.map((m) => m.to))
+    );
+
+    // Stopping works: the buyer leaves the VIP tier, and the next VIP listing passes it by.
     const stop = await api(buyerCtx, "POST", "/api/alerts", { action: "unsubscribe", id: alertId(bTier) });
     const left = await api(buyerCtx, "GET", "/api/alerts");
     check("the buyer stops following VIP", stop.status === 200 && Array.isArray(left.body.alerts) && (left.body.alerts as unknown[]).length === 0, JSON.stringify({ stop, left }));
-    const liveD = await api(sellerCtx, "POST", "/api/listings", { eventId: EVENT, tierId: TIER_B, askPrice: 1_000_000, quantity: 1, sample: "good" });
-    const ld = String(liveD.body.id ?? "");
-    await waitFor((m) => m.kind === "tickets-listed" && m.ref === ld);
-    await sleep(1500);
-    const aboutD = inbox().filter((m) => m.ref === ld);
-    check("the next VIP listing reaches the follower only", liveD.body.status === "active" && aboutD.length === 1 && aboutD[0].to === FOLLOWER_EMAIL, JSON.stringify({ liveD: liveD.status, to: aboutD.map((m) => m.to) }));
+    await age(2 * 86_400_000);
+    const liveG = await post(staffCtx, TIER_B, 1_150_000, "good");
+    const lg = String(liveG.body.id ?? "");
+    const aboutG = await alertsAbout(lg, 2);
+    check(
+      "the next VIP listing reaches the follower and the seller, not the buyer who stopped",
+      liveG.body.status === "active" && aboutG.length === 2 && !aboutG.some((m) => m.to === BUYER_EMAIL),
+      JSON.stringify(aboutG.map((m) => m.to))
+    );
 
     // --- 4. The organiser cancels: the order still held is refunded, and its buyer hears it.
     const cancel = await api(staffCtx, "POST", `/api/events/${EVENT}`, { action: "cancel" });
@@ -317,7 +363,9 @@ async function main() {
       `order-paid buyer ${id1}`, `order-paid buyer ${id2}`,
       `claim-seller seller ${id1}`, `claim-buyer buyer ${id1}`,
       `ruling-buyer buyer ${id1}`, `ruling-seller seller ${id1}`,
-      `tickets-listed follower ${lb}`, `tickets-listed buyer ${lb}`, `tickets-listed follower ${lc}`, `tickets-listed follower ${ld}`,
+      `tickets-listed follower ${lc}`,
+      `tickets-listed follower ${lf}`, `tickets-listed buyer ${lf}`, `tickets-listed seller ${lf}`,
+      `tickets-listed follower ${lg}`, `tickets-listed seller ${lg}`,
       `show-cancelled buyer ${id2}`,
     ].sort();
     check(`exactly the ${want.length} emails expected, none twice`, JSON.stringify(got) === JSON.stringify(want), JSON.stringify(got));
