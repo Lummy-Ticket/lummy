@@ -249,7 +249,9 @@ export type Database = {
         Row: {
           category: string
           city: string
+          country: string
           created_at: string
+          currency: string
           featured: boolean
           id: string
           image_url: string | null
@@ -265,7 +267,9 @@ export type Database = {
         Insert: {
           category: string
           city: string
+          country?: string
           created_at?: string
+          currency?: string
           featured?: boolean
           id: string
           image_url?: string | null
@@ -283,7 +287,9 @@ export type Database = {
         Update: {
           category?: string
           city?: string
+          country?: string
           created_at?: string
+          currency?: string
           featured?: boolean
           id?: string
           image_url?: string | null
@@ -566,6 +572,7 @@ export type Database = {
           auto_refund_reason: string | null
           auto_released: boolean
           buyer_id: string
+          buyer_wallet: string | null
           chain_id: number | null
           contract_address: string | null
           created_at: string
@@ -599,6 +606,7 @@ export type Database = {
           onchain_price: string | null
           payment_id: string | null
           quantity: number
+          rail: string | null
           seller_id: string | null
           seller_name: string
           ticket_file: boolean
@@ -615,6 +623,7 @@ export type Database = {
           auto_refund_reason?: string | null
           auto_released?: boolean
           buyer_id: string
+          buyer_wallet?: string | null
           chain_id?: number | null
           contract_address?: string | null
           created_at?: string
@@ -648,6 +657,7 @@ export type Database = {
           onchain_price?: string | null
           payment_id?: string | null
           quantity: number
+          rail?: string | null
           seller_id?: string | null
           seller_name: string
           ticket_file?: boolean
@@ -664,6 +674,7 @@ export type Database = {
           auto_refund_reason?: string | null
           auto_released?: boolean
           buyer_id?: string
+          buyer_wallet?: string | null
           chain_id?: number | null
           contract_address?: string | null
           created_at?: string
@@ -697,6 +708,7 @@ export type Database = {
           onchain_price?: string | null
           payment_id?: string | null
           quantity?: number
+          rail?: string | null
           seller_id?: string | null
           seller_name?: string
           ticket_file?: boolean
@@ -756,6 +768,7 @@ export type Database = {
       payments: {
         Row: {
           amount: number
+          auth_nonce: string | null
           buyer_id: string
           channel: string
           checked_at: string | null
@@ -765,7 +778,9 @@ export type Database = {
           id: string
           listing_id: string
           materai: number
+          onchain_listing_id: string | null
           paid_at: string | null
+          payer_wallet: string | null
           provider: string
           provider_payment_id: string | null
           provider_ref: string | null
@@ -781,6 +796,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          auth_nonce?: string | null
           buyer_id: string
           channel?: string
           checked_at?: string | null
@@ -790,7 +806,9 @@ export type Database = {
           id?: string
           listing_id: string
           materai: number
+          onchain_listing_id?: string | null
           paid_at?: string | null
+          payer_wallet?: string | null
           provider?: string
           provider_payment_id?: string | null
           provider_ref?: string | null
@@ -806,6 +824,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          auth_nonce?: string | null
           buyer_id?: string
           channel?: string
           checked_at?: string | null
@@ -815,7 +834,9 @@ export type Database = {
           id?: string
           listing_id?: string
           materai?: number
+          onchain_listing_id?: string | null
           paid_at?: string | null
+          payer_wallet?: string | null
           provider?: string
           provider_payment_id?: string | null
           provider_ref?: string | null
@@ -934,6 +955,8 @@ export type Database = {
         Row: {
           category: string | null
           city: string | null
+          country: string | null
+          currency: string | null
           featured: boolean | null
           from_price: number | null
           id: string | null
