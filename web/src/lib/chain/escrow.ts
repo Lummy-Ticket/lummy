@@ -4,7 +4,6 @@ import {
   createPublicClient,
   createWalletClient,
   getContract,
-  http,
   type Address,
   type Chain,
   type Hash,
@@ -15,6 +14,7 @@ import {
 import { escrowAbi } from "./abi";
 import type { FundSignature } from "./buyer";
 import { STATUS, type Status } from "./config";
+import { rpcTransport, writeTransport } from "./rpc";
 
 export type Listing = {
   seller: Address;
@@ -29,16 +29,22 @@ export type Listing = {
 
 export type Receipt = { hash: Hash; blockNumber: bigint; gasUsed: bigint };
 
+/** Satu blok yang sudah dibaca: nomor dan waktunya. */
+export type BlockRef = { number: bigint; timestamp: bigint };
+
+/** Klien baca: RPC berbayar lalu RPC publik kalau `rpcUrl` salah satunya (lib/chain/rpc.ts). */
 export function publicClient(chain: Chain, rpcUrl: string): PublicClient {
-  return createPublicClient({ chain, transport: http(rpcUrl) });
+  return createPublicClient({ chain, transport: rpcTransport(chain, rpcUrl) });
 }
 
-export async function getListing(pc: PublicClient, escrow: Address, id: Hex): Promise<Listing> {
+/** `blockNumber`: dibaca di blok itu, supaya cocok dengan log yang dibaca sampai blok yang sama. Tanpa itu, blok terbaru. */
+export async function getListing(pc: PublicClient, escrow: Address, id: Hex, blockNumber?: bigint): Promise<Listing> {
   const [seller, buyer, price, handoverAt, eventEndsAt, status, disputed, barcodeCommit] = await pc.readContract({
     address: escrow,
     abi: escrowAbi,
     functionName: "listings",
     args: [id],
+    blockNumber,
   });
   return { seller, buyer, price, handoverAt, eventEndsAt, status: STATUS[status], disputed, barcodeCommit };
 }
@@ -56,10 +62,11 @@ export function pendingOf(pc: PublicClient, escrow: Address, who: Address): Prom
 /**
  * Semua aksi tulis atas nama satu akun. Tiap aksi menunggu receipt dan gagal kalau revert.
  * Di Model A akun ini operator: aksi `...For` dan aksi seller/pembeli dikirim atas nama pengguna,
- * jadi cuma operator yang butuh ETH untuk gas.
+ * jadi cuma operator yang butuh ETH untuk gas. Ulangan di transport tidak pernah mengirim transaksi kedua
+ * (writeTransport di lib/chain/rpc.ts).
  */
 export function escrowAs(pc: PublicClient, account: LocalAccount, chain: Chain, rpcUrl: string, escrow: Address) {
-  const wallet = createWalletClient({ account, chain, transport: http(rpcUrl) });
+  const wallet = createWalletClient({ account, chain, transport: writeTransport(chain, rpcUrl) });
   const c = getContract({ address: escrow, abi: escrowAbi, client: { public: pc, wallet } });
 
   const done = async (hash: Hash): Promise<Receipt> => {

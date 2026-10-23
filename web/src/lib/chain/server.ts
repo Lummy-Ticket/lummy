@@ -8,10 +8,11 @@ import { formatUnits, keccak256, parseUnits, toHex, type Address, type Chain, ty
 import { privateKeyToAccount } from "viem/accounts";
 import { escrowAbi, tokenAbi } from "./abi";
 import { signFund, type FundSignature } from "./buyer";
-import { CHAINS, RPC_URLS, USDC_DECIMALS } from "./config";
+import { CHAINS, USDC_DECIMALS } from "./config";
 import { DEPLOYMENTS } from "./deployments";
 import { demoKeyAllowed, demoMode, type DemoMode } from "@/lib/demo-key";
-import { disputeDeadline, escrowAs, getListing, pendingOf, publicClient, type Listing } from "./escrow";
+import { disputeDeadline, escrowAs, getListing, pendingOf, publicClient, type BlockRef, type Listing } from "./escrow";
+import { rpcUrls } from "./rpc";
 
 if (typeof window !== "undefined") throw new Error("lib/chain/server hanya boleh dipakai di server");
 
@@ -42,7 +43,7 @@ export function chainTarget(): ChainTarget | null {
   const escrow = (process.env.LUMMY_ESCROW ?? dep?.escrow) as Address | undefined;
   const token = (process.env.LUMMY_TOKEN ?? dep?.token) as Address | undefined;
   if (!chain || !escrow || !token) return null;
-  return { chain, rpcUrl: process.env.LUMMY_RPC_URL ?? RPC_URLS[chainId], escrow, token };
+  return { chain, rpcUrl: rpcUrls(chainId)[0], escrow, token };
 }
 
 /** Nilai env pertama yang terisi, tanpa spasi atau newline yang ikut ter-paste. */
@@ -140,9 +141,10 @@ export async function readWindow(t: ChainTarget): Promise<number> {
   return value;
 }
 
-export async function readListing(t: ChainTarget, id: Hex): Promise<OnchainListing> {
+/** `at`: status di blok itu (riwayat membaca status dan log di blok yang sama). Tanpa itu, blok terbaru. */
+export async function readListing(t: ChainTarget, id: Hex, at?: BlockRef): Promise<OnchainListing> {
   const pc = publicClient(t.chain, t.rpcUrl);
-  const [L, window, block] = await Promise.all([getListing(pc, t.escrow, id), readWindow(t), pc.getBlock()]);
+  const [L, window, block] = await Promise.all([getListing(pc, t.escrow, id, at?.number), readWindow(t), at ?? pc.getBlock()]);
   return {
     ...L,
     price: L.price.toString(),

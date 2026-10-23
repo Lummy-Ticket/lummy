@@ -180,21 +180,23 @@ export type ChainHistory = {
   escrow: string;
   events: ChainHistoryEvent[];
   live: ChainListing;
+  /** Status live sudah melewati langkah yang event-nya belum terbaca dari chain. Tidak ada = lengkap. */
+  incomplete?: boolean;
 };
 
 export const chainSettled = (s: ChainStatus | undefined) => s === "Released" || s === "Refunded" || s === "Cancelled";
 
 /**
- * Riwayat escrow atau catatan buku besar dari event kontrak, diperbarui berkala sampai selesai, dan cuma
- * selama halamannya terlihat (tab di belakang tidak membebani RPC publik). `source`: kontrak yang memegang
- * id ini kalau sudah diketahui, supaya server tidak membaca keduanya. "missing": kontrak tidak mengenal id
- * ini. "failed": chain belum bisa dibaca dan belum ada data sebelumnya.
+ * Riwayat escrow atau catatan buku besar dari event kontrak, diperbarui berkala sampai selesai dan lengkap,
+ * dan cuma selama halamannya terlihat (tab di belakang tidak membebani RPC publik). `source`: kontrak yang
+ * memegang id ini kalau sudah diketahui, supaya server tidak membaca keduanya. "missing": kontrak tidak
+ * mengenal id ini. "failed": chain belum bisa dibaca dan belum ada data sebelumnya.
  */
 export function useChainHistory(listingId: string | undefined, intervalMs = 15000, source?: "escrow" | "ledger") {
   const [data, setData] = useState<ChainHistory | null>(null);
   const [state, setState] = useState<"loading" | "ok" | "missing" | "failed">("loading");
   const [nonce, setNonce] = useState(0);
-  const settled = chainSettled(data?.live.status);
+  const settled = chainSettled(data?.live.status) && !data?.incomplete;
   useEffect(() => {
     if (!listingId) return;
     let alive = true;

@@ -4,7 +4,6 @@
 import {
   createWalletClient,
   getContract,
-  http,
   keccak256,
   toHex,
   zeroHash,
@@ -15,9 +14,10 @@ import {
   type LocalAccount,
 } from "viem";
 import { ledgerAbi } from "./abi";
-import { CHAINS, RPC_URLS } from "./config";
+import { CHAINS } from "./config";
 import { LEDGERS } from "./deployments";
-import { publicClient } from "./escrow";
+import { publicClient, type BlockRef } from "./escrow";
+import { rpcUrls, writeTransport } from "./rpc";
 
 if (typeof window !== "undefined") throw new Error("lib/chain/ledger hanya boleh dipakai di server");
 
@@ -56,7 +56,7 @@ export function ledgerTarget(at?: { chainId: number | null; address: string | nu
   const ledger = (at?.address ?? process.env.LUMMY_LEDGER ?? dep?.ledger) as Address | undefined;
   if (!chain || !ledger) return null;
   const deployed = dep?.ledger.toLowerCase() === ledger.toLowerCase();
-  return { chain, rpcUrl: process.env.LUMMY_RPC_URL ?? RPC_URLS[chainId], ledger, deployBlock: deployed ? dep?.deployBlock : undefined };
+  return { chain, rpcUrl: rpcUrls(chainId)[0], ledger, deployBlock: deployed ? dep?.deployBlock : undefined };
 }
 
 /**
@@ -89,12 +89,13 @@ async function ledgerWindow(t: LedgerTarget): Promise<number> {
   return value;
 }
 
-export async function readRecord(t: LedgerTarget, id: Hex): Promise<LedgerRecord> {
+/** `at`: catatan di blok itu (riwayat membaca catatan dan log di blok yang sama). Tanpa itu, blok terbaru. */
+export async function readRecord(t: LedgerTarget, id: Hex, at?: BlockRef): Promise<LedgerRecord> {
   const pc = publicClient(t.chain, t.rpcUrl);
   const [[amount, openedAt, eventEndsAt, status, disputed], disputeWindow, block] = await Promise.all([
-    pc.readContract({ address: t.ledger, abi: ledgerAbi, functionName: "orders", args: [id] }),
+    pc.readContract({ address: t.ledger, abi: ledgerAbi, functionName: "orders", args: [id], blockNumber: at?.number }),
     ledgerWindow(t),
-    pc.getBlock(),
+    at ?? pc.getBlock(),
   ]);
   return {
     amount,
@@ -108,10 +109,13 @@ export async function readRecord(t: LedgerTarget, id: Hex): Promise<LedgerRecord
   };
 }
 
-/** Semua aksi tulis sebagai operator. Tiap aksi menunggu receipt dan gagal kalau revert. */
+/**
+ * Semua aksi tulis sebagai operator. Tiap aksi menunggu receipt dan gagal kalau revert. Ulangan di transport
+ * tidak pernah mengirim transaksi kedua (writeTransport di lib/chain/rpc.ts).
+ */
 export function ledgerAs(t: LedgerTarget, account: LocalAccount) {
   const pc = publicClient(t.chain, t.rpcUrl);
-  const wallet = createWalletClient({ account, chain: t.chain, transport: http(t.rpcUrl) });
+  const wallet = createWalletClient({ account, chain: t.chain, transport: writeTransport(t.chain, t.rpcUrl) });
   const c = getContract({ address: t.ledger, abi: ledgerAbi, client: { public: pc, wallet } });
 
   // Dibatasi waktunya: antreannya dipakai bersama checkout escrow, jadi satu transaksi yang macet tidak

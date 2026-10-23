@@ -126,6 +126,23 @@ function upcoming(live: ChainListing, when: (unix: number) => string, ledger: bo
   }
 }
 
+/**
+ * Where a settled escrow ends, from the contract's live status, while the event that settled it is still
+ * being read from the chain. No amount and no proof link: those come with the event itself.
+ */
+function settledLine(live: ChainListing, ledger: boolean): Line | null {
+  switch (live.status) {
+    case "Released":
+      return { dot: DOT.good, title: ledger ? { en: "Payout to the seller recorded", id: "Pencairan ke penjual dicatat" } : { en: "Paid out to the seller", id: "Dana cair ke penjual" } };
+    case "Refunded":
+      return { dot: DOT.end, title: ledger ? { en: "Refund to the buyer recorded", id: "Refund ke pembeli dicatat" } : { en: "Refunded to the buyer", id: "Dana dikembalikan ke pembeli" } };
+    case "Cancelled":
+      return { dot: DOT.end, title: { en: "Listing cancelled", id: "Listing dibatalkan" } };
+    default:
+      return null;
+  }
+}
+
 export function EscrowTimeline({ history, live }: { history: ChainHistory; live?: ChainListing | null }) {
   const t = useT();
   const { formatDateTime, formatIDR } = useFormatters();
@@ -133,6 +150,8 @@ export function EscrowTimeline({ history, live }: { history: ChainHistory; live?
   const when = (unix: number) => formatDateTime(new Date(unix * 1000).toISOString());
   const money = (units: string) => (ledger ? formatIDR(Number(units)) : usdcText(units));
   const next = upcoming(live ?? history.live, when, ledger);
+  // Some events are not read yet (a slow node): the contract's live status still says where it stands.
+  const settled = history.incomplete ? settledLine(history.live, ledger) : null;
 
   return (
     <div>
@@ -168,6 +187,26 @@ export function EscrowTimeline({ history, live }: { history: ChainHistory; live?
             </li>
           );
         })}
+        {settled && (
+          <li className="pl-4 relative">
+            <span className={`absolute -left-[7px] top-1 w-3 h-3 rounded-full border-2 border-neutral-white ${settled.dot}`} />
+            <div className="text-sm text-neutral-black">{t(settled.title.en, settled.title.id)}</div>
+            <div className="text-xs text-neutral-gray mt-0.5">
+              {t(
+                "The contract already shows this. Its transaction is still being read from the chain, and the proof link appears here in a moment.",
+                "Kontrak sudah menunjukkan ini. Transaksinya masih dibaca dari chain, dan tautan buktinya sebentar lagi muncul di sini."
+              )}
+            </div>
+          </li>
+        )}
+        {history.incomplete && !settled && (
+          <li className="pl-4 relative">
+            <span className="absolute -left-[7px] top-1 w-3 h-3 rounded-full bg-neutral-light-gray-1 border-2 border-neutral-white" />
+            <span className="text-xs text-neutral-gray">
+              {t("Some steps are still being read from the chain and appear here in a moment.", "Beberapa langkah masih dibaca dari chain dan sebentar lagi muncul di sini.")}
+            </span>
+          </li>
+        )}
         {next && (
           <li className="pl-4 relative">
             <span className="absolute -left-[7px] top-1 w-3 h-3 rounded-full bg-neutral-light-gray-1 border-2 border-neutral-white" />
