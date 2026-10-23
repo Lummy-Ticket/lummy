@@ -31,13 +31,15 @@ export default defineConfig({
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
+  // testMatch is tried on the whole path, so each names the spec file: a checkout in a folder
+  // called opertix-demo would otherwise make every file in e2e a demo test, support.ts included.
   projects: [
     // The five user-testing tasks (tasks/user-testing.md) on the phones testers bring, and the
     // accessibility audit on the Android one.
-    { name: "phone", testMatch: /user-tasks|a11y/, use: { ...devices["Galaxy S24"], ...chrome, locale: "id-ID" } },
-    { name: "iphone", testMatch: /user-tasks/, use: { ...devices["iPhone 15"], locale: "id-ID" } },
+    { name: "phone", testMatch: /\/(user-tasks|a11y)\.spec\.ts$/, use: { ...devices["Galaxy S24"], ...chrome, locale: "id-ID" } },
+    { name: "iphone", testMatch: /\/user-tasks\.spec\.ts$/, use: { ...devices["iPhone 15"], locale: "id-ID" } },
     // The demo script (docs/06), in English on a laptop, the way it is presented, and the site's
     // headers, files and links.
-    { name: "desktop", testMatch: /demo|site/, use: { ...devices["Desktop Chrome"], ...chrome, locale: "en-US", viewport: { width: 1280, height: 1000 } } },
+    { name: "desktop", testMatch: /\/(demo|site)\.spec\.ts$/, use: { ...devices["Desktop Chrome"], ...chrome, locale: "en-US", viewport: { width: 1280, height: 1000 } } },
   ],
 });
