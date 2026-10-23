@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { Bell, BellRing, X, Check } from "lucide-react";
 import { useAlerts, type EventItem } from "@/lib/mock";
 import { useT } from "@/lib/i18n";
+import { FEATURES } from "@/lib/features";
 
 const CH_LABEL: Record<string, string> = { email: "email", whatsapp: "WhatsApp", telegram: "Telegram" };
 
@@ -21,7 +22,17 @@ export function NotifyCard({ event }: { event: EventItem }) {
       <h4 className="font-semibold text-neutral-black flex items-center gap-2 mb-1">
         <Bell className="w-4 h-4 text-lummy-500" /> {t("Alerts & waitlist", "Notifikasi & waitlist")}
       </h4>
-      <p className="text-xs text-neutral-gray mb-3">{t(`We will ping you on ${CH_LABEL[channel]}. Change it in your profile.`, `Kami kabari lewat ${CH_LABEL[channel]}. Ubah di profil.`)}</p>
+      {FEATURES.emails ? (
+        <p className="text-xs text-neutral-gray mb-3">{t(`We will ping you on ${CH_LABEL[channel]}. Change it in your profile.`, `Kami kabari lewat ${CH_LABEL[channel]}. Ubah di profil.`)}</p>
+      ) : (
+        // Nothing is sent yet (lib/features.ts): say so, rather than promise a message.
+        <p data-alerts-soon className="text-xs text-neutral-gray mb-3">
+          {t(
+            "Coming soon: an email when tickets appear. Nothing is sent yet; your choice is kept in this browser.",
+            "Segera: email saat ada tiket. Belum ada yang dikirim; pilihanmu tersimpan di browser ini."
+          )}
+        </p>
+      )}
 
       {eventSub ? (
         <button

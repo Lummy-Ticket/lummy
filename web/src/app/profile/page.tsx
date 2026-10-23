@@ -200,7 +200,16 @@ export default function ProfilePage() {
 
       {/* Alerts */}
       <Section title={t("Alerts & waitlist", "Notifikasi & waitlist")}>
-        <div className="mb-4">
+        {/* Alerts go by email only, once sending is live (lib/features.ts); WhatsApp and Telegram are not built. */}
+        {!FEATURES.emails && (
+          <p data-alerts-soon className="text-sm text-neutral-gray mb-4">
+            {t(
+              `Coming soon: alerts by email to ${user?.email ?? "your sign-in address"}. Nothing is sent yet.`,
+              `Segera: notifikasi lewat email ke ${user?.email ?? "alamat login-mu"}. Belum ada yang dikirim.`
+            )}
+          </p>
+        )}
+        <div className={FEATURES.emails ? "mb-4" : "hidden"}>
           <span className="text-xs text-neutral-gray">{t("Reach me on", "Dikabari lewat")}</span>
           <div className="grid grid-cols-3 gap-2 mt-1.5">
             {CHANNELS.map((c) => (

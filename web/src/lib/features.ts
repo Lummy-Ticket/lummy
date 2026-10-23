@@ -28,4 +28,12 @@ export const FEATURES = {
    * list there.
    */
   realListings: false,
+  /**
+   * Email from Lummy beyond sign-in: an order paid, a claim and its ruling, a show cancelled, and
+   * an alert when tickets for a show someone follows go on sale (decided 23 Oct 2026: email, not
+   * WhatsApp, since every account already has a verified address and a phone number would be more
+   * personal data to keep). Off until the sending is built, tested and has its mail credentials;
+   * until then the alert buttons say nothing is sent yet, and WhatsApp and Telegram are not offered.
+   */
+  emails: false,
 } as const;
