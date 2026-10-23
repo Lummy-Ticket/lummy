@@ -192,6 +192,16 @@ export default function EventDetailPage() {
               {t("Postponed by the organiser. The date above is the new one.", "Diundur penyelenggara. Tanggal di atas adalah jadwal barunya.")}
             </p>
           )}
+          {/* Real shows, sample listings: no fan should read them as tickets on sale (lib/features.ts). */}
+          {event.currency !== "USDC" && !FEATURES.realListings && (
+            <p data-sample-listings className="mt-3 flex items-start gap-2 rounded-2xl bg-secondary-orange-soft px-3 py-2 text-xs text-secondary-orange-dark">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              {t(
+                "Test mode: the listings on this page are samples for the Lummy demo, not real tickets for sale, and no real money is taken yet.",
+                "Mode uji: listing di halaman ini contoh untuk demo Lummy, bukan tiket sungguhan yang dijual, dan belum ada uang sungguhan yang ditarik."
+              )}
+            </p>
+          )}
           {/* A real show abroad, sold here only as a testnet demo: no fan should read these as real
               tickets on sale (tasks/real-events-2026.md). */}
           {event.currency === "USDC" && (

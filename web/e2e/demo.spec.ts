@@ -124,6 +124,8 @@ test.describe("demo script", { tag: "@smoke" }, () => {
     // Real shows carry a name rule only when the promoter's terms say so (tasks/real-events-2026.md).
     await page.goto("/events/ev-gnr-jakarta");
     await expect(page.getByText("Name rules not confirmed").first()).toBeVisible();
+    // Real shows, sample listings: the page says so (lib/features.ts).
+    await expect(page.locator("[data-sample-listings]")).toBeVisible();
     // Sellers cannot stage an ID card yet (lib/features.ts), so no listing claims one or is blamed for lacking one.
     await expect(page.getByText(/ID checked at the gate|ID card not staged/)).toHaveCount(0);
   });
