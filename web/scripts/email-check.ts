@@ -131,6 +131,38 @@ async function main() {
   );
 
   const userIds: string[] = [];
+  /**
+   * Everything the run made goes, accounts first: two of them are staff for the run, in the shared
+   * database. Runs once, at the end or when the run is stopped (Ctrl-C, a closed terminal, a kill
+   * that can be caught).
+   */
+  let cleaning: Promise<{ error?: string; alertsLeft: number }> | null = null;
+  const cleanup = () =>
+    (cleaning ??= (async () => {
+      if (userIds.length) await admin.from("profiles").update({ role: "member" }).in("id", userIds);
+      // The orders go before the accounts they name.
+      const listings = (await admin.from("listings").select("id").eq("event_id", EVENT)).data?.map((l) => l.id) ?? [];
+      if (listings.length) {
+        await admin.from("orders").delete().in("listing_id", listings);
+        await admin.from("listings").delete().in("id", listings);
+      }
+      await admin.from("tiers").delete().in("id", [TIER_A, TIER_B, TIER_C]);
+      const gone = await admin.from("events").delete().eq("id", EVENT);
+      const users = await Promise.all(userIds.map((id) => admin.auth.admin.deleteUser(id)));
+      const error = gone.error?.message ?? users.find((u) => u.error)?.error?.message;
+      // Late emails of this run would land after the accounts are gone: give them a moment, then clear.
+      await sleep(1000);
+      for (const m of inbox()) fs.rmSync(path.join(DIR, m.file), { force: true });
+      const alertsLeft = userIds.length ? ((await admin.from("alert_subscriptions").select("id").in("user_id", userIds)).data?.length ?? 1) : 0;
+      return { error, alertsLeft };
+    })());
+  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {
+    process.once(signal, () => {
+      console.error(`\n${signal}: cleaning up the run's accounts and show first`);
+      void cleanup().finally(() => process.exit(130));
+    });
+  }
+
   const browser = await chromium.launch({ executablePath: EXEC, args: ["--no-sandbox"] });
   try {
     const names = ["Email Buyer", "Email Seller", "Email Staff", "Email Follower", "Email Demo"];
@@ -172,6 +204,8 @@ async function main() {
     const id2 = String(o2.body.id ?? "");
     const id3 = String(o3.body.id ?? "");
     check("three orders are written (two by the buyer, one by the demo account)", o1.status === 200 && o2.status === 200 && o3.status === 200, JSON.stringify({ o1, o2, o3 }));
+    // The buyer was staff only to take the straight path; nothing below needs it.
+    await admin.from("profiles").update({ role: "member" }).eq("id", buyer);
 
     const [paid1] = await waitFor((m) => m.kind === "order-paid" && m.ref === id1);
     check(
@@ -377,23 +411,11 @@ async function main() {
   } catch (e) {
     check("check ran to the end", false, (e as Error).message.split("\n")[0].slice(0, 200));
   } finally {
-    const listings = (await admin.from("listings").select("id").eq("event_id", EVENT)).data?.map((l) => l.id) ?? [];
-    if (listings.length) {
-      await admin.from("orders").delete().in("listing_id", listings);
-      await admin.from("listings").delete().in("id", listings);
-    }
-    await admin.from("tiers").delete().in("id", [TIER_A, TIER_B, TIER_C]);
-    const gone = await admin.from("events").delete().eq("id", EVENT);
-    const users = await Promise.all(userIds.map((id) => admin.auth.admin.deleteUser(id)));
-    // Late emails of this run would land after the accounts are gone: give them a moment, then clear.
-    await sleep(1000);
-    for (const m of inbox()) fs.rmSync(path.join(DIR, m.file), { force: true });
-    const userError = users.find((u) => u.error)?.error;
-    const leftAlerts = userIds.length ? (await admin.from("alert_subscriptions").select("id").in("user_id", userIds)).data?.length ?? 1 : 0;
+    const done = await cleanup();
     check(
       "cleanup: the show, its listings, orders, alerts, accounts and emails are gone",
-      !gone.error && !userError && leftAlerts === 0 && inbox().length === 0,
-      (gone.error ?? userError)?.message ?? `alerts left ${leftAlerts}`
+      !done.error && done.alertsLeft === 0 && inbox().length === 0,
+      done.error ?? `alerts left ${done.alertsLeft}`
     );
     await browser.close();
   }
