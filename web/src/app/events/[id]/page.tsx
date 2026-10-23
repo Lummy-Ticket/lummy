@@ -190,6 +190,17 @@ export default function EventDetailPage() {
               {t("Postponed by the organiser. The date above is the new one.", "Diundur penyelenggara. Tanggal di atas adalah jadwal barunya.")}
             </p>
           )}
+          {/* A real show abroad, sold here only as a testnet demo: no fan should read these as real
+              tickets on sale (tasks/real-events-2026.md). */}
+          {event.currency === "USDC" && (
+            <p data-usdc-demo className="mt-3 flex items-start gap-2 rounded-2xl bg-secondary-orange-soft px-3 py-2 text-xs text-secondary-orange-dark">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              {t(
+                "Testnet demo: the tickets on this page are samples, not real tickets for sale, and they are paid in test USDC on Arbitrum Sepolia.",
+                "Demo testnet: tiket di halaman ini contoh, bukan tiket sungguhan yang dijual, dan dibayar dengan USDC uji di Arbitrum Sepolia."
+              )}
+            </p>
+          )}
 
           {over ? (
             <div className="mt-10 rounded-2xl bg-secondary-gray-soft p-6 text-center">

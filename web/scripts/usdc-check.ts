@@ -287,7 +287,11 @@ async function main() {
       "window.ethereum = { request: ({ method, params }) => window.__lummyWallet(method, params || []), on() {}, removeListener() {} };"
     );
     await page.goto(`${BASE}/events/${EVENT}`, { waitUntil: "networkidle" });
-    check("the show's page prices it in USDC", (await page.getByText(/0[.,]10 USDC/).count()) > 0, (await page.locator("main").innerText()).slice(0, 300));
+    check(
+      "the show's page prices it in USDC and says its tickets are testnet samples",
+      (await page.getByText(/0[.,]10 USDC/).count()) > 0 && (await page.locator("[data-usdc-demo]").count()) === 1,
+      (await page.locator("main").innerText()).slice(0, 300)
+    );
     await page.goto(`${BASE}/checkout?listing=${L1}&qty=1`, { waitUntil: "networkidle" });
     const payButton = page.getByRole("button", { name: /USDC/ });
     check(
