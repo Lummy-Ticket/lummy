@@ -129,6 +129,11 @@ export function UsdcPanel({
     { key: "locking" as const, en: "Money locked on Arbitrum, gas paid by Lummy", id: "Dana terkunci di Arbitrum, gas dibayar Lummy" },
   ];
   const reached = ORDER.indexOf(step);
+  // A wallet shows a token amount in its smallest unit: 9500000 for 9.50 USDC. Said with this
+  // order's own numbers before the first signature, so the buyer does not take it for 9.5 million.
+  // Once seats are held, the number is the one in the messages the wallet will show.
+  const raw = hold?.value ?? String(total);
+  const rawUsdc = formatMoney(Number(raw), "USDC");
 
   return (
     <div data-usdc-panel data-usdc-step={step} className="flex flex-col gap-4 p-6">
@@ -183,6 +188,12 @@ export function UsdcPanel({
           {t(doing[step]!.en, doing[step]!.id)}
         </p>
       )}
+
+      <p data-usdc-raw={raw} className="rounded-2xl bg-secondary-blue-extra p-3 text-xs text-neutral-black">
+        {t("Your wallet may show the amount as ", "Wallet-mu mungkin menampilkan jumlahnya sebagai ")}
+        <span className="font-mono font-semibold">{raw}</span>
+        {t(`: that is ${rawUsdc} (USDC has 6 decimals).`, `: itu ${rawUsdc} (USDC punya 6 desimal).`)}
+      </p>
 
       <div className="rounded-2xl bg-secondary-orange-soft p-3 text-xs text-secondary-orange-dark">
         {t(
