@@ -196,8 +196,8 @@ export default function EventDetailPage() {
             <p data-usdc-demo className="mt-3 flex items-start gap-2 rounded-2xl bg-secondary-orange-soft px-3 py-2 text-xs text-secondary-orange-dark">
               <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
               {t(
-                "Testnet demo: the tickets on this page are samples, not real tickets for sale, and they are paid in test USDC on Arbitrum Sepolia.",
-                "Demo testnet: tiket di halaman ini contoh, bukan tiket sungguhan yang dijual, dan dibayar dengan USDC uji di Arbitrum Sepolia."
+                "Testnet demo: the tickets on this page are samples, not real tickets for sale, and they are paid in test USDC on Arbitrum Sepolia. At the door, the organiser's own rules apply.",
+                "Demo testnet: tiket di halaman ini contoh, bukan tiket sungguhan yang dijual, dan dibayar dengan USDC uji di Arbitrum Sepolia. Di pintu masuk, aturan penyelenggara yang berlaku."
               )}
             </p>
           )}
@@ -325,7 +325,8 @@ export default function EventDetailPage() {
               )}
             </div>
           </div>
-          {!over && <TransferPolicyNote policy={event.transferPolicy} audience="buyer" />}
+          {/* The name rules and the letter are for shows in Indonesia; abroad the organiser's own rules apply. */}
+          {!over && event.currency !== "USDC" && <TransferPolicyNote policy={event.transferPolicy} audience="buyer" />}
           {!closed && <NotifyCard event={event} />}
         </aside>
       </div>

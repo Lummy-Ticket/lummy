@@ -188,7 +188,7 @@ function CheckoutInner() {
             </div>
           </div>
 
-          <TransferPolicyNote policy={event.transferPolicy} audience="buyer" />
+          {!usdc && <TransferPolicyNote policy={event.transferPolicy} audience="buyer" />}
 
           {/* Payment. A show in Indonesia has one rail, QRIS, which covers e-wallets and bank apps
               alike; a show abroad priced in USDC is paid from the buyer's own wallet. */}
