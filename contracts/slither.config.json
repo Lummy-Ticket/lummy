@@ -1,0 +1,5 @@
+{
+  "include_paths": "contracts/src/",
+  "fail_on": "medium",
+  "triage_database": "slither.db.json"
+}

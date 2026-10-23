@@ -1,0 +1,98 @@
+[
+  {
+    "id": "31a405faf6ea7f160b7d9d1ca2ab15415a62ceea394991895f99651fc63faa3a",
+    "check": "naming-convention",
+    "impact": "Informational",
+    "confidence": "High",
+    "triage": "accepted: style only",
+    "description": "Function MockUSDC.DOMAIN_SEPARATOR() (src/MockUSDC.sol#40-42) is not in mixedCase\n"
+  },
+  {
+    "id": "86d2423300689df8dbbc2548a3b374d247cd76a4fa3f3c76220085fd7286321e",
+    "check": "naming-convention",
+    "impact": "Informational",
+    "confidence": "High",
+    "triage": "accepted: style only",
+    "description": "Variable LummyEscrow.TOKEN (src/LummyEscrow.sol#60) is not in mixedCase\n"
+  },
+  {
+    "id": "fb3c5cbb77a8ccac428538376935ffcfe80eba69db77bb0b7319a3a3e0f97d71",
+    "check": "pragma",
+    "impact": "Informational",
+    "confidence": "High",
+    "triage": "accepted: src pins 0.8.28, the ranges are OpenZeppelin's, all built with 0.8.28",
+    "description": "7 different versions of Solidity are used:\n\t- Version constraint ^0.8.20 is used by:\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/access/AccessControl.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/Context.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/Panic.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/ShortStrings.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/StorageSlot.sol#5)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/introspection/ERC165.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol#5)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/math/SignedMath.sol#4)\n\t- Version constraint >=0.8.4 is used by:\n\t\t->=0.8.4 (lib/openzeppelin-contracts/contracts/access/IAccessControl.sol#4)\n\t\t->=0.8.4 (lib/openzeppelin-contracts/contracts/interfaces/draft-IERC6093.sol#4)\n\t- Version constraint >=0.5.0 is used by:\n\t\t->=0.5.0 (lib/openzeppelin-contracts/contracts/interfaces/IERC1271.sol#4)\n\t\t->=0.5.0 (lib/openzeppelin-contracts/contracts/interfaces/IERC7913.sol#4)\n\t- Version constraint >=0.6.2 is used by:\n\t\t->=0.6.2 (lib/openzeppelin-contracts/contracts/interfaces/IERC1363.sol#4)\n\t\t->=0.6.2 (lib/openzeppelin-contracts/contracts/interfaces/IERC20Metadata.sol#4)\n\t\t->=0.6.2 (lib/openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol#4)\n\t- Version constraint >=0.4.16 is used by:\n\t\t->=0.4.16 (lib/openzeppelin-contracts/contracts/interfaces/IERC165.sol#4)\n\t\t->=0.4.16 (lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol#4)\n\t\t->=0.4.16 (lib/openzeppelin-contracts/contracts/interfaces/IERC5267.sol#4)\n\t\t->=0.4.16 (lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol#4)\n\t\t->=0.4.16 (lib/openzeppelin-contracts/contracts/utils/introspection/IERC165.sol#4)\n\t- Version constraint ^0.8.24 is used by:\n\t\t-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/Bytes.sol#4)\n\t\t-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/ReentrancyGuardTransient.sol#4)\n\t\t-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/Strings.sol#4)\n\t\t-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/TransientSlot.sol#5)\n\t\t-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/cryptography/EIP712.sol#4)\n\t\t-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/cryptography/MessageHashUtils.sol#4)\n\t\t-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol#4)\n\t- Version constraint 0.8.28 is used by:\n\t\t-0.8.28 (src/LummyEscrow.sol#2)\n\t\t-0.8.28 (src/LummyLedger.sol#2)\n\t\t-0.8.28 (src/MockUSDC.sol#2)\n\t\t-0.8.28 (src/interfaces/IERC3009.sol#2)\n"
+  },
+  {
+    "id": "d311974a3e0fdf38e22d78792e162b4e8f4c005b97c689064b6e654d4b1fd639",
+    "check": "pragma",
+    "impact": "Informational",
+    "confidence": "High",
+    "triage": "accepted: src pins 0.8.28, the ranges are OpenZeppelin's, all built with 0.8.28",
+    "description": "7 different versions of Solidity are used:\n\t- Version constraint ^0.8.20 is used by:\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/access/AccessControl.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/Context.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/Panic.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/ShortStrings.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/StorageSlot.sol#5)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/introspection/ERC165.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol#5)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/math/SignedMath.sol#4)\n\t- Version constraint >=0.8.4 is used by:\n\t\t->=0.8.4 (lib/openzeppelin-contracts/contracts/access/IAccessControl.sol#4)\n\t\t->=0.8.4 (lib/openzeppelin-contracts/contracts/interfaces/draft-IERC6093.sol#4)\n\t- Version constraint >=0.5.0 is used by:\n\t\t->=0.5.0 (lib/openzeppelin-contracts/contracts/interfaces/IERC1271.sol#4)\n\t\t->=0.5.0 (lib/openzeppelin-contracts/contracts/interfaces/IERC7913.sol#4)\n\t- Version constraint >=0.6.2 is used by:\n\t\t->=0.6.2 (lib/openzeppelin-contracts/contracts/interfaces/IERC1363.sol#4)\n\t\t->=0.6.2 (lib/openzeppelin-contracts/contracts/interfaces/IERC20Metadata.sol#4)\n\t\t->=0.6.2 (lib/openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol#4)\n\t- Version constraint >=0.4.16 is used by:\n\t\t->=0.4.16 (lib/openzeppelin-contracts/contracts/interfaces/IERC165.sol#4)\n\t\t->=0.4.16 (lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol#4)\n\t\t->=0.4.16 (lib/openzeppelin-contracts/contracts/interfaces/IERC5267.sol#4)\n\t\t->=0.4.16 (lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol#4)\n\t\t->=0.4.16 (lib/openzeppelin-contracts/contracts/utils/introspection/IERC165.sol#4)\n\t- Version constraint ^0.8.24 is used by:\n\t\t-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/Bytes.sol#4)\n\t\t-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/Strings.sol#4)\n\t\t-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/cryptography/EIP712.sol#4)\n\t\t-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/cryptography/MessageHashUtils.sol#4)\n\t\t-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol#4)\n\t\t-^0.8.24 (slither/ReentrancyGuardTransient.sol#2)\n\t- Version constraint 0.8.28 is used by:\n\t\t-0.8.28 (src/LummyEscrow.sol#2)\n\t\t-0.8.28 (src/LummyLedger.sol#2)\n\t\t-0.8.28 (src/MockUSDC.sol#2)\n\t\t-0.8.28 (src/interfaces/IERC3009.sol#2)\n"
+  },
+  {
+    "id": "f35199e049794fc1c2d842aaeedaaa029be609487c30c0ae5b3c8d23a4b39b13",
+    "check": "reentrancy-balance",
+    "impact": "High",
+    "confidence": "Medium",
+    "triage": "not exploitable: fund is nonReentrant, see SECURITY-ANALYSIS.md",
+    "description": "Reentrancy in LummyEscrow._pull(address,uint256,uint256,uint256,bytes32,bytes) (src/LummyEscrow.sol#343-355):\n\tExternal call allowing reentrancy:\n\t- IERC3009(address(TOKEN)).receiveWithAuthorization(from,address(this),value,validAfter,validBefore,authNonce,erc3009Sig) (src/LummyEscrow.sol#352-353)\n\tBalance read before the call:\n\t- before = TOKEN.balanceOf(address(this)) (src/LummyEscrow.sol#351)\n\tPossible stale balance used after the call in a condition:\n\t- TOKEN.balanceOf(address(this)) - before < value (src/LummyEscrow.sol#354)\n\t\t- stale variable `before`\n"
+  },
+  {
+    "id": "efd702008863afbb0dd6e3285d9a3d47500009d442eae1f0159ee343fef8f1c0",
+    "check": "timestamp",
+    "impact": "Low",
+    "confidence": "Medium",
+    "triage": "accepted by design: time-based escrow",
+    "description": "LummyEscrow._windowClosed(LummyEscrow.Listing) (src/LummyEscrow.sol#372-374) uses timestamp for comparisons\n\tDangerous comparisons:\n\t- L.status == Status.DisputeWindow && ! L.disputed && block.timestamp > _deadline(L) (src/LummyEscrow.sol#373)\n"
+  },
+  {
+    "id": "ba774be36ef81cde71ae9586f097db3128c0c34fc1f25059c38bb48a73b12442",
+    "check": "timestamp",
+    "impact": "Low",
+    "confidence": "Medium",
+    "triage": "accepted by design: time-based escrow",
+    "description": "LummyEscrow.fund(bytes32,address,uint256,uint256,uint256,bytes32,bytes,uint256,bytes) (src/LummyEscrow.sol#153-178) uses timestamp for comparisons\n\tDangerous comparisons:\n\t- block.timestamp > deadline (src/LummyEscrow.sol#167)\n"
+  },
+  {
+    "id": "c6788605427857cf1240847b31e5fa24ee780146fb23237a13d265ec4ac221be",
+    "check": "timestamp",
+    "impact": "Low",
+    "confidence": "Medium",
+    "triage": "accepted by design: time-based escrow",
+    "description": "LummyEscrow.release(bytes32) (src/LummyEscrow.sol#232-241) uses timestamp for comparisons\n\tDangerous comparisons:\n\t- block.timestamp <= _deadline(L) (src/LummyEscrow.sol#236)\n"
+  },
+  {
+    "id": "e4017d389453dc39b52fb2552a3dfd2dd3cac7ab7ac34cfb05cbe7e5504a1e0c",
+    "check": "timestamp",
+    "impact": "Low",
+    "confidence": "Medium",
+    "triage": "accepted by design: time-based escrow",
+    "description": "LummyLedger._windowClosed(LummyLedger.Order) (src/LummyLedger.sol#216-218) uses timestamp for comparisons\n\tDangerous comparisons:\n\t- ! O.disputed && block.timestamp > _deadline(O) (src/LummyLedger.sol#217)\n"
+  },
+  {
+    "id": "dda2a26eb0ce931ec457ac777a487f8a5dc8b0b554422f155934225483d14a4a",
+    "check": "timestamp",
+    "impact": "Low",
+    "confidence": "Medium",
+    "triage": "accepted by design: time-based escrow",
+    "description": "LummyLedger.release(bytes32) (src/LummyLedger.sol#164-172) uses timestamp for comparisons\n\tDangerous comparisons:\n\t- block.timestamp <= _deadline(O) (src/LummyLedger.sol#168)\n"
+  },
+  {
+    "id": "0a3ec8d5c7e3e67162d97be8d6bf62db40c0b934eedb91b54fdd946363c2bcf0",
+    "check": "timestamp",
+    "impact": "Low",
+    "confidence": "Medium",
+    "triage": "accepted by design: time-based escrow",
+    "description": "MockUSDC._receive(address,address,uint256,uint256,uint256,bytes32,bytes) (src/MockUSDC.sol#73-97) uses timestamp for comparisons\n\tDangerous comparisons:\n\t- block.timestamp <= validAfter (src/MockUSDC.sol#83)\n\t- block.timestamp >= validBefore (src/MockUSDC.sol#84)\n"
+  },
+  {
+    "id": "db542c5cd5ca0c727a27b171c01c27ca5d623377f30b7b8a82d4a0f71e7e9ee9",
+    "check": "uninitialized-state",
+    "impact": "High",
+    "confidence": "High",
+    "triage": "false positive: parse artefact, see SECURITY-ANALYSIS.md",
+    "description": "LummyEscrow.listings (src/LummyEscrow.sol#64) is never initialized. It is used in:\n\t- LummyEscrow.cancelListing(bytes32) (src/LummyEscrow.sol#135-143)\n\t- LummyEscrow.fund(bytes32,address,uint256,uint256,uint256,bytes32,bytes,uint256,bytes) (src/LummyEscrow.sol#153-178)\n\t- LummyEscrow.markHandover(bytes32,bytes32) (src/LummyEscrow.sol#187-196)\n\t- LummyEscrow.postponeEvent(bytes32,uint40) (src/LummyEscrow.sol#201-211)\n\t- LummyEscrow.raiseDispute(bytes32) (src/LummyEscrow.sol#215-224)\n\t- LummyEscrow.release(bytes32) (src/LummyEscrow.sol#232-241)\n\t- LummyEscrow.refund(bytes32) (src/LummyEscrow.sol#246-254)\n\t- LummyEscrow.resolveDispute(bytes32,uint256) (src/LummyEscrow.sol#258-270)\n\t- LummyEscrow._createListing(address,bytes32,uint256,bytes32,uint40) (src/LummyEscrow.sol#298-315)\n"
+  }
+]
