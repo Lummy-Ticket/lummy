@@ -217,6 +217,16 @@ export async function cancelOnchainListing(op: Operator, id: Hex) {
   });
 }
 
+/** Dana yang teralokasi untuk penjual dan pembeli listing ini dikirim ke pemiliknya. Dipanggil di dalam antrean operator. */
+async function sendPending(pc: ReturnType<typeof publicClient>, as: ReturnType<typeof escrowAs>, escrow: Address, id: Hex) {
+  const L = await getListing(pc, escrow, id);
+  const withdrawals: Hex[] = [];
+  for (const who of [L.seller, L.buyer]) {
+    if ((await pendingOf(pc, escrow, who)) > BigInt(0)) withdrawals.push((await as.withdrawFor(who)).hash);
+  }
+  return withdrawals;
+}
+
 /** Satu aksi penyelesaian, lalu dana yang teralokasi langsung dikirim ke pemiliknya (withdrawFor). */
 export async function settle(op: Operator, id: Hex, action: SettleAction, toBuyer = BigInt(0)) {
   return serial(op.operator.address, async () => {
@@ -227,14 +237,19 @@ export async function settle(op: Operator, id: Hex, action: SettleAction, toBuye
       : action === "resolve" ? await as.resolveDispute(id, toBuyer)
       : action === "release" ? await as.release(id)
       : await as.refund(id);
-    const withdrawals: Hex[] = [];
-    if (action !== "dispute") {
-      const L = await getListing(pc, op.escrow, id);
-      for (const who of [L.seller, L.buyer]) {
-        if ((await pendingOf(pc, op.escrow, who)) > BigInt(0)) withdrawals.push((await as.withdrawFor(who)).hash);
-      }
-    }
+    const withdrawals = action === "dispute" ? [] : await sendPending(pc, as, op.escrow, id);
     return { tx: r.hash, withdrawals };
+  });
+}
+
+/**
+ * Dana yang masih tertahan untuk penjual dan pembeli listing ini dikirim ke pemiliknya, untuk
+ * penyelesaian yang sudah dijalankan kontrak tapi pengirimannya gagal atau balasannya hilang.
+ */
+export async function payOut(op: Operator, id: Hex) {
+  return serial(op.operator.address, async () => {
+    const pc = publicClient(op.chain, op.rpcUrl);
+    return sendPending(pc, escrowAs(pc, op.operator, op.chain, op.rpcUrl, op.escrow), op.escrow, id);
   });
 }
 

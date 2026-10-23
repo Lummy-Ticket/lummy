@@ -10,10 +10,18 @@
  * The real ones lock the money in LummyEscrow and write exactly one order, which sending them again
  * returns; the chain shows the listing funded by the wallet, and the QRIS ledger leaves the order
  * alone. Cancelling a hold gives its seat back. A submit cut off after the money was locked, with no
- * order written, is found by the next checkout, which refunds the wallet on chain. Then the last seat is bought through the pages
+ * order written, is found by the next checkout, which refunds the wallet on chain. Two more seats
+ * are paid and claimed, the way the ticket page and the staff queue send it: the buyer uploads a
+ * photo of the ticket and files, the contract freezes the payout, staff rule, and the contract
+ * splits the money, which comes back to the wallet; one ruling refunds in full, the other half.
+ * The public proof page and the ticket page show each ruling. A third claim plays replies lost after
+ * the contract acted: the operator's flag and ruling are sent from here (the operator key in
+ * ~/.lummy/testnet.env), and the server, asked again, takes what the chain says and sends the money
+ * still waiting in the escrow back to the wallet. Then the last seat is bought through the pages
  * themselves, with a wallet injected into the browser that hands every signature request to the
  * same key here: prices in USDC, the wallet panel at checkout, the ticket page after. At the end
- * staff cancel the show, and the escrow pays the wallet back in full.
+ * staff cancel the show, and the escrow pays the wallet back everything but the half the partial
+ * ruling gave the seller (the testnet seller's wallet).
  *
  * The accounts are signed in with an admin link, so no email is sent; everything the run made is
  * deleted at the end. It writes to the database the server uses and spends the operator's testnet
@@ -27,13 +35,14 @@ import os from "node:os";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { chromium, type Browser, type BrowserContext } from "playwright-core";
-import { createPublicClient, getAddress, http, keccak256, toHex, type Address, type Hex } from "viem";
+import { createPublicClient, createWalletClient, getAddress, http, keccak256, toHex, type Address, type Hex } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { arbitrumSepolia } from "viem/chains";
-import { tokenAbi } from "../src/lib/chain/abi";
+import { escrowAbi, tokenAbi } from "../src/lib/chain/abi";
 import { reviveTyped } from "../src/lib/chain/typed";
 import type { TypedMessage, UsdcStart } from "../src/lib/payments/types";
 import type { Database } from "../src/lib/supabase/types";
+import { initWriter, photo } from "./ticket-fixtures";
 
 try {
   process.loadEnvFile(".env.local");
@@ -51,9 +60,15 @@ const TIER_BIG = "t-zz-usdc-big";
 const L1 = "ls-zz-usdc-1"; // two seats, sold one by one
 const L_BIG = "ls-zz-usdc-big"; // more than the wallet holds
 const L_CUT = "ls-zz-usdc-cut"; // paid, then cut off before its order
-const LISTINGS = [L1, L_BIG, L_CUT];
+const L_CLAIM = "ls-zz-usdc-claim"; // paid, claimed, refunded in full by a ruling
+const L_PART = "ls-zz-usdc-part"; // paid, claimed, half refunded by a ruling
+const L_LOST = "ls-zz-usdc-lost"; // claimed and ruled, each time the contract acting before the reply was lost
+const LISTINGS = [L1, L_BIG, L_CUT, L_CLAIM, L_PART, L_LOST];
 const PRICE = 100_000; // 0.10 USDC, in micro-USDC like every USDC price in the app
 const BIG = 1_000_000_000; // 1,000 USDC
+const CLAIM_PRICE = 50_000; // 0.05 USDC, all of it back
+const PART_PRICE = 20_000; // 0.02 USDC: half back, half to the testnet seller
+const LOST_PRICE = 10_000; // 0.01 USDC, all of it back
 
 const results: { name: string; ok: boolean; note?: string }[] = [];
 const check = (name: string, ok: boolean, note?: string) => results.push({ name, ok, note: ok ? undefined : note });
@@ -62,16 +77,24 @@ const same = (a: unknown, b: unknown) => typeof a === "string" && typeof b === "
 
 type Admin = ReturnType<typeof createClient<Database>>;
 type Reply = { status: number; body: Record<string, unknown> };
-type EscrowHistory = { source?: string; live?: { status: string; buyer: string } };
+type EscrowHistory = {
+  source?: string;
+  live?: { status: string; buyer: string; disputed?: boolean };
+  events?: { kind: string; toBuyer?: string; toSeller?: string }[];
+};
 
-/** The wallet's key: never printed, never sent anywhere. */
-function walletKey(): Hex {
-  if (process.env.USDC_CHECK_KEY) return process.env.USDC_CHECK_KEY.trim() as Hex;
+/** A key from the env, or from ~/.lummy/testnet.env: never printed, never sent anywhere. */
+function testnetKey(env: string, name: string): Hex {
+  if (process.env[env]) return process.env[env].trim() as Hex;
   const file = path.join(os.homedir(), ".lummy", "testnet.env");
-  const line = fs.existsSync(file) ? fs.readFileSync(file, "utf8").split("\n").find((l) => l.startsWith("BUYER_PRIVATE_KEY=")) : undefined;
-  if (!line) throw new Error("needs USDC_CHECK_KEY, or BUYER_PRIVATE_KEY in ~/.lummy/testnet.env");
+  const line = fs.existsSync(file) ? fs.readFileSync(file, "utf8").split("\n").find((l) => l.startsWith(`${name}=`)) : undefined;
+  if (!line) throw new Error(`needs ${env}, or ${name} in ~/.lummy/testnet.env`);
   return line.slice(line.indexOf("=") + 1).trim() as Hex;
 }
+/** The wallet's key. */
+const walletKey = () => testnetKey("USDC_CHECK_KEY", "BUYER_PRIVATE_KEY");
+/** The operator's key, the server's own, to play a transaction whose reply never came back. */
+const operatorKey = () => testnetKey("USDC_CHECK_OPERATOR_KEY", "OPERATOR_PRIVATE_KEY");
 
 /** Signs an account in the way its email link would, with a link the admin key makes (none is sent). */
 async function signIn(admin: Admin, browser: Browser, email: string): Promise<BrowserContext> {
@@ -118,6 +141,8 @@ async function main() {
   };
 
   const userIds: string[] = [];
+  const photos: string[] = []; // claim photos in the evidence bucket
+  let kept = BigInt(0); // what rulings gave the seller, which does not come back to the wallet
   let staffCtx: BrowserContext | null = null;
   let showCancelled = false;
   const browser = await chromium.launch({ executablePath: EXEC, args: ["--no-sandbox"] });
@@ -157,6 +182,9 @@ async function main() {
         { id: L1, event_id: EVENT, tier_id: TIER, seller_id: seller, seller_name: "USDC S.", ask_price: PRICE, face_value: PRICE, quantity: 2, splittable: true, status: "active" },
         { id: L_CUT, event_id: EVENT, tier_id: TIER, seller_id: seller, seller_name: "USDC S.", ask_price: PRICE, face_value: PRICE, quantity: 1, splittable: false, status: "active" },
         { id: L_BIG, event_id: EVENT, tier_id: TIER_BIG, seller_id: seller, seller_name: "USDC S.", ask_price: BIG, face_value: BIG, quantity: 1, splittable: false, status: "active" },
+        { id: L_CLAIM, event_id: EVENT, tier_id: TIER, seller_id: seller, seller_name: "USDC S.", ask_price: CLAIM_PRICE, face_value: CLAIM_PRICE, quantity: 1, splittable: false, status: "active" },
+        { id: L_PART, event_id: EVENT, tier_id: TIER, seller_id: seller, seller_name: "USDC S.", ask_price: PART_PRICE, face_value: PART_PRICE, quantity: 1, splittable: false, status: "active" },
+        { id: L_LOST, event_id: EVENT, tier_id: TIER, seller_id: seller, seller_name: "USDC S.", ask_price: LOST_PRICE, face_value: LOST_PRICE, quantity: 1, splittable: false, status: "active" },
       ]),
     ];
     const setupError = setup.find((r) => r.error)?.error;
@@ -299,6 +327,143 @@ async function main() {
       check("and its seat is back on sale", (await listing(L_CUT))?.status === "active", JSON.stringify(await listing(L_CUT)));
     }
 
+    // --- A claim and a ruling, sent the way the ticket page and the staff queue send them. The photo
+    // goes as uploadEvidence sends it: a one-off token from the server, the file straight into the
+    // private bucket, then the server reads it itself. Filing raises the flag in the contract; the
+    // ruling has the contract split the money, and the operator sends each share on.
+    await initWriter();
+    const publishable = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    if (!publishable) throw new Error("needs NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (web/.env.local)");
+    const bucket = createClient<Database>(url, publishable, { auth: { persistSession: false } }).storage.from("evidence");
+    // A reply lost after the contract acted (a dropped connection, a function cut off): the operator's
+    // transaction is sent from here, so the server only finds out when it asks the chain again.
+    const operator = createWalletClient({ account: privateKeyToAccount(operatorKey()), chain: arbitrumSepolia, transport: http(RPC) });
+    const mined = async (hash: Hex) => {
+      const r = await pc.waitForTransactionReceipt({ hash });
+      if (r.status !== "success") throw new Error(`tx ${hash} reverted`);
+      return hash;
+    };
+    const ruling = async (listingId: string, price: number, remedy: "REFUND_FULL" | "REFUND_PARTIAL", lost = false) => {
+      const full = remedy === "REFUND_FULL";
+      const what = lost ? "replies lost after the contract acted" : full ? "full refund" : "partial refund";
+      const toBuyer = full ? price : price / 2;
+      const hold = await api(buyerCtx, "POST", "/api/payments", { listingId, quantity: 1, wallet });
+      const h = hold.body as unknown as UsdcStart;
+      const bought = h.payment?.id ? await api(buyerCtx, "POST", `/api/payments/${h.payment.id}/usdc`, await signBoth(walletPk, h)) : null;
+      const id = bought?.body.orderId as string | undefined;
+      check(`${what}: another seat is paid, to be claimed`, !!id, JSON.stringify(bought ?? hold).slice(0, 300));
+      if (!id) return;
+      const onchainId = keccak256(toHex(`lummy:listing:${h.payment.id}`));
+
+      const bytes = await photo(`LMY|${EVENT}|GA|${id}`, "jpeg");
+      const intent = await api(buyerCtx, "POST", `/api/orders/${id}`, { action: "evidence-upload", type: "image/jpeg", size: bytes.length });
+      const path = typeof intent.body.path === "string" ? intent.body.path : "";
+      if (path) photos.push(path);
+      const put = path ? await bucket.uploadToSignedUrl(path, String(intent.body.token), new Blob([bytes], { type: "image/jpeg" }), { contentType: "image/jpeg" }) : null;
+      const read = await api(buyerCtx, "POST", `/api/orders/${id}`, { action: "evidence-read", evidencePath: path, kind: "TICKET_PHOTO" });
+      if (lost) await mined(await operator.writeContract({ address: s.escrow as Address, abi: escrowAbi, functionName: "raiseDispute", args: [onchainId] }));
+      const filed = await api(buyerCtx, "POST", `/api/orders/${id}`, {
+        action: "dispute", reason: "NOT_AS_LISTED", note: "The ticket is a lower tier than the listing.", evidencePath: path, kind: "TICKET_PHOTO",
+      });
+      const claimed = (await admin.from("orders").select("disputed, disputes(reason, evidence)").eq("id", id).single()).data;
+      const claim = Array.isArray(claimed?.disputes) ? claimed.disputes[0] : claimed?.disputes;
+      let frozen = await escrowOf(onchainId);
+      for (let i = 0; i < 5 && filed.status === 200 && !frozen.live?.disputed; i++) {
+        await sleep(1500);
+        frozen = await escrowOf(onchainId);
+      }
+      check(
+        lost
+          ? `${what}: the flag already up in the contract is taken as the claim, not refused`
+          : `${what}: the buyer's photo is read by the server, the claim is filed and the contract freezes the payout`,
+        intent.status === 200 && !!path && !put?.error && read.status === 200 && filed.status === 200 &&
+          claimed?.disputed === true && claim?.reason === "NOT_AS_LISTED" && (claim.evidence as { upload?: { path?: string } } | null)?.upload?.path === path &&
+          frozen.live?.status === "DisputeWindow" && frozen.live.disputed === true,
+        JSON.stringify({ intent: intent.status, put: put?.error?.message, read, filed, claimed, chain: frozen.live }).slice(0, 600)
+      );
+      if (filed.status !== 200) return;
+
+      const beforeRuling = await balanceNow();
+      // The contract rules and nothing is sent on: the money waits in the escrow.
+      const ruledTx = lost
+        ? await mined(await operator.writeContract({ address: s.escrow as Address, abi: escrowAbi, functionName: "resolveDispute", args: [onchainId, BigInt(toBuyer)] }))
+        : null;
+      const verdict = await api(staffCtx!, "POST", `/api/orders/${id}`, { action: "verdict", remedy });
+      const sent = Array.isArray(verdict.body.withdrawals) ? (verdict.body.withdrawals as string[]) : [];
+      check(
+        lost
+          ? `${what}: staff rule the same, the ruling already on chain is recorded and the money waiting there sent on`
+          : `${what}: staff rule it and the contract carries it out, paying ${full ? "the wallet" : "the wallet and the seller"}`,
+        verdict.status === 200 && typeof verdict.body.tx === "string" && (!ruledTx || verdict.body.tx === ruledTx) && sent.length === (full ? 1 : 2),
+        JSON.stringify(verdict)
+      );
+      if (verdict.status !== 200) return;
+      kept += BigInt(price - toBuyer);
+
+      const row = (await admin.from("orders").select("escrow_status, disputed, tx_settle, tx_withdrawals, disputes(*)").eq("id", id).single()).data;
+      const d = Array.isArray(row?.disputes) ? row.disputes[0] : row?.disputes;
+      check(
+        `${what}: the order shows the refund and its claim the ruling`,
+        row?.escrow_status === "Refunded" && row.tx_settle === verdict.body.tx && JSON.stringify(row.tx_withdrawals) === JSON.stringify(sent) &&
+          d?.verdict_remedy === remedy && d.verdict_to_seller === false && Number(d.refund_amount) === toBuyer && d.decided_by === staff && !!d.decided_at,
+        JSON.stringify(row).slice(0, 600)
+      );
+
+      // A running escrow's history is cached for a few seconds, and the chain's logs can trail its state.
+      let settledClaim = await escrowOf(onchainId);
+      for (let i = 0; i < 10 && !(settledClaim.live?.status === "Refunded" && settledClaim.events?.some((e) => e.kind === "Resolved")); i++) {
+        await sleep(1500);
+        settledClaim = await escrowOf(onchainId);
+      }
+      const resolved = settledClaim.events?.find((e) => e.kind === "Resolved");
+      check(
+        `${what}: on chain the claim was raised and resolved, ${toBuyer} to the buyer and ${price - toBuyer} to the seller`,
+        settledClaim.live?.status === "Refunded" && settledClaim.live.disputed === true && !!settledClaim.events?.some((e) => e.kind === "DisputeRaised") &&
+          resolved?.toBuyer === String(toBuyer) && resolved.toSeller === String(price - toBuyer),
+        JSON.stringify(settledClaim).slice(0, 600)
+      );
+
+      let afterRuling = await balanceNow();
+      for (let i = 0; i < 10 && afterRuling - beforeRuling !== BigInt(toBuyer); i++) {
+        await sleep(1500);
+        afterRuling = await balanceNow();
+      }
+      const waiting = await pc.readContract({ address: s.escrow as Address, abi: escrowAbi, functionName: "pending", args: [wallet] });
+      check(
+        `${what}: the wallet has its ${full ? "money" : "half"} back, nothing left waiting in the escrow`,
+        afterRuling - beforeRuling === BigInt(toBuyer) && waiting === BigInt(0),
+        JSON.stringify({ delta: String(afterRuling - beforeRuling), waiting: String(waiting) })
+      );
+      if (lost) return;
+
+      // The public proof needs no account; the ticket page is the buyer's.
+      const visitor = await browser.newContext();
+      const proof = await visitor.newPage();
+      await proof.goto(`${BASE}/proof/${onchainId}`, { waitUntil: "networkidle" });
+      const headline = full ? /Done: refunded to the buyer|Selesai: dana kembali ke pembeli/ : /Done: split by the claim decision|Selesai: dana dibagi sesuai putusan klaim/;
+      const shown = await proof.getByRole("heading", { level: 1, name: headline }).waitFor({ timeout: 45_000 }).then(() => true, () => false);
+      const proofText = await proof.locator("main").innerText();
+      check(
+        `${what}: the public proof page shows the claim and the ruling`,
+        shown && /Claim decided|Klaim diputus/.test(proofText) && /claim, the payout is frozen|klaim, pencairan dibekukan/.test(proofText),
+        proofText.slice(0, 500)
+      );
+      await visitor.close();
+      const ticket = await buyerCtx.newPage();
+      await ticket.goto(`${BASE}/tickets/${id}`, { waitUntil: "networkidle" });
+      const said = full ? /(Verdict|Putusan): (full refund|refund penuh)/ : /(Verdict|Putusan): (partial refund|refund sebagian)/;
+      let ticketText = "";
+      for (let i = 0; i < 20 && !said.test(ticketText); i++) {
+        if (i) await sleep(1000);
+        ticketText = await ticket.locator("main").innerText().catch(() => "");
+      }
+      check(`${what}: the buyer's ticket page shows the ruling`, said.test(ticketText), ticketText.slice(0, 500));
+      await ticket.close();
+    };
+    await ruling(L_CLAIM, CLAIM_PRICE, "REFUND_FULL");
+    await ruling(L_PART, PART_PRICE, "REFUND_PARTIAL");
+    await ruling(L_LOST, LOST_PRICE, "REFUND_FULL", true);
+
     // --- The last seat through the pages, with a wallet in the browser. The page asks it the way it
     // asks MetaMask; every request comes back here, where the key is.
     const page = await buyerCtx.newPage();
@@ -366,16 +531,17 @@ async function main() {
     const settled = await escrowOf(expectedListing!);
     check("the escrow says refunded", settled.live?.status === "Refunded", JSON.stringify(settled).slice(0, 300));
     let back = await pc.readContract({ address: s.token as Address, abi: tokenAbi, functionName: "balanceOf", args: [wallet] });
-    for (let i = 0; i < 10 && back !== before; i++) {
+    for (let i = 0; i < 10 && back !== before - kept; i++) {
       await sleep(1500);
       back = await pc.readContract({ address: s.token as Address, abi: tokenAbi, functionName: "balanceOf", args: [wallet] });
     }
-    check("and the wallet has every cent back", back === before, `${before} -> ${back}`);
+    check("and the wallet has every cent back, but the share a ruling gave the seller", back === before - kept, `${before} -> ${back}, ${kept} to the seller`);
     await sleep(1500);
     check("the ledger still leaves it alone", (await admin.from("orders").select("ledger_status").eq("id", orderId).single()).data?.ledger_status === "Skipped");
   } finally {
     // A run that stopped half way still gives the wallet its money back before the rows go.
     if (!showCancelled && staffCtx) await api(staffCtx, "POST", `/api/events/${EVENT}`, { action: "cancel" }).catch(() => null);
+    if (photos.length) await admin.storage.from("evidence").remove(photos);
     await admin.from("orders").delete().in("listing_id", LISTINGS);
     await admin.from("payments").delete().in("listing_id", LISTINGS);
     await admin.from("listings").delete().in("id", LISTINGS);

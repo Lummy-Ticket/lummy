@@ -5,7 +5,8 @@
 // clock. On a chain order the contract acts first and the database mirrors what it did.
 import type { Hex } from "viem";
 import { NextResponse } from "next/server";
-import { chainError, operatorSetup, settle } from "@/lib/chain/server";
+import { readHistory } from "@/lib/chain/history";
+import { chainError, operatorSetup, payOut, readListing, settle, type Operator } from "@/lib/chain/server";
 import {
   availableReasons, canFileDispute, canRefundPostponed, checkEvidence, mockEvidenceOptions, mockSellerEvidence, partialAmount,
   penaltyFor, remedyOptions, suggestedRationale,
@@ -46,6 +47,17 @@ type Body = {
   size?: unknown;
   remedy?: unknown;
 };
+
+/**
+ * The contract's own ruling on this escrow, when it gave the buyer `toBuyer`: what a ruling whose
+ * reply was lost left behind. Any share still waiting in the escrow is sent on.
+ */
+async function ruledOnChain(op: Operator, listingId: Hex, toBuyer: bigint) {
+  const history = await readHistory(op, listingId);
+  const ruled = [...history.events].reverse().find((e) => e.kind === "Resolved");
+  if (!ruled || ruled.toBuyer !== toBuyer.toString()) return null;
+  return { tx: ruled.tx, withdrawals: await payOut(op, listingId) };
+}
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -156,11 +168,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       let failure = flagged.error?.message ?? null;
       if (!failure && order.chain) {
         const op = operatorSetup();
+        const listingId = order.chain.listingId as Hex;
         try {
           if (!op) throw new Error("mode chain mati: kunci operator belum diset");
-          await settle(op, order.chain.listingId as Hex, "dispute");
+          await settle(op, listingId, "dispute");
         } catch (e) {
-          failure = chainError(e);
+          // A reply lost after the flag went up still reads as an error, and raising it again is
+          // refused: the chain decides, and a flag already up on a held escrow is this claim.
+          const live = op ? await readListing(op, listingId).catch(() => null) : null;
+          if (live?.disputed && (live.status === "Funded" || live.status === "DisputeWindow")) {
+            console.error("[orders] claim raised on chain, its reply was lost:", id, chainError(e));
+          } else failure = chainError(e);
         }
       }
       if (failure) {
@@ -217,11 +235,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       if (order.chain) {
         const op = operatorSetup();
         if (!op) return fail(503, "mode chain mati: kunci operator belum diset");
+        const listingId = order.chain.listingId as Hex;
+        const toBuyer = (BigInt(order.chain.price) * BigInt(refund)) / BigInt(order.amount);
         try {
-          const toBuyer = (BigInt(order.chain.price) * BigInt(refund)) / BigInt(order.amount);
-          tx = await settle(op, order.chain.listingId as Hex, "resolve", toBuyer);
+          tx = await settle(op, listingId, "resolve", toBuyer);
         } catch (e) {
-          return fail(502, chainError(e));
+          // A reply lost after the contract ruled, or a payout that failed right after it, still
+          // reads as an error, and ruling again is refused: the chain decides. A ruling it already
+          // carried out with this split is recorded, and its shares are sent on.
+          tx = await ruledOnChain(op, listingId, toBuyer).catch(() => null);
+          if (!tx) return fail(502, chainError(e));
+          console.error("[orders] ruled on chain, its reply was lost:", id, chainError(e));
         }
       }
       const ruled = await admin
