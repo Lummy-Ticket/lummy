@@ -25,10 +25,12 @@ export type ListingForSale = Pick<
 >;
 
 type EventRow = Database["public"]["Views"]["catalogue_events"]["Row"];
+export type Currency = "IDR" | "USDC";
 
 export type Purchase = {
   listing: ListingForSale;
-  event: { title: string; starts_at: string } & Pick<EventRow, "status" | "image_url" | "transfer_policy">;
+  /** `currency` decides the rail: IDR is QRIS (or simulated), USDC is the buyer's own wallet. */
+  event: { title: string; starts_at: string; country: string; currency: Currency } & Pick<EventRow, "status" | "image_url" | "transfer_policy">;
   tierName: string;
   /** When the show is scheduled to end: the start of the claim window. */
   scheduledEnd: number;
@@ -43,7 +45,7 @@ export async function loadPurchase(admin: Admin, listingId: string): Promise<{ o
   if (error) return fail(500, error.message);
   if (!listing) return { ok: true, listing: null, purchase: null };
   const [ev, tier] = await Promise.all([
-    admin.from("catalogue_events").select("title, starts_at, status, image_url, transfer_policy").eq("id", listing.event_id).maybeSingle(),
+    admin.from("catalogue_events").select("title, starts_at, status, image_url, transfer_policy, country, currency").eq("id", listing.event_id).maybeSingle(),
     admin.from("tiers").select("name").eq("id", listing.tier_id).maybeSingle(),
   ]);
   if (ev.error || tier.error) return fail(500, (ev.error ?? tier.error)!.message);
@@ -54,7 +56,15 @@ export async function loadPurchase(admin: Admin, listingId: string): Promise<{ o
     listing,
     purchase: {
       listing,
-      event: { title: event.title, starts_at: event.starts_at, status: event.status, image_url: event.image_url, transfer_policy: event.transfer_policy },
+      event: {
+        title: event.title,
+        starts_at: event.starts_at,
+        status: event.status,
+        image_url: event.image_url,
+        transfer_policy: event.transfer_policy,
+        country: event.country ?? "ID",
+        currency: event.currency === "USDC" ? "USDC" : "IDR",
+      },
       tierName: tier.data.name,
       scheduledEnd: new Date(event.starts_at).getTime() + EVENT_DURATION_H * H,
     },
@@ -75,9 +85,14 @@ export async function checkPurchase(admin: Admin, buyerId: string, listingId: st
   return { ok: true, purchase };
 }
 
-/** Money for `quantity` seats: the subtotal the escrow holds, the fee and the stamp duty. */
-export function priceOf(askPrice: number, quantity: number) {
+/**
+ * Money for `quantity` seats: the subtotal the escrow holds, the fee and the stamp duty. A show paid
+ * in USDC (in micro-USDC) has neither while it runs on testnet: the contract takes no fee, and a fee
+ * would need a second authorisation to Lummy (tasks/founder-house-usdc.md, finding 4).
+ */
+export function priceOf(askPrice: number, quantity: number, currency: Currency = "IDR") {
   const amount = askPrice * quantity;
+  if (currency === "USDC") return { amount, fee: 0, materai: 0, total: amount };
   const fee = platformFee(amount);
   return { amount, fee, materai: MATERAI, total: amount + fee + MATERAI };
 }
@@ -102,9 +117,16 @@ export function orderInsert(
   buyerId: string,
   p: Purchase,
   quantity: number,
-  opts: { endsAt: number; chain?: ChainFields | null; paymentId?: string; price?: { amount: number; fee: number; materai: number } }
+  opts: {
+    endsAt: number;
+    chain?: ChainFields | null;
+    paymentId?: string;
+    price?: { amount: number; fee: number; materai: number };
+    /** Paid from the buyer's own wallet: the rail and the wallet that signed. */
+    usdcWallet?: string;
+  }
 ): OrderInsert {
-  const { amount, fee, materai } = opts.price ?? priceOf(p.listing.ask_price, quantity);
+  const { amount, fee, materai } = opts.price ?? priceOf(p.listing.ask_price, quantity, p.event.currency);
   const chain = opts.chain ?? null;
   return {
     listing_id: p.listing.id,
@@ -129,6 +151,8 @@ export function orderInsert(
     event_ends_at: iso(chain ? Math.floor(opts.endsAt / 1000) * 1000 : opts.endsAt),
     dispute_deadline: chain ? chain.dispute_deadline : iso(opts.endsAt + DISPUTE_WINDOW_H * H),
     payment_id: opts.paymentId ?? null,
+    // Paid from a wallet: LummyEscrow is the order's public record, so the QRIS ledger skips it.
+    ...(opts.usdcWallet ? { rail: "usdc", buyer_wallet: opts.usdcWallet, ledger_status: "Skipped" } : {}),
     ...chain,
   };
 }

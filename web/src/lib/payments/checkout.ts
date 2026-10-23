@@ -298,6 +298,7 @@ export async function startCheckout(
   // A start that cannot go ahead leaves the buyer's other hold alone.
   const check = await checkPurchase(admin, buyerId, listingId);
   if (!check.ok) return check;
+  if (check.purchase.event.currency !== "IDR") return fail(400, "acara ini dibayar dengan USDC dari wallet, bukan QRIS");
   const price = priceOf(check.purchase.listing.ask_price, quantity);
   if (price.total > QRIS_MAX) {
     return fail(400, `QRIS paling banyak ${rupiah(QRIS_MAX)} per pembayaran, sedangkan totalnya ${rupiah(price.total)}. Kurangi jumlah tiketnya.`);

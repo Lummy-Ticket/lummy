@@ -39,6 +39,7 @@
     "retention:check": "tsx scripts/retention-check.ts",
     "postpone:check": "tsx scripts/postpone-check.ts",
     "payments:check": "tsx scripts/payments-check.ts",
+    "usdc:check": "tsx scripts/usdc-check.ts",
     "gate:check": "tsx scripts/gate-check.ts",
     "motion:check": "node scripts/motion-check.mjs",
     "perf:probe": "node scripts/perf-probe.mjs"

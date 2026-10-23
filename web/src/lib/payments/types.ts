@@ -13,8 +13,32 @@ export type PaymentView = {
   orderId: string | null;
 };
 
-/** Whether QRIS is switched on here, in test mode or live, and its ceiling per payment. */
-export type PaymentsConfig = { enabled: boolean; testMode: boolean; max: number };
+/**
+ * Whether QRIS is switched on here, in test mode or live, and its ceiling per payment; and whether a
+ * show priced in USDC can be paid from the buyer's own wallet (tasks/founder-house-usdc.md).
+ */
+export type PaymentsConfig = { enabled: boolean; testMode: boolean; max: number; usdc: boolean };
+
+/** One EIP-712 message as eth_signTypedData_v4 takes it: domain, field types, the message itself. */
+export type TypedMessage = {
+  domain: { name: string; version: string; chainId: number; verifyingContract: string };
+  types: Record<string, { name: string; type: string }[]>;
+  primaryType: string;
+  message: Record<string, string>;
+};
+
+/** A USDC hold, as POST /api/payments hands it back: what the wallet signs, bigints as strings. */
+export type UsdcStart = {
+  payment: PaymentView;
+  wallet: string;
+  /** Micro-USDC, as a decimal string. */
+  value: string;
+  chainId: number;
+  token: string;
+  escrow: string;
+  auth: TypedMessage;
+  fund: TypedMessage;
+};
 
 // --- Staff view of money that needs a person (GET /api/admin/payments).
 

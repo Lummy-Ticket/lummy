@@ -1,8 +1,10 @@
-// One QRIS hold, for its buyer (docs/09 §6). GET reads it, bringing it up to date with Xendit and
-// writing the order once the money is in; the checkout page asks every few seconds. POST cancels
-// it, or in test mode pays it through Xendit's simulator.
+// One payment hold, for its buyer (docs/09 §6). GET reads it; a QRIS hold is brought up to date with
+// Xendit and its order written once the money is in, and the checkout page asks every few seconds.
+// POST cancels it, or in test mode pays a QRIS through Xendit's simulator. A USDC hold
+// (tasks/founder-house-usdc.md) is paid by its wallet's signatures (POST .../usdc), never by Xendit.
 import { NextResponse } from "next/server";
 import { cancelHold, orderIdOf, PAYMENT_ID, paymentView, syncPayment, type PaymentRow } from "@/lib/payments/checkout";
+import { cancelUsdcHold } from "@/lib/payments/usdc";
 import { simulateQris, xenditConfig, XenditError } from "@/lib/payments/xendit";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { currentUser } from "@/lib/supabase/session";
@@ -17,8 +19,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function load(id: string) {
   const admin = supabaseAdmin();
-  const cfg = xenditConfig();
-  if (!admin || !cfg) return { error: fail(503, "pembayaran QRIS belum aktif di server ini") } as const;
+  if (!admin) return { error: fail(503, "database belum tersambung di server ini") } as const;
   const user = await currentUser();
   if (!user) return { error: fail(401, "masuk dulu") } as const;
   if (!PAYMENT_ID.test(id)) return { error: fail(404, "pembayaran tidak ditemukan") } as const;
@@ -26,6 +27,8 @@ async function load(id: string) {
   if (error) return { error: fail(500, error.message) } as const;
   // Someone else's hold reads as missing, not as forbidden.
   if (!row || (row.buyer_id !== user.id && !user.staff)) return { error: fail(404, "pembayaran tidak ditemukan") } as const;
+  const cfg = xenditConfig();
+  if (row.provider !== "escrow" && !cfg) return { error: fail(503, "pembayaran QRIS belum aktif di server ini") } as const;
   return { admin, cfg, user, row } as const;
 }
 
@@ -39,7 +42,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const r = await load(id);
   if ("error" in r) return r.error;
   try {
-    return await answer(r.admin, await syncPayment(r.admin, r.cfg, r.row));
+    if (r.row.provider === "escrow") return await answer(r.admin, r.row);
+    return await answer(r.admin, await syncPayment(r.admin, r.cfg!, r.row));
   } catch (e) {
     console.error("[payments] read:", id, (e as Error).message);
     return fail(500, "status pembayaran gagal dibaca");
@@ -56,17 +60,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const body = (await req.json().catch(() => null)) as { action?: unknown } | null;
 
   try {
-    if (body?.action === "cancel") return await answer(admin, await cancelHold(admin, cfg, row));
+    if (row.provider === "escrow") {
+      if (body?.action === "cancel") return await answer(admin, await cancelUsdcHold(admin, row));
+      return fail(400, "aksi tidak dikenal");
+    }
+    if (body?.action === "cancel") return await answer(admin, await cancelHold(admin, cfg!, row));
 
     if (body?.action === "simulate") {
-      if (!cfg.testMode) return fail(400, "simulasi cuma ada di mode test");
+      if (!cfg!.testMode) return fail(400, "simulasi cuma ada di mode test");
       if (row.status !== "pending" || !row.provider_ref) return answer(admin, row);
-      await simulateQris(cfg, row.provider_ref, Number(row.total));
+      await simulateQris(cfg!, row.provider_ref, Number(row.total));
       // Xendit settles a simulated payment within a second or two; wait for it here so the page
       // can go straight to the order.
       let fresh = row;
       for (let i = 0; i < 6; i++) {
-        fresh = await syncPayment(admin, cfg, fresh, true);
+        fresh = await syncPayment(admin, cfg!, fresh, true);
         if (fresh.status !== "pending") break;
         await sleep(1000);
       }

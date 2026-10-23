@@ -1,0 +1,303 @@
+/**
+ * Paying for a show abroad in USDC from the buyer's own wallet, end to end on Arbitrum Sepolia
+ * (tasks/founder-house-usdc.md), with three accounts and a show priced in USDC, made for the run.
+ * The wallet is a key this script holds (USDC_CHECK_KEY, or BUYER_PRIVATE_KEY from
+ * ~/.lummy/testnet.env): it signs exactly what a browser wallet signs, and the server never sees it.
+ *
+ * Such a show cannot be paid by QRIS or by the straight order path. Pay with a wallet holds the
+ * seats and hands back two messages; a total above the wallet's balance is refused before anything
+ * is held. Signatures from another key are refused, and so is another account sending the real ones.
+ * The real ones lock the money in LummyEscrow and write exactly one order, which sending them again
+ * returns; the chain shows the listing funded by the wallet, and the QRIS ledger leaves the order
+ * alone. Cancelling a hold gives its seat back. At the end staff cancel the show, and the escrow
+ * pays the wallet back in full.
+ *
+ * The accounts are signed in with an admin link, so no email is sent; everything the run made is
+ * deleted at the end. It writes to the database the server uses and spends the operator's testnet
+ * gas, so run it only where that is fine, against a server started with the testnet keys
+ * (/tmp/lummy-start.sh chain).
+ *
+ *   BASE=http://127.0.0.1:3000 npm run usdc:check
+ */
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { createClient } from "@supabase/supabase-js";
+import { chromium, type Browser, type BrowserContext } from "playwright-core";
+import { createPublicClient, getAddress, http, keccak256, toHex, type Address, type Hex } from "viem";
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
+import { arbitrumSepolia } from "viem/chains";
+import { tokenAbi } from "../src/lib/chain/abi";
+import { reviveTyped } from "../src/lib/chain/typed";
+import type { UsdcStart } from "../src/lib/payments/types";
+import type { Database } from "../src/lib/supabase/types";
+
+try {
+  process.loadEnvFile(".env.local");
+} catch {
+  // checked below
+}
+const BASE = process.env.BASE ?? "http://localhost:3000";
+const EXEC = process.env.CHROME ?? "/opt/google/chrome/chrome";
+const RPC = process.env.LUMMY_RPC_URL ?? "https://sepolia-rollup.arbitrum.io/rpc";
+const RUN = Date.now().toString(36);
+const EMAILS = ["buyer", "seller", "staff"].map((who) => `usdc-check-${RUN}-${who}@example.com`);
+const EVENT = "ev-zz-usdc";
+const TIER = "t-zz-usdc";
+const TIER_BIG = "t-zz-usdc-big";
+const L1 = "ls-zz-usdc-1"; // two seats, sold one by one
+const L_BIG = "ls-zz-usdc-big"; // more than the wallet holds
+const LISTINGS = [L1, L_BIG];
+const PRICE = 100_000; // 0.10 USDC, in micro-USDC like every USDC price in the app
+const BIG = 1_000_000_000; // 1,000 USDC
+
+const results: { name: string; ok: boolean; note?: string }[] = [];
+const check = (name: string, ok: boolean, note?: string) => results.push({ name, ok, note: ok ? undefined : note });
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const same = (a: unknown, b: unknown) => typeof a === "string" && typeof b === "string" && a.toLowerCase() === b.toLowerCase();
+
+type Admin = ReturnType<typeof createClient<Database>>;
+type Reply = { status: number; body: Record<string, unknown> };
+type EscrowHistory = { source?: string; live?: { status: string; buyer: string } };
+
+/** The wallet's key: never printed, never sent anywhere. */
+function walletKey(): Hex {
+  if (process.env.USDC_CHECK_KEY) return process.env.USDC_CHECK_KEY.trim() as Hex;
+  const file = path.join(os.homedir(), ".lummy", "testnet.env");
+  const line = fs.existsSync(file) ? fs.readFileSync(file, "utf8").split("\n").find((l) => l.startsWith("BUYER_PRIVATE_KEY=")) : undefined;
+  if (!line) throw new Error("needs USDC_CHECK_KEY, or BUYER_PRIVATE_KEY in ~/.lummy/testnet.env");
+  return line.slice(line.indexOf("=") + 1).trim() as Hex;
+}
+
+/** Signs an account in the way its email link would, with a link the admin key makes (none is sent). */
+async function signIn(admin: Admin, browser: Browser, email: string): Promise<BrowserContext> {
+  const link = await admin.auth.admin.generateLink({ type: "magiclink", email });
+  const hashed = link.data.properties?.hashed_token;
+  if (!hashed) throw new Error(`no sign-in link for ${email}: ${link.error?.message ?? "?"}`);
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await page.goto(`${BASE}/auth/confirm?token_hash=${hashed}&type=email`, { waitUntil: "networkidle" });
+  await page.close();
+  return ctx;
+}
+
+/** A request as a signed-in account: its context carries the session cookie. */
+async function api(ctx: BrowserContext, method: "GET" | "POST", path: string, body?: Record<string, unknown>): Promise<Reply> {
+  const r = await ctx.request.fetch(`${BASE}${path}`, { method, data: body, failOnStatusCode: false, timeout: 90_000 });
+  return { status: r.status(), body: (await r.json().catch(() => ({}))) as Record<string, unknown> };
+}
+
+/** What a wallet returns for the two messages of one hold. */
+async function signBoth(key: Hex, s: UsdcStart) {
+  const account = privateKeyToAccount(key);
+  type Typed = Parameters<typeof account.signTypedData>[0];
+  return {
+    authSig: await account.signTypedData(reviveTyped(s.auth) as Typed),
+    fundSig: await account.signTypedData(reviveTyped(s.fund) as Typed),
+  };
+}
+
+async function main() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SECRET_KEY;
+  if (!url || !key) throw new Error("needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY (web/.env.local)");
+  const admin = createClient<Database>(url, key, { auth: { persistSession: false } });
+  const walletPk = walletKey();
+  const wallet = privateKeyToAccount(walletPk).address;
+  const pc = createPublicClient({ chain: arbitrumSepolia, transport: http(RPC) });
+
+  const listing = async (id: string) => (await admin.from("listings").select("status, quantity").eq("id", id).single()).data;
+  const payment = async (id: string) => (await admin.from("payments").select("*").eq("id", id).single()).data;
+  const escrowOf = async (id: string) => {
+    const r = await fetch(`${BASE}/api/chain/history/${id}?source=escrow`);
+    return (await r.json().catch(() => ({}))) as EscrowHistory;
+  };
+
+  const userIds: string[] = [];
+  let staffCtx: BrowserContext | null = null;
+  let showCancelled = false;
+  const browser = await chromium.launch({ executablePath: EXEC, args: ["--no-sandbox"] });
+  try {
+    const made = await Promise.all(
+      EMAILS.map((email, i) =>
+        admin.auth.admin.createUser({ email, email_confirm: true, user_metadata: { full_name: ["USDC Buyer", "USDC Seller", "USDC Staff"][i] } })
+      )
+    );
+    const [buyer, seller, staff] = made.map((m) => m.data.user?.id);
+    for (const id of [buyer, seller, staff]) if (id) userIds.push(id);
+    if (!buyer || !seller || !staff) throw new Error(`accounts: ${made.map((m) => m.error?.message ?? "ok").join(", ")}`);
+    // Staff for this run only: it cancels the show at the end, and is deleted with the others.
+    const promoted = await admin.from("profiles").update({ role: "admin" }).eq("id", staff).select("id");
+    if (promoted.error || !promoted.data.length) throw new Error(`staff: ${promoted.error?.message ?? "no profile"}`);
+
+    // --- A show abroad, priced in USDC. A multi-row insert sends null for a column one row leaves
+    // out, so every row names them all.
+    const iso = (ms: number) => new Date(ms).toISOString();
+    const setup = [
+      await admin.from("events").insert({
+        id: EVENT,
+        title: "Uji USDC",
+        category: "Music",
+        starts_at: iso(Date.now() + 10 * 86_400_000),
+        venue: "Marina Bay Sands",
+        city: "Singapore",
+        transfer_policy: "open",
+        country: "SG",
+        currency: "USDC",
+      }),
+      await admin.from("tiers").insert([
+        { id: TIER, event_id: EVENT, name: "GA", face_value: PRICE },
+        { id: TIER_BIG, event_id: EVENT, name: "VIP", face_value: BIG },
+      ]),
+      await admin.from("listings").insert([
+        { id: L1, event_id: EVENT, tier_id: TIER, seller_id: seller, seller_name: "USDC S.", ask_price: PRICE, face_value: PRICE, quantity: 2, splittable: true, status: "active" },
+        { id: L_BIG, event_id: EVENT, tier_id: TIER_BIG, seller_id: seller, seller_name: "USDC S.", ask_price: BIG, face_value: BIG, quantity: 1, splittable: false, status: "active" },
+      ]),
+    ];
+    const setupError = setup.find((r) => r.error)?.error;
+    if (setupError) throw new Error(`setup: ${setupError.message}`);
+
+    const config = await (await fetch(`${BASE}/api/payments`)).json();
+    check("the USDC rail is on here", config.usdc === true, JSON.stringify(config));
+
+    const buyerCtx = await signIn(admin, browser, EMAILS[0]);
+    const sellerCtx = await signIn(admin, browser, EMAILS[1]);
+    staffCtx = await signIn(admin, browser, EMAILS[2]);
+
+    // --- Only a wallet pays for this show.
+    const qris = await api(buyerCtx, "POST", "/api/payments", { listingId: L1, quantity: 1 });
+    check(
+      "QRIS is refused for a show priced in USDC",
+      config.enabled ? qris.status === 400 && String(qris.body.error).includes("USDC") : qris.status === 503,
+      JSON.stringify(qris)
+    );
+    const straight = await api(staffCtx, "POST", "/api/orders", { listingId: L1, quantity: 1 });
+    check("so is the straight order path, even for staff", straight.status === 409 && String(straight.body.error).includes("USDC"), JSON.stringify(straight));
+    const badWallet = await api(buyerCtx, "POST", "/api/payments", { listingId: L1, quantity: 1, wallet: "0x1234" });
+    check("an address that is not one is refused", badWallet.status === 400, JSON.stringify(badWallet));
+    const big = await api(buyerCtx, "POST", "/api/payments", { listingId: L_BIG, quantity: 1, wallet });
+    const bigListing = await listing(L_BIG);
+    check(
+      "a total above the wallet's balance is refused before anything is held",
+      big.status === 402 && bigListing?.status === "active" && bigListing.quantity === 1,
+      JSON.stringify({ big, bigListing })
+    );
+
+    // --- Pay holds a seat and hands back what the wallet signs.
+    const start = await api(buyerCtx, "POST", "/api/payments", { listingId: L1, quantity: 1, wallet });
+    const s = start.body as unknown as UsdcStart;
+    const payId = s.payment?.id;
+    const expectedListing = payId ? keccak256(toHex(`lummy:listing:${payId}`)) : null;
+    check(
+      "pay with a wallet holds the seat and returns both messages",
+      start.status === 200 &&
+        s.value === String(PRICE) &&
+        s.chainId === arbitrumSepolia.id &&
+        same(s.auth?.message?.from, wallet) &&
+        same(s.auth?.message?.to, s.escrow) &&
+        s.auth?.message?.value === String(PRICE) &&
+        s.fund?.message?.listingId === expectedListing &&
+        s.fund?.message?.authNonce === s.auth?.message?.nonce,
+      JSON.stringify(start).slice(0, 600)
+    );
+    if (start.status !== 200 || !payId) throw new Error("no hold to pay");
+    const held = await payment(payId);
+    check(
+      "the hold is an escrow payment for this wallet",
+      held?.provider === "escrow" && held.channel === "USDC" && held.payer_wallet === getAddress(wallet) && held.status === "pending" && Number(held.total) === PRICE,
+      JSON.stringify(held)
+    );
+    check("one of the two seats is held", (await listing(L1))?.quantity === 1, JSON.stringify(await listing(L1)));
+
+    const forged = await signBoth(generatePrivateKey(), s);
+    const wrongKey = await api(buyerCtx, "POST", `/api/payments/${payId}/usdc`, forged);
+    check("signatures from another key are refused", wrongKey.status === 400, JSON.stringify(wrongKey));
+    const afterForged = await payment(payId);
+    check("and leave the hold open, not locked", afterForged?.status === "pending" && !afterForged.checked_at, JSON.stringify(afterForged));
+
+    const signed = await signBoth(walletPk, s);
+    const stranger = await api(sellerCtx, "POST", `/api/payments/${payId}/usdc`, signed);
+    check("another account cannot send the buyer's signatures", stranger.status === 404, JSON.stringify(stranger));
+
+    // --- The real signatures: the money goes into the escrow and the order is written.
+    const before = await pc.readContract({ address: s.token as Address, abi: tokenAbi, functionName: "balanceOf", args: [wallet] });
+    const t0 = Date.now();
+    const paid = await api(buyerCtx, "POST", `/api/payments/${payId}/usdc`, signed);
+    const took = ((Date.now() - t0) / 1000).toFixed(1);
+    const orderId = paid.body.orderId as string | undefined;
+    check(`the wallet's signatures lock the money and write the order (${took}s)`, paid.status === 200 && !!orderId, JSON.stringify(paid));
+    if (!orderId) throw new Error("no order");
+    const again = await api(buyerCtx, "POST", `/api/payments/${payId}/usdc`, signed);
+    check("sending them again returns the same order", again.status === 200 && again.body.orderId === orderId, JSON.stringify(again));
+
+    const order = (await admin.from("orders").select("*").eq("id", orderId).single()).data;
+    check(
+      "the order is a USDC order from this wallet, on the escrow listing the hold named",
+      order?.rail === "usdc" &&
+        same(order.buyer_wallet, wallet) &&
+        order.onchain_listing_id === expectedListing &&
+        same(order.contract_address, s.escrow) &&
+        order.onchain_price === String(PRICE) &&
+        order.escrow_status === "DisputeWindow" &&
+        !!order.tx_create && !!order.tx_fund && !!order.tx_handover,
+      JSON.stringify(order)
+    );
+    check("no fee and no stamp duty on testnet", Number(order?.amount) === PRICE && Number(order?.fee) === 0 && Number(order?.materai) === 0, JSON.stringify(order));
+    check("the QRIS ledger leaves it alone: the escrow is its public record", order?.ledger_status === "Skipped", String(order?.ledger_status));
+    const paidRow = await payment(payId);
+    check("the hold is paid, with the funding transaction as its number", paidRow?.status === "paid" && paidRow.provider_payment_id === order?.tx_fund, JSON.stringify(paidRow));
+    const read = await api(buyerCtx, "GET", `/api/payments/${payId}`);
+    check("reading the hold points to the order", read.status === 200 && read.body.status === "paid" && read.body.orderId === orderId, JSON.stringify(read));
+
+    const live = await escrowOf(expectedListing!);
+    check("on chain the listing is funded by the wallet, its window open", live.source === "escrow" && live.live?.status === "DisputeWindow" && same(live.live?.buyer, wallet), JSON.stringify(live).slice(0, 400));
+    const after = await pc.readContract({ address: s.token as Address, abi: tokenAbi, functionName: "balanceOf", args: [wallet] });
+    check("the wallet paid exactly the price", before - after === BigInt(PRICE), `${before} -> ${after}`);
+
+    // --- A hold given up before signing gives its seat back.
+    const second = await api(buyerCtx, "POST", "/api/payments", { listingId: L1, quantity: 1, wallet });
+    const secondId = (second.body as unknown as UsdcStart).payment?.id;
+    check("the last seat can be held too, the listing sold out while it is", second.status === 200 && !!secondId && (await listing(L1))?.status === "sold", JSON.stringify(second).slice(0, 300));
+    if (secondId) {
+      const cancelled = await api(buyerCtx, "POST", `/api/payments/${secondId}`, { action: "cancel" });
+      const back = await listing(L1);
+      check("cancelling it gives the seat back", cancelled.status === 200 && cancelled.body.status === "canceled" && back?.status === "active" && back.quantity === 1, JSON.stringify({ cancelled, back }));
+    }
+
+    // --- Staff cancel the show: the escrow pays the wallet back.
+    const cancelShow = await api(staffCtx, "POST", `/api/events/${EVENT}`, { action: "cancel" });
+    showCancelled = cancelShow.status === 200;
+    const refundedOrder = (await admin.from("orders").select("escrow_status, tx_settle, ledger_status").eq("id", orderId).single()).data;
+    check("cancelling the show refunds the order on chain", showCancelled && refundedOrder?.escrow_status === "Refunded" && !!refundedOrder.tx_settle, JSON.stringify({ cancelShow, refundedOrder }));
+    const settled = await escrowOf(expectedListing!);
+    check("the escrow says refunded", settled.live?.status === "Refunded", JSON.stringify(settled).slice(0, 300));
+    let back = await pc.readContract({ address: s.token as Address, abi: tokenAbi, functionName: "balanceOf", args: [wallet] });
+    for (let i = 0; i < 10 && back !== before; i++) {
+      await sleep(1500);
+      back = await pc.readContract({ address: s.token as Address, abi: tokenAbi, functionName: "balanceOf", args: [wallet] });
+    }
+    check("and the wallet has every cent back", back === before, `${before} -> ${back}`);
+    await sleep(1500);
+    check("the ledger still leaves it alone", (await admin.from("orders").select("ledger_status").eq("id", orderId).single()).data?.ledger_status === "Skipped");
+  } finally {
+    // A run that stopped half way still gives the wallet its money back before the rows go.
+    if (!showCancelled && staffCtx) await api(staffCtx, "POST", `/api/events/${EVENT}`, { action: "cancel" }).catch(() => null);
+    await admin.from("orders").delete().in("listing_id", LISTINGS);
+    await admin.from("payments").delete().in("listing_id", LISTINGS);
+    await admin.from("listings").delete().in("id", LISTINGS);
+    await admin.from("tiers").delete().in("id", [TIER, TIER_BIG]);
+    const gone = await admin.from("events").delete().eq("id", EVENT);
+    const users = await Promise.all(userIds.map((id) => admin.auth.admin.deleteUser(id)));
+    check("cleanup", !gone.error && users.every((u) => !u.error), gone.error?.message ?? users.find((u) => u.error)?.error?.message);
+    await browser.close();
+  }
+}
+
+main()
+  .catch((e) => check("run", false, (e as Error).message))
+  .finally(() => {
+    for (const r of results) console.log(`${r.ok ? "ok  " : "FAIL"} ${r.name}${r.note ? `\n     ${r.note}` : ""}`);
+    const failed = results.filter((r) => !r.ok).length;
+    console.log(`\n${results.length - failed}/${results.length} passed`);
+    process.exit(failed ? 1 : 0);
+  });

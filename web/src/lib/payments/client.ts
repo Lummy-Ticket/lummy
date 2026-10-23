@@ -5,11 +5,11 @@
 // server, which checks the buyer each time.
 import { useEffect, useState } from "react";
 import { OrderError } from "@/lib/orders/client";
-import type { PaymentView, PaymentsConfig } from "./types";
+import type { PaymentView, PaymentsConfig, UsdcStart } from "./types";
 
-export type { PaymentStatus, PaymentView, PaymentsConfig } from "./types";
+export type { PaymentStatus, PaymentView, PaymentsConfig, TypedMessage, UsdcStart } from "./types";
 
-const OFF: PaymentsConfig = { enabled: false, testMode: false, max: 0 };
+const OFF: PaymentsConfig = { enabled: false, testMode: false, max: 0, usdc: false };
 
 /** Null while asking, and when `active` is false (chain mode, a sample persona). */
 export function usePaymentsConfig(active: boolean): PaymentsConfig | null {
@@ -43,3 +43,11 @@ export const readPayment = (id: string) => call<PaymentView>(`/api/payments/${en
 
 export const paymentAction = (id: string, action: "cancel" | "simulate") =>
   call<PaymentView>(`/api/payments/${encodeURIComponent(id)}`, post({ action }));
+
+/** Hold seats on a show paid in USDC, for this wallet: the answer carries what it signs. */
+export const startUsdcPayment = (listingId: string, quantity: number, wallet: string) =>
+  call<UsdcStart>("/api/payments", post({ listingId, quantity, wallet }));
+
+/** Both signatures back to the server, which locks the money on chain and writes the order. */
+export const submitUsdcPayment = (id: string, authSig: string, fundSig: string) =>
+  call<{ orderId: string }>(`/api/payments/${encodeURIComponent(id)}/usdc`, post({ authSig, fundSig }));

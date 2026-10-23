@@ -7,7 +7,7 @@ import path from "path";
 import { formatUnits, keccak256, parseUnits, toHex, type Address, type Chain, type Hex, type LocalAccount } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { escrowAbi, tokenAbi } from "./abi";
-import { signFund } from "./buyer";
+import { signFund, type FundSignature } from "./buyer";
 import { CHAINS, RPC_URLS, USDC_DECIMALS } from "./config";
 import { DEPLOYMENTS } from "./deployments";
 import { demoKeyAllowed, demoMode, type DemoMode } from "@/lib/demo-key";
@@ -157,24 +157,39 @@ export async function readListing(t: ChainTarget, id: Hex): Promise<OnchainListi
  * karena pembeli langsung menerima surat kuasa setelah bayar. Window berakhir `disputeWindow`
  * setelah yang terakhir dari serah terima dan `eventEndsAt`.
  */
-export async function openOrder(op: Operator, eventEndsAt: number, ticket?: { barcodeKey: string | null; sha256: string | null }) {
+/** ID listing di chain untuk satu pembelian. Bisa dihitung sebelum ada transaksi apa pun. */
+export const onchainListingId = (tag: string) => keccak256(toHex(`lummy:listing:${tag}`));
+
+/**
+ * `signed`: pembeli dengan wallet sendiri (jalur USDC). Tanda tangannya sudah ada, untuk ID listing dan
+ * nilai yang disepakati saat penahanan; tanpa itu, pembeli simulasi menandatangani `op.price`.
+ */
+export async function openOrder(
+  op: Operator,
+  eventEndsAt: number,
+  ticket?: { barcodeKey: string | null; sha256: string | null },
+  signed?: { tag: string; sig: FundSignature }
+) {
   return serial(op.operator.address, async () => {
     const pc = publicClient(op.chain, op.rpcUrl);
-    const balance = await pc.readContract({ address: op.token, abi: tokenAbi, functionName: "balanceOf", args: [op.buyer.address] });
-    if (balance < op.price) {
-      throw new Error(`USDC pembeli testnet tinggal ${formatUnits(balance, USDC_DECIMALS)}, butuh ${formatUnits(op.price, USDC_DECIMALS)}`);
+    const price = signed ? signed.sig.value : op.price;
+    if (!signed) {
+      const balance = await pc.readContract({ address: op.token, abi: tokenAbi, functionName: "balanceOf", args: [op.buyer.address] });
+      if (balance < op.price) {
+        throw new Error(`USDC pembeli testnet tinggal ${formatUnits(balance, USDC_DECIMALS)}, butuh ${formatUnits(op.price, USDC_DECIMALS)}`);
+      }
     }
     const as = escrowAs(pc, op.operator, op.chain, op.rpcUrl, op.escrow);
-    const tag = crypto.randomUUID();
-    const id = keccak256(toHex(`lummy:listing:${tag}`));
+    const tag = signed?.tag ?? crypto.randomUUID();
+    const id = onchainListingId(tag);
     // Tiket dari PDF asli: komitmennya diturunkan dari kunci set barcode (HMAC ber-pepper, di-hash
     // lagi supaya kunci di DB tidak terbit apa adanya), jadi kontrak sendiri yang menolak tiket yang
     // sama untuk kedua kalinya (keputusan A). Tiket contoh tidak punya barcode, jadi tetap acak.
     const commit = keccak256(toHex(ticket?.barcodeKey ? `lummy:barcode:${ticket.barcodeKey}` : `lummy:barcode:${tag}`));
-    const create = await as.createListingFor(op.seller, id, op.price, commit, eventEndsAt);
+    const create = await as.createListingFor(op.seller, id, price, commit, eventEndsAt);
     let fund: Awaited<ReturnType<typeof as.fund>>;
     try {
-      const sig = await signFund({ pc, buyer: op.buyer, escrow: op.escrow, token: op.token, listingId: id, value: op.price });
+      const sig = signed?.sig ?? (await signFund({ pc, buyer: op.buyer, escrow: op.escrow, token: op.token, listingId: id, value: op.price }));
       fund = await as.fund(id, sig);
     } catch (e) {
       // Belum ada pembeli, jadi listing di chain dibatalkan supaya komitmennya lepas lagi; tanpa ini
@@ -188,7 +203,7 @@ export async function openOrder(op: Operator, eventEndsAt: number, ticket?: { ba
       id,
       keccak256(toHex(ticket?.sha256 ? `lummy:serah-terima:${id}:${ticket.sha256}` : `lummy:surat-kuasa:${id}`))
     );
-    return { listingId: id, price: op.price.toString(), txs: { create: create.hash, fund: fund.hash, handover: handover.hash } };
+    return { listingId: id, price: price.toString(), txs: { create: create.hash, fund: fund.hash, handover: handover.hash } };
   });
 }
 

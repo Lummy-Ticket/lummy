@@ -65,6 +65,8 @@ export async function POST(req: Request) {
   const check = await checkPurchase(admin, user.id, listingId);
   if (!check.ok) return fail(check.status, check.error);
   const purchase = check.purchase;
+  // A show priced in USDC is paid from the buyer's own wallet only (POST /api/payments).
+  if (purchase.event.currency === "USDC") return fail(409, "acara ini dibayar dengan USDC dari wallet: muat ulang halaman checkout");
 
   const claim = await admin.rpc("claim_listing", { p_listing_id: listingId, p_quantity: quantity });
   if (claim.error) return fail(500, claim.error.message);

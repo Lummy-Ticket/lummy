@@ -67,6 +67,45 @@ async function escrowDomain(pc: PublicClient, escrow: Address): Promise<Domain> 
   return { name, version, chainId: Number(cid), verifyingContract };
 }
 
+/**
+ * The two messages a buyer signs to fund one listing, as a wallet's eth_signTypedData_v4 takes them.
+ * Built on the server, so a buyer's own wallet only signs; the same objects check the signatures.
+ */
+export async function fundTypedData(opts: {
+  pc: PublicClient;
+  buyer: Address;
+  escrow: Address;
+  token: Address;
+  listingId: Hex;
+  value: bigint;
+  validBefore: bigint;
+  authNonce?: Hex;
+}) {
+  const { pc, buyer, escrow, token, listingId, value, validBefore } = opts;
+  const chainId = await pc.getChainId();
+  const validAfter = BigInt(0);
+  const deadline = validBefore;
+  const authNonce = opts.authNonce ?? bytesToHex(crypto.getRandomValues(new Uint8Array(32)));
+  return {
+    authNonce,
+    validAfter,
+    validBefore,
+    deadline,
+    auth: {
+      domain: await tokenDomain(pc, token, chainId),
+      types: RECEIVE_TYPES,
+      primaryType: "ReceiveWithAuthorization" as const,
+      message: { from: buyer, to: escrow, value, validAfter, validBefore, nonce: authNonce },
+    },
+    fund: {
+      domain: await escrowDomain(pc, escrow),
+      types: FUND_TYPES,
+      primaryType: "Fund" as const,
+      message: { listingId, buyer, value, authNonce, deadline },
+    },
+  };
+}
+
 export async function signFund(opts: {
   pc: PublicClient;
   buyer: LocalAccount;
@@ -79,26 +118,12 @@ export async function signFund(opts: {
   const { pc, buyer, escrow, token, listingId, value } = opts;
   if (!buyer.signTypedData) throw new Error("akun pembeli tidak bisa menandatangani typed data");
 
-  const chainId = await pc.getChainId();
   // Waktu chain, bukan jam lokal: di Anvil waktunya bisa sudah dimajukan.
   const now = (await pc.getBlock()).timestamp;
-  const validAfter = BigInt(0);
-  const validBefore = now + BigInt(opts.validForSeconds ?? 3600);
-  const deadline = validBefore;
-  const authNonce = bytesToHex(crypto.getRandomValues(new Uint8Array(32)));
+  const typed = await fundTypedData({ pc, buyer: buyer.address, escrow, token, listingId, value, validBefore: now + BigInt(opts.validForSeconds ?? 3600) });
+  const authSig = await buyer.signTypedData(typed.auth);
+  const fundSig = await buyer.signTypedData(typed.fund);
 
-  const authSig = await buyer.signTypedData({
-    domain: await tokenDomain(pc, token, chainId),
-    types: RECEIVE_TYPES,
-    primaryType: "ReceiveWithAuthorization",
-    message: { from: buyer.address, to: escrow, value, validAfter, validBefore, nonce: authNonce },
-  });
-  const fundSig = await buyer.signTypedData({
-    domain: await escrowDomain(pc, escrow),
-    types: FUND_TYPES,
-    primaryType: "Fund",
-    message: { listingId, buyer: buyer.address, value, authNonce, deadline },
-  });
-
+  const { validAfter, validBefore, authNonce, deadline } = typed;
   return { from: buyer.address, value, validAfter, validBefore, authNonce, authSig, deadline, fundSig };
 }
