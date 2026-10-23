@@ -7,6 +7,7 @@
 // prints another category or day than the seller picked waits for a person.
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
+import { notifyListingLive } from "@/lib/email/notify";
 import { FEATURES } from "@/lib/features";
 import { EVENT_DURATION_H, isLateListing } from "@/lib/mock/escrow";
 import { resaleAllowed } from "@/lib/mock/transfer";
@@ -227,6 +228,10 @@ export async function POST(req: Request) {
     data.status = done.data.status;
   }
 
-  if (data.status === "active") revalidateTag("catalogue", { expire: 0 });
+  if (data.status === "active") {
+    revalidateTag("catalogue", { expire: 0 });
+    // People following the show, or this tier, hear about it (lib/email/notify).
+    notifyListingLive(admin, data.id);
+  }
   return NextResponse.json(data, { headers: noStore });
 }

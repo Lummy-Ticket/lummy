@@ -20,6 +20,7 @@ import { fundTypedData, type FundSignature } from "@/lib/chain/buyer";
 import { USDC_DECIMALS } from "@/lib/chain/config";
 import { publicClient } from "@/lib/chain/escrow";
 import { cancelOnchainListing, chainError, onchainListingId, openOrder, operatorSetup, readListing, settle, type Operator } from "@/lib/chain/server";
+import { notifyOrderPaid } from "@/lib/email/notify";
 import { DISPUTE_WINDOW_H } from "@/lib/mock/escrow";
 import { checkPurchase, loadPurchase, orderInsert, priceOf, type ChainFields } from "@/lib/orders/create";
 import { HELD } from "@/lib/orders/map";
@@ -456,5 +457,6 @@ export async function submitUsdcPayment(
     return fail(500, undone ? "pesanannya gagal disimpan; USDC-nya sudah dikembalikan ke wallet" : "pesanannya gagal disimpan; hubungi tim Lummy untuk pengembalian USDC");
   }
   seatsChanged();
+  notifyOrderPaid(admin, ins.data.id);
   return { ok: true, value: { orderId: ins.data.id } };
 }

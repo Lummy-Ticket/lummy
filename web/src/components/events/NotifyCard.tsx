@@ -2,18 +2,40 @@
 
 import toast from "react-hot-toast";
 import { Bell, BellRing, X, Check } from "lucide-react";
-import { useAlerts, type EventItem } from "@/lib/mock";
+import { useAlerts, useUser, type EventItem } from "@/lib/mock";
+import { useAccountAlerts } from "@/lib/alerts/client";
 import { useT } from "@/lib/i18n";
 import { FEATURES } from "@/lib/features";
 
-const CH_LABEL: Record<string, string> = { email: "email", whatsapp: "WhatsApp", telegram: "Telegram" };
-
 export function NotifyCard({ event }: { event: EventItem }) {
   const t = useT();
-  const subs = useAlerts((s) => s.subs);
-  const channel = useAlerts((s) => s.channel);
+  const user = useUser((s) => s.user);
+  const localSubs = useAlerts((s) => s.subs);
   const subscribe = useAlerts((s) => s.subscribe);
   const unsubscribe = useAlerts((s) => s.unsubscribe);
+  // Once emails are live, an account's alerts are kept on the server, which sends them; a sample
+  // persona's stay in this browser, and so does everyone's until then.
+  const server = FEATURES.emails && !!user?.account;
+  const remote = useAccountAlerts(server);
+  const subs = server ? (remote.subs ?? []) : localSubs;
+  const failed = () => toast.error(t("Could not save. Try again.", "Gagal menyimpan. Coba lagi."));
+
+  const follow = (tier: { tierId: string; tierName: string } | null, done: string) => {
+    if (server) {
+      remote.subscribe({ eventId: event.id, tierId: tier?.tierId }).then(() => toast.success(done), failed);
+      return;
+    }
+    subscribe({ eventId: event.id, eventTitle: event.title, ...tier });
+    toast.success(done);
+  };
+  const unfollow = (id: string, done: string) => {
+    if (server) {
+      remote.unsubscribe(id).then(() => toast(done), failed);
+      return;
+    }
+    unsubscribe(id);
+    toast(done);
+  };
 
   const eventSub = subs.find((s) => s.eventId === event.id && !s.tierId);
 
@@ -23,7 +45,11 @@ export function NotifyCard({ event }: { event: EventItem }) {
         <Bell className="w-4 h-4 text-lummy-500" /> {t("Alerts & waitlist", "Notifikasi & waitlist")}
       </h4>
       {FEATURES.emails ? (
-        <p className="text-xs text-neutral-gray mb-3">{t(`We will ping you on ${CH_LABEL[channel]}. Change it in your profile.`, `Kami kabari lewat ${CH_LABEL[channel]}. Ubah di profil.`)}</p>
+        <p className="text-xs text-neutral-gray mb-3">
+          {server
+            ? t(`We email ${user?.email} when tickets appear. Stop any time here or in your profile.`, `Kami kirim email ke ${user?.email} saat ada tiket. Berhenti kapan saja di sini atau di profil.`)
+            : t("Sample persona: your choice is kept in this browser, and nothing is sent.", "Persona contoh: pilihanmu tersimpan di browser ini, dan tidak ada yang dikirim.")}
+        </p>
       ) : (
         // Nothing is sent yet (lib/features.ts): say so, rather than promise a message.
         <p data-alerts-soon className="text-xs text-neutral-gray mb-3">
@@ -36,7 +62,7 @@ export function NotifyCard({ event }: { event: EventItem }) {
 
       {eventSub ? (
         <button
-          onClick={() => { unsubscribe(eventSub.id); toast(t("Alerts off", "Notifikasi dimatikan")); }}
+          onClick={() => unfollow(eventSub.id, t("Alerts off", "Notifikasi dimatikan"))}
           className="w-full flex items-center justify-between p-3 rounded-xl bg-secondary-green-soft text-secondary-green-dark text-sm mb-4 cursor-pointer"
         >
           <span className="flex items-center gap-2"><Check className="w-4 h-4" /> {t("You will hear about new tickets", "Dikabari kalau ada tiket baru")}</span>
@@ -44,7 +70,7 @@ export function NotifyCard({ event }: { event: EventItem }) {
         </button>
       ) : (
         <button
-          onClick={() => { subscribe({ eventId: event.id, eventTitle: event.title }); toast.success(t("Done, we will let you know", "Oke, nanti kami kabari")); }}
+          onClick={() => follow(null, t("Done, we will let you know", "Oke, nanti kami kabari"))}
           className="w-full flex items-center gap-2 p-3 rounded-xl border border-lummy-500 text-lummy-500 text-sm hover:bg-secondary-blue-light transition mb-4 cursor-pointer"
         >
           <BellRing className="w-4 h-4" /> {t("Notify me about new tickets", "Kabari kalau ada tiket baru")}
@@ -59,11 +85,11 @@ export function NotifyCard({ event }: { event: EventItem }) {
             <div key={tier.id} className="flex items-center justify-between text-sm">
               <span className="text-neutral-black">{tier.name}</span>
               {sub ? (
-                <button onClick={() => { unsubscribe(sub.id); toast(t("Left the waitlist", "Keluar dari waitlist")); }} className="text-xs text-secondary-green-dark flex items-center gap-1 cursor-pointer">
+                <button onClick={() => unfollow(sub.id, t("Left the waitlist", "Keluar dari waitlist"))} className="text-xs text-secondary-green-dark flex items-center gap-1 cursor-pointer">
                   <Check className="w-3 h-3" /> {t("On the list", "Di waitlist")}
                 </button>
               ) : (
-                <button onClick={() => { subscribe({ eventId: event.id, eventTitle: event.title, tierId: tier.id, tierName: tier.name }); toast.success(t(`Joined the ${tier.name} waitlist`, `Masuk waitlist ${tier.name}`)); }} className="text-xs text-primary-navy font-medium cursor-pointer">
+                <button onClick={() => follow({ tierId: tier.id, tierName: tier.name }, t(`Joined the ${tier.name} waitlist`, `Masuk waitlist ${tier.name}`))} className="text-xs text-primary-navy font-medium cursor-pointer">
                   {t("Join waitlist", "Masuk waitlist")}
                 </button>
               )}

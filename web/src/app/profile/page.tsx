@@ -6,20 +6,16 @@ import { Mail, Phone, ShieldCheck, BadgeCheck, Bell, X, Building2 } from "lucide
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  useUser, useProfile, useAlerts, type AlertChannel, type PayoutBank,
+  useUser, useProfile, useAlerts, type PayoutBank,
 } from "@/lib/mock";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { isStaff, useAccessGuard, useHydrated } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
+import { useAccountAlerts } from "@/lib/alerts/client";
 import { useT } from "@/lib/i18n";
 import { FEATURES } from "@/lib/features";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
-const CHANNELS: { id: AlertChannel; label: string }[] = [
-  { id: "email", label: "Email" },
-  { id: "whatsapp", label: "WhatsApp" },
-  { id: "telegram", label: "Telegram" },
-];
 const BANKS: PayoutBank[] = ["BCA", "Mandiri", "BNI", "BRI"];
 
 type DbProfile = { full_name: string; phone: string | null; payout_bank: string | null; payout_number: string | null; kyc: "unverified" | "verified" };
@@ -40,15 +36,29 @@ export default function ProfilePage() {
   const mounted = useHydrated();
   const user = useUser((s) => s.user);
   const { phone, kycVerified, payoutBank, payoutNumber, setPhone, verifyKyc, setPayout } = useProfile();
-  const channel = useAlerts((s) => s.channel);
-  const setChannel = useAlerts((s) => s.setChannel);
-  const subs = useAlerts((s) => s.subs);
+  const localSubs = useAlerts((s) => s.subs);
   const unsubscribe = useAlerts((s) => s.unsubscribe);
 
   // A real account reads and writes its own row in the database (RLS: only itself). A sample
   // persona keeps these details in this browser.
   const account = user?.account ? user : null;
   const accountId = account?.id;
+
+  // Alerts too, once emails are live (lib/features.ts): the server keeps an account's and sends them.
+  const serverAlerts = FEATURES.emails && !!account;
+  const remote = useAccountAlerts(serverAlerts);
+  const subs = serverAlerts ? remote.subs : localSubs;
+  const removeAlert = (id: string) => {
+    if (serverAlerts) {
+      remote.unsubscribe(id).then(
+        () => toast(t("Removed", "Dihapus")),
+        () => toast.error(t("Could not save. Try again.", "Gagal menyimpan. Coba lagi."))
+      );
+      return;
+    }
+    unsubscribe(id);
+    toast(t("Removed", "Dihapus"));
+  };
   const [db, setDb] = useState<DbProfile | null>(null);
   useEffect(() => {
     if (!accountId) return;
@@ -200,27 +210,25 @@ export default function ProfilePage() {
 
       {/* Alerts */}
       <Section title={t("Alerts & waitlist", "Notifikasi & waitlist")}>
-        {/* Alerts go by email only, once sending is live (lib/features.ts); WhatsApp and Telegram are not built. */}
-        {!FEATURES.emails && (
+        {/* Alerts go by email only (decided 23 Oct 2026, lib/features.ts): no WhatsApp, no Telegram. */}
+        {!FEATURES.emails ? (
           <p data-alerts-soon className="text-sm text-neutral-gray mb-4">
             {t(
               `Coming soon: alerts by email to ${user?.email ?? "your sign-in address"}. Nothing is sent yet.`,
               `Segera: notifikasi lewat email ke ${user?.email ?? "alamat login-mu"}. Belum ada yang dikirim.`
             )}
           </p>
+        ) : (
+          <p className="text-sm text-neutral-gray mb-4">
+            {serverAlerts
+              ? t(`Alerts go by email to ${user?.email}, your sign-in address.`, `Notifikasi dikirim lewat email ke ${user?.email}, alamat login-mu.`)
+              : t("Sample persona: alerts are kept in this browser, and nothing is sent.", "Persona contoh: notifikasi tersimpan di browser ini, dan tidak ada yang dikirim.")}
+          </p>
         )}
-        <div className={FEATURES.emails ? "mb-4" : "hidden"}>
-          <span className="text-xs text-neutral-gray">{t("Reach me on", "Dikabari lewat")}</span>
-          <div className="grid grid-cols-3 gap-2 mt-1.5">
-            {CHANNELS.map((c) => (
-              <button key={c.id} onClick={() => { setChannel(c.id); toast.success(t(`Alerts via ${c.label}`, `Notifikasi lewat ${c.label}`)); }} className={`px-2 py-2 rounded-lg text-sm border cursor-pointer ${channel === c.id ? "bg-primary-navy text-white border-primary-navy" : "bg-neutral-white text-neutral-gray border-neutral-light-gray-1"}`}>
-                {c.label}
-              </button>
-            ))}
-          </div>
-        </div>
         <div className="text-xs text-neutral-gray mb-2">{t("Your subscriptions", "Langganan kamu")}</div>
-        {subs.length === 0 ? (
+        {subs === null ? (
+          <p className="text-sm text-neutral-gray">{t("Loading...", "Memuat...")}</p>
+        ) : subs.length === 0 ? (
           <p className="text-sm text-neutral-gray">{t("Nothing yet. Join a waitlist or ask for alerts from an event page.", "Belum ada. Masuk waitlist atau minta dikabari dari halaman event.")}</p>
         ) : (
           <div className="flex flex-col gap-2">
@@ -230,7 +238,7 @@ export default function ProfilePage() {
                   <div className="text-sm text-neutral-black truncate">{s.eventTitle}</div>
                   <div className="text-xs text-neutral-gray flex items-center gap-1"><Bell className="w-3 h-3" /> {s.tierName ? t(`${s.tierName} waitlist`, `Waitlist ${s.tierName}`) : t("New ticket alerts", "Notifikasi tiket baru")}</div>
                 </div>
-                <button onClick={() => { unsubscribe(s.id); toast(t("Removed", "Dihapus")); }} className="text-neutral-gray hover:text-secondary-pink-dark cursor-pointer shrink-0"><X className="w-4 h-4" /></button>
+                <button onClick={() => removeAlert(s.id)} className="text-neutral-gray hover:text-secondary-pink-dark cursor-pointer shrink-0"><X className="w-4 h-4" /></button>
               </div>
             ))}
           </div>

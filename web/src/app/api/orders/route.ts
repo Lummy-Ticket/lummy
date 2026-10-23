@@ -8,6 +8,7 @@ import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { chainError, openOrder, operatorSetup, readListing, writeAllowed } from "@/lib/chain/server";
 import { demoKeyAllowed, demoMode } from "@/lib/demo-key";
+import { notifyOrderPaid } from "@/lib/email/notify";
 import { DISPUTE_WINDOW_H } from "@/lib/mock/escrow";
 import { checkPurchase, orderInsert, type ChainFields } from "@/lib/orders/create";
 import { HELD } from "@/lib/orders/map";
@@ -112,5 +113,6 @@ export async function POST(req: Request) {
 
   // The catalogue shows what is left on sale: expire it now, not in 30 seconds.
   revalidateTag("catalogue", { expire: 0 });
+  notifyOrderPaid(admin, order.id);
   return NextResponse.json({ id: order.id }, { headers: noStore });
 }

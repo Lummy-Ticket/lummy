@@ -14,6 +14,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { chainError, operatorSetup, postpone, readListing, settle } from "@/lib/chain/server";
+import { notifyShowCancelled } from "@/lib/email/notify";
 import { inIndonesia, parseLocation } from "@/lib/events/location";
 import { queueLedgerSync } from "@/lib/orders/ledger";
 import { closeHoldsOfEvent } from "@/lib/payments/checkout";
@@ -121,6 +122,8 @@ async function cancel(admin: Admin, id: string, staffId: string) {
   let refunded = 0;
   let remaining = 0;
   const failures: string[] = [];
+  // Only orders this run refunded hear about it, so pressing it again sends nothing twice.
+  const toTell: string[] = [];
   for (const row of rows) {
     if (Date.now() - started > BUDGET_MS) {
       remaining++;
@@ -164,6 +167,7 @@ async function cancel(admin: Admin, id: string, staffId: string) {
     }
     if (!done.data.length) continue; // settled by someone else in the meantime
     refunded++;
+    toTell.push(row.id);
     if (row.payment_id) queueLedgerSync(admin, row.id);
     // A claim still open on it is closed the same way: refunded in full, no penalty.
     if (order.dispute && !order.dispute.verdict) {
@@ -184,6 +188,7 @@ async function cancel(admin: Admin, id: string, staffId: string) {
     }
   }
   if (failures.length) console.error(`[events] ${id} cancelled; refunds that failed:`, failures);
+  notifyShowCancelled(admin, toTell);
 
   revalidateTag("catalogue", { expire: 0 });
   return NextResponse.json(

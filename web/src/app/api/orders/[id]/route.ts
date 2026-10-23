@@ -7,6 +7,7 @@ import type { Hex } from "viem";
 import { NextResponse } from "next/server";
 import { readHistory } from "@/lib/chain/history";
 import { chainError, operatorSetup, payOut, readListing, settle, type Operator } from "@/lib/chain/server";
+import { notifyClaimFiled, notifyRuling } from "@/lib/email/notify";
 import {
   availableReasons, canFileDispute, canRefundPostponed, checkEvidence, mockEvidenceOptions, mockSellerEvidence, partialAmount,
   penaltyFor, remedyOptions, suggestedRationale,
@@ -187,6 +188,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         return fail(order.chain ? 502 : 500, failure);
       }
       ledgerFollows();
+      notifyClaimFiled(admin, id);
       return done();
     }
 
@@ -271,6 +273,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         .eq("id", id);
       if (settled.error) return fail(500, settled.error.message);
       ledgerFollows();
+      notifyRuling(admin, id);
       return done(tx ?? {});
     }
 

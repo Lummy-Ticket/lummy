@@ -8,6 +8,7 @@
 // One open hold per buyer: starting another closes the first.
 import { revalidateTag } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { notifyOrderPaid } from "@/lib/email/notify";
 import { checkPurchase, loadPurchase, orderInsert, priceOf } from "@/lib/orders/create";
 import { queueLedgerSync } from "@/lib/orders/ledger";
 import type { Database } from "@/lib/supabase/types";
@@ -106,8 +107,10 @@ async function ensureOrder(admin: Admin, row: PaymentRow): Promise<string | null
     if (ins.error.code === "23505") return orderIdOf(admin, row.id);
     throw new Error(ins.error.message);
   }
-  // The public record on chain follows once the answer is sent (docs/09 §7).
+  // The public record on chain follows once the answer is sent (docs/09 §7), and so does the
+  // buyer's email. Only the writer of the order gets here, so it goes once.
   queueLedgerSync(admin, ins.data.id);
+  notifyOrderPaid(admin, ins.data.id);
   return ins.data.id;
 }
 

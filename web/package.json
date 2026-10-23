@@ -41,6 +41,7 @@
     "postpone:check": "tsx scripts/postpone-check.ts",
     "payments:check": "tsx scripts/payments-check.ts",
     "usdc:check": "tsx scripts/usdc-check.ts",
+    "email:check": "tsx scripts/email-check.ts",
     "gate:check": "tsx scripts/gate-check.ts",
     "motion:check": "node scripts/motion-check.mjs",
     "perf:probe": "node scripts/perf-probe.mjs"
@@ -61,6 +62,7 @@
     "framer-motion": "^12.23.25",
     "lucide-react": "^0.555.0",
     "next": "16.3.8",
+    "nodemailer": "10.0.16",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.3.289",
     "qrcode.react": "^4.2.0",

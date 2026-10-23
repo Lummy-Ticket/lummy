@@ -3,6 +3,7 @@
 // status it starts from, so two people acting at once cannot both win.
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
+import { notifyListingLive } from "@/lib/email/notify";
 import type { Database } from "@/lib/supabase/types";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { currentUser } from "@/lib/supabase/session";
@@ -67,5 +68,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   // Going live or coming down both change what buyers see.
   if (to === "active" || listing.status === "active") revalidateTag("catalogue", { expire: 0 });
+  // Cleared, it is on sale now: people following the show, or this tier, hear about it.
+  if (to === "active") notifyListingLive(admin, id);
   return NextResponse.json({ ok: true, status: to }, { headers: noStore });
 }
