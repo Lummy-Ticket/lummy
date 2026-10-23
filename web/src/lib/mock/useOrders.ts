@@ -5,6 +5,7 @@ import type {
 } from "./types";
 import { DISPUTE_WINDOW_H, canFileDispute, canRefundPostponed, disputeDeadlineISO, partialAmount, penaltyFor } from "./escrow";
 import { seedOrders } from "./seed-orders";
+import { getEventById } from "./seed";
 
 /** What the contract reports for an on-chain order, as read through /api/chain/listing. */
 export interface ChainSnapshot {
@@ -267,8 +268,16 @@ export const useOrders = create<OrderState>()(
     {
       name: "lummy:orders",
       // v2 dropped the fake contract address and transaction hashes that sample orders used to carry.
-      version: 2,
-      migrate: () => ({ orders: seedOrders() }),
+      // v3: real shows replaced the made-up ones on 23 Oct 2026, and orders kept from before pointed
+      // at deleted shows and photos. The sample orders start over; an order placed in this browser
+      // stays while its show is still in the catalogue.
+      version: 3,
+      migrate: (persisted, version) => {
+        if (version < 2) return { orders: seedOrders() };
+        const stored = (persisted as { orders?: Order[] } | null)?.orders ?? [];
+        const placed = stored.filter((o) => !o.id.startsWith("or-seed-") && !!getEventById(o.eventId));
+        return { orders: [...placed, ...seedOrders()] };
+      },
     }
   )
 );

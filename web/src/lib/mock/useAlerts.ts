@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { getEventById } from "./seed";
 
 export type AlertChannel = "email" | "whatsapp" | "telegram";
 
@@ -38,6 +39,17 @@ export const useAlerts = create<AlertState>()(
       },
       unsubscribe: (id) => set((st) => ({ subs: st.subs.filter((x) => x.id !== id) })),
     }),
-    { name: "lummy:alerts" }
+    {
+      name: "lummy:alerts",
+      // v1: real shows replaced the made-up ones on 23 Oct 2026. The sample alerts start over; an
+      // alert set in this browser stays while its show is still in the catalogue.
+      version: 1,
+      migrate: (persisted) => {
+        const stored = (persisted ?? {}) as Partial<AlertState>;
+        const mine = (stored.subs ?? []).filter((s) => !SEED.some((x) => x.id === s.id) && !!getEventById(s.eventId));
+        const same = (a: AlertSub, b: AlertSub) => a.eventId === b.eventId && (a.tierId ?? null) === (b.tierId ?? null);
+        return { ...stored, subs: [...mine, ...SEED.filter((s) => !mine.some((m) => same(m, s)))] };
+      },
+    }
   )
 );

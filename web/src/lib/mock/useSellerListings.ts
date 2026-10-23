@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { ListingChecks } from "@/lib/tickets/checks";
 import type { ListingAI } from "./types";
+import { getEventById } from "./seed";
 
 export type SellerListingStatus = "active" | "sold" | "review" | "rejected";
 
@@ -74,6 +75,16 @@ export const useSellerListings = create<SellerState>()(
           listings: s.listings.map((l) => (l.id === id ? { ...l, status: "rejected" } : l)),
         })),
     }),
-    { name: "lummy:seller" }
+    {
+      name: "lummy:seller",
+      // v1: real shows replaced the made-up ones on 23 Oct 2026. The sample listings start over; a
+      // listing made in this browser stays while its show is still in the catalogue.
+      version: 1,
+      migrate: (persisted) => {
+        const stored = (persisted as { listings?: SellerListing[] } | null)?.listings ?? [];
+        const made = stored.filter((l) => !SEED.some((s) => s.id === l.id) && !!getEventById(l.eventId));
+        return { listings: [...made, ...SEED] };
+      },
+    }
   )
 );
