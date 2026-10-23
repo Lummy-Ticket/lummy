@@ -14,6 +14,7 @@ import { NextResponse } from "next/server";
 import { syncLedgerDue } from "@/lib/orders/ledger";
 import { settleDue } from "@/lib/orders/settle";
 import { expireHolds } from "@/lib/payments/checkout";
+import { reconcileUsdcHolds, usdcRail } from "@/lib/payments/usdc";
 import { purgeExpired } from "@/lib/retention-purge";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
@@ -50,6 +51,16 @@ export async function GET(req: Request) {
   } catch (e) {
     holdsReleased = { error: (e as Error).message };
   }
+  // USDC submits cut off half way: money in the escrow without an order goes back to its wallet.
+  let usdcReconciled: number | { error: string } | null = null;
+  const op = usdcRail();
+  if (op) {
+    try {
+      usdcReconciled = await reconcileUsdcHolds(admin, op, 10);
+    } catch (e) {
+      usdcReconciled = { error: (e as Error).message };
+    }
+  }
   // After the payouts above, so a release made just now reaches the chain in the same run.
   let ledger: Awaited<ReturnType<typeof syncLedgerDue>> | { error: string };
   try {
@@ -59,7 +70,7 @@ export async function GET(req: Request) {
   }
   if (purge.errors.length) console.error("[cron/daily] files that could not be deleted:", purge.errors);
   return NextResponse.json(
-    { settle, holdsReleased, ledger, purge: { ticketFiles: purge.ticketFiles, evidenceFiles: purge.evidenceFiles, orphanUploads: purge.orphanUploads, errors: purge.errors.length, unfinished: purge.unfinished } },
+    { settle, holdsReleased, usdcReconciled, ledger, purge: { ticketFiles: purge.ticketFiles, evidenceFiles: purge.evidenceFiles, orphanUploads: purge.orphanUploads, errors: purge.errors.length, unfinished: purge.unfinished } },
     { headers: noStore }
   );
 }

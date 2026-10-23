@@ -9,7 +9,8 @@
  * is held. Signatures from another key are refused, and so is another account sending the real ones.
  * The real ones lock the money in LummyEscrow and write exactly one order, which sending them again
  * returns; the chain shows the listing funded by the wallet, and the QRIS ledger leaves the order
- * alone. Cancelling a hold gives its seat back. Then the last seat is bought through the pages
+ * alone. Cancelling a hold gives its seat back. A submit cut off after the money was locked, with no
+ * order written, is found by the next checkout, which refunds the wallet on chain. Then the last seat is bought through the pages
  * themselves, with a wallet injected into the browser that hands every signature request to the
  * same key here: prices in USDC, the wallet panel at checkout, the ticket page after. At the end
  * staff cancel the show, and the escrow pays the wallet back in full.
@@ -49,7 +50,8 @@ const TIER = "t-zz-usdc";
 const TIER_BIG = "t-zz-usdc-big";
 const L1 = "ls-zz-usdc-1"; // two seats, sold one by one
 const L_BIG = "ls-zz-usdc-big"; // more than the wallet holds
-const LISTINGS = [L1, L_BIG];
+const L_CUT = "ls-zz-usdc-cut"; // paid, then cut off before its order
+const LISTINGS = [L1, L_BIG, L_CUT];
 const PRICE = 100_000; // 0.10 USDC, in micro-USDC like every USDC price in the app
 const BIG = 1_000_000_000; // 1,000 USDC
 
@@ -153,6 +155,7 @@ async function main() {
       ]),
       await admin.from("listings").insert([
         { id: L1, event_id: EVENT, tier_id: TIER, seller_id: seller, seller_name: "USDC S.", ask_price: PRICE, face_value: PRICE, quantity: 2, splittable: true, status: "active" },
+        { id: L_CUT, event_id: EVENT, tier_id: TIER, seller_id: seller, seller_name: "USDC S.", ask_price: PRICE, face_value: PRICE, quantity: 1, splittable: false, status: "active" },
         { id: L_BIG, event_id: EVENT, tier_id: TIER_BIG, seller_id: seller, seller_name: "USDC S.", ask_price: BIG, face_value: BIG, quantity: 1, splittable: false, status: "active" },
       ]),
     ];
@@ -264,6 +267,36 @@ async function main() {
       const cancelled = await api(buyerCtx, "POST", `/api/payments/${secondId}`, { action: "cancel" });
       const back = await listing(L1);
       check("cancelling it gives the seat back", cancelled.status === 200 && cancelled.body.status === "canceled" && back?.status === "active" && back.quantity === 1, JSON.stringify({ cancelled, back }));
+    }
+
+    // --- A submit cut off after the money was locked (a timeout, a crash): no order, the hold still
+    // marked as on its way. The next checkout (or the daily cron) reads the chain and refunds it.
+    const balanceNow = () => pc.readContract({ address: s.token as Address, abi: tokenAbi, functionName: "balanceOf", args: [wallet] });
+    const cutStart = await api(buyerCtx, "POST", "/api/payments", { listingId: L_CUT, quantity: 1, wallet });
+    const cut = cutStart.body as unknown as UsdcStart;
+    const cutPaid = cut.payment?.id ? await api(buyerCtx, "POST", `/api/payments/${cut.payment.id}/usdc`, await signBoth(walletPk, cut)) : null;
+    check("another seat is paid, to be cut off", cutStart.status === 200 && cutPaid?.status === 200, JSON.stringify(cutPaid ?? cutStart).slice(0, 300));
+    if (cut.payment?.id && cutPaid?.status === 200) {
+      const cutId = cut.payment.id;
+      const cutListing = keccak256(toHex(`lummy:listing:${cutId}`));
+      const beforeCut = await balanceNow();
+      await admin.from("orders").delete().eq("payment_id", cutId);
+      await admin.from("payments").update({ status: "pending", checked_at: new Date(Date.now() - 10 * 60_000).toISOString() }).eq("id", cutId);
+      // Any new checkout runs the reconcile first, even one refused for the balance.
+      await api(buyerCtx, "POST", "/api/payments", { listingId: L_BIG, quantity: 1, wallet });
+      const cutRow = await payment(cutId);
+      const cutLive = await escrowOf(cutListing);
+      let afterCut = await balanceNow();
+      for (let i = 0; i < 10 && afterCut - beforeCut !== BigInt(PRICE); i++) {
+        await sleep(1500);
+        afterCut = await balanceNow();
+      }
+      check(
+        "the next checkout finds the cut-off hold and refunds the wallet on chain",
+        cutRow?.status === "refunded" && cutLive.live?.status === "Refunded" && afterCut - beforeCut === BigInt(PRICE),
+        JSON.stringify({ status: cutRow?.status, note: cutRow?.refund_note, chain: cutLive.live?.status, delta: String(afterCut - beforeCut) })
+      );
+      check("and its seat is back on sale", (await listing(L_CUT))?.status === "active", JSON.stringify(await listing(L_CUT)));
     }
 
     // --- The last seat through the pages, with a wallet in the browser. The page asks it the way it

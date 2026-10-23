@@ -6,7 +6,12 @@
 //      listing, funds it with those signatures and records the handover, paying the gas. Only then is
 //      the hold paid and the order written.
 //   3. A hold nobody signs runs out like a QRIS one (expire_payments), and its seats come back.
+//   4. Money never stays in the escrow without an order: every failure after funding refunds it,
+//      and a submit cut off half way (a timeout, a crash) is found later by reconcileUsdcHolds,
+//      which reads the chain and refunds or cancels.
 // Testnet only for now: Circle's test USDC on Arbitrum Sepolia.
+// Listings for USDC shows carry no barcode commitment yet (selling there is closed): a refund
+// after funding keeps a commitment used, so per-seat commitments come before selling opens.
 import { revalidateTag } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { bytesToHex, formatUnits, getAddress, verifyTypedData, type Address, type Hex } from "viem";
@@ -14,7 +19,7 @@ import { tokenAbi } from "@/lib/chain/abi";
 import { fundTypedData, type FundSignature } from "@/lib/chain/buyer";
 import { USDC_DECIMALS } from "@/lib/chain/config";
 import { publicClient } from "@/lib/chain/escrow";
-import { chainError, onchainListingId, openOrder, operatorSetup, readListing, settle, type Operator } from "@/lib/chain/server";
+import { cancelOnchainListing, chainError, onchainListingId, openOrder, operatorSetup, readListing, settle, type Operator } from "@/lib/chain/server";
 import { DISPUTE_WINDOW_H } from "@/lib/mock/escrow";
 import { checkPurchase, loadPurchase, orderInsert, priceOf, type ChainFields } from "@/lib/orders/create";
 import { HELD } from "@/lib/orders/map";
@@ -31,8 +36,12 @@ type Admin = SupabaseClient<Database>;
 export const USDC_HOLD_MINUTES = 10;
 /** The signatures stay valid this long after the hold, so a submit near its end still lands on chain. */
 const SIGNATURE_GRACE_SECONDS = 300;
-/** Open USDC holds and orders one wallet may have at a time (the guards in the plan). */
+/** Open USDC orders one wallet may have at a time (the guards in the plan). Only the wallet can make them. */
 export const WALLET_OPEN_LIMIT = 3;
+/** Submits that cost the operator a transaction and failed, per account per hour, before new holds stop. */
+const FAILED_SUBMITS_PER_HOUR = 3;
+/** A submit that has held its lock this long without finishing was cut off; reconcileUsdcHolds takes it. */
+const STALE_SUBMIT_MS = 3 * 60_000;
 /** New holds one buyer may open in HOLD_RATE_MINUTES, as for QRIS. */
 const HOLDS_PER_WINDOW = 20;
 const HOLD_RATE_MINUTES = 10;
@@ -83,6 +92,65 @@ export async function cancelUsdcHold(admin: Admin, row: PaymentRow): Promise<Pay
   return data ?? row;
 }
 
+/** Money already in the escrow for one hold goes back to the wallet. True when it did. */
+async function refundOnChain(op: Operator, onchainId: Hex) {
+  const live = await readListing(op, onchainId).catch(() => null);
+  if (live?.status !== "Funded" && live?.status !== "DisputeWindow") return false;
+  await settle(op, onchainId, "refund");
+  return true;
+}
+
+/** A paid hold whose order could not be written: refunded on chain, its seats back on sale. */
+async function undoPaid(admin: Admin, op: Operator, row: PaymentRow) {
+  const refunded = await refundOnChain(op, row.onchain_listing_id as Hex).catch((e) => {
+    console.error("[usdc] could not refund on chain:", row.id, chainError(e));
+    return false;
+  });
+  if (!refunded) return false;
+  const at = new Date().toISOString();
+  await admin.rpc("release_listing", { p_listing_id: row.listing_id, p_quantity: row.quantity });
+  await admin.from("payments").update({ status: "refunded", refunded_at: at, refund_note: "refunded on chain: the order could not be written", updated_at: at }).eq("id", row.id);
+  seatsChanged();
+  return true;
+}
+
+/**
+ * Submits cut off half way: a lock older than STALE_SUBMIT_MS on a hold that is still open or has
+ * since expired, with no order. The chain says what happened: money in the escrow goes back, a
+ * listing created but not funded is cancelled, and the hold is closed. Run by every new USDC
+ * checkout and by the daily cron; returns how many it settled.
+ */
+export async function reconcileUsdcHolds(admin: Admin, op: Operator, limit = 5) {
+  const { data, error } = await admin
+    .from("payments")
+    .select("*")
+    .eq("provider", "escrow")
+    .in("status", ["pending", "expired"])
+    .not("checked_at", "is", null)
+    .lt("checked_at", iso(Date.now() - STALE_SUBMIT_MS))
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  let settled = 0;
+  for (const row of data ?? []) {
+    if (await orderIdOf(admin, row.id)) continue;
+    const id = row.onchain_listing_id as Hex;
+    const live = await readListing(op, id).catch(() => null);
+    if (!live) continue;
+    const at = new Date().toISOString();
+    if (live.status === "Funded" || live.status === "DisputeWindow") {
+      const tx = (await settle(op, id, "refund")).tx;
+      if (row.status === "pending") await closeHold(admin, row.id, "failed");
+      await admin.from("payments").update({ status: "refunded", refunded_at: at, refund_note: `refunded on chain after a cut-off submit: ${tx}`, updated_at: at }).eq("id", row.id);
+    } else {
+      if (live.status === "Listed") await cancelOnchainListing(op, id);
+      if (row.status === "pending") await closeHold(admin, row.id, "failed");
+      else await admin.from("payments").update({ status: "failed", updated_at: at }).eq("id", row.id);
+    }
+    settled++;
+  }
+  return settled;
+}
+
 /** The two messages for one hold, rebuilt from what the hold stores, so they match what was signed. */
 function typedOf(op: Operator, row: PaymentRow) {
   return fundTypedData({
@@ -108,6 +176,7 @@ export async function startUsdcCheckout(
 ): Promise<Result<UsdcStart>> {
   const wallet = getAddress(walletInput);
   await expireHolds(admin);
+  await reconcileUsdcHolds(admin, op, 2).catch((e) => console.error("[usdc] reconcile:", (e as Error).message));
 
   const check = await checkPurchase(admin, buyerId, listingId);
   if (!check.ok) return check;
@@ -120,23 +189,34 @@ export async function startUsdcCheckout(
     return fail(409, "pembayaran USDC sebelumnya sedang dikunci di escrow; tunggu sebentar");
   }
 
-  const [holds, orders, recent] = await Promise.all([
-    // This buyer's own open hold is replaced below, so it does not count.
-    admin.from("payments").select("id", { count: "exact", head: true }).eq("payer_wallet", wallet).eq("status", "pending").neq("buyer_id", buyerId),
+  // Holds are counted per account, not per wallet: anyone can type an address, so holds by other
+  // accounts must not lock its owner out. Orders need the wallet's own signatures, so they count.
+  const [orders, recent, failed] = await Promise.all([
     admin.from("orders").select("id", { count: "exact", head: true }).eq("buyer_wallet", wallet).in("escrow_status", HELD),
     admin
       .from("payments")
       .select("id", { count: "exact", head: true })
       .eq("buyer_id", buyerId)
       .gte("created_at", iso(Date.now() - HOLD_RATE_MINUTES * 60_000)),
+    admin
+      .from("payments")
+      .select("id", { count: "exact", head: true })
+      .eq("buyer_id", buyerId)
+      .eq("provider", "escrow")
+      .in("status", ["failed", "refunded"])
+      .gte("updated_at", iso(Date.now() - H)),
   ]);
-  const counted = holds.error ?? orders.error ?? recent.error;
+  const counted = orders.error ?? recent.error ?? failed.error;
   if (counted) return fail(500, counted.message);
-  if ((holds.count ?? 0) + (orders.count ?? 0) >= WALLET_OPEN_LIMIT) {
-    return fail(429, `satu wallet paling banyak punya ${WALLET_OPEN_LIMIT} pembayaran atau pesanan USDC yang berjalan`);
+  if ((orders.count ?? 0) >= WALLET_OPEN_LIMIT) {
+    return fail(429, `satu wallet paling banyak punya ${WALLET_OPEN_LIMIT} pesanan USDC yang berjalan`);
   }
   if ((recent.count ?? 0) >= HOLDS_PER_WINDOW) {
     return fail(429, `terlalu banyak percobaan bayar dalam ${HOLD_RATE_MINUTES} menit terakhir; coba lagi sebentar lagi`);
+  }
+  // Each failed submit cost the operator gas; a few in an hour and this account waits.
+  if ((failed.count ?? 0) >= FAILED_SUBMITS_PER_HOUR) {
+    return fail(429, "beberapa pembayaran USDC dari akun ini baru saja gagal; coba lagi dalam satu jam");
   }
 
   const price = priceOf(check.purchase.listing.ask_price, quantity, "USDC");
@@ -259,6 +339,27 @@ export async function submitUsdcPayment(
   ]);
   if (!authOk || !fundOk) return fail(400, "tanda tangannya bukan dari wallet yang memulai pembayaran ini");
 
+  // Valid signatures over money that is gone would only cost the operator gas: a create, a fund that
+  // reverts, a cancel. So the wallet still has to hold the amount, and the authorisation must be unused.
+  const pc = publicClient(op.chain, op.rpcUrl);
+  let balance: bigint;
+  let nonceUsed = false;
+  try {
+    balance = await pc.readContract({ address: op.token, abi: tokenAbi, functionName: "balanceOf", args: [wallet] });
+    nonceUsed = await pc
+      .readContract({ address: op.token, abi: tokenAbi, functionName: "authorizationState", args: [wallet, row.auth_nonce as Hex] })
+      .catch(() => false);
+  } catch (e) {
+    return fail(502, chainError(e));
+  }
+  if (balance < BigInt(row.total)) {
+    return fail(402, `saldo USDC di wallet ini tinggal ${usdc(balance)}, butuh ${usdc(row.total)}`);
+  }
+  if (nonceUsed) {
+    await closeHold(admin, row.id, "failed");
+    return fail(409, "otorisasi USDC ini sudah dipakai atau dibatalkan di wallet; mulai lagi dari checkout");
+  }
+
   // One submit at a time: the first to mark the hold carries it to the chain.
   const lock = await admin
     .from("payments")
@@ -289,13 +390,7 @@ export async function submitUsdcPayment(
   };
   const endsAtSec = Math.floor(purchase.scheduledEnd / 1000);
   /** Money already in escrow for an order that cannot be written goes straight back to the wallet. */
-  const giveBack = async () => {
-    const id = row.onchain_listing_id as Hex;
-    const live = await readListing(op, id).catch(() => null);
-    if (live?.status !== "Funded" && live?.status !== "DisputeWindow") return false;
-    await settle(op, id, "refund");
-    return true;
-  };
+  const giveBack = () => refundOnChain(op, row.onchain_listing_id as Hex);
 
   let opened: Awaited<ReturnType<typeof openOrder>>;
   try {
@@ -314,7 +409,10 @@ export async function submitUsdcPayment(
   const marked = await admin.rpc("mark_payment_paid", { p_id: row.id, p_provider_payment_id: opened.txs.fund });
   if (marked.error) {
     console.error("[usdc] funded on chain but not marked paid:", row.id, opened.listingId, marked.error.message);
-    return fail(500, "dana sudah terkunci di escrow, tapi pembayarannya gagal dicatat; hubungi tim Lummy");
+    const refunded = await giveBack().catch(() => false);
+    // If the database is down as well, reconcileUsdcHolds closes the hold later.
+    if (refunded) await closeHold(admin, row.id, "failed").catch(() => null);
+    return fail(500, refunded ? "pembayarannya gagal dicatat; USDC-nya sudah dikembalikan ke wallet" : "pembayarannya gagal dicatat; USDC-nya akan dikembalikan otomatis");
   }
   // The hold closed while the chain was busy and its seats went to someone else.
   if (marked.data === "unfulfilled") {
@@ -354,7 +452,8 @@ export async function submitUsdcPayment(
       if (orderId) return { ok: true, value: { orderId } };
     }
     console.error("[usdc] escrow funded on chain but the order was not saved:", row.id, opened.listingId, ins.error?.message);
-    return fail(500, "dana sudah terkunci di escrow, tapi pesanannya gagal disimpan; hubungi tim Lummy");
+    const undone = await undoPaid(admin, op, row);
+    return fail(500, undone ? "pesanannya gagal disimpan; USDC-nya sudah dikembalikan ke wallet" : "pesanannya gagal disimpan; hubungi tim Lummy untuk pengembalian USDC");
   }
   seatsChanged();
   return { ok: true, value: { orderId: ins.data.id } };

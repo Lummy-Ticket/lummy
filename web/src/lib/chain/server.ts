@@ -207,6 +207,14 @@ export async function openOrder(
   });
 }
 
+/** Listing yang dibuat tapi belum didanai dibatalkan, supaya komitmen barcode-nya lepas lagi. */
+export async function cancelOnchainListing(op: Operator, id: Hex) {
+  return serial(op.operator.address, async () => {
+    const pc = publicClient(op.chain, op.rpcUrl);
+    return (await escrowAs(pc, op.operator, op.chain, op.rpcUrl, op.escrow).cancelListing(id)).hash;
+  });
+}
+
 /** Satu aksi penyelesaian, lalu dana yang teralokasi langsung dikirim ke pemiliknya (withdrawFor). */
 export async function settle(op: Operator, id: Hex, action: SettleAction, toBuyer = BigInt(0)) {
   return serial(op.operator.address, async () => {

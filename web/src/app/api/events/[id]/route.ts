@@ -13,7 +13,7 @@ import type { Hex } from "viem";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
-import { chainError, operatorSetup, postpone, settle } from "@/lib/chain/server";
+import { chainError, operatorSetup, postpone, readListing, settle } from "@/lib/chain/server";
 import { inIndonesia, parseLocation } from "@/lib/events/location";
 import { queueLedgerSync } from "@/lib/orders/ledger";
 import { closeHoldsOfEvent } from "@/lib/payments/checkout";
@@ -137,9 +137,14 @@ async function cancel(admin: Admin, id: string, staffId: string) {
       try {
         tx = await settle(op, order.chain.listingId as Hex, "refund");
       } catch (e) {
-        // The contract refuses once the window has closed: that order is left for a person.
-        failures.push(chainError(e));
-        continue;
+        // A connection dropped after the refund went through still reads as an error: the chain
+        // decides. The contract refuses once the window has closed: that order is left for a person.
+        const live = await readListing(op, order.chain.listingId as Hex).catch(() => null);
+        if (live?.status !== "Refunded") {
+          failures.push(chainError(e));
+          continue;
+        }
+        console.error("[events] refund went through on chain, its reply was lost:", row.id, chainError(e));
       }
     }
     const done = await admin
