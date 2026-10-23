@@ -14,9 +14,9 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('44444444-4444-4444-4444-444444444444', 'ad@test.id', '{}');
 update public.profiles set role = 'admin' where id = '44444444-4444-4444-4444-444444444444';
 insert into public.listings (id, event_id, tier_id, seller_id, seller_name, ask_price, face_value, quantity, status)
-  values ('ls-review', 'ev-sos', 't-sos-fest', '22222222-2222-2222-2222-222222222222', 'Penjual Uji', 800000, 750000, 1, 'review');
+  values ('ls-review', 'ev-boyz-dewa', 't-bd-festival', '22222222-2222-2222-2222-222222222222', 'Penjual Uji', 800000, 750000, 1, 'review');
 insert into public.orders (id, listing_id, event_id, buyer_id, seller_id, event_title, event_date, tier_name, seller_name, quantity, amount)
-  values ('or-test', 'ls-1', 'ev-coldplay', '11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222', 'Coldplay', now() + interval '30 days', 'CAT 1', 'Penjual Uji', 1, 2800000);
+  values ('or-test', 'ls-1', 'ev-gnr-jakarta', '11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222', 'Coldplay', now() + interval '30 days', 'CAT 1', 'Penjual Uji', 1, 2800000);
 insert into public.disputes (order_id, reason, note_en) values ('or-test', 'GATE_DENIED', 'test');
 insert into public.ktp_assets (listing_id, owner_id, path, sha256, access_open_at, purge_after)
   values ('ls-review', '22222222-2222-2222-2222-222222222222', 'x/ktp.jpg', 'abc', now() + interval '1 day', now() + interval '3 days');
@@ -41,7 +41,7 @@ end $$;
 
 -- Real shows get added next to the 7 seed ones, so the seed is a floor, not a total.
 select pg_temp.probe('anon', null, 'anon: reads the catalogue, at least the 7 seed events', 'select (count(*) >= 7)::text from public.catalogue_events', 'true');
-select pg_temp.probe('anon', null, 'anon: WTF is tomorrow 14:00 WIB', $q$select (starts_at = ((((now() at time zone 'Asia/Jakarta')::date + 1) + time '14:00') at time zone 'Asia/Jakarta'))::text from public.catalogue_events where id = 'ev-wtf'$q$, 'true');
+select pg_temp.probe('anon', null, 'anon: WTF is tomorrow 14:00 WIB', $q$select (starts_at = ((((now() at time zone 'Asia/Jakarta')::date + 1) + time '14:00') at time zone 'Asia/Jakarta'))::text from public.catalogue_events where id = 'ev-demo-fest'$q$, 'true');
 -- The catalogue's price and count follow the buyable rule for every show, whatever is listed,
 -- and the seed's edited and duplicate listings (still on sale, still flagged) are left out.
 select pg_temp.probe('anon', null, 'anon: catalogue counts only buyable listings, flagged ones left out', $q$
@@ -87,8 +87,8 @@ select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'b
 select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: set own escrow to Released', $q$update public.orders set escrow_status = 'Released' returning id$q$, 'DENIED');
 select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: file dispute directly', $q$insert into public.disputes (order_id, reason) values ('or-test','NO_SHOW') returning order_id$q$, 'DENIED');
 select pg_temp.probe('authenticated', '22222222-2222-2222-2222-222222222222', 'seller: read ktp_assets', 'select count(*)::text from public.ktp_assets', 'DENIED');
-select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: add own alert', $q$insert into public.alert_subscriptions (event_id) values ('ev-sos') returning event_id$q$, 'ev-sos');
-select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: add alert for someone else', $q$insert into public.alert_subscriptions (user_id, event_id) values ('22222222-2222-2222-2222-222222222222','ev-sos') returning event_id$q$, 'DENIED');
+select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: add own alert', $q$insert into public.alert_subscriptions (event_id) values ('ev-boyz-dewa') returning event_id$q$, 'ev-boyz-dewa');
+select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: add alert for someone else', $q$insert into public.alert_subscriptions (user_id, event_id) values ('22222222-2222-2222-2222-222222222222','ev-boyz-dewa') returning event_id$q$, 'DENIED');
 select pg_temp.probe('authenticated', '22222222-2222-2222-2222-222222222222', 'seller: sees no one else alerts', 'select count(*)::text from public.alert_subscriptions', '0');
 -- Seats are claimed and handed back by the server only, after it has checked the buyer.
 select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: claim seats directly', $q$select (public.claim_listing('ls-2', 1)).id$q$, 'DENIED');
@@ -109,7 +109,7 @@ select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'b
 select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: reads own ledger columns', $q$select count(*)::text from (select ledger_id, ledger_status from public.orders) x$q$, '1');
 -- Who went through which door is for the server: a pass is checked there, never by the browser (docs/09 §8).
 select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: read gate_scans', 'select count(*)::text from public.gate_scans', 'DENIED');
-select pg_temp.probe('authenticated', '44444444-4444-4444-4444-444444444444', 'admin: let a ticket in directly', $q$insert into public.gate_scans (event_id, unit, credential, result) values ('ev-sos', 'order:x', 'pass', 'admitted') returning id::text$q$, 'DENIED');
+select pg_temp.probe('authenticated', '44444444-4444-4444-4444-444444444444', 'admin: let a ticket in directly', $q$insert into public.gate_scans (event_id, unit, credential, result) values ('ev-boyz-dewa', 'order:x', 'pass', 'admitted') returning id::text$q$, 'DENIED');
 
 insert into t_out(line)
   select (case when role = 'member' then 'ok    ' else 'FAIL  ' end) || 'signup metadata cannot set role -> ' || role::text

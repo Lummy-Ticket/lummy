@@ -2,8 +2,10 @@
 // auto-released, in review, refunded. Sample personas keep these in the browser; the demo
 // accounts get the same five in the database when a presenter resets them. Dates for the
 // settled ones are relative to the moment they are made, which keeps the 48h countdown live.
-// Tour stops differ from the catalogue on purpose: those shows already happened, so they are
-// no longer listed for sale.
+// The upcoming one is a real show in the catalogue. The settled ones are past samples, named
+// "(contoh)" with a generated poster: no real show happened on those relative dates.
+import { eventPoster } from "../poster";
+import { eventArt } from "./seed";
 import type { Order } from "./types";
 
 const H = 3_600_000;
@@ -12,27 +14,27 @@ export function seedOrders(now: number = Date.now()): Order[] {
   const ago = (hours: number) => new Date(now - hours * H).toISOString();
   return [
     {
-      id: "or-seed-1", listingId: "ls-2", eventId: "ev-coldplay",
-      eventTitle: "Coldplay: Music of the Spheres",
-      eventImage: "/assets/events/coldplay-hd.jpg",
-      eventDateISO: "2026-11-14T19:00:00+07:00", tierName: "CAT 3", sellerName: "Rian P.",
-      quantity: 1, amount: 1_400_000, gateKtp: true, escrowStatus: "LOCKED",
+      id: "or-seed-1", listingId: "ls-2", eventId: "ev-gnr-jakarta",
+      eventTitle: "Guns N' Roses World Tour 2026, Jakarta",
+      eventImage: eventArt("ev-gnr-jakarta").image,
+      eventDateISO: "2026-11-21T19:00:00+07:00", tierName: "Festival C", sellerName: "Rian P.",
+      quantity: 1, amount: 1_950_000, gateKtp: true, escrowStatus: "LOCKED",
       createdAtISO: ago(20 * 24),
     },
     {
       // Show ended 6 hours ago: dispute window running, roughly 42h on the clock.
-      id: "or-seed-2", listingId: "ls-x1", eventId: "ev-tulus",
-      eventTitle: "Tulus: Manusia Tour, Surabaya",
-      eventImage: "/assets/events/tulus-hd.jpg",
+      id: "or-seed-2", listingId: "ls-x1", eventId: "ev-past-tulus",
+      eventTitle: "Tulus: Manusia Tour, Surabaya (contoh)",
+      eventImage: eventPoster("ev-past-tulus"),
       eventDateISO: ago(10), tierName: "Festival", sellerName: "Bagas W.",
       quantity: 1, amount: 950_000, gateKtp: false, escrowStatus: "LOCKED",
       createdAtISO: ago(16 * 24), eventEndedAtISO: ago(6),
     },
     {
       // Nobody filed anything, so the contract paid the seller by itself.
-      id: "or-seed-3", listingId: "ls-x2", eventId: "ev-dwp",
-      eventTitle: "Djakarta Warehouse Project 2026",
-      eventImage: "/assets/events/dwp-hd.jpg",
+      id: "or-seed-3", listingId: "ls-x2", eventId: "ev-past-fest",
+      eventTitle: "Festival musik Agustus (contoh)",
+      eventImage: eventPoster("ev-past-fest"),
       eventDateISO: "2026-08-09T20:00:00+07:00", tierName: "GA", sellerName: "Rizky T.",
       quantity: 1, amount: 1_250_000, gateKtp: false, escrowStatus: "RELEASED",
       createdAtISO: "2026-07-18T13:00:00+07:00",
@@ -40,9 +42,9 @@ export function seedOrders(now: number = Date.now()): Order[] {
     },
     {
       // Filed 20h ago with gate-time evidence, still with the arbiter.
-      id: "or-seed-4", listingId: "ls-x3", eventId: "ev-pandji",
-      eventTitle: "Pandji Pragiwaksono: Menyala, Bandung",
-      eventImage: "/assets/events/pandji-hd.jpg",
+      id: "or-seed-4", listingId: "ls-x3", eventId: "ev-past-pandji",
+      eventTitle: "Pandji Pragiwaksono: Menyala, Bandung (contoh)",
+      eventImage: eventPoster("ev-past-pandji"),
       eventDateISO: ago(30), tierName: "Silver", sellerName: "Zahra Amelia",
       quantity: 1, amount: 430_000, gateKtp: false, escrowStatus: "DISPUTED",
       createdAtISO: ago(24 * 24), eventEndedAtISO: ago(26),
@@ -64,9 +66,9 @@ export function seedOrders(now: number = Date.now()): Order[] {
     },
     {
       // Arbiter sided with the buyer, so the escrow refunded instead of paying out.
-      id: "or-seed-5", listingId: "ls-x4", eventId: "ev-sos",
-      eventTitle: "Sheila on 7: Tunggu Aku, Yogyakarta",
-      eventImage: "/assets/events/sheila-hd.jpg",
+      id: "or-seed-5", listingId: "ls-x4", eventId: "ev-past-sheila",
+      eventTitle: "Sheila on 7: Tunggu Aku, Yogyakarta (contoh)",
+      eventImage: eventPoster("ev-past-sheila"),
       eventDateISO: ago(21 * 24), tierName: "Tribune", sellerName: "Farhan A.",
       quantity: 2, amount: 700_000, gateKtp: false, escrowStatus: "REFUNDED",
       createdAtISO: ago(40 * 24), eventEndedAtISO: ago(21 * 24 - 4),

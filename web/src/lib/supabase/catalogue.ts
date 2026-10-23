@@ -52,6 +52,7 @@ async function fetchCatalogue(url: string, key: string): Promise<CatalogueData> 
           venue: e.venue,
           city: e.city,
           image: e.image_url ?? eventPoster(e.id),
+          imageCredit: e.image_credit ?? undefined,
           tiers: (ti.data ?? []).filter((t) => t.event_id === e.id).map((t) => ({ id: t.id, name: t.name, faceValue: t.face_value })),
           fromPrice: e.from_price ?? 0,
           listingCount: e.listing_count ?? 0,

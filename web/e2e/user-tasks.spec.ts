@@ -17,7 +17,7 @@ test.describe("user tasks", { tag: "@smoke" }, () => {
   test("no page or link preview claims AI checks tickets", async ({ page }) => {
     await page.goto("/");
     expect(await page.locator('meta[name="description"]').getAttribute("content")).not.toMatch(/\bAI\b/);
-    for (const path of ["/", "/events", "/events/ev-tulus", "/how-it-works", "/about"]) {
+    for (const path of ["/", "/events", "/events/ev-5sos-jakarta", "/how-it-works", "/about"]) {
       await page.goto(path);
       await expect(page.locator("html")).toHaveAttribute("lang", "id");
       expect(aiClaims(await page.locator("body").innerText()), path).toEqual([]);
@@ -35,7 +35,7 @@ test.describe("user tasks", { tag: "@smoke" }, () => {
   });
 
   test("the seller's name says why no record is needed", async ({ page }) => {
-    await page.goto("/events/ev-coldplay");
+    await page.goto("/events/ev-gnr-jakarta");
     const row = page.locator('[data-listing="ls-1"]');
     await row.locator("[data-seller-info]").click();
     await expect(row.locator("[data-seller-note]")).toContainText("tidak perlu memercayai penjualnya");
@@ -45,10 +45,10 @@ test.describe("user tasks", { tag: "@smoke" }, () => {
   test("1 a search finds a show and its cheapest price", async ({ page }) => {
     await page.goto("/");
     const search = page.getByRole("textbox", { name: "Cari event" }).first();
-    await search.fill("tulus");
+    await search.fill("summer");
     await search.press("Enter");
-    await expect(page).toHaveURL(/\/events\?q=tulus/);
-    await page.getByRole("link", { name: /Tulus/ }).first().click();
+    await expect(page).toHaveURL(/\/events\?q=summer/);
+    await page.getByRole("link", { name: /Seconds of Summer/ }).first().click();
     await expect(page).toHaveURL(/\/events\/ev-/);
     await expect(page.getByText("Termurah").first()).toBeVisible();
     await expect(page.getByText("Mulai dari")).toBeVisible();
@@ -56,7 +56,7 @@ test.describe("user tasks", { tag: "@smoke" }, () => {
   });
 
   test("2 one ticket with a sample account, told the payment is simulated, then where the money is", async ({ page }) => {
-    await page.goto("/events/ev-tulus");
+    await page.goto("/events/ev-5sos-jakarta");
     // Up to 8, the most one listing holds, so a set of 7 or 8 that cannot be split can be found; it fits a phone.
     const counts = page.getByRole("group", { name: "Jumlah tiket" }).getByRole("button");
     await expect(counts).toHaveText(["1", "2", "3", "4", "5", "6", "7", "8"]);

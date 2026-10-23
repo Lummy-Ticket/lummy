@@ -101,7 +101,7 @@ try {
   const seller = await signIn("SELLER");
   const staff = await signIn("ADMIN");
 
-  const base = { event_id: "ev-tulus", tier_id: "t-tl-reg", ask_price: 700000, face_value: 650000, status: "active", gate_ktp: true };
+  const base = { event_id: "ev-5sos-jakarta", tier_id: "t-5sos-cat4", ask_price: 1000000, face_value: 910000, status: "active", gate_ktp: true };
   const made = await admin.from("listings").insert([
     { ...base, id: L1, seller_id: seller.user.id, seller_name: seller.user.name, quantity: 2, splittable: true },
     { ...base, id: L2, seller_id: null, seller_name: "Lummy test", quantity: 1, splittable: false },
@@ -143,14 +143,14 @@ try {
   if (qris) await buyer.page.locator("[data-qris-simulate]").click();
   await buyer.page.waitForURL(/\/tickets\/or-/, { timeout: CHAIN ? 120000 : 30000 });
   const orderId = new URL(buyer.page.url()).pathname.split("/").pop();
-  await buyer.page.getByRole("heading", { name: "Tulus: Manusia Tour" }).waitFor();
+  await buyer.page.getByRole("heading", { name: "5 Seconds of Summer: Everyone's a Star! Jakarta" }).waitFor();
   check("checkout mendarat di tiket yang baru dibeli", orderId.startsWith("or-"), orderId);
   check("tiket akun tanpa kontrol prototipe", !(await buyer.page.getByText("Prototype controls").isVisible()));
 
   const [o1] = await orderOf(L1);
   check("pesanan tersimpan untuk akun pembeli dan penjual", o1?.id === orderId && o1.buyer_id === buyer.user.id && o1.seller_id === seller.user.id);
   // No e-stamp is charged until a licensed provider adds one (web/src/lib/features.ts, eStamp).
-  check("harga dan biaya layanan dihitung server, tanpa biaya materai", o1?.amount === 700000 && o1.fee === 35000 && o1.materai === 0, `${o1?.amount}/${o1?.fee}/${o1?.materai}`);
+  check("harga dan biaya layanan dihitung server, tanpa biaya materai", o1?.amount === 1000000 && o1.fee === 50000 && o1.materai === 0, `${o1?.amount}/${o1?.fee}/${o1?.materai}`);
   const endsAt = new Date(o1?.event_ends_at).getTime();
   if (CHAIN) {
     check("escrow on-chain tercatat", /^0x[0-9a-f]{64}$/.test(o1?.onchain_listing_id ?? "") && !!o1.tx_fund && o1.escrow_status === "DisputeWindow", o1?.escrow_status);
@@ -161,7 +161,7 @@ try {
   check("sebagian set dibeli: sisa 1 tetap dijual", JSON.stringify(await listingOf(L1)) === JSON.stringify({ quantity: 1, status: "active" }));
 
   // The catalogue is in every page: the sold listing is gone, the one with a seat left is not.
-  const html = await (await fetch(`${BASE}/events/ev-tulus`)).text();
+  const html = await (await fetch(`${BASE}/events/ev-5sos-jakarta`)).text();
   check("katalog langsung diperbarui", html.includes(L1) && !html.includes(L2));
 
   // --- Who can read which order, through the database API with each account's own token
@@ -315,7 +315,7 @@ try {
     heldEscrow = held?.onchain_listing_id ?? null;
     check("pesanan chain yang masih menahan dana dibuat", !!heldEscrow);
   }
-  check("sebelum reset: listing seed yang habis hilang dari katalog", extra.ok() && !(await (await fetch(`${BASE}/events/ev-tulus`)).text()).includes(SEED_TOUCHED));
+  check("sebelum reset: listing seed yang habis hilang dari katalog", extra.ok() && !(await (await fetch(`${BASE}/events/ev-5sos-jakarta`)).text()).includes(SEED_TOUCHED));
 
   // From the Dev Panel, as a presenter would: two clicks, then the page loads again.
   await buyer.page.evaluate((key) => {
@@ -342,7 +342,7 @@ try {
   const windowLeft = new Date(byId["or-demo-2"]?.event_ends_at).getTime() + 48 * 3_600_000 - Date.now();
   check("reset: masa sengketa satu pesanan sedang berjalan", windowLeft > 40 * 3_600_000 && windowLeft < 43 * 3_600_000, String(windowLeft));
   check("reset: listing seed yang habis dijual lagi", JSON.stringify(await listingOf(SEED_TOUCHED)) === JSON.stringify({ quantity: 2, status: "active" }));
-  check("reset: katalog langsung ikut", (await (await fetch(`${BASE}/events/ev-tulus`)).text()).includes(SEED_TOUCHED));
+  check("reset: katalog langsung ikut", (await (await fetch(`${BASE}/events/ev-5sos-jakarta`)).text()).includes(SEED_TOUCHED));
   if (CHAIN) {
     const live = await (await fetch(`${BASE}/api/chain/listing/${heldEscrow}`)).json();
     check("reset: escrow yang masih terkunci dikembalikan ke pembeli di kontrak", live.status === "Refunded", live.status ?? live.error);

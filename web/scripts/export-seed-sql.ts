@@ -47,8 +47,11 @@ const sql = [
       venue_lat: VENUE_LOCATION[e.venue]?.lat ?? null,
       venue_lng: VENUE_LOCATION[e.venue]?.lng ?? null,
       image_url: e.image.startsWith("/") ? e.image : null,
+      image_credit: e.imageCredit ?? null,
       featured: !!e.featured,
       transfer_policy: e.transferPolicy ?? null,
+      country: e.country ?? "ID",
+      currency: e.currency ?? "IDR",
     }))
   ),
   upsert(

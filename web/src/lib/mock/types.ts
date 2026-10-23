@@ -51,6 +51,8 @@ export interface EventItem {
   venue: string;
   city: string;
   image: string;
+  /** Credit for a licensed photo (CC BY, CC BY-SA), shown under it; absent for a generated poster. */
+  imageCredit?: string;
   tiers: Tier[];
   fromPrice: number; // lowest buyable ask (IDR), 0 when nothing is buyable. Derived in seed.ts
   listingCount: number; // buyable listings. Derived in seed.ts

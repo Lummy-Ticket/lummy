@@ -39,7 +39,7 @@ test.describe("demo script", { tag: "@smoke" }, () => {
     });
     await test.step("0:50 a last-minute listing goes to review", async () => {
       await check();
-      await page.getByRole("combobox").first().selectOption("ev-wtf");
+      await page.getByRole("combobox").first().selectOption("ev-demo-fest");
       await page.getByRole("button", { name: "Continue to price" }).click();
       await expect(page.getByText(/duplicate-ticket fraud happens/)).toBeVisible();
       await expect(page.getByRole("button", { name: /Submit for review/ })).toBeVisible();
@@ -120,15 +120,16 @@ test.describe("demo script", { tag: "@smoke" }, () => {
     await expect(page.getByText("Refunded to you").first()).toBeVisible();
   });
 
-  test("the show's name rule is on the event page", async ({ page }) => {
-    await page.goto("/events/ev-coldplay");
-    await expect(page.getByText("Named ticket, letter accepted").first()).toBeVisible();
+  test("the show's name rule is on the event page, unconfirmed for a real show", async ({ page }) => {
+    // Real shows carry a name rule only when the promoter's terms say so (tasks/real-events-2026.md).
+    await page.goto("/events/ev-gnr-jakarta");
+    await expect(page.getByText("Name rules not confirmed").first()).toBeVisible();
     // Sellers cannot stage an ID card yet (lib/features.ts), so no listing claims one or is blamed for lacking one.
     await expect(page.getByText(/ID checked at the gate|ID card not staged/)).toHaveCount(0);
   });
 
   test("a listing held for a check says when it can be bought", async ({ page }) => {
-    await page.goto("/events/ev-newjeans");
+    await page.goto("/events/ev-demo-fest");
     await expect(page.locator('[data-listing="ls-3"] [data-review-why]')).toContainText("once the Lummy team has checked the file");
   });
 

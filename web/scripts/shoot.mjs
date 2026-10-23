@@ -10,7 +10,7 @@ const OUT = process.argv[2] || "/tmp/shots";
 const ROUTES = [
   ["/", "01-home"],
   ["/events", "02-events"],
-  ["/events/ev-coldplay", "03-event-detail"],
+  ["/events/ev-gnr-jakarta", "03-event-detail"],
   ["/checkout?listing=ls-1", "04-checkout"],
   ["/tickets", "05-tickets"],
   ["/tickets/or-seed-1", "06-transparency"],

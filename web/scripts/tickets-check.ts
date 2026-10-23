@@ -84,7 +84,7 @@ async function main() {
   check("redrawn in Canva: same barcode, same key as the genuine file", redrawn.barcodes[0]?.key === k, JSON.stringify(redrawn.barcodes));
 
   const two = await timed("two tickets", await ticketPdf({
-    codes: [{ text: "LMY|ev-tulus|VIP|C-12|1111-2222-3333", format: "QRCode" }, { text: "TIX88427731", format: "Code128", vector: true }],
+    codes: [{ text: "LMY|ev-5sos-jakarta|CAT3|C-12|1111-2222-3333", format: "QRCode" }, { text: "TIX88427731", format: "Code128", vector: true }],
     producer: "Lummy test issuer PDF engine",
   }));
   check("two tickets: both codes, one per page", two.barcodes.length === 2 && two.barcodes.map((b) => `${b.format}@${b.page}`).join(" ") === "QRCode@1 Code128@2", JSON.stringify(two.barcodes));

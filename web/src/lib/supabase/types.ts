@@ -254,6 +254,7 @@ export type Database = {
           currency: string
           featured: boolean
           id: string
+          image_credit: string | null
           image_url: string | null
           rolling_hour: number | null
           starts_at: string
@@ -272,6 +273,7 @@ export type Database = {
           currency?: string
           featured?: boolean
           id: string
+          image_credit?: string | null
           image_url?: string | null
           rolling_hour?: number | null
           starts_at: string
@@ -292,6 +294,7 @@ export type Database = {
           currency?: string
           featured?: boolean
           id?: string
+          image_credit?: string | null
           image_url?: string | null
           rolling_hour?: number | null
           starts_at?: string
@@ -960,6 +963,7 @@ export type Database = {
           featured: boolean | null
           from_price: number | null
           id: string | null
+          image_credit: string | null
           image_url: string | null
           listing_count: number | null
           starts_at: string | null

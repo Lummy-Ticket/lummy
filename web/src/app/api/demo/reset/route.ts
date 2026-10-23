@@ -179,12 +179,12 @@ export async function POST(req: Request) {
     const flagged = SAMPLE_SIGNALS.edited;
     const heldListing = await admin.from("listings").upsert({
       id: HELD_LISTING_ID,
-      event_id: "ev-tulus",
-      tier_id: "t-tl-vip",
+      event_id: "ev-5sos-jakarta",
+      tier_id: "t-5sos-cat3",
       seller_id: seller,
       seller_name: sellerName,
-      ask_price: 1_380_000,
-      face_value: 1_200_000,
+      ask_price: 1_450_000,
+      face_value: 1_320_000,
       quantity: 1,
       splittable: false,
       gate_ktp: false,

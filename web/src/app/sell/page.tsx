@@ -107,8 +107,8 @@ export default function SellPage() {
   const [dragging, setDragging] = useState(false);
 
   // extracted / editable
-  const [eventId, setEventId] = useState("ev-tulus");
-  const [tierId, setTierId] = useState("t-tl-vip");
+  const [eventId, setEventId] = useState("ev-5sos-jakarta");
+  const [tierId, setTierId] = useState("t-5sos-cat3");
   const [orderer, setOrderer] = useState("");
   // With the AI step on, a real ticket is read by a model, here and again at publish. The original
   // buyer's name, typed as printed, is what keeps it out of what the model reads, so it comes first.

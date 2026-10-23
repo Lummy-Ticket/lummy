@@ -11,7 +11,7 @@ import { prepareZXingModule, writeBarcode } from "zxing-wasm/writer";
 import { packageFile } from "../src/lib/tickets/barcode";
 
 export const ISSUED = new Date("2026-09-01T10:00:00+07:00");
-export const GENUINE = "LMY|ev-tulus|VIP|C-12|8842-7731-2290";
+export const GENUINE = "LMY|ev-5sos-jakarta|CAT3|C-12|8842-7731-2290";
 
 export const latin1 = (s: string) => Uint8Array.from(s, (c) => c.charCodeAt(0) & 0xff);
 const asText = (b: Uint8Array) => new TextDecoder("latin1").decode(b);
@@ -57,12 +57,12 @@ export async function ticketPdf(o: { codes: Code[]; name?: string; producer: str
   const font = await doc.embedFont(StandardFonts.Helvetica);
   for (const code of o.codes.length ? o.codes : [null]) {
     const page = doc.addPage([420, 595]);
-    // The sample catalogue's Tulus show (lib/mock/seed.ts): its day and venue, so a model that
-    // checks them against the show finds it, as it should not for the same tour elsewhere.
-    page.drawText("TULUS - Tur Manusia 2026", { x: 36, y: 540, size: 16, font });
-    page.drawText("Sabtu, 7 November 2026 - 20:00 WIB", { x: 36, y: 524, size: 10, font });
+    // The catalogue's 5 Seconds of Summer show (lib/mock/seed.ts): its day and venue, so a model
+    // that checks them against the show finds it, as it should not for the same tour elsewhere.
+    page.drawText("5 SECONDS OF SUMMER - EVERYONE'S A STAR! JAKARTA", { x: 36, y: 540, size: 16, font });
+    page.drawText("Minggu, 6 Desember 2026 - 18:00 WIB", { x: 36, y: 524, size: 10, font });
     page.drawText(`Name: ${o.name ?? "Zahra Amelia"}`, { x: 36, y: 506, size: 12, font });
-    page.drawText("VIP - Row C - Seat 12 - SICC Bogor", { x: 36, y: 490, size: 12, font });
+    page.drawText("CAT 3 - Row C - Seat 12 - Indonesia Arena", { x: 36, y: 490, size: 12, font });
     (o.extra ?? []).forEach((line, i) => page.drawText(line, { x: 36, y: 470 - i * 16, size: 10, font }));
     if (code) await drawCode(doc, page, code);
   }

@@ -6,7 +6,7 @@ import { expect, signInSample, test } from "./support";
 // and critical problems fail; the rest is listed in the report for the next pass. Motion is reduced
 // and the page's heading awaited first, so an entrance still fading in is not read as faint text.
 
-const PUBLIC = ["/", "/events", "/events/ev-tulus", "/how-it-works", "/login"];
+const PUBLIC = ["/", "/events", "/events/ev-5sos-jakarta", "/how-it-works", "/login"];
 const SIGNED_IN = ["/tickets", "/sell", "/checkout?listing=ls-1&qty=1"];
 
 async function audit(page: Page, path: string) {

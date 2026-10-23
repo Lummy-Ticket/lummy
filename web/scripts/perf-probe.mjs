@@ -36,7 +36,7 @@ async function once(path, selector) {
 
 for (const [path, sel, label] of [
   ["/events", 'a.lm-in[href^="/events/"]', "kartu acara pertama"],
-  ["/events/ev-coldplay", "div.lm-in.rounded-2xl", "listing pertama"],
+  ["/events/ev-gnr-jakarta", "div.lm-in.rounded-2xl", "listing pertama"],
   ["/how-it-works", "[data-reveal]", "reveal pertama"],
 ]) {
   await fetch(`${BASE}${path}`); // hangatkan cache server

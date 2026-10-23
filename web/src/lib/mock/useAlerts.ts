@@ -21,8 +21,8 @@ interface AlertState {
 }
 
 const SEED: AlertSub[] = [
-  { id: "al-1", eventId: "ev-sos", eventTitle: "Sheila on 7: Tunggu Aku di Jakarta", createdAtISO: "2026-07-30T09:00:00+07:00" },
-  { id: "al-2", eventId: "ev-coldplay", eventTitle: "Coldplay: Music of the Spheres", tierId: "t-cp-fest", tierName: "Festival", createdAtISO: "2026-07-31T11:00:00+07:00" },
+  { id: "al-1", eventId: "ev-boyz-dewa", eventTitle: "Boyz II Men & Dewa 19 Live in Jakarta", createdAtISO: "2026-07-30T09:00:00+07:00" },
+  { id: "al-2", eventId: "ev-gnr-jakarta", eventTitle: "Guns N' Roses World Tour 2026, Jakarta", tierId: "t-gnr-fest-a", tierName: "Festival A", createdAtISO: "2026-07-31T11:00:00+07:00" },
 ];
 
 export const useAlerts = create<AlertState>()(

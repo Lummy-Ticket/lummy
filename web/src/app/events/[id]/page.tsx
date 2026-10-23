@@ -179,6 +179,8 @@ export default function EventDetailPage() {
             <Image src={event.image} alt={event.title} fill sizes="(min-width: 1024px) 60vw, 100vw" className="lm-settle object-cover" priority />
             <span className="absolute top-3 left-3 bg-neutral-white/95 backdrop-blur-sm text-lummy-500 text-xs font-semibold rounded-full px-3 py-1 shadow-sm">{categoryLabel(event.category)}</span>
           </div>
+          {/* A licensed photo names its author and licence, as the licence asks. */}
+          {event.imageCredit && <p data-image-credit className="mt-1.5 text-[11px] text-neutral-gray">{event.imageCredit}</p>}
           <h1 className="lm-in text-3xl md:text-4xl font-bold text-neutral-black mt-6 tracking-tight" style={{ "--d": "120ms" } as React.CSSProperties}>{event.title}</h1>
           <div className="lm-in flex flex-wrap gap-x-6 gap-y-2 mt-4 text-neutral-gray" style={{ "--d": "180ms" } as React.CSSProperties}>
             <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-primary-navy" /> {formatEventDate(event.dateISO)}</span>
