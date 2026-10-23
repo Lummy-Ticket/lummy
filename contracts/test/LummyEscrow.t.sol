@@ -6,7 +6,7 @@ import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/Reentrancy
 import {LummyEscrow} from "../src/LummyEscrow.sol";
 import {MockUSDC} from "../src/MockUSDC.sol";
 import {EscrowBase} from "./utils/EscrowBase.sol";
-import {HookToken, Reenterer} from "./utils/HookToken.sol";
+import {FundHookToken, HookToken, Reenterer, ShortToken} from "./utils/HookToken.sol";
 
 contract LummyEscrowTest is EscrowBase {
     bytes32 internal constant ID = keccak256("listing-1");
@@ -443,6 +443,15 @@ contract LummyEscrowTest is EscrowBase {
         assertEq(demo.disputeWindow(), 10 minutes);
     }
 
+    function test_constructor_rejectsZeroAddresses() public {
+        vm.expectRevert(LummyEscrow.ZeroAddress.selector);
+        new LummyEscrow(MockUSDC(address(0)), admin, operator, CAP, WINDOW);
+        vm.expectRevert(LummyEscrow.ZeroAddress.selector);
+        new LummyEscrow(usdc, address(0), operator, CAP, WINDOW);
+        vm.expectRevert(LummyEscrow.ZeroAddress.selector);
+        new LummyEscrow(usdc, admin, address(0), CAP, WINDOW);
+    }
+
     // ================================================================
     // Komitmen barcode (keputusan A)
     // ================================================================
@@ -549,6 +558,19 @@ contract LummyEscrowTest is EscrowBase {
         vm.prank(operator);
         vm.expectRevert(LummyEscrow.NotDisputed.selector);
         escrow.resolveDispute(ID, 1);
+    }
+
+    /// Putusan cuma sekali: putusan kedua ditolak, jadi alokasi tidak bisa berlipat.
+    function test_resolve_onlyOnce() public {
+        _inWindow();
+        _dispute();
+        vm.startPrank(operator);
+        escrow.resolveDispute(ID, PRICE / 2);
+        vm.expectRevert(abi.encodeWithSelector(LummyEscrow.BadStatus.selector, LummyEscrow.Status.Refunded));
+        escrow.resolveDispute(ID, PRICE / 2);
+        vm.stopPrank();
+        assertEq(escrow.pending(buyer), PRICE / 2);
+        assertEq(escrow.pending(buyer) + escrow.pending(seller), PRICE);
     }
 
     function testFuzz_resolve_splitAlwaysSumsToPrice(uint256 toBuyer) public {
@@ -699,6 +721,23 @@ contract LummyEscrowTest is EscrowBase {
         _assertStatus(ID2, LummyEscrow.Status.Funded);
     }
 
+    /// Token yang menyerahkan kurang dari harga ditolak, dan listing tetap terbuka tanpa pembeli.
+    function test_fund_shortDeliveryRejected() public {
+        ShortToken token = new ShortToken();
+        LummyEscrow e = new LummyEscrow(token, admin, operator, CAP, WINDOW);
+        token.mint(buyer, PRICE);
+        vm.prank(seller);
+        e.createListing(ID, PRICE, COMMIT, _now40());
+        FundArgs memory a = _signFund(e, token, ID, PRICE, buyerKey, "n");
+
+        vm.expectRevert(LummyEscrow.TransferMismatch.selector);
+        _submit(e, ID, a);
+        (, address listingBuyer,,,, LummyEscrow.Status status,,) = e.listings(ID);
+        assertEq(uint8(status), uint8(LummyEscrow.Status.Listed));
+        assertEq(listingBuyer, address(0));
+        assertEq(token.balanceOf(buyer), PRICE);
+    }
+
     // ================================================================
     // Penarikan
     // ================================================================
@@ -733,6 +772,44 @@ contract LummyEscrowTest is EscrowBase {
         e.withdrawFor(address(attacker));
         assertEq(e.pending(address(attacker)), PRICE);
         assertEq(token.balanceOf(address(e)), PRICE);
+    }
+
+    /// Token jahat memanggil `fund` listing lain di tengah penarikan dana pembeli. Guard menolak, jadi saldo
+    /// escrow tidak bisa bertambah lewat jalur lain di antara dua pembacaan `balanceOf` di `_pull` (temuan
+    /// Slither reentrancy-balance, lihat SECURITY-ANALYSIS.md).
+    function test_reentrancy_fundGuarded() public {
+        FundHookToken token = new FundHookToken();
+        LummyEscrow e = new LummyEscrow(token, admin, operator, CAP, WINDOW);
+        token.mint(buyer, 2 * PRICE);
+        vm.startPrank(seller);
+        e.createListing(ID, PRICE, COMMIT, _now40());
+        e.createListing(ID2, PRICE, COMMIT2, _now40());
+        vm.stopPrank();
+
+        FundArgs memory inner = _signFund(e, token, ID2, PRICE, buyerKey, "inner");
+        token.arm(
+            address(e),
+            abi.encodeCall(
+                e.fund,
+                (
+                    ID2,
+                    inner.from,
+                    inner.value,
+                    inner.validAfter,
+                    inner.validBefore,
+                    inner.authNonce,
+                    inner.authSig,
+                    inner.deadline,
+                    inner.fundSig
+                )
+            )
+        );
+        FundArgs memory outer = _signFund(e, token, ID, PRICE, buyerKey, "outer");
+
+        vm.expectRevert(ReentrancyGuardTransient.ReentrancyGuardReentrantCall.selector);
+        _submit(e, ID, outer);
+        assertEq(token.balanceOf(address(e)), 0);
+        assertEq(token.balanceOf(buyer), 2 * PRICE);
     }
 
     /// Seller jahat yang sudah punya alokasi, dengan token yang memanggilnya balik saat menerima dana.
