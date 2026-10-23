@@ -7,6 +7,7 @@ import { Footer } from "@/components/layout/Footer";
 import DevPanel from "@/components/dev/DevPanel";
 import { CatalogueProvider } from "@/lib/catalogue";
 import { AuthSync } from "@/components/auth/AuthSync";
+import { DemoBar } from "@/components/auth/DemoBar";
 import { loadCatalogue } from "@/lib/supabase/catalogue";
 import { MotionObserver } from "@/components/motion/MotionObserver";
 
@@ -46,6 +47,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           <Navbar />
           <main className="flex-1">{children}</main>
           <Footer />
+          <DemoBar />
           <Toaster position="top-center" />
           <DevPanel />
         </CatalogueProvider>

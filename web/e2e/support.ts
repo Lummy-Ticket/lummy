@@ -32,13 +32,16 @@ export { expect };
 /** Whether the tests run against this machine, where the dev panel always shows. */
 export const isLocal = (baseURL: string | undefined) => /\/\/(localhost|127\.0\.0\.1)\b/.test(baseURL ?? "");
 
+/** The login page's button for a sample persona, which it calls a demo account (a sample account before 24 Oct 2026). */
+export const DEMO_SIGN_IN = /^(Lanjut dengan akun (demo|contoh)|Continue with a (demo|sample) account)$/;
+
 /**
  * Signs in with a sample account from the login page and lands on `next`, the way a tester sent to
  * the login page comes back. Nothing reaches the database.
  */
 export async function signInSample(page: Page, next = "/") {
   await page.goto(`/login?next=${encodeURIComponent(next)}`);
-  await tapUntil(page, page.getByRole("button", { name: /^(Lanjut dengan akun contoh|Continue with a sample account)$/ }), (u) => u.pathname === next);
+  await tapUntil(page, page.getByRole("button", { name: DEMO_SIGN_IN }), (u) => u.pathname === next);
 }
 
 /**

@@ -341,8 +341,8 @@ export default function SellPage() {
           {!account && fileName && !SAMPLE_NAMES.has(fileName) && (
             <p data-simulated-check className="text-xs text-neutral-gray">
               {t(
-                "A sample account only simulates the check: the result comes from the sample you pick below, not from this file. Sign in with email to check a real PDF.",
-                "Akun contoh cuma menyimulasikan cek: hasilnya dari contoh yang kamu pilih di bawah, bukan dari file ini. Masuk dengan email untuk mengecek PDF asli."
+                "A demo account only simulates the check: the result comes from the sample you pick below, not from this file. Sign in with email to check a real PDF.",
+                "Akun demo cuma menyimulasikan cek: hasilnya dari contoh yang kamu pilih di bawah, bukan dari file ini. Masuk dengan email untuk mengecek PDF asli."
               )}
             </p>
           )}

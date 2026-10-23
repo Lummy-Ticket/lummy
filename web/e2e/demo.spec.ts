@@ -177,7 +177,19 @@ test.describe("demo script", { tag: "@smoke" }, () => {
     await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
     await page.goto("/checkout?listing=ls-1");
     await expect(page).toHaveURL(/\/login/);
-    await page.getByRole("button", { name: /^(Continue with a sample account|Sign in)$/ }).click();
+    await page.getByRole("button", { name: /^(Continue with a (demo|sample) account|Sign in)$/ }).click();
     await expect(page).toHaveURL(/\/checkout\?listing=ls-1/);
+    await expect(page.locator("[data-demo-bar]")).toContainText("Demo account: Buyer");
+  });
+
+  test("a persona stored days ago says it is a demo account, and as whom, and leaves in one click", async ({ page }) => {
+    await persona(page, "admin");
+    await page.goto("/");
+    const bar = page.locator("[data-demo-bar]");
+    await expect(bar).toContainText("Demo account: Admin");
+    await expect(bar.getByRole("link", { name: "Sign in with your email" })).toHaveAttribute("href", "/login");
+    await bar.getByRole("button", { name: "Leave demo" }).click();
+    await expect(bar).toHaveCount(0);
+    await expect(page.locator('[data-bar="site"]').getByRole("link", { name: "Sign in" })).toBeVisible();
   });
 });

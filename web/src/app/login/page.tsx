@@ -52,8 +52,8 @@ function LoginInner() {
     const msg = `${e.code ?? ""} ${e.message}`.toLowerCase();
     if (msg.includes("not authorized"))
       return t(
-        "Sign-in emails are not open to everyone yet. You can explore with a sample account below.",
-        "Email masuk belum dibuka untuk umum. Kamu bisa menjelajah dengan akun contoh di bawah."
+        "Sign-in emails are not open to everyone yet. You can explore with a demo account below.",
+        "Email masuk belum dibuka untuk umum. Kamu bisa menjelajah dengan akun demo di bawah."
       );
     if (e.status === 429 || msg.includes("rate limit"))
       return t("Too many sign-in emails just now. Try again in a few minutes.", "Terlalu banyak email masuk barusan. Coba lagi beberapa menit lagi.");
@@ -86,7 +86,7 @@ function LoginInner() {
 
   const sampleSignIn = () => {
     login(role);
-    toast.success(t("Signed in with a sample account", "Masuk dengan akun contoh"));
+    toast.success(t("Signed in with a demo account", "Masuk dengan akun demo"));
     // Back to where the visitor was headed (a checkout, say), else the role's home.
     const next = params.get("next");
     router.push(next ? safePath(next) : ROLES.find((r) => r.role === role)!.home);
@@ -146,10 +146,10 @@ function LoginInner() {
           {accounts && (
             <>
               <p className="font-semibold text-neutral-black">{t("Just looking around?", "Cuma mau lihat-lihat?")}</p>
-              <p className="text-xs text-neutral-gray mt-0.5">{t("Explore with a sample account. Nothing is saved to a real account.", "Jelajahi dengan akun contoh. Tidak ada yang tersimpan ke akun sungguhan.")}</p>
+              <p className="text-xs text-neutral-gray mt-0.5">{t("Explore with a demo account: sample orders and simulated payments, kept in this browser.", "Jelajahi dengan akun demo: pesanan contoh dan pembayaran simulasi, tersimpan di browser ini.")}</p>
             </>
           )}
-          <span className="block text-xs text-neutral-gray mt-3">{t("Sample account", "Akun contoh")}</span>
+          <span className="block text-xs text-neutral-gray mt-3">{t("Demo account", "Akun demo")}</span>
           <div className="grid grid-cols-3 gap-2 mt-1.5">
             {ROLES.map((r) => (
               <button key={r.role} type="button" onClick={() => setRole(r.role)} className={`px-2 py-2 rounded-lg text-sm border cursor-pointer ${role === r.role ? "bg-primary-navy text-white border-primary-navy" : "bg-neutral-white text-neutral-gray border-neutral-light-gray-1"}`}>
@@ -158,7 +158,7 @@ function LoginInner() {
             ))}
           </div>
           {accounts ? (
-            <Button.Ghost className="w-full mt-4 text-sm" onClick={sampleSignIn}>{t("Continue with a sample account", "Lanjut dengan akun contoh")}</Button.Ghost>
+            <Button.Ghost className="w-full mt-4 text-sm" onClick={sampleSignIn}>{t("Continue with a demo account", "Lanjut dengan akun demo")}</Button.Ghost>
           ) : (
             <Button.Primary wrapperClass="w-full mt-6" className="w-full" onClick={sampleSignIn}>{t("Sign in", "Masuk")}</Button.Primary>
           )}

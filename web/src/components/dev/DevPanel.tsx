@@ -12,6 +12,7 @@ import { demoPrefs, useChainInfo } from "@/lib/chain/client";
 import { openDemoAccount, resetDemoAccounts, useDemoAccounts, type DemoAccountsInfo } from "@/lib/demo-client";
 import { useCatalogue } from "@/lib/catalogue";
 import { supabaseBrowser } from "@/lib/supabase/browser";
+import { useDemoBar } from "@/components/auth/DemoBar";
 
 const ROLES: { role: Role; en: string; id: string; home: string }[] = [
   { role: "BUYER", en: "Buyer", id: "Pembeli", home: "/" },
@@ -270,9 +271,11 @@ function Dock() {
   const [open, setOpen] = useState(false);
   // Asked when the dock mounts, not when the panel opens, so the answer is there before the first click.
   const accounts = useDemoAccounts();
+  // Clear of the demo bar's button at the foot of the window.
+  const bar = useDemoBar();
 
   return (
-    <div className="fixed bottom-5 right-5 z-50">
+    <div className={cn("fixed right-5 z-50", bar ? "bottom-24" : "bottom-5")}>
       {open ? (
         <Panel onClose={() => setOpen(false)} accounts={accounts} />
       ) : (

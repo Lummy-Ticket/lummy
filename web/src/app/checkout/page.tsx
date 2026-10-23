@@ -313,8 +313,8 @@ function CheckoutInner() {
             // A sample account sees the QRIS rail but pays nothing; say so before the tap, not after.
             <p data-sample-payment className="text-[11px] text-neutral-gray text-center -mt-2">
               {t(
-                "Sample account: the payment is simulated, so there is no QR code to scan and no money moves.",
-                "Akun contoh: pembayarannya simulasi, jadi tidak ada QR yang perlu discan dan tidak ada uang yang berpindah."
+                "Demo account: the payment is simulated, so there is no QR code to scan and no money moves.",
+                "Akun demo: pembayarannya simulasi, jadi tidak ada QR yang perlu discan dan tidak ada uang yang berpindah."
               )}
             </p>
           )}
