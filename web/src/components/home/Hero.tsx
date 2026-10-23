@@ -3,7 +3,7 @@
 import type React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Wallet } from "lucide-react";
 import { HeroSearch } from "./HeroSearch";
 import { useT } from "@/lib/i18n";
 import { Notch } from "@/components/ui/notch";
@@ -55,6 +55,14 @@ export function Hero({ quickCats }: { quickCats: string[] }) {
                 {t(
                   "The seller only gets paid after the show. Turned away at the gate with proof? Your money comes back.",
                   "Penjual baru dibayar setelah acara selesai. Ditolak di gate dengan bukti? Uangmu kembali."
+                )}
+              </p>
+              {/* The second rail (tasks/founder-house-usdc.md), said where every visitor starts. */}
+              <p data-hero-usdc className="lm-in -mt-3 flex items-start gap-2 text-sm text-neutral-gray max-w-md" style={{ "--d": "300ms" } as React.CSSProperties}>
+                <Wallet aria-hidden className="w-4 h-4 text-primary-navy shrink-0 mt-0.5" />
+                {t(
+                  "Shows abroad: pay test USDC from your own wallet. Two signatures, no gas to pay.",
+                  "Acara di luar negeri: bayar USDC uji dari wallet-mu sendiri. Dua tanda tangan, tanpa bayar gas."
                 )}
               </p>
               <div className="lm-in" style={{ "--d": "340ms" } as React.CSSProperties}>

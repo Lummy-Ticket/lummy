@@ -39,9 +39,9 @@ const principles = [
     bodyId: "Uang menunggu di escrow sampai acara selesai. Menipu jadi tidak menguntungkan kalau pembayaran datang setelah gate.",
   },
   {
-    en: "No crypto to learn", id: "Tanpa perlu belajar kripto",
-    bodyEn: "Sign in with email and pay with QRIS. The ledger underneath is ours to run, not yours to manage.",
-    bodyId: "Masuk pakai email dan bayar pakai QRIS. Buku besar di belakangnya urusan kami, bukan kamu.",
+    en: "No crypto to learn in Indonesia", id: "Tanpa belajar kripto di Indonesia",
+    bodyEn: "Sign in with email and pay with QRIS in rupiah; the ledger underneath is ours to run. For a show abroad, pay test USDC from your own wallet: two signatures, no gas to pay.",
+    bodyId: "Masuk pakai email dan bayar QRIS dalam rupiah; buku besar di belakangnya urusan kami. Untuk acara di luar negeri, bayar USDC uji dari wallet-mu sendiri: dua tanda tangan, tanpa bayar gas.",
   },
   {
     en: "Fair prices by design", id: "Harga wajar sejak awal",
