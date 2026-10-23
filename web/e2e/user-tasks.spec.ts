@@ -36,7 +36,8 @@ test.describe("user tasks", { tag: "@smoke" }, () => {
 
   test("the seller's name says why no record is needed", async ({ page }) => {
     await page.goto("/events/ev-gnr-jakarta");
-    const row = page.locator('[data-listing="ls-1"]');
+    // The page opens on one ticket, the cheapest listing's count, where this single is on show.
+    const row = page.locator('[data-listing="ls-2"]');
     await row.locator("[data-seller-info]").click();
     await expect(row.locator("[data-seller-note]")).toContainText("tidak perlu memercayai penjualnya");
     await expectFitsScreen(page);

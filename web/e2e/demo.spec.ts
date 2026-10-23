@@ -130,6 +130,13 @@ test.describe("demo script", { tag: "@smoke" }, () => {
     await expect(page.getByText(/ID checked at the gate|ID card not staged/)).toHaveCount(0);
   });
 
+  test("a show opens on the ticket count of its cheapest listing, so the From price is in the list", async ({ page }) => {
+    // 9.50 USDC is one ticket; a fixed default of 2 hid it while the sidebar said "From 9.50 USDC".
+    await page.goto("/events/ev-bbw-2026");
+    await expect(page.getByRole("group", { name: "Number of tickets" }).getByRole("button", { name: "1", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator('[data-listing="ls-bbw-1"]')).toBeVisible();
+  });
+
   test("a listing held for a check says when it can be bought", async ({ page }) => {
     await page.goto("/events/ev-demo-fest");
     await expect(page.locator('[data-listing="ls-3"] [data-review-why]')).toContainText("once the Lummy team has checked the file");

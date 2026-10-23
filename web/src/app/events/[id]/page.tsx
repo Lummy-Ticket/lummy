@@ -134,7 +134,15 @@ export default function EventDetailPage() {
   const catalogue = useCatalogue();
   const event = catalogue.eventById(params.id);
   const [sort, setSort] = useState<SortId>("cheap");
-  const [qty, setQty] = useState(2);
+  // Opens on the number of tickets the cheapest listing sells, so the "From" price beside the list
+  // is in it. A fixed 2 hid the single 9.50 USDC ticket on a USDC show, the one a faucet's 10 test
+  // USDC can buy, while the sidebar said "From 9.50 USDC".
+  const [qty, setQty] = useState(() => {
+    const onSale = (event ? catalogue.listingsByEvent(event.id) : []).filter((l) => l.status === "active" && isBuyable(l));
+    if (!onSale.length) return 1;
+    const low = Math.min(...onSale.map((l) => l.askPrice));
+    return Math.min(...onSale.filter((l) => l.askPrice === low).map((l) => (l.splittable ? 1 : l.quantity)));
+  });
 
   // Hooks run before any early return, so the order stays identical on every
   // render even when the event id does not resolve.
