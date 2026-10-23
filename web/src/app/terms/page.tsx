@@ -51,6 +51,8 @@ const sections: LegalSection[] = [
       FEATURES.eStamp
         ? { en: "You pay the ticket price plus a service fee (5%, at least Rp25.000) and the e-stamp duty, all shown before you pay. The ticket price is held in escrow; the fee is not.", id: "Kamu membayar harga tiket ditambah biaya layanan (5%, minimal Rp25.000) dan bea e-meterai, semuanya terlihat sebelum bayar. Harga tiket ditahan di escrow; biaya layanan tidak." }
         : { en: "You pay the ticket price plus a service fee (5%, at least Rp25.000), both shown before you pay. The ticket price is held in escrow; the fee is not.", id: "Kamu membayar harga tiket ditambah biaya layanan (5%, minimal Rp25.000), keduanya terlihat sebelum bayar. Harga tiket ditahan di escrow; biaya layanan tidak." },
+      // lib/orders/create (priceOf) and lib/payments/usdc: no fee in USDC while it runs on testnet.
+      { en: "A show abroad is paid differently: in test USDC from your own wallet on the Arbitrum Sepolia test network, with no service fee while it runs there. You sign the payment in your wallet; Lummy sends the transaction and pays its network fee. A refund goes back to the wallet that paid.", id: "Acara luar negeri dibayar dengan cara lain: dengan USDC uji dari wallet-mu sendiri di jaringan uji Arbitrum Sepolia, tanpa biaya layanan selama masih berjalan di sana. Kamu menandatangani pembayarannya di wallet-mu; Lummy yang mengirim transaksinya dan membayar biaya jaringannya. Refund kembali ke wallet yang membayar." },
       ...(FEATURES.eStamp
         ? []
         : [{ en: "Where the venue checks names, Lummy gives you a draft letter of authorisation with the order's details. The seller signs it on a Rp10.000 stamp and gives it to you with a copy of their ID card. Lummy does not sign it, add an e-stamp or store ID cards yet.", id: "Kalau venue mengecek nama, Lummy memberimu draf surat kuasa berisi data pesanan. Penjual menandatanganinya di atas meterai Rp10.000 dan menyerahkannya kepadamu bersama fotokopi KTP-nya. Lummy belum menandatanganinya, membubuhkan e-meterai, atau menyimpan KTP." }]),
@@ -95,7 +97,7 @@ export default function TermsPage() {
   return (
     <LegalPage
       title={{ en: "Terms of use", id: "Syarat dan ketentuan" }}
-      effective={{ en: "20 Oct 2026", id: "20 Okt 2026" }}
+      effective={{ en: "23 Oct 2026", id: "23 Okt 2026" }}
       intro={{
         en: "The rules of buying and selling on Lummy Ticket. They are the same rules the app enforces.",
         id: "Aturan jual beli di Lummy Ticket. Isinya sama dengan aturan yang dijalankan aplikasinya.",
