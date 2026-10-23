@@ -15,6 +15,7 @@ import { useAccountAlerts } from "@/lib/alerts/client";
 import { useT } from "@/lib/i18n";
 import { FEATURES } from "@/lib/features";
 import { supabaseBrowser } from "@/lib/supabase/browser";
+import { isDemoEmail } from "@/lib/supabase/demo";
 
 const BANKS: PayoutBank[] = ["BCA", "Mandiri", "BNI", "BRI"];
 
@@ -220,13 +221,18 @@ export default function ProfilePage() {
           </p>
         ) : (
           <p className="text-sm text-neutral-gray mb-4">
-            {serverAlerts
-              ? t(`Alerts go by email to ${user?.email}, your sign-in address.`, `Notifikasi dikirim lewat email ke ${user?.email}, alamat login-mu.`)
-              : t("Sample persona: alerts are kept in this browser, and nothing is sent.", "Persona contoh: notifikasi tersimpan di browser ini, dan tidak ada yang dikirim.")}
+            {!serverAlerts
+              ? t("Sample persona: alerts are kept in this browser, and nothing is sent.", "Persona contoh: notifikasi tersimpan di browser ini, dan tidak ada yang dikirim.")
+              : isDemoEmail(user?.email ?? "")
+                ? // A demo address has no mailbox (lib/supabase/demo), so it is never written to.
+                  t("Demo account: alerts are saved, but demo addresses never receive email.", "Akun demo: notifikasi tersimpan, tapi alamat demo tidak pernah menerima email.")
+                : t(`Alerts go by email to ${user?.email}, your sign-in address.`, `Notifikasi dikirim lewat email ke ${user?.email}, alamat login-mu.`)}
           </p>
         )}
         <div className="text-xs text-neutral-gray mb-2">{t("Your subscriptions", "Langganan kamu")}</div>
-        {subs === null ? (
+        {remote.failed ? (
+          <p className="text-sm text-neutral-gray">{t("Could not load your alerts. Reload to try again.", "Notifikasi gagal dimuat. Muat ulang untuk mencoba lagi.")}</p>
+        ) : subs === null ? (
           <p className="text-sm text-neutral-gray">{t("Loading...", "Memuat...")}</p>
         ) : subs.length === 0 ? (
           <p className="text-sm text-neutral-gray">{t("Nothing yet. Join a waitlist or ask for alerts from an event page.", "Belum ada. Masuk waitlist atau minta dikabari dari halaman event.")}</p>

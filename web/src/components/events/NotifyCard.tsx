@@ -6,6 +6,7 @@ import { useAlerts, useUser, type EventItem } from "@/lib/mock";
 import { useAccountAlerts } from "@/lib/alerts/client";
 import { useT } from "@/lib/i18n";
 import { FEATURES } from "@/lib/features";
+import { isDemoEmail } from "@/lib/supabase/demo";
 
 export function NotifyCard({ event }: { event: EventItem }) {
   const t = useT();
@@ -14,7 +15,8 @@ export function NotifyCard({ event }: { event: EventItem }) {
   const subscribe = useAlerts((s) => s.subscribe);
   const unsubscribe = useAlerts((s) => s.unsubscribe);
   // Once emails are live, an account's alerts are kept on the server, which sends them; a sample
-  // persona's stay in this browser, and so does everyone's until then.
+  // persona's stay in this browser, and so does everyone's until then (not carried over: see
+  // lib/alerts/client).
   const server = FEATURES.emails && !!user?.account;
   const remote = useAccountAlerts(server);
   const subs = server ? (remote.subs ?? []) : localSubs;
@@ -46,9 +48,14 @@ export function NotifyCard({ event }: { event: EventItem }) {
       </h4>
       {FEATURES.emails ? (
         <p className="text-xs text-neutral-gray mb-3">
-          {server
-            ? t(`We email ${user?.email} when tickets appear. Stop any time here or in your profile.`, `Kami kirim email ke ${user?.email} saat ada tiket. Berhenti kapan saja di sini atau di profil.`)
-            : t("Sample persona: your choice is kept in this browser, and nothing is sent.", "Persona contoh: pilihanmu tersimpan di browser ini, dan tidak ada yang dikirim.")}
+          {!server
+            ? t("Sample persona: your choice is kept in this browser, and nothing is sent.", "Persona contoh: pilihanmu tersimpan di browser ini, dan tidak ada yang dikirim.")
+            : remote.failed
+              ? t("Could not load your alerts. Reload to try again.", "Notifikasi gagal dimuat. Muat ulang untuk mencoba lagi.")
+              : isDemoEmail(user?.email ?? "")
+                ? // A demo address has no mailbox (lib/supabase/demo), so it is never written to.
+                  t("Demo account: your choice is saved, but demo addresses never receive email.", "Akun demo: pilihanmu tersimpan, tapi alamat demo tidak pernah menerima email.")
+                : t(`We email ${user?.email} when tickets appear. Stop any time here or in your profile.`, `Kami kirim email ke ${user?.email} saat ada tiket. Berhenti kapan saja di sini atau di profil.`)}
         </p>
       ) : (
         // Nothing is sent yet (lib/features.ts): say so, rather than promise a message.

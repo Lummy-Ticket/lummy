@@ -2,7 +2,9 @@
 
 // Alerts of a signed-in account, kept on the server (api/alerts), where the emails about new
 // tickets are sent from. Used once emails are live (lib/features.ts, `emails`); a sample persona,
-// and every visitor before then, keeps alerts in this browser (lib/mock/useAlerts).
+// and every visitor before then, keeps alerts in this browser (lib/mock/useAlerts). Alerts kept in a
+// browser before the flag are not carried over: they were chosen under "nothing is sent yet", so an
+// account starts empty and follows again, rather than getting email it never asked for.
 import { useCallback, useEffect, useState } from "react";
 import type { AlertSub } from "@/lib/mock/useAlerts";
 
@@ -13,19 +15,29 @@ async function post<T>(body: unknown): Promise<T> {
   return json as T;
 }
 
-/** Null while loading, and whenever `on` is false. */
+/** `subs` is null while loading, when the read failed (`failed`), and whenever `on` is false. */
 export function useAccountAlerts(on: boolean) {
   const [subs, setSubs] = useState<AlertSub[] | null>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     if (!on) return;
     let alive = true;
     void fetch("/api/alerts", { cache: "no-store" })
-      .then((r) => (r.ok ? (r.json() as Promise<{ alerts: AlertSub[] }>) : null))
-      .then((json) => {
-        if (alive && json) setSubs(json.alerts);
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return (await r.json()) as { alerts: AlertSub[] };
       })
-      .catch(() => null);
+      .then(
+        (json) => {
+          if (!alive) return;
+          setSubs(json.alerts);
+          setFailed(false);
+        },
+        () => {
+          if (alive) setFailed(true);
+        }
+      );
     return () => {
       alive = false;
     };
@@ -41,5 +53,5 @@ export function useAccountAlerts(on: boolean) {
     setSubs((s) => (s ?? []).filter((x) => x.id !== id));
   }, []);
 
-  return { subs: on ? subs : null, subscribe, unsubscribe };
+  return { subs: on ? subs : null, failed: on && failed && subs === null, subscribe, unsubscribe };
 }
