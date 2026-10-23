@@ -251,6 +251,24 @@ function CheckoutInner() {
               </span>
             </label>
           )}
+          {/* A demo account cannot pay in USDC, and a greyed-out button alone does not say why (QA, 24 Oct). */}
+          {usdc && !account && (
+            <div data-usdc-needs-account className="rounded-2xl border-2 border-secondary-orange-dark bg-secondary-orange-soft p-3 text-neutral-black">
+              <p className="text-sm font-semibold">{t("USDC needs your own account and wallet", "USDC butuh akun dan wallet-mu sendiri")}</p>
+              <p className="text-xs mt-1">
+                {t(
+                  "Sign in with your email and use a browser wallet such as MetaMask. A demo account can look around but cannot pay in USDC.",
+                  "Masuk dengan email-mu dan pakai wallet di browser seperti MetaMask. Akun demo bisa melihat-lihat, tapi tidak bisa membayar dengan USDC."
+                )}
+              </p>
+              <Link
+                href={`/login?next=${encodeURIComponent(`/checkout?listing=${listing.id}&qty=${qty}`)}`}
+                className="inline-block mt-2 text-sm font-semibold text-primary-navy underline underline-offset-2"
+              >
+                {t("Sign in with email", "Masuk dengan email")}
+              </Link>
+            </div>
+          )}
           <Button.Primary
             wrapperClass="w-full"
             className="w-full"
@@ -271,13 +289,10 @@ function CheckoutInner() {
             <ShieldCheck className="w-3.5 h-3.5" /> {t("Protected by Lummy escrow", "Dijamin escrow Lummy")}
           </p>
           {usdc ? (
+            // A demo account is told above the greyed-out button instead.
+            account && (
             <p data-usdc-note className="text-[11px] text-neutral-gray text-center -mt-2">
-              {!account ? (
-                <>
-                  {t("Paying in USDC needs an account: ", "Bayar USDC butuh akun: ")}
-                  <Link href="/login" className="text-primary-navy font-medium">{t("sign in with email", "masuk dengan email")}</Link>.
-                </>
-              ) : payments && !payments.usdc ? (
+              {payments && !payments.usdc ? (
                 t("USDC payment is switched off right now.", "Pembayaran USDC sedang dimatikan.")
               ) : (
                 <>
@@ -286,6 +301,7 @@ function CheckoutInner() {
                 </>
               )}
             </p>
+            )
           ) : onchain ? (
             <p className="text-[11px] text-neutral-gray text-center -mt-2">
               {t(

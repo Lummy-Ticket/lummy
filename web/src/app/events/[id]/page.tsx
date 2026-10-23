@@ -215,10 +215,19 @@ export default function EventDetailPage() {
           {event.currency === "USDC" && (
             <p data-usdc-demo className="mt-3 flex items-start gap-2 rounded-2xl bg-secondary-orange-soft px-3 py-2 text-xs text-secondary-orange-dark">
               <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-              {t(
-                "Testnet demo: the tickets on this page are samples, not real tickets for sale, and they are paid in test USDC on Arbitrum Sepolia. At the door, the organiser's own rules apply.",
-                "Demo testnet: tiket di halaman ini contoh, bukan tiket sungguhan yang dijual, dan dibayar dengan USDC uji di Arbitrum Sepolia. Di pintu masuk, aturan penyelenggara yang berlaku."
-              )}
+              <span>
+                {t(
+                  "Testnet demo: the tickets on this page are samples, not real tickets for sale, and they are paid in test USDC on Arbitrum Sepolia. At the door, the organiser's own rules apply.",
+                  "Demo testnet: tiket di halaman ini contoh, bukan tiket sungguhan yang dijual, dan dibayar dengan USDC uji di Arbitrum Sepolia. Di pintu masuk, aturan penyelenggara yang berlaku."
+                )}
+                {/* Said before the click: a demo account reaches checkout and meets a greyed-out button. */}
+                <span data-usdc-needs className="block mt-1 font-semibold text-neutral-black">
+                  {t(
+                    "To pay, sign in with your email and use a browser wallet such as MetaMask. A demo account can look but cannot pay in USDC.",
+                    "Untuk membayar, masuk dengan email-mu dan pakai wallet di browser seperti MetaMask. Akun demo bisa melihat, tapi tidak bisa membayar dengan USDC."
+                  )}
+                </span>
+              </span>
             </p>
           )}
 

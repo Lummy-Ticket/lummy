@@ -137,6 +137,18 @@ test.describe("demo script", { tag: "@smoke" }, () => {
     await expect(page.locator('[data-listing="ls-bbw-1"]')).toBeVisible();
   });
 
+  test("a USDC checkout says before and at the till that a demo account cannot pay", async ({ page }) => {
+    await page.goto("/events/ev-bbw-2026");
+    await expect(page.locator("[data-usdc-needs]")).toContainText("browser wallet");
+    await page.goto("/checkout?listing=ls-bbw-1&qty=1");
+    await expect(page).toHaveURL(/\/login/);
+    await expect(page.locator("[data-login-usdc]")).toContainText("paid in USDC");
+    await page.getByRole("button", { name: /^Continue with a (demo|sample) account$/ }).click();
+    await expect(page).toHaveURL(/\/checkout\?listing=ls-bbw-1/);
+    await expect(page.locator("[data-usdc-needs-account]")).toContainText("cannot pay in USDC");
+    await expect(page.getByRole("button", { name: /^Pay / })).toBeDisabled();
+  });
+
   test("a listing held for a check says when it can be bought", async ({ page }) => {
     await page.goto("/events/ev-demo-fest");
     await expect(page.locator('[data-listing="ls-3"] [data-review-why]')).toContainText("once the Lummy team has checked the file");

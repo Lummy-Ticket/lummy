@@ -14,6 +14,7 @@ import { supabaseBrowser } from "@/lib/supabase/browser";
 import { isDemoEmail } from "@/lib/supabase/demo";
 import { supabasePublicEnv } from "@/lib/supabase/env";
 import { safePath } from "@/lib/public-origin";
+import { useCatalogue } from "@/lib/catalogue";
 
 const ROLES: { role: Role; en: string; id: string; home: string }[] = [
   { role: "BUYER", en: "Buyer", id: "Pembeli", home: "/" },
@@ -41,6 +42,14 @@ function LoginInner() {
       : null
   );
   const [role, setRole] = useState<Role>("BUYER");
+  // Headed to a USDC checkout: a demo account would reach a button it cannot press, so say so here.
+  const catalogue = useCatalogue();
+  const usdcNext = (() => {
+    const next = params.get("next");
+    if (!next?.startsWith("/checkout")) return false;
+    const listing = catalogue.listingById(new URL(next, "https://lummy.id").searchParams.get("listing") ?? "");
+    return !!listing && catalogue.eventById(listing.eventId)?.currency === "USDC";
+  })();
 
   // Already signed in with an account (a sign-in link opened in this browser, say): go on to where
   // the visitor was headed rather than offer a second sign-in.
@@ -97,7 +106,21 @@ function LoginInner() {
       <div className="w-full max-w-md bg-neutral-white rounded-3xl border border-lummy-500 shadow-lummy-lg p-8">
         <Image src="/assets/brand/maskot-halo-tanpa-bayangan.svg" alt="" width={240} height={205} className="w-[120px] h-auto mx-auto mb-3" priority />
         <h1 className="text-2xl font-bold text-neutral-black text-center">{t("Sign in to Lummy", "Masuk ke Lummy")}</h1>
-        <p className="text-neutral-gray text-sm text-center mt-1">{t("Just an email. No wallet, no seed phrase.", "Cukup email. Tanpa wallet, tanpa seed phrase.")}</p>
+        <p className="text-neutral-gray text-sm text-center mt-1">
+          {t("Just an email. No wallet needed for shows in Indonesia.", "Cukup email. Tanpa wallet untuk acara di Indonesia.")}
+        </p>
+
+        {usdcNext && (
+          <div data-login-usdc className="mt-5 rounded-xl border-2 border-secondary-orange-dark bg-secondary-orange-soft p-3 text-neutral-black">
+            <p className="text-sm font-semibold">{t("This ticket is paid in USDC", "Tiket ini dibayar dengan USDC")}</p>
+            <p className="text-xs mt-1">
+              {t(
+                "Sign in with your email below and have a browser wallet such as MetaMask ready. A demo account can look around but cannot pay in USDC.",
+                "Masuk dengan email-mu di bawah dan siapkan wallet di browser seperti MetaMask. Akun demo bisa melihat-lihat, tapi tidak bisa membayar dengan USDC."
+              )}
+            </p>
+          </div>
+        )}
 
         {error && (
           <div role="alert" className="mt-5 flex items-start gap-2 rounded-xl bg-secondary-orange-soft text-secondary-orange-dark text-sm p-3">
