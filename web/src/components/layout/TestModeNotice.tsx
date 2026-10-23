@@ -20,7 +20,8 @@ export function TestModeNotice() {
   if (!TEST_MODE) return null;
   return (
     <div data-test-mode className="fixed z-50 top-0 inset-x-0 h-6 bg-primary-navy-dark text-white text-[11px] font-medium flex items-center justify-center px-4">
-      <p className="truncate">
+      {/* A span, not a p: the global p style would set its own colour and size. */}
+      <span className="block truncate">
         <span className="sm:hidden">{t("Prototype: test payments only, sample listings.", "Prototipe: pembayaran uji, listing contoh.")}</span>
         <span className="hidden sm:inline">
           {t(
@@ -28,7 +29,7 @@ export function TestModeNotice() {
             "Prototipe: QRIS di mode test Xendit, USDC di testnet, dan listing-nya contoh. Tidak ada uang sungguhan yang berpindah."
           )}
         </span>
-      </p>
+      </span>
     </div>
   );
 }

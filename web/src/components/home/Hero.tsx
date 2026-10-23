@@ -8,6 +8,7 @@ import { HeroSearch } from "./HeroSearch";
 import { useT } from "@/lib/i18n";
 import { Notch } from "@/components/ui/notch";
 import { CAP_PCT } from "@/lib/mock";
+import { TEST_MODE } from "@/components/layout/TestModeNotice";
 
 // Background of the hero section. The notches reuse it so they read as bites taken out
 // of the ticket rather than circles drawn on top of it.
@@ -26,7 +27,9 @@ export function Hero({ quickCats }: { quickCats: string[] }) {
   ];
 
   return (
-    <section className={`${BG} pt-28 lg:pt-36 pb-14 lg:pb-20`}>
+    // Under the test-mode strip the navbar sits 24px lower, so on a laptop the ticket does too,
+    // keeping the mascot on its edge clear of the navbar.
+    <section className={`${BG} pt-28 ${TEST_MODE ? "lg:pt-[168px]" : "lg:pt-36"} pb-14 lg:pb-20`}>
       <div className="max-w-7xl mx-auto px-5 lg:px-10">
         <div className="relative motion-safe:animate-rise">
           <Image
