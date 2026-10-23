@@ -53,7 +53,19 @@ async function addressOf(admin: Admin, userId: string | null): Promise<string | 
   return data.user?.email ?? null;
 }
 
-const mail = (to: string | null, kind: string, ref: string, r: Rendered): Mail[] => (to ? [{ to, kind, ref, ...r }] : []);
+/** Many accounts' addresses, LOOKUPS_AT_ONCE at a time; one that cannot be read is left out. */
+async function addressesOf(admin: Admin, userIds: string[]): Promise<Map<string, string | null>> {
+  const ids = [...new Set(userIds)];
+  const found = new Map<string, string | null>();
+  for (let i = 0; i < ids.length; i += LOOKUPS_AT_ONCE) {
+    const slice = ids.slice(i, i + LOOKUPS_AT_ONCE);
+    const batch = await Promise.all(slice.map((id) => addressOf(admin, id).catch(() => null)));
+    slice.forEach((id, j) => found.set(id, batch[j]));
+  }
+  return found;
+}
+
+const mail =(to: string | null, kind: string, ref: string, r: Rendered): Mail[] => (to ? [{ to, kind, ref, ...r }] : []);
 
 async function loadOrders(admin: Admin, ids: string[]) {
   const { data, error } = await admin.from("orders").select(ORDER_COLUMNS).in("id", ids);
@@ -115,15 +127,17 @@ export function notifyRuling(admin: Admin, orderId: string) {
   });
 }
 
-/** Orders this cancellation refunded (api/events/[id]); a run that finishes the rest later sends theirs then. */
-export function notifyShowCancelled(admin: Admin, orderIds: string[]) {
+/**
+ * Orders this cancellation refunded (api/events/[id]); a run that finishes the rest later sends
+ * theirs then. `deadline` is the route's (emailDeadline in lib/email/send).
+ */
+export function notifyShowCancelled(admin: Admin, orderIds: string[], deadline: number) {
   if (!orderIds.length) return;
   queueEmails(`cancelled ${orderIds.length} orders`, async () => {
     const rows = await loadOrders(admin, orderIds);
-    const out: Mail[] = [];
-    for (const row of rows) out.push(...mail(await addressOf(admin, row.buyer_id), "show-cancelled", row.id, showCancelled(factsOf(row))));
-    return out;
-  });
+    const to = await addressesOf(admin, rows.map((r) => r.buyer_id));
+    return rows.flatMap((row) => mail(to.get(row.buyer_id) ?? null, "show-cancelled", row.id, showCancelled(factsOf(row))));
+  }, deadline);
 }
 
 /**
@@ -217,11 +231,7 @@ export function notifyListingLive(admin: Admin, listingId: string, deadline: num
       askPrice: Number(listing.ask_price),
       currency: show.currency === "USDC" ? "USDC" : "IDR",
     });
-    const out: Mail[] = [];
-    for (let i = 0; i < people.length; i += LOOKUPS_AT_ONCE) {
-      const batch = await Promise.all(people.slice(i, i + LOOKUPS_AT_ONCE).map((id) => addressOf(admin, id).catch(() => null)));
-      for (const to of batch) out.push(...mail(to, "tickets-listed", listing.id, letter));
-    }
-    return out;
+    const to = await addressesOf(admin, people);
+    return people.flatMap((id) => mail(to.get(id) ?? null, "tickets-listed", listing.id, letter));
   }, deadline);
 }

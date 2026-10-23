@@ -15,6 +15,7 @@ import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { chainError, operatorSetup, postpone, readListing, settle } from "@/lib/chain/server";
 import { notifyShowCancelled } from "@/lib/email/notify";
+import { emailDeadline } from "@/lib/email/send";
 import { inIndonesia, parseLocation } from "@/lib/events/location";
 import { queueLedgerSync } from "@/lib/orders/ledger";
 import { closeHoldsOfEvent } from "@/lib/payments/checkout";
@@ -28,8 +29,12 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-/** Chain writes go one by one through the operator, so a run stops before the function would. */
-const BUDGET_MS = 45_000;
+/**
+ * Chain writes go one by one through the operator, so a run stops well before the function would:
+ * the rest of its time is for the answer and, on a cancellation, the buyers' emails (lib/email),
+ * which go after it. A later run cannot send them, since those orders are no longer held.
+ */
+const BUDGET_MS = 30_000;
 const H = 3_600_000;
 /** Far enough for any real reschedule, not a typo's century. */
 const MAX_AHEAD_MS = 2 * 365 * 24 * H;
@@ -188,7 +193,7 @@ async function cancel(admin: Admin, id: string, staffId: string) {
     }
   }
   if (failures.length) console.error(`[events] ${id} cancelled; refunds that failed:`, failures);
-  notifyShowCancelled(admin, toTell);
+  notifyShowCancelled(admin, toTell, emailDeadline(started, maxDuration));
 
   revalidateTag("catalogue", { expire: 0 });
   return NextResponse.json(
