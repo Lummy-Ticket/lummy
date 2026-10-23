@@ -1,57 +1,129 @@
 # Lummy
 
-**Escrow-backed resale for concert tickets in Indonesia.** Live at [lummy.id](https://lummy.id), on testnets and test payments.
+**Escrow for concert ticket resale in Indonesia: the buyer's money is held until 48 hours after the show.** Live at [lummy.id](https://lummy.id).
 
-Resale in Indonesia runs through WhatsApp groups and X replies with nobody in the middle. On Lummy the buyer's money is held until 48 hours after the show, every ticket is checked before it goes on sale, and a seller whose ticket fails at the gate loses the sale and pays a penalty. Users sign in with email. Shows in Indonesia need no wallet at all; for a show abroad the buyer's wallet only signs at checkout, with no gas.
+> [!IMPORTANT]
+> **Status (October 2026):** a working prototype. USDC is test USDC on Arbitrum Sepolia, QRIS runs in Xendit's test mode, so no real money moves. Not launched: no users and no revenue yet. Every listing on the site is a sample.
+
+- **Shows in Indonesia:** the buyer pays rupiah by QRIS through Xendit, a licensed payment provider. The rupiah stays with Xendit; every step of the order is recorded on Arbitrum Sepolia.
+- **Shows abroad:** the buyer pays USDC from their own wallet into our escrow contract on Arbitrum, with two signatures and no gas.
+- **Every ticket is checked before it goes on sale:** each barcode is read and stored as a keyed hash, so a barcode can be sold once; edited PDFs are flagged for a person. AI only fills in the show, category and seat from the ticket text, with personal data removed first. It does not decide whether a ticket is real.
+- Users sign in with email. A wallet only appears when paying for a show abroad.
 
 > [!NOTE]
-> This repository is a public mirror of our working repository, updated after every push. It holds the app, the database schema and the contracts, with their full commit history. Internal notes, plans, applications and partner documents stay private, so a few links in the code and in commit messages point to files that are not here.
+> This repository is a public mirror of our working repository. It holds the app, the database schema and the contracts, with their full commit history. Internal notes, plans and partner documents stay private, so a few links in code comments and commit messages point to files that are not here.
 
-## What is here
+## Built at Arbitrum Founder House
 
-| Folder | What it is |
+The git tag `founder-house-start` marks the start of Arbitrum Founder House Singapore (23 October 2026, 08:53 WIB). Everything before it existed already. To see the work done at the event:
+
+```bash
+git log founder-house-start..HEAD
+```
+
+or on GitHub: [compare `founder-house-start...main`](https://github.com/Lummy-Ticket/lummy/compare/founder-house-start...main).
+
+**What we built: USDC checkout from the buyer's own wallet, for shows abroad.**
+
+1. The buyer picks a ticket for a show priced in USDC and connects a browser wallet (MetaMask, Rabby or any EIP-1193 wallet).
+2. The server holds the seats for 10 minutes and returns two typed messages, bound to one on-chain listing.
+3. The wallet signs twice, with no transaction and no ETH: an **ERC-3009** `ReceiveWithAuthorization` on Circle's USDC, and an **EIP-712** `Fund` intent bound to that listing, buyer, amount, nonce and deadline.
+4. The server checks both signatures against the paying wallet. Then **our operator pays the gas** and sends `createListingFor`, `fund` and `markHandover`: the USDC is now locked in **LummyEscrow** until the claim window after the show closes.
+5. The ticket page shows the paying wallet and links each transaction on Arbiscan. If the order cannot be written after funding, the USDC goes straight back to the wallet on chain.
+
+Guards: a "Testnet, not real money" label, sign-in required, at most 3 open USDC orders per wallet, a rate limit per account, and a switch that turns the rail off without a deploy. The QRIS path for shows in Indonesia did not change, and neither did the contracts: the escrow was designed for this from the start.
+
+Where it lives: [`web/src/lib/payments/usdc.ts`](web/src/lib/payments/usdc.ts) (server), [`web/src/components/checkout/UsdcPanel.tsx`](web/src/components/checkout/UsdcPanel.tsx) and [`web/src/lib/chain/wallet.ts`](web/src/lib/chain/wallet.ts) (wallet side), [`web/scripts/usdc-check.ts`](web/scripts/usdc-check.ts) (the end-to-end check). We also replaced the made-up catalogue with real shows in Jakarta and abroad, with a source for every price.
+
+Limits today: the seller's USDC payout goes to a simulated seller address, because sellers have no wallet yet in our email-first model. Listing a ticket for a USDC show is closed for now; the sample listings were added by the team. There is no service fee on USDC orders while on testnet.
+
+## Try it in 2 minutes
+
+| Step | What you need |
 |---|---|
-| [`web/`](web) | The Next.js app in TypeScript: buyer, seller and staff pages, and the server routes in `web/src/app/api` for listings, orders, QRIS and USDC payments, claims, the gate and the ticket checks |
-| [`contracts/`](contracts) | Solidity and Foundry: `LummyEscrow`, `LummyLedger` and their tests |
-| [`supabase/`](supabase) | The Postgres schema, row-level security and its tests, seed data and email templates |
+| 1. Open a USDC show: [lummy.id/events/ev-bbw-2026](https://lummy.id/events/ev-bbw-2026) (Binance Blockchain Week, Bangkok). Prices read in USDC, with the testnet label. | Nothing |
+| 2. Open a public proof page: [an example QRIS test order](https://lummy.id/proof/0x92b4028867b6babeb33c6f262bdbdb04f2396faf067b57d31a9acf6778948691) with a payment, a claim and a full-refund ruling, read straight from LummyLedger, with Arbiscan links. It shows "Reading the contract..." for a moment. | Nothing |
+| 3. Pay by QRIS in test mode: open a show in Indonesia, such as [5 Seconds of Summer, Jakarta](https://lummy.id/events/ev-5sos-jakarta), pick a listing and press Pay. A QRIS code opens; press **Simulate payment (test mode)**. Your ticket page opens; once our operator has recorded the order on LummyLedger, it shows the steps and links to the order's own proof page. | An email to sign in. No wallet |
+| 4. Pay in USDC: back on the [USDC show](https://lummy.id/events/ev-bbw-2026), pick a listing (the cheapest sample was 9.50 test USDC on 23 Oct), choose "USDC from your wallet", connect, then sign twice. | An email to sign in, and a browser wallet with test USDC from [Circle's faucet](https://faucet.circle.com) (choose Arbitrum Sepolia). No ETH |
 
-## How it works
+The test QRIS code cannot be paid by a real banking app, and the test USDC has no value. What we do and do not promise is spelled out at [lummy.id/how-it-works](https://lummy.id/how-it-works).
 
-1. **The seller uploads the ticket PDF.** The server reads every barcode, normalises it and hashes it with a secret key, so a barcode already on sale is blocked. It checks the PDF's structure for signs of editing, and Claude (Anthropic) reads the printed show, category and seat from the text after names, numbers and codes are taken out. A flagged ticket waits for a person.
-2. **The buyer pays.** For shows in Indonesia, rupiah by QRIS through Xendit, a licensed payment provider (test mode for now). For shows abroad, such as Binance Blockchain Week or Singapore Blockchain Week, USDC from the buyer's own wallet: two signatures, no transaction from the wallet, and the server locks the money in the escrow contract (test USDC on Arbitrum Sepolia for now).
-3. **The money is held until 48 hours after the show.** A claim with proof is decided by a person: refund, partial refund, or payout. Without a claim, the seller is paid.
-
-The full story, with what we do and do not promise, is at [lummy.id/how-it-works](https://lummy.id/how-it-works).
-
-## On Arbitrum
-
-Two contracts on Arbitrum Sepolia, both with verified source:
+## Contracts on Arbitrum Sepolia (chain ID 421614)
 
 | Contract | Address | What it does |
 |---|---|---|
-| `LummyEscrow` | [`0x6830…25Dd`](https://sepolia.arbiscan.io/address/0x6830Db86283157E4cB80b0615d4c51381A0C25Dd#code) | Holds a buyer's USDC (Circle's native USDC on Arbitrum Sepolia) per listing until the dispute window after the show closes, then releases it to the seller, refunds the buyer, or splits it on a ruling |
-| `LummyLedger` | [`0xe454…8b0E`](https://sepolia.arbiscan.io/address/0xe454cbc81916E9bE1e6A768715134568FCEE8b0E#code) | Records each QRIS order's life: paid, claim, ruling, payout, refund. Each order has a public proof page, `/proof/<id>`, with no personal data |
+| `LummyEscrow` | [`0x6830Db86283157E4cB80b0615d4c51381A0C25Dd`](https://sepolia.arbiscan.io/address/0x6830Db86283157E4cB80b0615d4c51381A0C25Dd#code) | Holds a buyer's USDC per listing until the claim window after the show closes, then pays the seller, refunds the buyer, or splits it on a ruling. Money can only go to that listing's buyer or seller, and once the window closes without a dispute anyone can release it to the seller, even with our backend down. |
+| `LummyLedger` | [`0xe454cbc81916E9bE1e6A768715134568FCEE8b0E`](https://sepolia.arbiscan.io/address/0xe454cbc81916E9bE1e6A768715134568FCEE8b0E#code) | Records each rupiah (QRIS) order's life on chain: paid, claim, ruling, payout, refund. It holds no money and no personal data; each order gets a public proof page. |
+| USDC (Circle) | [`0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d`](https://sepolia.arbiscan.io/token/0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d) | Circle's native USDC on Arbitrum Sepolia, not a mock. Its ERC-3009 support is what lets the buyer pay with signatures alone. |
 
-What the escrow enforces itself (`contracts/src/LummyEscrow.sol`):
+Both Lummy contracts have verified source on Arbiscan and Sourcify. Both refuse a ticket barcode commitment that was already sold. Details: [`contracts/README.md`](contracts/README.md).
 
-- **No gas for users.** The buyer signs two messages: an ERC-3009 authorization on the token, and an EIP-712 purchase intent bound to that one listing, so a relayer cannot reuse it elsewhere. Our operator sends the transaction and pays the gas.
-- **Money only goes to the listing's buyer or seller.** No sweep, no fee taken by the contract, the token fixed at deploy.
-- **The seller cannot be held hostage.** Once the window closes without a dispute, anyone can release the money to the seller, even with our backend down.
-- **One barcode, one sale.** Each listing commits a keyed hash of the ticket's barcode; a second listing with the same commitment is refused.
+## Architecture
 
-Crypto may not be used as payment in Indonesia, which is why shows there are paid in rupiah through the provider and only recorded on chain.
+```mermaid
+flowchart TB
+  subgraph Browser["Buyer's browser"]
+    W["Browser wallet<br/>(shows abroad only)"]
+    UI["lummy.id pages"]
+  end
+  subgraph App["Next.js app on Vercel"]
+    API["Server routes<br/>web/src/app/api"]
+    OP["Operator key<br/>pays all gas"]
+  end
+  subgraph Off["Off chain"]
+    X["Xendit QRIS (test mode)<br/>the rupiah stays with<br/>the licensed provider"]
+    DB[("Supabase<br/>Postgres with RLS,<br/>email sign-in")]
+  end
+  subgraph ARB["Arbitrum Sepolia"]
+    E["LummyEscrow<br/>holds USDC per listing"]
+    L["LummyLedger<br/>records QRIS orders"]
+    U["Circle USDC"]
+  end
+  W -.->|"2 signatures,<br/>no transaction"| API
+  UI -->|"sign in, list, buy, claim"| API
+  UI -.->|"proof page reads the record"| L
+  X <-->|"create QRIS,<br/>webhook: paid"| API
+  DB <--> API
+  API --> OP
+  OP -->|"createListingFor, fund, markHandover,<br/>then release or refund"| E
+  OP -->|"paid, claim, ruling,<br/>payout, refund"| L
+  E <-->|"receiveWithAuthorization"| U
+```
 
-## Arbitrum Founder House
+The database decides; the chain holds the money or keeps the record. Tickets, ID cards and rupiah stay off chain: tickets are not NFTs, and we store no ID cards.
 
-The git tag `founder-house-start` marks the start of Arbitrum Founder House Singapore (23 October 2026): everything before it existed already, and `git log founder-house-start..HEAD` is the work done there. Built at the event:
+**Why on chain, and why Arbitrum**
 
-- **USDC checkout from the buyer's own wallet** for shows abroad. `POST /api/payments` with a wallet holds the seats and returns the two messages to sign, bound to an on-chain listing named after the hold; `POST /api/payments/[id]/usdc` checks both signatures against that wallet, then our operator creates and funds the listing and records the handover, paying the gas (`web/src/lib/payments/usdc.ts`). Money funded for an order that cannot be written goes straight back. Guards: a testnet label, sign-in, a limit per wallet, and a switch to turn it off.
-- **`npm run usdc:check`**: 32 checks on Arbitrum Sepolia against a server with the testnet keys, from forged signatures and another account's attempt to a purchase through the pages with a wallet injected into the browser, ending with a cancelled show that refunds the wallet in full.
-- **A catalogue of real shows**, in Jakarta and abroad, with sources for every price, freely licensed photos with credits, and the promoter's name rule where its terms state one. Every listing on them is a sample until our beta.
+- **The money rules do not depend on trusting us.** USDC sits in LummyEscrow, not with us, and anyone can release it to the seller once the claim window closes.
+- **Every order step is a public record.** Buyers, sellers and promoters can check it on the proof page and on Arbiscan. In Indonesia crypto may not be used as payment, so there the rupiah stays with Xendit and the chain only records.
+- **Arbitrum:** Circle's native USDC with ERC-3009 (gasless for the buyer), settlement to Ethereum, and gas low enough to record every step of every order (one escrow cycle used 370,000 to 520,000 gas; we estimated about Rp400 to Rp800 per order on Arbitrum One in September 2026).
 
-## Run it
+## How we check it
 
-Node 22 and [Foundry](https://getfoundry.sh). Each line runs from the repository root:
+| Suite | What it covers | Last result |
+|---|---|---|
+| `forge test` in `contracts/` | Both contracts: the six escrow outcomes, the claim window, signatures, barcode commitments, access, reentrancy, plus fuzzing and invariant runs (the escrow balance always equals its books, the operator never receives funds) | 110 of 110 pass |
+| `npm run usdc:check` | The USDC checkout end to end on Arbitrum Sepolia: forged signatures, another account sending the buyer's signatures, the wallet paying exactly the price, the listing funded on chain by that wallet, a purchase through the pages with a wallet injected into the browser, and a cancelled show that refunds the wallet in full | 35 of 35 pass |
+| `npm run payments:check` | QRIS in Xendit's test mode end to end: one order per payment however often the webhook arrives, forged webhooks refused, seats given back on cancel or expiry, the order, a claim and a ruling recorded on LummyLedger, and a cancelled show refunded on the record | 62 of 62 pass |
+| Slither (static analysis) | **[pending: Slither]** | |
+
+Also: row-level security tests in [`supabase/tests`](supabase/tests), Playwright browser tests in [`web/e2e`](web/e2e), and more scripted checks in [`web/scripts`](web/scripts). Anyone can run `forge test`. The `usdc:check` and `payments:check` runs need our testnet keys and database, so the team runs them; the results above are from 23 October 2026.
+
+## Repo map
+
+| Path | What it is |
+|---|---|
+| [`web/`](web) | The Next.js app in TypeScript: buyer, seller and staff pages |
+| [`web/src/app/api`](web/src/app/api) | Server routes: listings, orders, QRIS and USDC payments, claims, the gate, the ticket checks |
+| [`web/src/lib/payments`](web/src/lib/payments) | QRIS through Xendit, and the USDC checkout |
+| [`web/src/lib/chain`](web/src/lib/chain) | Contract access with viem, on the server and in the browser |
+| [`web/scripts`](web/scripts) | The end-to-end checks and the local chain cycles |
+| [`contracts/`](contracts) | Solidity and Foundry: `LummyEscrow`, `LummyLedger`, tests, deploy scripts |
+| [`supabase/`](supabase) | The Postgres schema, row-level security and its tests, seed data, email templates |
+
+## Run it locally
+
+Node 22 and [Foundry](https://www.getfoundry.sh). Each line runs from the repository root:
 
 ```bash
 cd web && npm install && npm run dev      # the app on localhost:3000, on sample data
@@ -60,19 +132,16 @@ cd web && npm run chain:local             # Anvil, a deploy, and four escrow cyc
 cd web && npm run chain:fork              # a rehearsal on an Arbitrum Sepolia fork with Circle's USDC, no faucet
 ```
 
-Without environment variables the app runs on its sample catalogue and sample accounts; `web/.env.example` lists what a deploy sets (Supabase, Xendit, the operator key, the AI provider). Code comments are in English and Indonesian.
+Without environment variables the app runs on its sample catalogue and sample accounts. [`web/.env.example`](web/.env.example) lists what a deploy sets (Supabase, Xendit, the operator key, the AI provider). Code comments are in English and Indonesian.
 
-## Status (October 2026)
+## Team and contact
 
-- Live at [lummy.id](https://lummy.id): email sign-in; buyer, seller and staff flows on a real database; claims with photo evidence the server reads; gate passes scanned at the door; cancelled and postponed shows; English and Indonesian.
-- QRIS through Xendit in test mode, and USDC checkout from the buyer's own wallet on Arbitrum Sepolia with test USDC. Real money waits for our company registration, the provider's business verification, a legal opinion and a contract audit.
-- Contracts: 110 Foundry tests, fuzzing and invariant runs included.
-- Not built yet: e-signature and e-stamp for the letter of authorisation, and storing a seller's ID card.
+- Zahra Sasongko, CEO
+- Luthfi Hadi, CTO ([@luthfidi](https://github.com/luthfidi))
+- Joanita Timbin Panggalo, COO
+
+Contact: [team@lummy.id](mailto:team@lummy.id). Concert news: [@lummy.magazine](https://www.instagram.com/lummy.magazine/) on Instagram. More at [github.com/Lummy-Ticket](https://github.com/Lummy-Ticket).
 
 ## License
 
-All rights reserved. The code is public to read, not licensed for reuse. Questions: team@lummy.id.
-
-## Team
-
-Zahra Sasongko, CEO · Luthfi Hadi, CTO ([@luthfidi](https://github.com/luthfidi)) · Joanita Timbin Panggalo, COO. More at [github.com/Lummy-Ticket](https://github.com/Lummy-Ticket).
+All rights reserved. The code is public to read, not licensed for reuse.
