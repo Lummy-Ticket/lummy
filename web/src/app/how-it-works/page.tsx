@@ -203,8 +203,8 @@ export default function HowItWorks() {
       Icon: Flag,
       title: t("Go to the show", "Datang ke acara"),
       body: t(
-        `Show your Lummy pass at the door. Where the organiser checks Lummy passes, a ticket someone used before you is refused there and your money comes back on the spot. Anywhere else, got in? You do nothing. Turned away? Take a photo there and file a claim within ${DISPUTE_WINDOW_H} hours of the show ending.`,
-        `Tunjukkan pass Lummy di pintu masuk. Di acara yang penyelenggaranya memeriksa pass Lummy, tiket yang sudah dipakai orang lain ditolak di sana dan uangmu langsung kembali. Di tempat lain, berhasil masuk? Kamu tidak perlu apa-apa. Ditolak? Foto di sana dan ajukan klaim dalam ${DISPUTE_WINDOW_H} jam setelah acara selesai.`
+        `Show your ticket at the door. Got in? You do nothing. Turned away? Take a photo there and file a claim within ${DISPUTE_WINDOW_H} hours of the show ending. Lummy also has a pass a door can scan, which refuses a copy used before you and refunds you on the spot; no organiser uses it yet.`,
+        `Tunjukkan tiketmu di pintu masuk. Berhasil masuk? Kamu tidak perlu apa-apa. Ditolak? Foto di sana dan ajukan klaim dalam ${DISPUTE_WINDOW_H} jam setelah acara selesai. Lummy juga punya pass yang bisa dipindai di pintu, yang menolak salinan yang dipakai lebih dulu dan langsung mengembalikan uangmu; belum ada penyelenggara yang memakainya.`
       ),
       state: t(`${DISPUTE_WINDOW_H}h to raise a problem`, `${DISPUTE_WINDOW_H} jam untuk melapor`),
       tone: "open",
@@ -212,11 +212,16 @@ export default function HowItWorks() {
     {
       Icon: Banknote,
       title: t("The seller is paid", "Penjual dibayar"),
-      body: t(
-        `${DISPUTE_WINDOW_H} hours after the show, if nobody raised a problem, the escrow pays the seller by itself. Nobody has to approve it.`,
-        `${DISPUTE_WINDOW_H} jam setelah acara, kalau tidak ada masalah, escrow membayar penjual dengan sendirinya. Tidak perlu persetujuan siapa pun.`
-      ),
-      state: t("Paid to the seller", "Cair ke penjual"),
+      body: FEATURES.payouts
+        ? t(
+            `${DISPUTE_WINDOW_H} hours after the show, if nobody raised a problem, the escrow pays the seller by itself. Nobody has to approve it.`,
+            `${DISPUTE_WINDOW_H} jam setelah acara, kalau tidak ada masalah, escrow membayar penjual dengan sendirinya. Tidak perlu persetujuan siapa pun.`
+          )
+        : t(
+            `${DISPUTE_WINDOW_H} hours after the show, if nobody raised a problem, the money is released to the seller without anyone approving it. A USDC escrow pays out on chain; for QRIS, the release is recorded and bank payouts start with real money.`,
+            `${DISPUTE_WINDOW_H} jam setelah acara, kalau tidak ada masalah, dananya dilepas untuk penjual tanpa perlu persetujuan siapa pun. Escrow USDC mencairkannya di chain; untuk QRIS, pelepasannya dicatat dan pencairan ke rekening dimulai saat ada uang sungguhan.`
+          ),
+      state: FEATURES.payouts ? t("Paid to the seller", "Cair ke penjual") : t("Released to the seller", "Dilepas untuk penjual"),
       tone: "done",
     },
   ];
@@ -228,7 +233,7 @@ export default function HowItWorks() {
     t("Silence means it went fine. The sale is done.", "Diam artinya lancar. Transaksi selesai."),
   ];
   const buyTrackAt = [-1, 1, 1, 2, 3];
-  const buyTrack = [t("Paid", "Dibayar"), t("In escrow", "Di escrow"), t("Show over", "Acara selesai"), t("Seller paid", "Penjual dibayar")];
+  const buyTrack = [t("Paid", "Dibayar"), t("In escrow", "Di escrow"), t("Show over", "Acara selesai"), FEATURES.payouts ? t("Seller paid", "Penjual dibayar") : t("Released", "Dilepas")];
 
   // The show picks the rail (tasks/founder-house-usdc.md): crypto is no legal payment in
   // Indonesia, so shows there take rupiah, and shows abroad take USDC. Both run on test money.
@@ -264,8 +269,8 @@ export default function HowItWorks() {
       Icon: XCircle,
       q: t("What if I am turned away at the gate?", "Kalau aku ditolak di gate?"),
       a: t(
-        `Where the door checks Lummy passes, you file nothing: the refusal itself is the proof and the refund is immediate. Elsewhere, file within ${DISPUTE_WINDOW_H} hours with a photo taken there. The time, the venue and the code on screen all have to match, so someone who walked in cannot claim. A person reviews it and decides.`,
-        `Di pintu yang memeriksa pass Lummy, kamu tidak perlu mengajukan apa pun: penolakannya sendiri buktinya dan refund langsung terjadi. Di tempat lain, ajukan dalam ${DISPUTE_WINDOW_H} jam dengan foto yang diambil di sana. Waktu, venue, dan kode di layar harus cocok, jadi yang berhasil masuk tidak bisa mengklaim. Orang yang meninjau dan memutus.`
+        `File within ${DISPUTE_WINDOW_H} hours with a photo taken there. The time, the venue and the code on screen all have to match, so someone who walked in cannot claim. A person reviews it and decides.`,
+        `Ajukan dalam ${DISPUTE_WINDOW_H} jam dengan foto yang diambil di sana. Waktu, venue, dan kode di layar harus cocok, jadi yang berhasil masuk tidak bisa mengklaim. Orang yang meninjau dan memutus.`
       ),
     },
     {
@@ -304,8 +309,12 @@ export default function HowItWorks() {
       Icon: Timer,
       q: t("And if nothing goes wrong?", "Kalau tidak ada masalah?"),
       a: t(
-        `You do nothing. ${DISPUTE_WINDOW_H} hours after the show, the seller is paid and the sale is closed.`,
-        `Kamu tidak perlu apa-apa. ${DISPUTE_WINDOW_H} jam setelah acara, penjual dibayar dan transaksi selesai.`
+        FEATURES.payouts
+          ? `You do nothing. ${DISPUTE_WINDOW_H} hours after the show, the seller is paid and the sale is closed.`
+          : `You do nothing. ${DISPUTE_WINDOW_H} hours after the show, the money is released to the seller and the sale is closed.`,
+        FEATURES.payouts
+          ? `Kamu tidak perlu apa-apa. ${DISPUTE_WINDOW_H} jam setelah acara, penjual dibayar dan transaksi selesai.`
+          : `Kamu tidak perlu apa-apa. ${DISPUTE_WINDOW_H} jam setelah acara, dananya dilepas untuk penjual dan transaksi selesai.`
       ),
     },
   ];

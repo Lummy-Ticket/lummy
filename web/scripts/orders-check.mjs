@@ -264,7 +264,7 @@ try {
   const released = await until(async () => (await orderOf(L2))[0]?.escrow_status === "Released");
   check("masa sengketa lewat: cair otomatis ke penjual", released && (await orderOf(L2))[0]?.auto_released === true);
   await buyer.page.reload({ waitUntil: "networkidle" });
-  check("halaman tiket bilang sudah cair", await buyer.page.getByText("Paid out to the seller.", { exact: false }).isVisible());
+  check("halaman tiket bilang sudah cair", await buyer.page.getByText(/Paid out to the seller\.|Released to the seller/).first().isVisible());
   check("pesanan yang sudah cair tidak bisa diklaim", (await buyer.act(raceOrder.id, { action: "dispute", reason: "NOT_DELIVERED", note: "" })).status() === 409);
 
   // --- While payment is simulated, an ordinary account holds at most three open orders, so

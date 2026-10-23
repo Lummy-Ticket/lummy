@@ -88,8 +88,8 @@ export function EntryPass({ orderId, onChange }: { orderId: string; onChange?: (
       </div>
       <p className="text-sm text-neutral-gray mt-4 leading-relaxed">
         {t(
-          "Show this at the door. It is yours alone: the seller cannot make it. If the ticket went in before you on a copy, the gate refuses it and you are refunded in full on the spot, no claim needed.",
-          "Tunjukkan ini di pintu masuk. Cuma milikmu: penjual tidak bisa membuatnya. Kalau tiketnya sudah lebih dulu masuk lewat salinan, gate menolaknya dan uangmu langsung kembali penuh, tanpa perlu klaim."
+          "Show this where the door scans Lummy passes; no organiser does that yet, so it runs in the demo. It is yours alone: the seller cannot make it. Where it is scanned, a ticket that went in before you on a copy is refused, and you are refunded in full on the spot, no claim needed.",
+          "Tunjukkan ini di pintu yang memindai pass Lummy; belum ada penyelenggara yang melakukannya, jadi ini berjalan di demo. Cuma milikmu: penjual tidak bisa membuatnya. Di pintu yang memindainya, tiket yang sudah lebih dulu masuk lewat salinan ditolak, dan uangmu langsung kembali penuh, tanpa perlu klaim."
         )}
       </p>
       <button onClick={copy} className="mt-3 inline-flex items-center gap-1.5 text-xs text-neutral-gray hover:text-primary-navy cursor-pointer">

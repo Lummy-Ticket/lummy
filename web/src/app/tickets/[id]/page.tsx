@@ -245,6 +245,9 @@ export default function OrderDetailPage() {
   const elapsed = Number.isFinite(left) ? Math.min(1, Math.max(0, 1 - left / windowMs(order))) : 0;
   const win = windowLabel(order);
   const onchain = order.chain;
+  // An account's QRIS order, while no real money moves (FEATURES.payouts): its release is a ledger
+  // entry, and nothing reaches the seller's bank, so the page does not say the seller was paid.
+  const ledgerOnly = account && !order.chain && order.currency !== "USDC" && !FEATURES.payouts;
   // The timeline below: an escrow's own events, or a QRIS order's public record.
   const record =
     onchain && history
@@ -415,9 +418,12 @@ export default function OrderDetailPage() {
             {phase === "WINDOW_OPEN" && t("The show is over. Funds stay locked while the dispute window runs.", "Konser sudah selesai. Dana tetap terkunci selama masa sengketa berjalan.")}
             {phase === "WINDOW_CLOSED" && t("The window has elapsed. Releasing to the seller.", "Masa sengketa sudah lewat. Dana sedang dicairkan ke penjual.")}
             {phase === "IN_REVIEW" && t("Frozen while an arbiter reviews the dispute. Nothing moves until there is a verdict.", "Dibekukan selama arbiter meninjau sengketa. Tidak ada yang bergerak sampai ada putusan.")}
-            {phase === "RELEASED" && (order.autoReleased
+            {phase === "RELEASED" && !ledgerOnly && (order.autoReleased
               ? t(`Paid out to the seller. No dispute was filed within ${win.en}.`, `Sudah cair ke penjual. Tidak ada sengketa dalam ${win.id}.`)
               : t("Paid out to the seller after the arbiter reviewed the dispute.", "Cair ke penjual setelah arbiter meninjau sengketa."))}
+            {phase === "RELEASED" && ledgerOnly && (order.autoReleased
+              ? t(`Released to the seller: no dispute was filed within ${win.en}. It is recorded in the public ledger; bank payouts are not live yet.`, `Dilepas untuk penjual: tidak ada sengketa dalam ${win.id}. Tercatat di buku besar publik; pencairan ke rekening belum aktif.`)
+              : t("Released to the seller after the arbiter reviewed the dispute. It is recorded in the public ledger; bank payouts are not live yet.", "Dilepas untuk penjual setelah arbiter meninjau sengketa. Tercatat di buku besar publik; pencairan ke rekening belum aktif."))}
             {phase === "REFUNDED" && (order.autoRefundReason === "EVENT_CANCELLED"
               ? t("Returned automatically when the organiser cancelled the show.", "Dikembalikan otomatis saat penyelenggara membatalkan acara.")
               : order.autoRefundReason === "EVENT_POSTPONED"
@@ -489,10 +495,15 @@ export default function OrderDetailPage() {
                 <div className="h-full bg-secondary-brown-dark/70 transition-all" style={{ width: `${elapsed * 100}%` }} />
               </div>
               <p className="text-xs text-secondary-brown-dark mt-2.5 leading-relaxed">
-                {t(
-                  "Staying silent counts as a valid handover, so the payout goes through on its own.",
-                  "Diam berarti serah-terima beres, jadi dananya cair dengan sendirinya."
-                )}
+                {ledgerOnly
+                  ? t(
+                      "Staying silent counts as a valid handover, so the release is recorded on its own. Bank payouts are not live yet, so no money is paid out.",
+                      "Diam berarti serah-terima beres, jadi pelepasan dananya tercatat dengan sendirinya. Pencairan ke rekening belum aktif, jadi belum ada uang yang dicairkan."
+                    )
+                  : t(
+                      "Staying silent counts as a valid handover, so the payout goes through on its own.",
+                      "Diam berarti serah-terima beres, jadi dananya cair dengan sendirinya."
+                    )}
               </p>
             </div>
           )}
