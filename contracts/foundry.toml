@@ -35,3 +35,12 @@ arbitrum_sepolia = "https://sepolia-rollup.arbitrum.io/rpc"
 [profile.deep.invariant]
 runs = 10000
 depth = 64
+
+# Cuma untuk Slither putaran kedua (SECURITY-ANALYSIS.md): ReentrancyGuardTransient OpenZeppelin diganti
+# padanan yang bisa dibaca Slither. Kontrak yang di-deploy tidak pernah dibangun dengan profil ini.
+[profile.slither]
+remappings = [
+  "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol=slither/ReentrancyGuardTransient.sol",
+  "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+  "forge-std/=lib/forge-std/src/",
+]
