@@ -184,6 +184,19 @@ export default function ProofPage() {
             )}
       </p>
 
+      {/* Said under the title, before any amount (QA, 24 Oct): a reader who stops at the timeline
+          must not take a test payment for a real one. */}
+      {TESTNETS.has(data.chainId) && (
+        <p data-proof-testnet className="mt-3 inline-flex items-start gap-2 rounded-2xl bg-secondary-orange-soft px-3 py-2 text-xs text-secondary-orange-dark">
+          {ledger
+            ? t(
+                "This record is on a test network and the payment ran in Xendit's test mode: no real money moved.",
+                "Catatan ini di jaringan uji dan pembayarannya berjalan di mode uji Xendit: tidak ada uang sungguhan yang berpindah."
+              )
+            : t("This runs on a test network: amounts are test USDC, not real money.", "Ini berjalan di jaringan uji: nilainya USDC uji coba, bukan uang sungguhan.")}
+        </p>
+      )}
+
       <div className="mt-6 bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
         <EscrowTimeline history={data} />
       </div>
@@ -228,17 +241,6 @@ export default function ProofPage() {
         />
         <Row label={t("Network", "Jaringan")} value={`${NETWORK[data.chainId] ?? "Chain"} (${data.chainId})`} />
       </div>
-
-      {TESTNETS.has(data.chainId) && (
-        <p className="mt-4 text-xs text-neutral-gray">
-          {ledger
-            ? t(
-                "This record is on a test network and the payment ran in Xendit's test mode: no real money moved.",
-                "Catatan ini di jaringan uji dan pembayarannya berjalan di mode uji Xendit: tidak ada uang sungguhan yang berpindah."
-              )
-            : t("This runs on a test network: amounts are test USDC, not real money.", "Ini berjalan di jaringan uji: nilainya USDC uji coba, bukan uang sungguhan.")}
-        </p>
-      )}
 
       <div className="mt-6 flex flex-wrap items-center gap-4">
         <Button.Ghost className="text-sm" onClick={() => copy(window.location.href, { en: "Link copied", id: "Tautan disalin" })}>
