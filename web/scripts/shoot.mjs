@@ -36,7 +36,7 @@ for (const vp of VIEWPORTS) {
   // A first visit starts signed out, so the account pages are shot as the sample buyer.
   await ctx.addInitScript(() => {
     if (!localStorage.getItem("lummy:user"))
-      localStorage.setItem("lummy:user", JSON.stringify({ state: { user: { id: "u-buyer", name: "Luthfi Hadi", email: "luthfi@demo.id", role: "BUYER" } }, version: 0 }));
+      localStorage.setItem("lummy:user", JSON.stringify({ state: { user: { id: "u-buyer", name: "Raka Pratama", email: "raka@demo.id", role: "BUYER" } }, version: 0 }));
   });
   const page = await ctx.newPage();
   for (const [route, name] of ROUTES) {

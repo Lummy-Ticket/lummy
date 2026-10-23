@@ -7,7 +7,7 @@ export const CAP_PCT = 150;
 export const FLOOR_PCT = 50;
 
 export const DEMO_USERS: Record<Role, User> = {
-  BUYER: { id: "u-buyer", name: "Luthfi Hadi", email: "luthfi@demo.id", role: "BUYER" },
+  BUYER: { id: "u-buyer", name: "Raka Pratama", email: "raka@demo.id", role: "BUYER" },
   SELLER: { id: "u-seller", name: "Zahra Amelia", email: "zahra@demo.id", role: "SELLER" },
   ADMIN: { id: "u-admin", name: "Admin Lummy", email: "admin@lummy.id", role: "ADMIN" },
 };

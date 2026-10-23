@@ -3,12 +3,14 @@
 // accounts get the same five in the database when a presenter resets them. Dates for the
 // settled ones are relative to the moment they are made, which keeps the 48h countdown live.
 // The upcoming one is a real show in the catalogue. The settled ones are past samples, named
-// "(sample)" with a generated poster: no real show happened on those relative dates.
-import { eventPoster } from "../poster";
+// "(sample)" and shown with the sample show's Lummy art: no real show happened on those relative
+// dates, so no real show's photo is borrowed, and a blank gradient read as a broken image.
 import { eventArt } from "./seed";
 import type { Order } from "./types";
 
 const H = 3_600_000;
+/** Lummy's own art for the sample show (lib/mock/seed.ts), on the past sample orders too. */
+const SAMPLE_ART = "/assets/events/ev-demo-fest.jpg";
 
 export function seedOrders(now: number = Date.now()): Order[] {
   const ago = (hours: number) => new Date(now - hours * H).toISOString();
@@ -25,7 +27,7 @@ export function seedOrders(now: number = Date.now()): Order[] {
       // Show ended 6 hours ago: dispute window running, roughly 42h on the clock.
       id: "or-seed-2", listingId: "ls-x1", eventId: "ev-past-tulus",
       eventTitle: "Tulus: Manusia Tour, Surabaya (sample)",
-      eventImage: eventPoster("ev-past-tulus"),
+      eventImage: SAMPLE_ART,
       eventDateISO: ago(10), tierName: "Festival", sellerName: "Bagas W.",
       quantity: 1, amount: 950_000, gateKtp: false, escrowStatus: "LOCKED",
       createdAtISO: ago(16 * 24), eventEndedAtISO: ago(6),
@@ -34,7 +36,7 @@ export function seedOrders(now: number = Date.now()): Order[] {
       // Nobody filed anything, so the contract paid the seller by itself.
       id: "or-seed-3", listingId: "ls-x2", eventId: "ev-past-fest",
       eventTitle: "Festival musik Agustus (sample)",
-      eventImage: eventPoster("ev-past-fest"),
+      eventImage: SAMPLE_ART,
       eventDateISO: "2026-08-09T20:00:00+07:00", tierName: "GA", sellerName: "Rizky T.",
       quantity: 1, amount: 1_250_000, gateKtp: false, escrowStatus: "RELEASED",
       createdAtISO: "2026-07-18T13:00:00+07:00",
@@ -44,7 +46,7 @@ export function seedOrders(now: number = Date.now()): Order[] {
       // Filed 20h ago with gate-time evidence, still with the arbiter.
       id: "or-seed-4", listingId: "ls-x3", eventId: "ev-past-pandji",
       eventTitle: "Pandji Pragiwaksono: Menyala, Bandung (sample)",
-      eventImage: eventPoster("ev-past-pandji"),
+      eventImage: SAMPLE_ART,
       eventDateISO: ago(30), tierName: "Silver", sellerName: "Zahra Amelia",
       quantity: 1, amount: 430_000, gateKtp: false, escrowStatus: "DISPUTED",
       createdAtISO: ago(24 * 24), eventEndedAtISO: ago(26),
@@ -68,7 +70,7 @@ export function seedOrders(now: number = Date.now()): Order[] {
       // Arbiter sided with the buyer, so the escrow refunded instead of paying out.
       id: "or-seed-5", listingId: "ls-x4", eventId: "ev-past-sheila",
       eventTitle: "Sheila on 7: Tunggu Aku, Yogyakarta (sample)",
-      eventImage: eventPoster("ev-past-sheila"),
+      eventImage: SAMPLE_ART,
       eventDateISO: ago(21 * 24), tierName: "Tribune", sellerName: "Farhan A.",
       quantity: 2, amount: 700_000, gateKtp: false, escrowStatus: "REFUNDED",
       createdAtISO: ago(40 * 24), eventEndedAtISO: ago(21 * 24 - 4),
