@@ -182,7 +182,7 @@ function CheckoutInner() {
               <p className="text-sm text-neutral-gray">{formatEventDate(event.dateISO)} · {event.city}</p>
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <Badge.Base className="bg-secondary-blue-soft text-lummy-500 text-xs">{tier.name}</Badge.Base>
-                <Badge.Base className="bg-secondary-cream-soft text-secondary-brown-dark text-xs">{t(`${qty} tickets`, `${qty} tiket`)}</Badge.Base>
+                <Badge.Base className="bg-secondary-cream-soft text-secondary-brown-dark text-xs">{qty === 1 ? t("1 ticket", "1 tiket") : t(`${qty} tickets`, `${qty} tiket`)}</Badge.Base>
                 <span className="text-xs text-neutral-gray">{t("Seller", "Penjual")} {listing.sellerName}</span>
               </div>
             </div>
