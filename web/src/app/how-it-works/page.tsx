@@ -176,11 +176,11 @@ export default function HowItWorks() {
       title: t("Pay with QRIS or USDC", "Bayar pakai QRIS atau USDC"),
       body: t(
         FEATURES.eStamp
-          ? "QRIS in rupiah for a show in Indonesia, USDC from your own wallet for a show abroad. The ticket price goes into escrow: not to the seller, and not to us. The service fee and the e-stamp are shown before you pay."
-          : "QRIS in rupiah for a show in Indonesia, USDC from your own wallet for a show abroad. The ticket price goes into escrow: not to the seller, and not to us. The service fee is shown before you pay.",
+          ? "QRIS in rupiah for a show in Indonesia, USDC from your own wallet for a show abroad. The ticket price is held until the show, by our payment provider (Xendit) for QRIS or in the escrow contract for USDC, and the seller is not paid yet. The service fee and the e-stamp are shown before you pay."
+          : "QRIS in rupiah for a show in Indonesia, USDC from your own wallet for a show abroad. The ticket price is held until the show, by our payment provider (Xendit) for QRIS or in the escrow contract for USDC, and the seller is not paid yet. The service fee is shown before you pay.",
         FEATURES.eStamp
-          ? "QRIS dalam rupiah untuk acara di Indonesia, USDC dari wallet-mu sendiri untuk acara di luar negeri. Harga tiketnya masuk escrow: bukan ke penjual, bukan juga ke kami. Biaya layanan dan e-meterai tampil sebelum kamu bayar."
-          : "QRIS dalam rupiah untuk acara di Indonesia, USDC dari wallet-mu sendiri untuk acara di luar negeri. Harga tiketnya masuk escrow: bukan ke penjual, bukan juga ke kami. Biaya layanan tampil sebelum kamu bayar."
+          ? "QRIS dalam rupiah untuk acara di Indonesia, USDC dari wallet-mu sendiri untuk acara di luar negeri. Harga tiketnya ditahan sampai acara, oleh penyedia pembayaran kami (Xendit) untuk QRIS atau di kontrak escrow untuk USDC, dan penjual belum dibayar. Biaya layanan dan e-meterai tampil sebelum kamu bayar."
+          : "QRIS dalam rupiah untuk acara di Indonesia, USDC dari wallet-mu sendiri untuk acara di luar negeri. Harga tiketnya ditahan sampai acara, oleh penyedia pembayaran kami (Xendit) untuk QRIS atau di kontrak escrow untuk USDC, dan penjual belum dibayar. Biaya layanan tampil sebelum kamu bayar."
       ),
       state: t("Held in escrow", "Ditahan escrow"),
       tone: "held",
@@ -222,7 +222,7 @@ export default function HowItWorks() {
   ];
   const buyNotes = [
     t("You only pay once you have picked a listing.", "Kamu baru bayar setelah memilih listing."),
-    t("The seller cannot touch it. Neither can we.", "Penjual tidak bisa menyentuhnya. Kami juga tidak."),
+    t("The seller cannot touch it before the show is over.", "Penjual tidak bisa menyentuhnya sebelum acara selesai."),
     t("Documents in hand, money still waiting.", "Dokumen sudah di tangan, uang masih menunggu."),
     t("Any claim in this window stops the payout until it is settled.", "Klaim di masa ini menahan pencairan sampai diputus."),
     t("Silence means it went fine. The sale is done.", "Diam artinya lancar. Transaksi selesai."),
@@ -237,8 +237,8 @@ export default function HowItWorks() {
       Icon: QrCode,
       title: t("Shows in Indonesia: QRIS", "Acara di Indonesia: QRIS"),
       body: t(
-        `Pay in rupiah from any banking or e-wallet app, through Xendit, a licensed payment company. Each step is recorded publicly on Arbitrum. Service fee 5%, at least ${formatIDR(25_000)}. For now QRIS runs in Xendit's test mode, so no real money moves.`,
-        `Bayar dalam rupiah dari aplikasi bank atau e-wallet apa pun, lewat Xendit, perusahaan pembayaran berlisensi. Tiap langkahnya tercatat publik di Arbitrum. Biaya layanan 5%, minimal ${formatIDR(25_000)}. Untuk sekarang QRIS berjalan di mode test Xendit, jadi tidak ada uang sungguhan yang berpindah.`
+        `Pay in rupiah from any banking or e-wallet app. Xendit, a licensed payment company, holds the money until the show; each step is recorded publicly on Arbitrum. Service fee 5%, at least ${formatIDR(25_000)}. For now QRIS runs in Xendit's test mode, so no real money moves.`,
+        `Bayar dalam rupiah dari aplikasi bank atau e-wallet apa pun. Xendit, perusahaan pembayaran berlisensi, memegang dananya sampai acara; tiap langkahnya tercatat publik di Arbitrum. Biaya layanan 5%, minimal ${formatIDR(25_000)}. Untuk sekarang QRIS berjalan di mode test Xendit, jadi tidak ada uang sungguhan yang berpindah.`
       ),
     },
     {

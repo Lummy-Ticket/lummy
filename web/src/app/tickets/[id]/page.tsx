@@ -404,7 +404,14 @@ export default function OrderDetailPage() {
             </p>
           )}
           <p className="text-sm text-neutral-gray">
-            {phase === "PRE_EVENT" && t("Held until the show is over. Not in our account, and not in the seller's.", "Ditahan sampai konser selesai. Bukan di rekening kami, bukan juga di penjual.")}
+            {/* Where the money is, said the same way as How it works and the proof page: the escrow
+                contract for an on-chain order, the payment provider for QRIS. */}
+            {phase === "PRE_EVENT" &&
+              (order.chain || order.currency === "USDC"
+                ? t("Locked in the escrow contract on Arbitrum until the show is over, not paid to the seller.", "Dikunci di kontrak escrow di Arbitrum sampai konser selesai, tidak dibayarkan ke penjual.")
+                : account
+                  ? t("Held by our payment provider (Xendit) until the show is over, not paid to the seller.", "Dipegang penyedia pembayaran kami (Xendit) sampai konser selesai, tidak dibayarkan ke penjual.")
+                  : t("Held until the show is over, not paid to the seller. A sample order: no money moved.", "Ditahan sampai konser selesai, tidak dibayarkan ke penjual. Pesanan contoh: tidak ada uang yang berpindah."))}
             {phase === "WINDOW_OPEN" && t("The show is over. Funds stay locked while the dispute window runs.", "Konser sudah selesai. Dana tetap terkunci selama masa sengketa berjalan.")}
             {phase === "WINDOW_CLOSED" && t("The window has elapsed. Releasing to the seller.", "Masa sengketa sudah lewat. Dana sedang dicairkan ke penjual.")}
             {phase === "IN_REVIEW" && t("Frozen while an arbiter reviews the dispute. Nothing moves until there is a verdict.", "Dibekukan selama arbiter meninjau sengketa. Tidak ada yang bergerak sampai ada putusan.")}
