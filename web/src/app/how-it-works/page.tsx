@@ -164,22 +164,22 @@ export default function HowItWorks() {
       Icon: Search,
       title: t("Find a ticket", "Cari tiket"),
       body: t(
-        `Every listing shows the tier, the price next to face value, and the checks it passed. No listing can ask more than ${CAP_PCT}% of face value.`,
-        `Tiap listing menampilkan tier, harga di samping harga asli, dan pengecekan yang sudah dilewati. Tidak ada listing yang boleh lebih dari ${CAP_PCT}% harga asli.`
+        `Every listing shows the tier, the price next to face value, and the checks it passed. Every price sits between ${FLOOR_PCT}% and ${CAP_PCT}% of face value.`,
+        `Tiap listing menampilkan tier, harga di samping harga asli, dan pengecekan yang sudah dilewati. Tiap harga ada di antara ${FLOOR_PCT}% dan ${CAP_PCT}% harga asli.`
       ),
       state: t("Nothing paid yet", "Belum bayar apa-apa"),
       tone: "idle",
     },
     {
       Icon: QrCode,
-      title: t("Pay with QRIS", "Bayar pakai QRIS"),
+      title: t("Pay with QRIS or USDC", "Bayar pakai QRIS atau USDC"),
       body: t(
         FEATURES.eStamp
-          ? "Like any other app. The ticket price goes into escrow: not to the seller, and not to us. The service fee and the e-stamp are shown before you pay."
-          : "Like any other app. The ticket price goes into escrow: not to the seller, and not to us. The service fee is shown before you pay.",
+          ? "QRIS in rupiah for a show in Indonesia, USDC from your own wallet for a show abroad. The ticket price goes into escrow: not to the seller, and not to us. The service fee and the e-stamp are shown before you pay."
+          : "QRIS in rupiah for a show in Indonesia, USDC from your own wallet for a show abroad. The ticket price goes into escrow: not to the seller, and not to us. The service fee is shown before you pay.",
         FEATURES.eStamp
-          ? "Seperti aplikasi lain. Harga tiketnya masuk escrow: bukan ke penjual, bukan juga ke kami. Biaya layanan dan e-meterai tampil sebelum kamu bayar."
-          : "Seperti aplikasi lain. Harga tiketnya masuk escrow: bukan ke penjual, bukan juga ke kami. Biaya layanan tampil sebelum kamu bayar."
+          ? "QRIS dalam rupiah untuk acara di Indonesia, USDC dari wallet-mu sendiri untuk acara di luar negeri. Harga tiketnya masuk escrow: bukan ke penjual, bukan juga ke kami. Biaya layanan dan e-meterai tampil sebelum kamu bayar."
+          : "QRIS dalam rupiah untuk acara di Indonesia, USDC dari wallet-mu sendiri untuk acara di luar negeri. Harga tiketnya masuk escrow: bukan ke penjual, bukan juga ke kami. Biaya layanan tampil sebelum kamu bayar."
       ),
       state: t("Held in escrow", "Ditahan escrow"),
       tone: "held",
@@ -228,6 +228,27 @@ export default function HowItWorks() {
   ];
   const buyTrackAt = [-1, 1, 1, 2, 3];
   const buyTrack = [t("Paid", "Dibayar"), t("In escrow", "Di escrow"), t("Show over", "Acara selesai"), t("Seller paid", "Penjual dibayar")];
+
+  // The show picks the rail (tasks/founder-house-usdc.md): crypto is no legal payment in
+  // Indonesia, so shows there take rupiah, and shows abroad take USDC. Both run on test money.
+  const rails = [
+    {
+      Icon: QrCode,
+      title: t("Shows in Indonesia: QRIS", "Acara di Indonesia: QRIS"),
+      body: t(
+        `Pay in rupiah from any banking or e-wallet app, through Xendit, a licensed payment company. Each step is recorded publicly on Arbitrum. Service fee 5%, at least ${formatIDR(25_000)}. For now QRIS runs in Xendit's test mode, so no real money moves.`,
+        `Bayar dalam rupiah dari aplikasi bank atau e-wallet apa pun, lewat Xendit, perusahaan pembayaran berlisensi. Tiap langkahnya tercatat publik di Arbitrum. Biaya layanan 5%, minimal ${formatIDR(25_000)}. Untuk sekarang QRIS berjalan di mode test Xendit, jadi tidak ada uang sungguhan yang berpindah.`
+      ),
+    },
+    {
+      Icon: Wallet,
+      title: t("Shows abroad: USDC", "Acara di luar negeri: USDC"),
+      body: t(
+        "Pay from your own wallet. You sign twice, Lummy pays the gas, and the USDC is locked in the escrow contract on Arbitrum. No service fee while it runs on testnet: test USDC on Arbitrum Sepolia, not real money.",
+        "Bayar dari wallet-mu sendiri. Kamu tanda tangan dua kali, gas dibayar Lummy, dan USDC-nya dikunci di kontrak escrow di Arbitrum. Tanpa biaya layanan selama di testnet: USDC uji di Arbitrum Sepolia, bukan uang sungguhan."
+      ),
+    },
+  ];
 
   const coverage: FaqItem[] = [
     {
@@ -341,11 +362,17 @@ export default function HowItWorks() {
     {
       Icon: Landmark,
       title: t("You get paid", "Kamu dibayar"),
-      body: t(
-        `${DISPUTE_WINDOW_H} hours after the show, if no claim stands, the escrow pays out to the bank account in your profile.`,
-        `${DISPUTE_WINDOW_H} jam setelah acara, kalau tidak ada klaim yang terbukti, escrow mencairkan dana ke rekening di profilmu.`
-      ),
-      state: t("Paid out", "Sudah cair"),
+      // Until real money (FEATURES.payouts), a payout is an entry in the public ledger, not a transfer to a bank.
+      body: FEATURES.payouts
+        ? t(
+            `${DISPUTE_WINDOW_H} hours after the show, if no claim stands, the escrow pays out to the bank account in your profile.`,
+            `${DISPUTE_WINDOW_H} jam setelah acara, kalau tidak ada klaim yang terbukti, escrow mencairkan dana ke rekening di profilmu.`
+          )
+        : t(
+            `${DISPUTE_WINDOW_H} hours after the show, if no claim stands, the escrow releases the money to you. Payouts to the bank account in your profile start when Lummy takes real money; until then a payout is a public record.`,
+            `${DISPUTE_WINDOW_H} jam setelah acara, kalau tidak ada klaim yang terbukti, escrow melepas dananya untukmu. Pencairan ke rekening di profilmu dimulai saat Lummy menerima uang sungguhan; sampai saat itu, pencairan berupa catatan publik.`
+          ),
+      state: FEATURES.payouts ? t("Paid out", "Sudah cair") : t("Released to you", "Dilepas untukmu"),
       tone: "done",
     },
   ];
@@ -354,10 +381,17 @@ export default function HowItWorks() {
     t("Most tickets go live straight away.", "Kebanyakan tiket langsung tayang."),
     t("Buyers see your price next to face value.", "Pembeli melihat hargamu di samping harga asli."),
     t("You cannot be paid for a ticket that did not work.", "Kamu tidak bisa dibayar untuk tiket yang tidak berfungsi."),
-    t("The full price, to your bank account.", "Harga penuh, ke rekeningmu."),
+    FEATURES.payouts
+      ? t("The full price, to your bank account.", "Harga penuh, ke rekeningmu.")
+      : t("The full price you set, on the public record.", "Harga penuh yang kamu pasang, di catatan publik."),
   ];
   const sellTrackAt = [0, 0, 1, 2, 3];
-  const sellTrack = [t("Uploaded", "Diupload"), t("Live", "Tayang"), t("Sold", "Terjual"), t("Paid out", "Cair")];
+  const sellTrack = [
+    t("Uploaded", "Diupload"),
+    t("Live", "Tayang"),
+    t("Sold", "Terjual"),
+    FEATURES.payouts ? t("Paid out", "Cair") : t("Released", "Dilepas"),
+  ];
 
   const sellFaq: FaqItem[] = [
     {
@@ -395,10 +429,15 @@ export default function HowItWorks() {
     {
       Icon: ShieldAlert,
       q: t("What if a ticket I sold does not work?", "Kalau tiket yang kujual tidak berfungsi?"),
-      a: t(
-        `You lose the sale and are charged ${SELLER_PENALTY_PCT}% of the price, so selling a ticket that does not work never pays.`,
-        `Penjualan batal dan kamu dikenai ${SELLER_PENALTY_PCT}% dari harga, jadi menjual tiket yang tidak berfungsi tidak pernah untung.`
-      ),
+      a: FEATURES.payouts
+        ? t(
+            `You lose the sale and are charged ${SELLER_PENALTY_PCT}% of the price, so selling a ticket that does not work never pays.`,
+            `Penjualan batal dan kamu dikenai ${SELLER_PENALTY_PCT}% dari harga, jadi menjual tiket yang tidak berfungsi tidak pernah untung.`
+          )
+        : t(
+            `You lose the sale and owe a penalty of ${SELLER_PENALTY_PCT}% of the price, so selling a ticket that does not work never pays. While Lummy runs on test money, the penalty is shown, not charged.`,
+            `Penjualan batal dan kamu kena penalti ${SELLER_PENALTY_PCT}% dari harga, jadi menjual tiket yang tidak berfungsi tidak pernah untung. Selama Lummy memakai uang uji, penaltinya ditampilkan, tidak ditagih.`
+          ),
     },
   ];
 
@@ -421,15 +460,18 @@ export default function HowItWorks() {
     },
     {
       Icon: TrendingUp,
-      title: t(`Capped at ${CAP_PCT}%`, `Maksimal ${CAP_PCT}%`),
-      body: t("No listing can ask more than one and a half times face value.", "Tidak ada listing yang boleh lebih dari satu setengah kali harga asli."),
+      title: t(`Priced ${FLOOR_PCT}% to ${CAP_PCT}% of face value`, `Harga ${FLOOR_PCT}% sampai ${CAP_PCT}% harga asli`),
+      body: t(
+        "No listing can ask more than one and a half times face value, or less than half of it.",
+        "Tidak ada listing yang boleh lebih dari satu setengah kali harga asli, atau kurang dari separuhnya."
+      ),
     },
     {
       Icon: Eye,
       title: t("Open to audit", "Bisa diaudit"),
       body: t(
-        "Whether money is held, released or refunded is recorded publicly. You can check it yourself.",
-        "Status dana (ditahan, cair, dikembalikan) tercatat publik. Kamu bisa cek sendiri."
+        "Whether money is held, released or refunded is recorded publicly on Arbitrum. You can check it yourself.",
+        "Status dana (ditahan, cair, dikembalikan) tercatat publik di Arbitrum. Kamu bisa cek sendiri."
       ),
     },
   ];
@@ -532,7 +574,24 @@ export default function HowItWorks() {
             {/* Mobile has no side card, so the costs get their own block */}
             <section className="lg:hidden max-w-6xl mx-auto px-5 mt-12">{buyAside(1)}</section>
 
-            <section id="coverage" className="max-w-6xl mx-auto px-5 lg:px-10 mt-20 lg:mt-6 scroll-mt-40">
+            <section data-pay-rails className="max-w-6xl mx-auto px-5 lg:px-10 mt-20 lg:mt-6">
+              <div data-reveal className="max-w-2xl">
+                <h2 className="font-bold text-2xl md:text-3xl text-neutral-black">{t("Two ways to pay", "Dua cara bayar")}</h2>
+                <p className="text-neutral-gray mt-2">
+                  {t(
+                    "Where the show is decides how you pay. Both run on test money for now.",
+                    "Lokasi acara menentukan cara bayarnya. Untuk sekarang, dua-duanya memakai uang uji."
+                  )}
+                </p>
+              </div>
+              <div data-reveal="stagger" className="grid sm:grid-cols-2 gap-5 mt-8">
+                {rails.map((r) => (
+                  <TicketFeature key={r.title} Icon={r.Icon} title={r.title} body={r.body} />
+                ))}
+              </div>
+            </section>
+
+            <section id="coverage" className="max-w-6xl mx-auto px-5 lg:px-10 mt-20 scroll-mt-40">
               <div className="grid lg:grid-cols-[320px_minmax(0,1fr)] gap-8 lg:gap-16">
                 <div data-reveal>
                   <h2 className="font-bold text-2xl md:text-3xl text-neutral-black">{t("What if something goes wrong?", "Kalau ada yang tidak beres?")}</h2>
