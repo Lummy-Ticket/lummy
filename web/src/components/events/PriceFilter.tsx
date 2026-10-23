@@ -9,6 +9,7 @@ import { useActiveLang, useFormatters, useT } from "@/lib/i18n";
 
 // Price as a dropdown that looks like the city menu, so the toolbar stays one row
 // of equal controls. The slider lives in the panel instead of taking a row of its own.
+// It is in rupiah: shows priced in USDC have no place on it, so it says so (QA, 24 Oct).
 export function PriceFilter({
   min,
   max,
@@ -54,10 +55,10 @@ export function PriceFilter({
   const summary = !active
     ? t("Any price", "Semua harga")
     : lo === min
-      ? t(`Up to ${short(hi)}`, `Sampai ${short(hi)}`)
+      ? t(`Up to Rp${short(hi)}`, `Sampai Rp${short(hi)}`)
       : hi === max
-        ? t(`From ${short(lo)}`, `Mulai ${short(lo)}`)
-        : `${short(lo)} - ${short(hi)}`;
+        ? t(`From Rp${short(lo)}`, `Mulai Rp${short(lo)}`)
+        : `Rp${short(lo)} - Rp${short(hi)}`;
 
   return (
     <div ref={ref} className={cn("relative", className)}>
@@ -75,11 +76,11 @@ export function PriceFilter({
       {open && (
         <div
           role="dialog"
-          aria-label={t("Price range", "Rentang harga")}
+          aria-label={t("Price range in rupiah", "Rentang harga dalam rupiah")}
           className={cn(MENU_PANEL, "right-0 w-72 max-w-[calc(100vw-2.5rem)] p-4 [--origin:top_right]")}
         >
           <div className="flex items-center justify-between gap-3">
-            <span className="text-sm font-medium text-neutral-black">{t("Price range", "Rentang harga")}</span>
+            <span className="text-sm font-medium text-neutral-black">{t("Price range in rupiah", "Rentang harga dalam rupiah")}</span>
             {active && (
               <button
                 type="button"
@@ -90,7 +91,12 @@ export function PriceFilter({
               </button>
             )}
           </div>
-          <p className="text-xs text-neutral-gray mt-0.5">{t("Cheapest resale ticket per event", "Tiket resale termurah per event")}</p>
+          <p className="text-xs text-neutral-gray mt-0.5">
+            {t(
+              "Cheapest resale ticket per event. Narrowing it leaves out the shows priced in USDC.",
+              "Tiket resale termurah per event. Kalau dipersempit, acara yang dihargai USDC tidak ikut."
+            )}
+          </p>
 
           <DualRangeSlider
             className="mt-5"

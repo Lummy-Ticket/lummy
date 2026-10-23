@@ -64,6 +64,18 @@ function EventsInner() {
     });
   }, [events, PRICE_MIN, PRICE_MAX, query, city, price]);
   const filtered = cat === "All" ? base : base.filter((e) => e.category === cat);
+  // The price filter is in rupiah, so a narrowed range leaves the USDC shows out; say how many.
+  const usdcHidden = useMemo(() => {
+    if (price[0] <= PRICE_MIN && price[1] >= PRICE_MAX) return 0;
+    const q = query.toLowerCase().trim();
+    return events.filter(
+      (e) =>
+        e.currency === "USDC" &&
+        (city === ALL_CITIES || e.city === city) &&
+        (cat === "All" || e.category === cat) &&
+        (!q || e.title.toLowerCase().includes(q) || e.city.toLowerCase().includes(q) || e.venue.toLowerCase().includes(q))
+    ).length;
+  }, [events, PRICE_MIN, PRICE_MAX, price, query, city, cat]);
   const countOf = (c: string) => base.filter((e) => e.category === c).length;
 
   const filtering = query.trim() !== "" || cat !== "All" || city !== ALL_CITIES || price[0] > PRICE_MIN || price[1] < PRICE_MAX;
@@ -156,6 +168,17 @@ function EventsInner() {
           )}
         </div>
       </div>
+
+      {usdcHidden > 0 && (
+        <p data-usdc-hidden className="-mt-3 mb-5 text-sm text-neutral-gray">
+          {usdcHidden === 1
+            ? t("1 show priced in USDC is not in the rupiah price range. ", "1 acara yang dihargai USDC tidak masuk rentang harga rupiah. ")
+            : t(`${usdcHidden} shows priced in USDC are not in the rupiah price range. `, `${usdcHidden} acara yang dihargai USDC tidak masuk rentang harga rupiah. `)}
+          <button type="button" onClick={() => setPrice([PRICE_MIN, PRICE_MAX])} className="font-medium text-lummy-500 hover:underline cursor-pointer">
+            {t("Show any price", "Tampilkan semua harga")}
+          </button>
+        </p>
+      )}
 
       {filtered.length > 0 ? (
         // CSS entrance, not data-reveal: the first cards are rendered on the server and on screen
