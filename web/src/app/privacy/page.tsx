@@ -20,8 +20,8 @@ const emailLines: { list: Bi[]; mailspace: Bi } = FEATURES.emails
           id: "Soal pesananmu: ke pembeli saat pesanan dibayar, ke penjual saat klaim diajukan (dengan tanda terima ke pembeli), ke kedua pihak saat klaim diputus, dan ke pembeli saat acara batal dan pesanannya direfund. Email ini bagian dari transaksi yang kamu minta, jadi tidak bisa dimatikan.",
         },
         {
-          en: "New tickets, only if you ask: when you follow a show or join a tier's waitlist, your account keeps which show or tier and when, and we email you once about each new listing there, never about your own. Stop any time on the show's page or in your profile; every alert email says where.",
-          id: "Tiket baru, hanya kalau kamu minta: saat kamu mengikuti acara atau masuk waitlist sebuah tier, akunmu menyimpan acara atau tier mana dan kapan, lalu kami mengirim email sekali untuk tiap listing baru di sana, tidak pernah untuk listing-mu sendiri. Berhenti kapan saja di halaman acara atau di profilmu; setiap email notifikasi menyebut caranya.",
+          en: "New tickets, only if you ask: when you follow a show or join a tier's waitlist, your account keeps which show or tier and when, and we email you when new tickets appear there, at most once every few hours for each show, and never about your own listing. Stop any time on the show's page or in your profile; every alert email says where.",
+          id: "Tiket baru, hanya kalau kamu minta: saat kamu mengikuti acara atau masuk waitlist sebuah tier, akunmu menyimpan acara atau tier mana dan kapan, lalu kami mengirim email saat ada tiket baru di sana, paling banyak sekali dalam beberapa jam untuk tiap acara, dan tidak pernah untuk listing-mu sendiri. Berhenti kapan saja di halaman acara atau di profilmu; setiap email notifikasi menyebut caranya.",
         },
         {
           en: "Every email goes to the address you sign in with and carries only your own order's details or the new listing, never the other side's name or email. A reply reaches our team inbox.",
@@ -29,8 +29,8 @@ const emailLines: { list: Bi[]; mailspace: Bi } = FEATURES.emails
         },
       ],
       mailspace: {
-        en: `Mailspace (DomaiNesia), the mail service of lummy.id, as our data processor: it delivers from no-reply@lummy.id the sign-in email that Supabase writes for us and the emails our server sends (see "Email we send"), and holds our team inbox (${CONTACT_EMAIL}), where your messages and replies to us arrive.`,
-        id: `Mailspace (DomaiNesia), layanan email lummy.id, sebagai prosesor data kami: mengantar dari no-reply@lummy.id email untuk masuk yang dibuat Supabase untuk kami dan email yang dikirim server kami (lihat "Email yang kami kirim"), serta menyimpan kotak masuk tim (${CONTACT_EMAIL}), tempat pesan dan balasanmu ke kami masuk.`,
+        en: `Mailspace (DomaiNesia), the mail service of lummy.id, as our data processor: it delivers the sign-in email that Supabase writes for us, from no-reply@lummy.id, and the emails our server sends (see "Email we send"), from notify@lummy.id, and holds our team inbox (${CONTACT_EMAIL}), where your messages and replies to us arrive.`,
+        id: `Mailspace (DomaiNesia), layanan email lummy.id, sebagai prosesor data kami: mengantar email untuk masuk yang dibuat Supabase untuk kami, dari no-reply@lummy.id, dan email yang dikirim server kami (lihat "Email yang kami kirim"), dari notify@lummy.id, serta menyimpan kotak masuk tim (${CONTACT_EMAIL}), tempat pesan dan balasanmu ke kami masuk.`,
       },
     }
   : {
