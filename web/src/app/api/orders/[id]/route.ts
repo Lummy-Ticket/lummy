@@ -267,13 +267,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         .select("order_id");
       if (ruled.error) return fail(500, ruled.error.message);
       if (!ruled.data.length) return fail(409, "klaim ini baru saja diputus");
+      // The ruling stands from here (asking again is refused), so both sides hear it even if the
+      // order's own update below fails; the email reads the ruling, not the order's status.
+      notifyRuling(admin, id);
       const settled = await admin
         .from("orders")
         .update({ escrow_status: toSeller ? "Released" : "Refunded", ...(tx ? { tx_settle: tx.tx, tx_withdrawals: tx.withdrawals } : {}) })
         .eq("id", id);
       if (settled.error) return fail(500, settled.error.message);
       ledgerFollows();
-      notifyRuling(admin, id);
       return done(tx ?? {});
     }
 
