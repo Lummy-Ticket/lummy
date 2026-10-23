@@ -126,7 +126,7 @@ try {
   await listFromPage(seller, "Genuine ticket", "Publish listing");
   const live = await newestOf(seller.user.id);
   check("listing tersimpan atas nama penjual, dengan nama publik yang disingkat", live?.status === "active" && live.seller_name === "Zahra A.", `${live?.status} ${live?.seller_name}`);
-  check("harga asli diambil server dari kategori", live?.face_value === 1_200_000 && live.ask_price === 1_380_000, `${live?.face_value} ${live?.ask_price}`);
+  check("harga asli diambil server dari kategori", live?.face_value === 1_320_000 && live.ask_price === 1_518_000, `${live?.face_value} ${live?.ask_price}`);
   check("sinyal AI dari tabel server", live?.forgery_score === 9 && !live.pdf_suspicious && live.extraction?.sample === "good");
   // The dashboard reads the account's listings after it loads, so give the read a moment.
   check(

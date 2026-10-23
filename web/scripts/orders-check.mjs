@@ -155,7 +155,7 @@ try {
   if (CHAIN) {
     check("escrow on-chain tercatat", /^0x[0-9a-f]{64}$/.test(o1?.onchain_listing_id ?? "") && !!o1.tx_fund && o1.escrow_status === "DisputeWindow", o1?.escrow_status);
   } else {
-    check("jadwal acara jadi awal masa sengketa", endsAt === new Date("2026-11-07T20:00:00+07:00").getTime() + 4 * 3_600_000, o1?.event_ends_at);
+    check("jadwal acara jadi awal masa sengketa", endsAt === new Date("2026-12-06T18:00:00+07:00").getTime() + 4 * 3_600_000, o1?.event_ends_at);
     check("pembayaran simulasi: tanpa escrow on-chain", !o1?.onchain_listing_id && o1?.escrow_status === "Funded");
   }
   check("sebagian set dibeli: sisa 1 tetap dijual", JSON.stringify(await listingOf(L1)) === JSON.stringify({ quantity: 1, status: "active" }));
@@ -246,7 +246,7 @@ try {
     return o?.escrow_status === "Refunded" ? o : null;
   }, CHAIN ? 90000 : 25000);
   const verdict = claimOf(ruled);
-  check("putusan: refund sebagian dan penalti penjual 40%", verdict?.verdict_remedy === "REFUND_PARTIAL" && verdict.refund_amount === 350000 && verdict.seller_penalty === 280000, JSON.stringify(verdict ?? {}).slice(0, 160));
+  check("putusan: refund sebagian dan penalti penjual 40%", verdict?.verdict_remedy === "REFUND_PARTIAL" && verdict.refund_amount === 500000 && verdict.seller_penalty === 400000, JSON.stringify(verdict ?? {}).slice(0, 160));
   check("alasan putusan ditulis server", !!verdict?.rationale_en && verdict.decided_by === staff.user.id);
   if (CHAIN) check("putusan dijalankan kontrak", !!ruled?.tx_settle);
   check("putusan kedua ditolak 409", (await staff.act(orderId, { action: "verdict", remedy: "REFUND_FULL" })).status() === 409);
