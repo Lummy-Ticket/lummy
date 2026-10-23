@@ -14,8 +14,11 @@ if (typeof window !== "undefined") throw new Error("lib/email/notify hanya boleh
 type Admin = SupabaseClient<Database>;
 
 const H = 3_600_000;
-/** People told about one listing at most, and how many addresses are looked up at once. */
-const MAX_FOLLOWERS = 2000;
+/**
+ * People told about one listing at most: what one batch sends well inside a route's time limit at
+ * lib/email/send's pace (10 a second), lookups included. How many addresses are looked up at once.
+ */
+const MAX_FOLLOWERS = 200;
 const LOOKUPS_AT_ONCE = 20;
 
 const ORDER_COLUMNS =
@@ -169,9 +172,9 @@ async function heldBack(admin: Admin, l: LiveListing): Promise<string | null> {
  * (api/listings/[id]). Everyone following its show, or its tier, hears once, however many of their
  * alerts match; the seller does not; and not at all when heldBack says so. A listing goes on sale
  * only once (one conditional update moves it out of review, and nothing moves it back), so nobody
- * hears twice about the same listing.
+ * hears twice about the same listing. `deadline` is the route's (emailDeadline in lib/email/send).
  */
-export function notifyListingLive(admin: Admin, listingId: string) {
+export function notifyListingLive(admin: Admin, listingId: string, deadline: number) {
   queueEmails(`listing ${listingId}`, async () => {
     const { data: listing, error } = await admin
       .from("listings")
@@ -220,5 +223,5 @@ export function notifyListingLive(admin: Admin, listingId: string) {
       for (const to of batch) out.push(...mail(to, "tickets-listed", listing.id, letter));
     }
     return out;
-  });
+  }, deadline);
 }

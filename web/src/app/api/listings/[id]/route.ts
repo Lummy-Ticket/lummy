@@ -4,18 +4,22 @@
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { notifyListingLive } from "@/lib/email/notify";
+import { emailDeadline } from "@/lib/email/send";
 import type { Database } from "@/lib/supabase/types";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { currentUser } from "@/lib/supabase/session";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+// Named, so a clearance's emails to the show's followers know how long they have.
+export const maxDuration = 60;
 
 type ListingStatus = Database["public"]["Enums"]["listing_status"];
 const noStore = { "Cache-Control": "private, no-store" };
 const fail = (status: number, error: string) => NextResponse.json({ error }, { status, headers: noStore });
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const started = Date.now();
   const { id } = await params;
   const admin = supabaseAdmin();
   if (!admin) return fail(503, "database belum tersambung di server ini");
@@ -69,6 +73,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   // Going live or coming down both change what buyers see.
   if (to === "active" || listing.status === "active") revalidateTag("catalogue", { expire: 0 });
   // Cleared, it is on sale now: people following the show, or this tier, hear about it.
-  if (to === "active") notifyListingLive(admin, id);
+  if (to === "active") notifyListingLive(admin, id, emailDeadline(started, maxDuration));
   return NextResponse.json({ ok: true, status: to }, { headers: noStore });
 }

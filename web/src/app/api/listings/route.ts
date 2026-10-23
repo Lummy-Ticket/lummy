@@ -8,6 +8,7 @@
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { notifyListingLive } from "@/lib/email/notify";
+import { emailDeadline } from "@/lib/email/send";
 import { FEATURES } from "@/lib/features";
 import { EVENT_DURATION_H, isLateListing } from "@/lib/mock/escrow";
 import { resaleAllowed } from "@/lib/mock/transfer";
@@ -69,6 +70,7 @@ async function readBody(req: Request): Promise<{ body: Body; file: File | null }
 }
 
 export async function POST(req: Request) {
+  const started = Date.now();
   const admin = supabaseAdmin();
   if (!admin) return fail(503, "database belum tersambung di server ini");
   const user = await currentUser();
@@ -230,8 +232,9 @@ export async function POST(req: Request) {
 
   if (data.status === "active") {
     revalidateTag("catalogue", { expire: 0 });
-    // People following the show, or this tier, hear about it (lib/email/notify).
-    notifyListingLive(admin, data.id);
+    // People following the show, or this tier, hear about it (lib/email/notify), in the time this
+    // route has left after reading the ticket.
+    notifyListingLive(admin, data.id, emailDeadline(started, maxDuration));
   }
   return NextResponse.json(data, { headers: noStore });
 }
