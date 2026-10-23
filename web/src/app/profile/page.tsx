@@ -179,13 +179,15 @@ export default function ProfilePage() {
         </div>
       </Section>
 
-      {/* Identity / PSrE */}
+      {/* Identity / PSrE. Only once e-signatures are contracted (FEATURES.eStamp): until then no
+          provider stands behind it, and a one-click "verified" read as a feature that works. */}
+      {FEATURES.eStamp && (
       <Section title={t("Identity verification", "Verifikasi identitas")}>
         {verified ? (
           <div className="flex items-center gap-3">
             <Badge.Base className="bg-secondary-green-soft text-secondary-green-dark text-sm inline-flex items-center gap-1"><BadgeCheck className="w-4 h-4" /> {t("Verified", "Terverifikasi")}</Badge.Base>
             {/* A sample persona verifies with one click, which no PSrE stands behind (lib/features.ts). */}
-            <span className="text-sm text-neutral-gray">via Privy.id (PSrE){!account && ` ${t("(sample)", "(contoh)")}`}</span>
+            <span className="text-sm text-neutral-gray">{t("via a licensed e-signature provider (PSrE)", "via PSrE berlisensi")}{!account && ` ${t("(sample)", "(contoh)")}`}</span>
           </div>
         ) : account ? (
           <p className="text-sm text-neutral-gray">
@@ -198,8 +200,8 @@ export default function ProfilePage() {
           <div className="flex flex-col gap-3">
             <p className="text-sm text-neutral-gray">
               {t(
-                "A one-time check so you can e-sign the letter of authorisation. Your ID photo is processed by a licensed Indonesian e-signature provider (Privy.id), Lummy never stores it.",
-                "Verifikasi sekali supaya kamu bisa tanda tangan surat kuasa secara elektronik. Foto KTP diproses PSrE berlisensi (Privy.id), Lummy tidak pernah menyimpannya."
+                "A one-time check so you can e-sign the letter of authorisation. Your ID photo is processed by a licensed Indonesian e-signature provider (PSrE), Lummy never stores it.",
+                "Verifikasi sekali supaya kamu bisa tanda tangan surat kuasa secara elektronik. Foto KTP diproses PSrE berlisensi, Lummy tidak pernah menyimpannya."
               )}
             </p>
             <Button.Primary wrapperClass="w-fit" className="text-sm flex items-center gap-2" onClick={() => { verifyKyc(); toast.success(t("Identity verified (demo)", "Identitas terverifikasi (demo)")); }}>
@@ -208,6 +210,7 @@ export default function ProfilePage() {
           </div>
         )}
       </Section>
+      )}
 
       {/* Alerts */}
       <Section title={t("Alerts & waitlist", "Notifikasi & waitlist")}>
