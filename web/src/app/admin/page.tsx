@@ -18,7 +18,7 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import {
   useEventRequests, useOrders, useSellerListings, useUser, isEventOver,
   checkEvidence, reasonMeta, suggestedRationale, disputeDeadlineISO,
-  remedyOptions, suggestedRemedy, penaltyFor, SELLER_PENALTY_PCT, PENALTY_NOTE, REMEDY_LABEL, partialAmount, REVIEW_TARGET_H,
+  remedyOptions, suggestedRemedy, penaltyFor, SELLER_PENALTY_PCT, penaltyNote, REMEDY_LABEL, partialAmount, REVIEW_TARGET_H,
   type ChainSettlement, type EventRequest, type Order, type Remedy, type SellerListing,
 } from "@/lib/mock";
 import { chainAction } from "@/lib/chain/client";
@@ -820,8 +820,8 @@ export default function AdminPage() {
                   <p className="text-xs text-neutral-gray mt-3">
                     {penalty > 0
                       ? t(
-                          `Anything other than paying the seller also costs them a penalty of ${SELLER_PENALTY_PCT}% of the sale, ${formatMoney(penalty, o.currency)}${PENALTY_NOTE.en}, on top of losing it. That is what makes a bad listing cost more than it earns.`,
-                          `Selain mencairkan ke penjual, semua opsi juga membebani penjual penalti ${SELLER_PENALTY_PCT}% dari nilai transaksi, ${formatMoney(penalty, o.currency)}${PENALTY_NOTE.id}, di luar kehilangan penjualannya. Itu yang bikin listing bermasalah lebih mahal daripada hasilnya.`
+                          `Anything other than paying the seller also costs them a penalty of ${SELLER_PENALTY_PCT}% of the sale, ${formatMoney(penalty, o.currency)}${penaltyNote(!!o.chain || o.currency === "USDC").en}, on top of losing it. That is what makes a bad listing cost more than it earns.`,
+                          `Selain mencairkan ke penjual, semua opsi juga membebani penjual penalti ${SELLER_PENALTY_PCT}% dari nilai transaksi, ${formatMoney(penalty, o.currency)}${penaltyNote(!!o.chain || o.currency === "USDC").id}, di luar kehilangan penjualannya. Itu yang bikin listing bermasalah lebih mahal daripada hasilnya.`
                         )
                       : t(
                           "The ticket was genuine and was refused over the name, with the seller's ID card staged. A refund here charges the seller nothing beyond losing the sale.",

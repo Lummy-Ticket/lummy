@@ -23,7 +23,7 @@ import { EscrowSteps } from "@/components/common/EscrowSteps";
 import { EscrowTimeline } from "@/components/common/EscrowTimeline";
 import { EntryPass } from "@/components/tickets/EntryPass";
 import { PageContainer } from "@/components/layout/PageContainer";
-import {useOrders, useUser, explorerTx, explorerAddr, shortHash, phaseOf, msUntilRelease, disputeDeadlineISO, endedAtISO, canRefundPostponed, checkEvidence, mockEvidenceOptions, DISPUTE_WINDOW_H, reasonMeta, availableReasons, reasonBlockedNote, canFileDispute, REMEDY_LABEL, PENALTY_NOTE, windowMs, windowLabel, withChainSnapshot, type DisputeEvidence, type DisputeReason,
+import {useOrders, useUser, explorerTx, explorerAddr, shortHash, phaseOf, msUntilRelease, disputeDeadlineISO, endedAtISO, canRefundPostponed, checkEvidence, mockEvidenceOptions, DISPUTE_WINDOW_H, reasonMeta, availableReasons, reasonBlockedNote, canFileDispute, REMEDY_LABEL, penaltyNote, windowMs, windowLabel, withChainSnapshot, type DisputeEvidence, type DisputeReason,
 } from "@/lib/mock";
 import { chainAction, chainWritable, useChainHistory, useChainInfo, useChainListing, usdcText } from "@/lib/chain/client";
 import { DEPLOYMENTS, LEDGERS } from "@/lib/chain/deployments";
@@ -552,7 +552,7 @@ export default function OrderDetailPage() {
                       {order.dispute.verdict.sellerPenalty > 0 && (
                         <span className="ml-1 font-normal text-neutral-gray">
                           · {t("seller penalty", "penalti penjual")} {formatMoney(order.dispute.verdict.sellerPenalty, order.currency)}
-                          {t(PENALTY_NOTE.en, PENALTY_NOTE.id)}
+                          {t(penaltyNote(!!order.chain || order.currency === "USDC").en, penaltyNote(!!order.chain || order.currency === "USDC").id)}
                         </span>
                       )}
                     </div>

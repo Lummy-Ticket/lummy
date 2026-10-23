@@ -52,6 +52,13 @@ export const PENALTY_NOTE: Bi = FEATURES.payouts
   ? { en: "", id: "" }
   : { en: " (recorded, not charged in test mode)", id: " (dicatat, tidak ditagih di mode uji)" };
 
+/**
+ * The note for one order. On chain (a USDC order, or chain mode) the escrow contract has no
+ * penalty to collect at all, so that is said whatever the flag.
+ */
+export const penaltyNote = (onChain: boolean): Bi =>
+  onChain ? { en: " (recorded; the escrow contract collects no penalty)", id: " (dicatat; kontrak escrow tidak memungut penalti)" } : PENALTY_NOTE;
+
 /** Scheduled end of the show (start + run time). */
 export const scheduledEndISO = (o: Order) =>
   new Date(new Date(o.eventDateISO).getTime() + EVENT_DURATION_H * H).toISOString();

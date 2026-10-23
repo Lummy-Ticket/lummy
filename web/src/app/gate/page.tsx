@@ -15,7 +15,7 @@ import { PageGate } from "@/components/layout/PageGate";
 import { useAccessGuard } from "@/lib/access";
 import { useCatalogue } from "@/lib/catalogue";
 import { useFormatters, useT } from "@/lib/i18n";
-import { useUser } from "@/lib/mock";
+import { penaltyNote, useUser } from "@/lib/mock";
 
 // The camera only exists in the browser.
 const Scanner = dynamic(() => import("@yudiel/react-qr-scanner").then((m) => m.Scanner), {
@@ -131,8 +131,8 @@ function ResultCard({ o }: { o: Outcome }) {
           <div className="text-sm font-semibold text-neutral-black">{t("The buyer is refunded, right now", "Pembeli direfund, saat ini juga")}</div>
           <p className="text-xs text-neutral-gray mt-1">
             {t(
-              `${formatIDR(refund.amount)} back to the buyer${refund.onChain ? ", through the escrow contract" : ""}. The seller is charged ${formatIDR(refund.penalty)} for selling a ticket that was used. No claim to file, nobody to judge it: the gate's record is the proof.`,
-              `${formatIDR(refund.amount)} kembali ke pembeli${refund.onChain ? ", lewat kontrak escrow" : ""}. Penjual dikenai ${formatIDR(refund.penalty)} karena menjual tiket yang sudah dipakai. Tanpa klaim, tanpa perlu diputus: catatan gate inilah buktinya.`
+              `${formatIDR(refund.amount)} back to the buyer${refund.onChain ? ", through the escrow contract" : ""}. The seller owes a penalty of ${formatIDR(refund.penalty)}${penaltyNote(refund.onChain).en} for selling a ticket that was used. No claim to file, nobody to judge it: the gate's record is the proof.`,
+              `${formatIDR(refund.amount)} kembali ke pembeli${refund.onChain ? ", lewat kontrak escrow" : ""}. Penjual kena penalti ${formatIDR(refund.penalty)}${penaltyNote(refund.onChain).id} karena menjual tiket yang sudah dipakai. Tanpa klaim, tanpa perlu diputus: catatan gate inilah buktinya.`
             )}
           </p>
         </div>
