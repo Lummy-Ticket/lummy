@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Hero } from "@/components/home/Hero";
 import { TicketBand } from "@/components/ui/ticket-band";
 import { useT, useFormatters, useActiveLang, EVENT_TZ } from "@/lib/i18n";
-import { DISPUTE_WINDOW_H, SELLER_PENALTY_PCT, type EventItem } from "@/lib/mock";
+import { DISPUTE_WINDOW_H, PENALTY_NOTE, SELLER_PENALTY_PCT, type EventItem } from "@/lib/mock";
 import { useCatalogue } from "@/lib/catalogue";
 
 function SectionHead({ title, href }: { title: string; href?: string }) {
@@ -208,8 +208,8 @@ export default function HomePage() {
           <h2 className="text-2xl md:text-3xl font-bold text-neutral-black">{t("Selling? Skip the DM drama", "Mau jual? Gak perlu drama DM")}</h2>
           <p className="text-neutral-gray mt-2">
             {t(
-              `Sell in a chat and the risk is all yours. Here the payment is held before your ticket changes hands, and it is yours ${DISPUTE_WINDOW_H} hours after the show if no claim stands. Listing is free; a ticket that fails costs you the sale plus ${SELLER_PENALTY_PCT}%.`,
-              `Jual lewat chat, risikonya kamu tanggung sendiri. Di sini pembayarannya ditahan dulu sebelum tiketmu berpindah tangan, dan jadi milikmu ${DISPUTE_WINDOW_H} jam setelah acara kalau tidak ada klaim yang terbukti. Pasang listing gratis; tiket yang gagal bikin penjualannya batal plus penalti ${SELLER_PENALTY_PCT}%.`
+              `Sell in a chat and the risk is all yours. Here the payment is held before your ticket changes hands, and it is yours ${DISPUTE_WINDOW_H} hours after the show if no claim stands. Listing is free; a ticket that fails costs you the sale plus ${SELLER_PENALTY_PCT}%${PENALTY_NOTE.en}.`,
+              `Jual lewat chat, risikonya kamu tanggung sendiri. Di sini pembayarannya ditahan dulu sebelum tiketmu berpindah tangan, dan jadi milikmu ${DISPUTE_WINDOW_H} jam setelah acara kalau tidak ada klaim yang terbukti. Pasang listing gratis; tiket yang gagal bikin penjualannya batal plus penalti ${SELLER_PENALTY_PCT}%${PENALTY_NOTE.id}.`
             )}
           </p>
         </div>

@@ -14,6 +14,7 @@
 // when a claim does not stand up.
 
 import type { Dispute, DisputeEvidence, DisputeReason, EscrowPhase, Order, Remedy } from "./types";
+import { FEATURES } from "../features";
 
 const H = 3_600_000;
 
@@ -42,6 +43,14 @@ export interface Bi {
   en: string;
   id: string;
 }
+
+/**
+ * Said after a seller penalty while no real money moves (FEATURES.payouts): the rule is real and
+ * the amount is recorded, but nothing is collected (terms: shown as it would apply, not charged).
+ */
+export const PENALTY_NOTE: Bi = FEATURES.payouts
+  ? { en: "", id: "" }
+  : { en: " (recorded, not charged in test mode)", id: " (dicatat, tidak ditagih di mode uji)" };
 
 /** Scheduled end of the show (start + run time). */
 export const scheduledEndISO = (o: Order) =>

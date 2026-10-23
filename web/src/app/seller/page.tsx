@@ -14,7 +14,7 @@ import { CONTACT_EMAIL } from "@/components/legal/LegalPage";
 import { PageContainer } from "@/components/layout/PageContainer";
 import {
   useSellerListings, useOrders, useUser, reasonMeta, mockSellerEvidence,
-  sellerPenalty, SELLER_PENALTY_PCT,
+  sellerPenalty, SELLER_PENALTY_PCT, PENALTY_NOTE,
   EVENT_DURATION_H, DISPUTE_WINDOW_H, REVIEW_TARGET_H, type SellerListing, type Order, type DisputeEvidence,
 } from "@/lib/mock";
 import { useAccessGuard, useHydrated } from "@/lib/access";
@@ -391,8 +391,8 @@ export default function SellerPage() {
         </div>
         <p className="text-xs text-neutral-gray mt-3 leading-relaxed">
           {t(
-            `A ticket that fails costs you the sale plus a ${SELLER_PENALTY_PCT}% penalty, and repeat failures end the account. Since payout only lands after the show, selling the same ticket twice cannot pay off.`,
-            `Tiket yang gagal bikin kamu kehilangan penjualannya plus penalti ${SELLER_PENALTY_PCT}%, dan kalau berulang akunnya ditutup. Karena pencairan baru cair setelah acara, menjual tiket yang sama dua kali tidak akan pernah untung.`
+            `A ticket that fails costs you the sale plus a ${SELLER_PENALTY_PCT}% penalty${PENALTY_NOTE.en}, and repeat failures end the account. Since payout only lands after the show, selling the same ticket twice cannot pay off.`,
+            `Tiket yang gagal bikin kamu kehilangan penjualannya plus penalti ${SELLER_PENALTY_PCT}%${PENALTY_NOTE.id}, dan kalau berulang akunnya ditutup. Karena pencairan baru cair setelah acara, menjual tiket yang sama dua kali tidak akan pernah untung.`
           )}
         </p>
       </div>

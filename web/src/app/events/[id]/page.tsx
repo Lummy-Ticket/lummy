@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { NotifyCard } from "@/components/events/NotifyCard";
 import { TransferPolicyNote } from "@/components/common/TransferPolicyNote";
 import {
-  getTier, isBuyable, clearedByStaff, isEventOver, resaleAllowed, CAP_PCT, SELLER_PENALTY_PCT, type Listing, type EventItem,
+  getTier, isBuyable, clearedByStaff, isEventOver, resaleAllowed, CAP_PCT, SELLER_PENALTY_PCT, PENALTY_NOTE, type Listing, type EventItem,
 } from "@/lib/mock";
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 import { useCatalogue } from "@/lib/catalogue";
@@ -90,8 +90,8 @@ function ListingRow({ event, listing, qty, cheapest, index }: { event: EventItem
         {aboutSeller && (
           <p data-seller-note className="text-xs text-neutral-gray bg-secondary-gray-soft rounded-xl p-3 max-w-md leading-relaxed">
             {t(
-              `Lummy does not show seller records yet, and you do not have to trust the seller: your money is held in escrow until the show is over, and if you are turned away with proof, it comes back. A seller whose ticket fails loses the sale and pays a ${SELLER_PENALTY_PCT}% penalty.`,
-              `Lummy belum menampilkan riwayat penjual, dan kamu tidak perlu memercayai penjualnya: uangmu ditahan escrow sampai acara selesai, dan kalau ditolak di gate dengan bukti, uangmu kembali. Penjual yang tiketnya gagal kehilangan penjualannya dan kena penalti ${SELLER_PENALTY_PCT}%.`
+              `Lummy does not show seller records yet, and you do not have to trust the seller: your money is held in escrow until the show is over, and if you are turned away with proof, it comes back. A seller whose ticket fails loses the sale and pays a ${SELLER_PENALTY_PCT}% penalty${PENALTY_NOTE.en}.`,
+              `Lummy belum menampilkan riwayat penjual, dan kamu tidak perlu memercayai penjualnya: uangmu ditahan escrow sampai acara selesai, dan kalau ditolak di gate dengan bukti, uangmu kembali. Penjual yang tiketnya gagal kehilangan penjualannya dan kena penalti ${SELLER_PENALTY_PCT}%${PENALTY_NOTE.id}.`
             )}{" "}
             <Link href="/how-it-works#coverage" className="text-primary-navy font-medium">{t("When something goes wrong", "Kalau ada masalah")}</Link>
           </p>
