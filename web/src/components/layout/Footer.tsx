@@ -46,7 +46,7 @@ export function Footer() {
             {t("Resale tickets, with the money held in escrow until the show is over.", "Tiket resale, dengan dana ditahan escrow sampai acara selesai.")}
           </p>
           <span className="mt-1 inline-flex items-center gap-2 text-sm text-primary-navy font-medium">
-            <ShieldCheck className="w-4 h-4" /> {t("Guaranteed by code, not by promises.", "Dijamin kode, bukan janji.")}
+            <ShieldCheck className="w-4 h-4" /> {t("Escrow rules in code, claims decided by a person.", "Aturan escrow di kode, klaim diputus manusia.")}
           </span>
           {/* The one address people write to: the team inbox, the same one the policy pages name. */}
           <a data-contact href={`mailto:${CONTACT_EMAIL}`} className="inline-flex items-center gap-2 text-sm text-neutral-gray hover:text-primary-navy transition w-fit">

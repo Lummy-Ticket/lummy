@@ -855,7 +855,7 @@ export default function OrderDetailPage() {
                 <div>
                   <div className="text-sm font-medium text-neutral-black">
                     {t("Seller ID card (gate check)", "Foto KTP penjual (cek gate)")}
-                    {!FEATURES.sellerIdCard && <span className="ml-1.5 text-xs font-normal text-neutral-gray">{t("(sample)", "(contoh)")}</span>}
+                    {!FEATURES.sellerIdCard && <> <span className="ml-0.5 text-xs font-normal text-neutral-gray">{t("(sample)", "(contoh)")}</span></>}
                   </div>
                   <div className="text-xs text-neutral-gray">{ktpOpen ? t("Unlocked, view-only", "Terbuka, hanya bisa dilihat") : t("Unlocks when you are at the gate", "Terbuka saat kamu di gate")}</div>
                 </div>
