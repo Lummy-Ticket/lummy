@@ -18,6 +18,7 @@ import {
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 import { useCatalogue } from "@/lib/catalogue";
 import { FEATURES } from "@/lib/features";
+import { TEST_MODE } from "@/components/layout/TestModeNotice";
 
 function ListingRow({ event, listing, qty, cheapest, index }: { event: EventItem; listing: Listing; qty: number; cheapest?: boolean; index: number }) {
   const t = useT();
@@ -318,7 +319,7 @@ export default function EventDetailPage() {
         </div>
 
         {/* Sidebar */}
-        <aside className="lm-in lg:sticky lg:top-24 h-fit flex flex-col gap-4" style={{ "--d": "160ms" } as React.CSSProperties}>
+        <aside className={`lm-in lg:sticky ${TEST_MODE ? "lg:top-[120px]" : "lg:top-24"} h-fit flex flex-col gap-4`} style={{ "--d": "160ms" } as React.CSSProperties}>
           <div className="bg-neutral-white rounded-3xl border border-lummy-500 overflow-hidden">
             <div className="p-6">
               <div className="flex items-center gap-2 text-primary-navy font-semibold">

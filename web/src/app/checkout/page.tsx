@@ -25,6 +25,7 @@ import { USDC_FAUCET, UsdcPanel } from "@/components/checkout/UsdcPanel";
 import { useAccessGuard } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters } from "@/lib/i18n";
+import { TEST_MODE } from "@/components/layout/TestModeNotice";
 
 /**
  * Unix seconds when the show ends, which is when the contract starts the dispute window. The demo
@@ -222,7 +223,7 @@ function CheckoutInner() {
         </div>
 
         {/* Right: summary */}
-        <div className="lm-in lg:sticky lg:top-24 h-fit bg-neutral-white rounded-3xl border border-lummy-500 p-6 flex flex-col gap-4" style={{ "--d": "140ms" } as React.CSSProperties}>
+        <div className={`lm-in lg:sticky ${TEST_MODE ? "lg:top-[120px]" : "lg:top-24"} h-fit bg-neutral-white rounded-3xl border border-lummy-500 p-6 flex flex-col gap-4`} style={{ "--d": "140ms" } as React.CSSProperties}>
           <h2 className="font-semibold text-lg text-neutral-black">{t("Summary", "Rincian")}</h2>
           <div className="flex flex-col gap-2">
             <Row label={qty > 1 ? t(`Tickets (${qty} × ${money(listing.askPrice)})`, `Tiket (${qty} × ${money(listing.askPrice)})`) : t("Ticket price", "Harga tiket")} value={money(subtotal)} />

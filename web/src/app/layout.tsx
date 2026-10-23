@@ -8,6 +8,7 @@ import DevPanel from "@/components/dev/DevPanel";
 import { CatalogueProvider } from "@/lib/catalogue";
 import { AuthSync } from "@/components/auth/AuthSync";
 import { DemoBar } from "@/components/auth/DemoBar";
+import { TestModeNotice } from "@/components/layout/TestModeNotice";
 import { loadCatalogue } from "@/lib/supabase/catalogue";
 import { MotionObserver } from "@/components/motion/MotionObserver";
 
@@ -44,6 +45,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <CatalogueProvider data={catalogue}>
           <AuthSync />
           <MotionObserver />
+          <TestModeNotice />
           <Navbar />
           <main className="flex-1">{children}</main>
           <Footer />

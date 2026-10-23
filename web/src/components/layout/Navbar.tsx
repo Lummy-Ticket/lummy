@@ -16,6 +16,10 @@ import { useAccountOrders } from "@/lib/orders/client";
 import { useDocumentLang, useFormatters, useT } from "@/lib/i18n";
 import { useEventSuggestions } from "@/lib/useEventSuggestions";
 import { LangToggle } from "./LangToggle";
+import { TEST_MODE } from "./TestModeNotice";
+
+/** Under the test-mode strip while it shows (TestModeNotice), at the top of the window otherwise. */
+const TOP = TEST_MODE ? "top-6" : "top-0";
 
 // The layout follows resale marketplaces people already know (Tixel, viagogo, StubHub):
 // finding a show on the left, a standing way to sell, and your own things on the right.
@@ -275,7 +279,7 @@ export function Navbar() {
     const onScroll = () => {
       setScrolled(window.scrollY > 12);
       const hero = document.querySelector("[data-hero-search]");
-      setHeroSearchGone(!hero || hero.getBoundingClientRect().bottom < 72);
+      setHeroSearchGone(!hero || hero.getBoundingClientRect().bottom < (TEST_MODE ? 96 : 72));
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -313,7 +317,7 @@ export function Navbar() {
   // Auth pages get a minimal bar: logo and language only.
   if (pathname.startsWith("/login") || pathname.startsWith("/register")) {
     return (
-      <nav className="fixed z-40 top-0 w-full h-20 flex justify-center px-5 lg:px-10 bg-neutral-white border-b border-neutral-light-gray-1">
+      <nav className={cn("fixed z-40 w-full h-20 flex justify-center px-5 lg:px-10 bg-neutral-white border-b border-neutral-light-gray-1", TOP)}>
         <div className="max-w-7xl w-full flex items-center justify-between">
           <Logo />
           <LangToggle />
@@ -326,7 +330,7 @@ export function Navbar() {
   // to the site and the account menu.
   if (me && staff && isActive(pathname, CONSOLE.href)) {
     return (
-      <nav data-bar="staff" className="fixed z-50 top-0 w-full h-20 flex justify-center px-5 lg:px-10 bg-neutral-white border-b border-neutral-light-gray-1">
+      <nav data-bar="staff" className={cn("fixed z-50 w-full h-20 flex justify-center px-5 lg:px-10 bg-neutral-white border-b border-neutral-light-gray-1", TOP)}>
         <div className="max-w-7xl w-full flex items-center gap-2 sm:gap-3">
           <Logo className="[&_img]:h-6 sm:[&_img]:h-8" />
           {/* On a phone the bar is full: the chip keeps its shield, and its word for wider screens. */}
@@ -354,7 +358,8 @@ export function Navbar() {
       <nav
         data-bar="site"
         className={cn(
-          "fixed z-50 top-0 w-full h-20 flex justify-center px-5 lg:px-10 border-b transition-[background-color,border-color,backdrop-filter] duration-300",
+          "fixed z-50 w-full h-20 flex justify-center px-5 lg:px-10 border-b transition-[background-color,border-color,backdrop-filter] duration-300",
+          TOP,
           // Solid under the sheet, so the dimmed page does not show through the bar
           sheetOpen
             ? "bg-neutral-white border-neutral-light-gray-1"
@@ -433,7 +438,12 @@ export function Navbar() {
       {sheetOpen && (
         <div className="lg:hidden fixed inset-0 z-40" id="nav-sheet">
           <div className="lm-backdrop absolute inset-0 bg-neutral-black/30" onClick={() => setSheetOpen(false)} />
-          <div className="lm-pop absolute inset-x-0 top-20 max-h-[calc(100dvh-5rem)] overflow-y-auto bg-neutral-white border-b border-neutral-light-gray-1 shadow-lummy-lg rounded-b-3xl">
+          <div
+            className={cn(
+              "lm-pop absolute inset-x-0 overflow-y-auto bg-neutral-white border-b border-neutral-light-gray-1 shadow-lummy-lg rounded-b-3xl",
+              TEST_MODE ? "top-[104px] max-h-[calc(100dvh-104px)]" : "top-20 max-h-[calc(100dvh-5rem)]"
+            )}
+          >
             <div className="max-w-xl mx-auto px-5 pt-4 pb-6 flex flex-col gap-5">
               {pathname !== "/events" && <NavSearch onDone={() => setSheetOpen(false)} />}
 

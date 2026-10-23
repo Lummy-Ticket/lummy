@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { useFormatters, useT } from "@/lib/i18n";
 import { CAP_PCT, FLOOR_PCT, DISPUTE_WINDOW_H, LATE_LISTING_H, SELLER_PENALTY_PCT, MATERAI, platformFee } from "@/lib/mock";
 import { FEATURES } from "@/lib/features";
+import { TEST_MODE } from "@/components/layout/TestModeNotice";
 
 // One ticket, followed from both sides: the buyer's order and the seller's listing are the
 // same sale, so the numbers on the two tabs agree. Illustrative, and computed with the
@@ -552,7 +553,7 @@ export default function HowItWorks() {
       </section>
 
       {/* Stays under the navbar, so either story is one tap away at any point */}
-      <div className="sticky top-20 z-30 -mt-7 px-5 flex justify-center pointer-events-none">
+      <div className={cn("sticky z-30 -mt-7 px-5 flex justify-center pointer-events-none", TEST_MODE ? "top-[104px]" : "top-20")}>
         <div className="pointer-events-auto w-full max-w-md rounded-[20px] shadow-lummy">
           <SideTabs side={side} onPick={pick} />
         </div>
