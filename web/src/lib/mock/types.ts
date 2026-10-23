@@ -37,6 +37,12 @@ export interface Tier {
  */
 export type TransferPolicy = "open" | "letter" | "id_match" | "no_resale";
 
+/**
+ * What a show is paid in. IDR: rupiah, by QRIS. USDC: from the buyer's own wallet, for shows
+ * abroad (tasks/founder-house-usdc.md); every amount on such a show is in micro-USDC (6 decimals).
+ */
+export type Currency = "IDR" | "USDC";
+
 export interface EventItem {
   id: string;
   title: string;
@@ -51,6 +57,10 @@ export interface EventItem {
   featured?: boolean;
   soldOut?: boolean;
   transferPolicy?: TransferPolicy | null;
+  /** Where the show is (ISO 3166 country code). Absent means Indonesia. */
+  country?: string;
+  /** Absent means IDR. */
+  currency?: Currency;
   /** The organiser moved it; dateISO is the new date. */
   postponed?: boolean;
 }
@@ -259,6 +269,10 @@ export interface Order {
   escrowStatus: EscrowStatus;
   chain?: OrderChain;
   ledger?: OrderLedger;
+  /** Paid in USDC from a wallet: amounts are micro-USDC. Absent means rupiah. */
+  currency?: Currency;
+  /** The wallet that paid, on a USDC order. */
+  buyerWallet?: string;
   createdAtISO: string;
   /** Set once the event is confirmed over. This is what starts the 48h clock. */
   eventEndedAtISO?: string;

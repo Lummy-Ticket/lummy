@@ -98,7 +98,8 @@ export default function SellPage() {
   const sendsRealFile = !!(check && ticketFile);
   const catalogue = useCatalogue();
   const [fileName, setFileName] = useState<string | null>(null);
-  const events = catalogue.events;
+  // Selling for a show priced in USDC is not open yet: its listings are added by the team.
+  const events = catalogue.events.filter((e) => e.currency !== "USDC");
 
   const [step, setStep] = useState(0);
   const [sample, setSample] = useState<SampleTicket>("good");

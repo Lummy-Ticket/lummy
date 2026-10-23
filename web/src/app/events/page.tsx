@@ -24,8 +24,9 @@ function catalogueView(onSale: EventItem[]) {
   // Soonest first, the way people plan.
   const events = [...onSale].sort((a, b) => a.dateISO.localeCompare(b.dateISO));
   // Round the bounds outward so the handles land on tidy numbers. An event with nothing
-  // on sale has no price (0), so it does not drag the lower bound down.
-  const priced = events.map((e) => e.fromPrice).filter((p) => p > 0);
+  // on sale has no price (0), so it does not drag the lower bound down. The filter is in rupiah:
+  // shows priced in USDC stay out of its bounds.
+  const priced = events.filter((e) => e.currency !== "USDC").map((e) => e.fromPrice).filter((p) => p > 0);
   return {
     events,
     categories: ["All", ...Array.from(new Set(events.map((e) => e.category)))],
@@ -55,9 +56,10 @@ function EventsInner() {
     return events.filter((e) => {
       const matchCity = city === ALL_CITIES || e.city === city;
       const matchQ = !q || e.title.toLowerCase().includes(q) || e.city.toLowerCase().includes(q) || e.venue.toLowerCase().includes(q);
-      // With the full range selected, events with nothing on sale stay visible too.
+      // With the full range selected, events with nothing on sale stay visible too, and so do
+      // shows priced in USDC; a narrower rupiah range leaves those out.
       const fullRange = price[0] <= PRICE_MIN && price[1] >= PRICE_MAX;
-      const matchPrice = fullRange || (e.fromPrice >= price[0] && e.fromPrice <= price[1]);
+      const matchPrice = fullRange || (e.currency !== "USDC" && e.fromPrice >= price[0] && e.fromPrice <= price[1]);
       return matchCity && matchQ && matchPrice;
     });
   }, [events, PRICE_MIN, PRICE_MAX, query, city, price]);
@@ -174,6 +176,7 @@ function EventsInner() {
               redirect={`/events/${e.id}`}
               soldOut={e.soldOut}
               fromPrice={e.fromPrice}
+              currency={e.currency}
               listingCount={e.listingCount}
             />
           ))}

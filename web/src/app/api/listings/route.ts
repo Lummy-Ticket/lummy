@@ -126,13 +126,15 @@ export async function POST(req: Request) {
   }
 
   const [ev, tier] = await Promise.all([
-    admin.from("catalogue_events").select("starts_at, status, transfer_policy").eq("id", eventId).maybeSingle(),
+    admin.from("catalogue_events").select("starts_at, status, transfer_policy, currency").eq("id", eventId).maybeSingle(),
     admin.from("tiers").select("face_value").eq("id", tierId).eq("event_id", eventId).maybeSingle(),
   ]);
   if (ev.error || tier.error) return fail(500, (ev.error ?? tier.error)!.message);
   if (!ev.data?.starts_at) return fail(404, "acara tidak ditemukan");
   if (!tier.data) return fail(400, "kategori ini bukan milik acara itu");
   if (!resaleAllowed(ev.data.transfer_policy)) return fail(409, "penyelenggara acara ini melarang tiketnya dijual ulang");
+  // Shows priced in USDC take listings from the team only, for now (tasks/founder-house-usdc.md).
+  if (ev.data.currency === "USDC") return fail(409, "jual tiket untuk acara di luar negeri belum dibuka");
   if (ev.data.status === "cancelled" || Date.now() >= new Date(ev.data.starts_at).getTime() + EVENT_DURATION_H * H) {
     return fail(409, "acara ini sudah lewat atau dibatalkan");
   }

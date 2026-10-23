@@ -57,6 +57,8 @@ async function fetchCatalogue(url: string, key: string): Promise<CatalogueData> 
           listingCount: e.listing_count ?? 0,
           featured: !!e.featured,
           transferPolicy: e.transfer_policy,
+          country: e.country ?? "ID",
+          currency: e.currency === "USDC" ? "USDC" : "IDR",
           postponed: e.status === "postponed",
         }]
       : []

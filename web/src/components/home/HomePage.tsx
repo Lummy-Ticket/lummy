@@ -29,7 +29,7 @@ function SectionHead({ title, href }: { title: string; href?: string }) {
 function ComingUp({ events }: { events: EventItem[] }) {
   const t = useT();
   const lang = useActiveLang();
-  const { formatIDR } = useFormatters();
+  const { formatMoney } = useFormatters();
   const locale = lang === "id" ? "id-ID" : "en-GB";
   return (
     <ul data-reveal="stagger" className="rounded-3xl border border-primary-navy bg-neutral-white divide-y divide-dashed divide-neutral-light-gray-1 overflow-hidden">
@@ -52,7 +52,7 @@ function ComingUp({ events }: { events: EventItem[] }) {
               {e.fromPrice > 0 && (
                 <div className="text-right shrink-0 hidden sm:block">
                   <div className="text-[11px] text-neutral-gray leading-none">{t("From", "Mulai")}</div>
-                  <div className="tabular-nums font-bold text-primary-navy mt-1">{formatIDR(e.fromPrice)}</div>
+                  <div className="tabular-nums font-bold text-primary-navy mt-1">{formatMoney(e.fromPrice, e.currency)}</div>
                 </div>
               )}
               <ChevronRight className="w-5 h-5 text-neutral-gray shrink-0 transition group-hover:translate-x-1 group-hover:text-primary-navy" />
@@ -174,6 +174,7 @@ export default function HomePage() {
               redirect={`/events/${e.id}`}
               soldOut={e.soldOut}
               fromPrice={e.fromPrice}
+              currency={e.currency}
               listingCount={e.listingCount}
             />
           ))}

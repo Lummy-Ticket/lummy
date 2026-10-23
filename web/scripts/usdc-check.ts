@@ -9,8 +9,10 @@
  * is held. Signatures from another key are refused, and so is another account sending the real ones.
  * The real ones lock the money in LummyEscrow and write exactly one order, which sending them again
  * returns; the chain shows the listing funded by the wallet, and the QRIS ledger leaves the order
- * alone. Cancelling a hold gives its seat back. At the end staff cancel the show, and the escrow
- * pays the wallet back in full.
+ * alone. Cancelling a hold gives its seat back. Then the last seat is bought through the pages
+ * themselves, with a wallet injected into the browser that hands every signature request to the
+ * same key here: prices in USDC, the wallet panel at checkout, the ticket page after. At the end
+ * staff cancel the show, and the escrow pays the wallet back in full.
  *
  * The accounts are signed in with an admin link, so no email is sent; everything the run made is
  * deleted at the end. It writes to the database the server uses and spends the operator's testnet
@@ -29,7 +31,7 @@ import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { arbitrumSepolia } from "viem/chains";
 import { tokenAbi } from "../src/lib/chain/abi";
 import { reviveTyped } from "../src/lib/chain/typed";
-import type { UsdcStart } from "../src/lib/payments/types";
+import type { TypedMessage, UsdcStart } from "../src/lib/payments/types";
 import type { Database } from "../src/lib/supabase/types";
 
 try {
@@ -264,11 +266,66 @@ async function main() {
       check("cancelling it gives the seat back", cancelled.status === 200 && cancelled.body.status === "canceled" && back?.status === "active" && back.quantity === 1, JSON.stringify({ cancelled, back }));
     }
 
+    // --- The last seat through the pages, with a wallet in the browser. The page asks it the way it
+    // asks MetaMask; every request comes back here, where the key is.
+    const page = await buyerCtx.newPage();
+    const account = privateKeyToAccount(walletPk);
+    type Typed = Parameters<typeof account.signTypedData>[0];
+    await page.exposeBinding("__lummyWallet", async (_source, method: string, params: unknown[]) => {
+      if (method === "eth_requestAccounts" || method === "eth_accounts") return [wallet];
+      if (method === "eth_chainId") return `0x${arbitrumSepolia.id.toString(16)}`;
+      if (method === "wallet_switchEthereumChain") return null;
+      if (method === "eth_signTypedData_v4") {
+        const typed = JSON.parse(String(params[1])) as TypedMessage;
+        delete typed.types.EIP712Domain;
+        return account.signTypedData(reviveTyped(typed) as Typed);
+      }
+      throw new Error(`the test wallet does not do ${method}`);
+    });
+    // A string, not a function: tsx would wrap a function in helpers the page does not have.
+    await page.addInitScript(
+      "window.ethereum = { request: ({ method, params }) => window.__lummyWallet(method, params || []), on() {}, removeListener() {} };"
+    );
+    await page.goto(`${BASE}/events/${EVENT}`, { waitUntil: "networkidle" });
+    check("the show's page prices it in USDC", (await page.getByText(/0[.,]10 USDC/).count()) > 0, (await page.locator("main").innerText()).slice(0, 300));
+    await page.goto(`${BASE}/checkout?listing=${L1}&qty=1`, { waitUntil: "networkidle" });
+    const payButton = page.getByRole("button", { name: /USDC/ });
+    check(
+      "checkout offers USDC from the wallet, with no fee",
+      (await page.locator("[data-pay-rail=usdc]").count()) === 1 && (await payButton.count()) === 1 && (await payButton.isEnabled()),
+      (await page.locator("main").innerText()).slice(0, 400)
+    );
+    await payButton.click();
+    await page.locator("[data-usdc-pay]").click(); // connect
+    await page.locator("[data-usdc-wallet]").waitFor({ timeout: 15_000 });
+    await page.locator("[data-usdc-pay]").click(); // sign and pay
+    const reached = await page.waitForURL(/\/tickets\//, { timeout: 90_000 }).then(
+      () => true,
+      async () => (await page.locator("[data-usdc-error]").innerText().catch(() => "")) || "no ticket page"
+    );
+    check("the wallet signs twice and the page lands on the ticket", reached === true, String(reached));
+    if (reached === true) {
+      await page.locator("[data-paid-wallet]").waitFor({ timeout: 15_000 }).catch(() => null);
+      const text = await page.locator("main").innerText();
+      check(
+        "the ticket shows the USDC paid, from which wallet, and no Indonesian letter",
+        /0[.,]10 USDC/.test(text) && (await page.locator("[data-paid-wallet]").count()) === 1 && !/Surat kuasa|Letter of authorisation/.test(text),
+        text.slice(0, 400)
+      );
+    }
+    const viaPage = (await admin.from("orders").select("id, rail").eq("listing_id", L1)).data ?? [];
+    check("both seats are now USDC orders", viaPage.length === 2 && viaPage.every((o) => o.rail === "usdc"), JSON.stringify(viaPage));
+    await page.close();
+
     // --- Staff cancel the show: the escrow pays the wallet back.
     const cancelShow = await api(staffCtx, "POST", `/api/events/${EVENT}`, { action: "cancel" });
     showCancelled = cancelShow.status === 200;
-    const refundedOrder = (await admin.from("orders").select("escrow_status, tx_settle, ledger_status").eq("id", orderId).single()).data;
-    check("cancelling the show refunds the order on chain", showCancelled && refundedOrder?.escrow_status === "Refunded" && !!refundedOrder.tx_settle, JSON.stringify({ cancelShow, refundedOrder }));
+    const refundedOrders = (await admin.from("orders").select("escrow_status, tx_settle").eq("listing_id", L1)).data ?? [];
+    check(
+      "cancelling the show refunds every order on chain",
+      showCancelled && refundedOrders.length === 2 && refundedOrders.every((o) => o.escrow_status === "Refunded" && !!o.tx_settle),
+      JSON.stringify({ cancelShow, refundedOrders })
+    );
     const settled = await escrowOf(expectedListing!);
     check("the escrow says refunded", settled.live?.status === "Refunded", JSON.stringify(settled).slice(0, 300));
     let back = await pc.readContract({ address: s.token as Address, abi: tokenAbi, functionName: "balanceOf", args: [wallet] });

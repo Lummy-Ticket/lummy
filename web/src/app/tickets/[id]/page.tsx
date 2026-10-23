@@ -27,6 +27,7 @@ import {useOrders, useUser, explorerTx, explorerAddr, shortHash, phaseOf, msUnti
 } from "@/lib/mock";
 import { chainAction, chainWritable, useChainHistory, useChainInfo, useChainListing, usdcText } from "@/lib/chain/client";
 import { DEPLOYMENTS, LEDGERS } from "@/lib/chain/deployments";
+import { shortAddress } from "@/lib/chain/wallet";
 import { OrderError, orderAction, uploadEvidence, useAccountOrders } from "@/lib/orders/client";
 import { useCatalogue } from "@/lib/catalogue";
 import { FEATURES } from "@/lib/features";
@@ -74,7 +75,7 @@ function CheckRow({ ok, unknown, label, detail }: { ok: boolean; unknown?: boole
 export default function OrderDetailPage() {
   const t = useT();
   const ready = useAccessGuard("account");
-  const { formatIDR, formatEventDate, formatDateTime, formatCountdown } = useFormatters();
+  const { formatMoney, formatEventDate, formatDateTime, formatCountdown } = useFormatters();
   const { id } = useParams<{ id: string }>();
   const user = useUser((s) => s.user);
   // An account's order comes from the database and changes only through the server; a sample
@@ -396,7 +397,12 @@ export default function OrderDetailPage() {
             <EscrowStatusPill phase={phase} />
           </div>
 
-          <div className="tabular-nums font-bold text-3xl text-neutral-black mb-1">{formatIDR(order.amount)}</div>
+          <div className="tabular-nums font-bold text-3xl text-neutral-black mb-1">{formatMoney(order.amount, order.currency)}</div>
+          {order.buyerWallet && (
+            <p data-paid-wallet className="text-xs text-neutral-gray mb-1">
+              {t("Paid in USDC from wallet", "Dibayar USDC dari wallet")} <span className="font-mono text-neutral-black">{shortAddress(order.buyerWallet)}</span>
+            </p>
+          )}
           <p className="text-sm text-neutral-gray">
             {phase === "PRE_EVENT" && t("Held until the show is over. Not in our account, and not in the seller's.", "Ditahan sampai konser selesai. Bukan di rekening kami, bukan juga di penjual.")}
             {phase === "WINDOW_OPEN" && t("The show is over. Funds stay locked while the dispute window runs.", "Konser sudah selesai. Dana tetap terkunci selama masa sengketa berjalan.")}
@@ -527,7 +533,7 @@ export default function OrderDetailPage() {
                       <Gavel className="w-3.5 h-3.5" /> {t("Verdict", "Putusan")}: {t(REMEDY_LABEL[order.dispute.verdict.remedy].en.toLowerCase(), REMEDY_LABEL[order.dispute.verdict.remedy].id.toLowerCase())}
                       {order.dispute.verdict.sellerPenalty > 0 && (
                         <span className="ml-1 font-normal text-neutral-gray">
-                          · {t("seller charged", "penjual dikenai")} {formatIDR(order.dispute.verdict.sellerPenalty)}
+                          · {t("seller charged", "penjual dikenai")} {formatMoney(order.dispute.verdict.sellerPenalty, order.currency)}
                         </span>
                       )}
                     </div>
@@ -808,17 +814,20 @@ export default function OrderDetailPage() {
                 </a>
               )
             )}
-            <button onClick={() => { setShowKuasa(true); openDoc("letter"); }} className="w-full flex items-center gap-3 p-3 rounded-2xl border border-neutral-light-gray-1 hover:border-lummy-500 transition cursor-pointer text-left">
-              <span className="w-10 h-10 rounded-xl bg-secondary-blue-soft text-lummy-500 grid place-items-center shrink-0"><FileText className="w-5 h-5" /></span>
-              <div>
-                <div className="text-sm font-medium text-neutral-black">{t("Letter of authorisation", "Surat kuasa")}</div>
-                <div className="text-xs text-neutral-gray">
-                  {FEATURES.eStamp
-                    ? t("Print-ready, e-stamped and e-signed", "Siap print, ber-e-meterai dan TTE")
-                    : t("A draft to download; the seller signs it on a Rp10,000 stamp", "Draf untuk diunduh; penjual tanda tangan di atas meterai Rp10.000")}
+            {/* An Indonesian letter has no place at a show abroad: the organiser's rules there apply. */}
+            {order.currency !== "USDC" && (
+              <button onClick={() => { setShowKuasa(true); openDoc("letter"); }} className="w-full flex items-center gap-3 p-3 rounded-2xl border border-neutral-light-gray-1 hover:border-lummy-500 transition cursor-pointer text-left">
+                <span className="w-10 h-10 rounded-xl bg-secondary-blue-soft text-lummy-500 grid place-items-center shrink-0"><FileText className="w-5 h-5" /></span>
+                <div>
+                  <div className="text-sm font-medium text-neutral-black">{t("Letter of authorisation", "Surat kuasa")}</div>
+                  <div className="text-xs text-neutral-gray">
+                    {FEATURES.eStamp
+                      ? t("Print-ready, e-stamped and e-signed", "Siap print, ber-e-meterai dan TTE")
+                      : t("A draft to download; the seller signs it on a Rp10,000 stamp", "Draf untuk diunduh; penjual tanda tangan di atas meterai Rp10.000")}
+                  </div>
                 </div>
-              </div>
-            </button>
+              </button>
+            )}
             {/* The ID card on the gate: a sample persona still sees the stand-in, labelled; an account
                 sees it only once Lummy really stores ID cards (lib/features.ts). */}
             {order.gateKtp && (FEATURES.sellerIdCard || !account) && (

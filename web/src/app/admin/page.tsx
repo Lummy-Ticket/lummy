@@ -592,7 +592,7 @@ function ListingQueue({
 export default function AdminPage() {
   const t = useT();
   const ready = useAccessGuard("staff");
-  const { formatIDR, formatEventDate } = useFormatters();
+  const { formatIDR, formatMoney, formatEventDate } = useFormatters();
   const categoryLabel = useCategoryLabel();
   const mounted = useHydrated();
   const [confirmReq, setConfirmReq] = useState<EventRequest | null>(null);
@@ -774,7 +774,7 @@ export default function AdminPage() {
                         {formatEventDate(o.eventDateISO)} · {o.tierName} · {t("Seller", "Penjual")} {o.sellerName}
                       </div>
                     </div>
-                    <span className="tabular-nums font-bold text-lummy-500 text-nowrap">{formatIDR(o.amount)}</span>
+                    <span className="tabular-nums font-bold text-lummy-500 text-nowrap">{formatMoney(o.amount, o.currency)}</span>
                   </div>
 
                   <EvidencePanel order={o} />
@@ -809,7 +809,7 @@ export default function AdminPage() {
                           <div className="flex items-center gap-2 text-sm font-medium text-neutral-black">
                             {pays ? <CheckCircle2 className="w-4 h-4 text-secondary-green-dark shrink-0" /> : <XCircle className="w-4 h-4 text-neutral-gray shrink-0" />}
                             {t(opt.label.en, opt.label.id)}
-                            {opt.amount > 0 && <span className="ml-auto text-xs tabular-nums font-bold text-lummy-500">{formatIDR(opt.amount)}</span>}
+                            {opt.amount > 0 && <span className="ml-auto text-xs tabular-nums font-bold text-lummy-500">{formatMoney(opt.amount, o.currency)}</span>}
                           </div>
                           <p className="text-xs text-neutral-gray mt-1">{t(opt.note.en, opt.note.id)}</p>
                         </button>
@@ -820,8 +820,8 @@ export default function AdminPage() {
                   <p className="text-xs text-neutral-gray mt-3">
                     {penalty > 0
                       ? t(
-                          `Anything other than paying the seller also charges them ${SELLER_PENALTY_PCT}% of the sale, ${formatIDR(penalty)}, on top of losing it. That is what makes a bad listing cost more than it earns.`,
-                          `Selain mencairkan ke penjual, semua opsi juga membebani penjual ${SELLER_PENALTY_PCT}% dari nilai transaksi, ${formatIDR(penalty)}, di luar kehilangan penjualannya. Itu yang bikin listing bermasalah lebih mahal daripada hasilnya.`
+                          `Anything other than paying the seller also charges them ${SELLER_PENALTY_PCT}% of the sale, ${formatMoney(penalty, o.currency)}, on top of losing it. That is what makes a bad listing cost more than it earns.`,
+                          `Selain mencairkan ke penjual, semua opsi juga membebani penjual ${SELLER_PENALTY_PCT}% dari nilai transaksi, ${formatMoney(penalty, o.currency)}, di luar kehilangan penjualannya. Itu yang bikin listing bermasalah lebih mahal daripada hasilnya.`
                         )
                       : t(
                           "The ticket was genuine and was refused over the name, with the seller's ID card staged. A refund here charges the seller nothing beyond losing the sale.",

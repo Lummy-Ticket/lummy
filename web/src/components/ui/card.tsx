@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils"
 import Image from "next/image";
 import { MapPin } from "lucide-react";
 import { useCategoryLabel, useFormatters, useT } from "@/lib/i18n";
+import type { Currency } from "@/lib/mock/types";
 import { Badge } from "./badge";
 import Link from "next/link";
 
@@ -23,8 +24,10 @@ type CardEventProps = {
     category: CategoryT,
     redirect: string,
     soldOut?: boolean,
-    /** Cheapest ticket a buyer can pay for right now, in rupiah. 0 or absent means none. */
+    /** Cheapest ticket a buyer can pay for right now, in the show's money. 0 or absent means none. */
     fromPrice?: number,
+    /** What the show is paid in; absent means rupiah. */
+    currency?: Currency,
     listingCount?: number,
     // First row of a grid loads right away: it is the largest thing on screen.
     eager?: boolean,
@@ -41,9 +44,9 @@ const BADGE_CLASS: Record<CategoryT, string> = {
     Theater: "bg-secondary-green-soft text-secondary-green-dark",
 }
 
-const Event = (({className, image, date, title, location, category, redirect, soldOut, fromPrice, listingCount, eager, ...props}: CardEventProps) => {
+const Event = (({className, image, date, title, location, category, redirect, soldOut, fromPrice, currency, listingCount, eager, ...props}: CardEventProps) => {
     const t = useT();
-    const { formatIDR } = useFormatters();
+    const { formatMoney } = useFormatters();
     const categoryLabel = useCategoryLabel();
     const onSale = !soldOut && !!fromPrice;
 
@@ -73,7 +76,7 @@ const Event = (({className, image, date, title, location, category, redirect, so
                     <>
                         <div className="min-w-0">
                             <div className="text-[11px] text-neutral-gray leading-none">{t("From", "Mulai")}</div>
-                            <div className="tabular-nums font-bold text-lg text-primary-navy leading-tight mt-1">{formatIDR(fromPrice)}</div>
+                            <div className="tabular-nums font-bold text-lg text-primary-navy leading-tight mt-1">{formatMoney(fromPrice, currency)}</div>
                         </div>
                         {!!listingCount && (
                             <span className="text-xs text-neutral-gray shrink-0 pb-0.5">

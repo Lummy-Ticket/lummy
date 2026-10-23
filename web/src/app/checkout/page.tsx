@@ -7,7 +7,7 @@ import Link from "next/link";
 import { CONTACT_EMAIL } from "@/components/legal/LegalPage";
 import Image from "next/image";
 import toast from "react-hot-toast";
-import { ArrowLeft, Lock, ShieldCheck, Loader2, QrCode } from "lucide-react";
+import { ArrowLeft, Lock, ShieldCheck, Loader2, QrCode, Wallet } from "lucide-react";
 import { TransferPolicyNote } from "@/components/common/TransferPolicyNote";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,7 @@ import { chainCheckoutReady, demoPrefs, openChainOrder, useChainInfo } from "@/l
 import { OrderError, placeOrder } from "@/lib/orders/client";
 import { startPayment, usePaymentsConfig, type PaymentView } from "@/lib/payments/client";
 import { QrisPanel } from "@/components/checkout/QrisPanel";
+import { USDC_FAUCET, UsdcPanel } from "@/components/checkout/UsdcPanel";
 import { useAccessGuard } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters } from "@/lib/i18n";
@@ -46,7 +47,7 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
 function CheckoutInner() {
   const t = useT();
   const ready = useAccessGuard("account");
-  const { formatIDR, formatEventDate } = useFormatters();
+  const { formatIDR, formatMoney, formatEventDate } = useFormatters();
   const params = useSearchParams();
   const router = useRouter();
   const catalogue = useCatalogue();
@@ -57,13 +58,17 @@ function CheckoutInner() {
   // A real account buys through the server and keeps the order in the database. A sample
   // persona keeps it in this browser, as before.
   const account = useUser((s) => !!s.user?.account);
+  // A show abroad priced in USDC is paid from the buyer's own wallet, whatever else is switched on
+  // (tasks/founder-house-usdc.md).
+  const usdc = event?.currency === "USDC";
   const chainInfo = useChainInfo();
-  const onchain = chainCheckoutReady(chainInfo);
+  const onchain = chainCheckoutReady(chainInfo) && !usdc;
   // With QRIS switched on (docs/09 §6), an account pays through it. Chain mode keeps the testnet
   // escrow, and a sample persona keeps its order in this browser.
   const payments = usePaymentsConfig(account && !onchain);
-  const qris = account && !onchain && !!payments?.enabled;
+  const qris = account && !onchain && !!payments?.enabled && !usdc;
   const [payment, setPayment] = useState<PaymentView | null>(null);
+  const [usdcOpen, setUsdcOpen] = useState(false);
 
   const [processing, setProcessing] = useState(false);
   // Where the gate matches ID to the name, the buyer says they know before paying.
@@ -83,8 +88,11 @@ function CheckoutInner() {
   // splittable is bought whole: the server would refuse anything else.
   const qty = listing.splittable ? Math.min(listing.quantity, Math.max(1, Number(params.get("qty")) || 1)) : listing.quantity;
   const subtotal = listing.askPrice * qty;
-  const fee = platformFee(subtotal);
-  const total = subtotal + fee + MATERAI;
+  // In USDC, while it runs on testnet, there is no fee and no stamp duty (the server agrees).
+  const fee = usdc ? 0 : platformFee(subtotal);
+  const materai = usdc ? 0 : MATERAI;
+  const total = subtotal + fee + materai;
+  const money = (n: number) => formatMoney(n, event.currency);
   const mustConfirmName = needsNameAcknowledgement(event.transferPolicy);
   // QRIS takes at most this much per payment; the server refuses more as well.
   const overQris = qris && !!payments && total > payments.max;
@@ -127,6 +135,7 @@ function CheckoutInner() {
   };
 
   const pay = async () => {
+    if (usdc) return setUsdcOpen(true);
     if (account) return qris ? payQris() : payAccount();
     setProcessing(true);
     let chain: OrderChain | undefined;
@@ -181,16 +190,24 @@ function CheckoutInner() {
 
           <TransferPolicyNote policy={event.transferPolicy} audience="buyer" />
 
-          {/* Payment. QRIS is the one rail: it covers e-wallets and bank apps alike. */}
+          {/* Payment. A show in Indonesia has one rail, QRIS, which covers e-wallets and bank apps
+              alike; a show abroad priced in USDC is paid from the buyer's own wallet. */}
           <div className="bg-neutral-white rounded-2xl border border-neutral-light-gray-1 p-4">
             <h2 className="font-semibold text-lg text-neutral-black mb-3">{t("Payment", "Pembayaran")}</h2>
-            <div className="flex items-center gap-3 p-3 rounded-xl border-2 border-primary-navy bg-secondary-blue-light">
+            <div data-pay-rail={usdc ? "usdc" : "qris"} className="flex items-center gap-3 p-3 rounded-xl border-2 border-primary-navy bg-secondary-blue-light">
               <span className="w-10 h-10 rounded-lg bg-neutral-white text-primary-navy grid place-items-center shrink-0 border border-lummy-500">
-                <QrCode className="w-5 h-5" />
+                {usdc ? <Wallet className="w-5 h-5" /> : <QrCode className="w-5 h-5" />}
               </span>
               <div className="min-w-0">
-                <div className="font-medium text-sm text-neutral-black">QRIS</div>
-                <div className="text-xs text-neutral-gray">{t("Scan with GoPay, OVO, DANA, ShopeePay or any bank app", "Scan pakai GoPay, OVO, DANA, ShopeePay, atau aplikasi bank")}</div>
+                <div className="font-medium text-sm text-neutral-black">{usdc ? t("USDC from your wallet", "USDC dari wallet-mu") : "QRIS"}</div>
+                <div className="text-xs text-neutral-gray">
+                  {usdc
+                    ? t(
+                        "MetaMask, Rabby or another browser wallet. Two signatures, no gas: Lummy pays it.",
+                        "MetaMask, Rabby, atau wallet browser lain. Dua tanda tangan, tanpa gas: Lummy yang membayar."
+                      )
+                    : t("Scan with GoPay, OVO, DANA, ShopeePay or any bank app", "Scan pakai GoPay, OVO, DANA, ShopeePay, atau aplikasi bank")}
+                </div>
               </div>
             </div>
           </div>
@@ -208,11 +225,15 @@ function CheckoutInner() {
         <div className="lm-in lg:sticky lg:top-24 h-fit bg-neutral-white rounded-3xl border border-lummy-500 p-6 flex flex-col gap-4" style={{ "--d": "140ms" } as React.CSSProperties}>
           <h2 className="font-semibold text-lg text-neutral-black">{t("Summary", "Rincian")}</h2>
           <div className="flex flex-col gap-2">
-            <Row label={qty > 1 ? t(`Tickets (${qty} × ${formatIDR(listing.askPrice)})`, `Tiket (${qty} × ${formatIDR(listing.askPrice)})`) : t("Ticket price", "Harga tiket")} value={formatIDR(subtotal)} />
-            <Row label={t("Service fee (5%, min. Rp25,000)", "Biaya layanan (5%, min. Rp25.000)")} value={formatIDR(fee)} />
-            {MATERAI > 0 && <Row label={t("e-stamp + e-signature fee", "e-Meterai + biaya TTE")} value={formatIDR(MATERAI)} />}
+            <Row label={qty > 1 ? t(`Tickets (${qty} × ${money(listing.askPrice)})`, `Tiket (${qty} × ${money(listing.askPrice)})`) : t("Ticket price", "Harga tiket")} value={money(subtotal)} />
+            {usdc ? (
+              <Row label={t("Service fee (none on testnet)", "Biaya layanan (tidak ada selama testnet)")} value={money(0)} />
+            ) : (
+              <Row label={t("Service fee (5%, min. Rp25,000)", "Biaya layanan (5%, min. Rp25.000)")} value={money(fee)} />
+            )}
+            {materai > 0 && <Row label={t("e-stamp + e-signature fee", "e-Meterai + biaya TTE")} value={money(materai)} />}
             <div className="border-t border-dashed border-neutral-light-gray-1 my-1" />
-            <Row label={t("Total", "Total")} value={formatIDR(total)} bold />
+            <Row label={t("Total", "Total")} value={money(total)} bold />
           </div>
           {mustConfirmName && (
             <label className="flex items-start gap-2.5 text-xs text-neutral-black cursor-pointer">
@@ -233,10 +254,10 @@ function CheckoutInner() {
           <Button.Primary
             wrapperClass="w-full"
             className="w-full"
-            disabled={(mustConfirmName && !nameRiskOk) || (account && !onchain && !payments) || overQris}
+            disabled={(mustConfirmName && !nameRiskOk) || (account && !onchain && !payments) || overQris || (usdc && (!account || !payments?.usdc))}
             onClick={pay}
           >
-            {t("Pay", "Bayar")} {formatIDR(total)}
+            {t("Pay", "Bayar")} {money(total)}
           </Button.Primary>
           {overQris && (
             <p data-qris-over className="text-xs text-secondary-pink-dark text-center">
@@ -249,7 +270,23 @@ function CheckoutInner() {
           <p className="flex items-center gap-1.5 text-xs text-secondary-green-dark justify-center">
             <ShieldCheck className="w-3.5 h-3.5" /> {t("Protected by Lummy escrow", "Dijamin escrow Lummy")}
           </p>
-          {onchain ? (
+          {usdc ? (
+            <p data-usdc-note className="text-[11px] text-neutral-gray text-center -mt-2">
+              {!account ? (
+                <>
+                  {t("Paying in USDC needs an account: ", "Bayar USDC butuh akun: ")}
+                  <Link href="/login" className="text-primary-navy font-medium">{t("sign in with email", "masuk dengan email")}</Link>.
+                </>
+              ) : payments && !payments.usdc ? (
+                t("USDC payment is switched off right now.", "Pembayaran USDC sedang dimatikan.")
+              ) : (
+                <>
+                  {t("Testnet: test USDC on Arbitrum Sepolia, not real money. No test USDC yet? ", "Testnet: USDC uji di Arbitrum Sepolia, bukan uang sungguhan. Belum punya? ")}
+                  <a href={USDC_FAUCET} target="_blank" rel="noreferrer" className="text-primary-navy font-medium">{t("Circle's faucet", "Faucet Circle")}</a>
+                </>
+              )}
+            </p>
+          ) : onchain ? (
             <p className="text-[11px] text-neutral-gray text-center -mt-2">
               {t(
                 `Chain mode: a real escrow on Arbitrum Sepolia, ${chainInfo?.priceUsdc ?? "1"} test USDC standing in for the rupiah.`,
@@ -304,6 +341,27 @@ function CheckoutInner() {
               : t("Securing your money in escrow.", "Mengamankan dana kamu di escrow.")}
           </p>
         </div>
+      </Modal>
+
+      {/* Paying in USDC: the wallet signs, the server locks the money. Like QRIS, only its own
+          buttons close it, since the seats may be held. */}
+      <Modal open={usdcOpen} onClose={() => {}} className="max-w-md">
+        {usdcOpen && (
+          <UsdcPanel
+            listingId={listing.id}
+            quantity={qty}
+            total={total}
+            onPaid={(orderId) => {
+              toast.success(t("Paid. Your USDC is locked in the escrow on Arbitrum.", "Pembayaran berhasil. USDC-mu dikunci di escrow di Arbitrum."));
+              router.push(`/tickets/${orderId}`);
+              router.refresh();
+            }}
+            onClose={() => {
+              setUsdcOpen(false);
+              router.refresh();
+            }}
+          />
+        )}
       </Modal>
 
       {/* Closing it by accident would leave the seats held, so only its own buttons close it. */}

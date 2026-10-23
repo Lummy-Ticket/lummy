@@ -100,6 +100,7 @@ export function orderFromRow(r: OrderRow): Order {
     escrowStatus: escrowStatusOf(r.escrow_status, r.disputed),
     chain: onchain,
     ledger,
+    ...(r.rail === "usdc" ? { currency: "USDC" as const, buyerWallet: r.buyer_wallet ?? undefined } : {}),
     createdAtISO: r.created_at,
     eventEndedAtISO: r.event_ended_at ?? undefined,
     eventEndsAtISO: r.event_ends_at ?? undefined,

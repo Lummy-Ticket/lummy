@@ -21,7 +21,8 @@ import { FEATURES } from "@/lib/features";
 
 function ListingRow({ event, listing, qty, cheapest, index }: { event: EventItem; listing: Listing; qty: number; cheapest?: boolean; index: number }) {
   const t = useT();
-  const { formatIDR } = useFormatters();
+  const { formatMoney } = useFormatters();
+  const money = (n: number) => formatMoney(n, event.currency);
   const tier = getTier(event, listing.tierId);
   const markup = Math.round((listing.askPrice / listing.faceValue - 1) * 100);
   const total = listing.askPrice * qty;
@@ -61,7 +62,7 @@ function ListingRow({ event, listing, qty, cheapest, index }: { event: EventItem
           </span>
         )}
         <span className="text-sm text-neutral-gray">
-          {t(`Face value ${formatIDR(listing.faceValue)}`, `Harga asli ${formatIDR(listing.faceValue)}`)}
+          {t(`Face value ${money(listing.faceValue)}`, `Harga asli ${money(listing.faceValue)}`)}
           <span className={markup > 0 ? "text-neutral-black" : "text-secondary-green-dark"}> ({markup > 0 ? "+" : ""}{markup}%)</span>
         </span>
         <span className="text-xs text-neutral-gray">
@@ -104,8 +105,8 @@ function ListingRow({ event, listing, qty, cheapest, index }: { event: EventItem
       </div>
       <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0">
         <div className="sm:text-right">
-          <div className="tabular-nums font-bold text-xl text-primary-navy text-nowrap">{formatIDR(listing.askPrice)}<span className="text-xs text-neutral-gray font-sans font-normal"> {t("each", "/tiket")}</span></div>
-          {qty > 1 && <div className="text-xs text-neutral-gray text-nowrap">{t(`${qty} tickets · ${formatIDR(total)}`, `${qty} tiket · ${formatIDR(total)}`)}</div>}
+          <div className="tabular-nums font-bold text-xl text-primary-navy text-nowrap">{money(listing.askPrice)}<span className="text-xs text-neutral-gray font-sans font-normal"> {t("each", "/tiket")}</span></div>
+          {qty > 1 && <div className="text-xs text-neutral-gray text-nowrap">{t(`${qty} tickets · ${money(total)}`, `${qty} tiket · ${money(total)}`)}</div>}
         </div>
         {buyable ? (
           <Link href={`/checkout?listing=${listing.id}&qty=${qty}`}>
@@ -127,7 +128,7 @@ type SortId = (typeof SORTS)[number]["id"];
 
 export default function EventDetailPage() {
   const t = useT();
-  const { formatIDR, formatEventDate } = useFormatters();
+  const { formatMoney, formatEventDate } = useFormatters();
   const categoryLabel = useCategoryLabel();
   const params = useParams<{ id: string }>();
   const catalogue = useCatalogue();
@@ -297,7 +298,7 @@ export default function EventDetailPage() {
               {event.fromPrice > 0 && !over ? (
                 <>
                   <div className="text-xs text-secondary-brown-dark">{t("From", "Mulai dari")}</div>
-                  <div className="tabular-nums font-bold text-2xl text-neutral-black">{formatIDR(event.fromPrice)}</div>
+                  <div className="tabular-nums font-bold text-2xl text-neutral-black">{formatMoney(event.fromPrice, event.currency)}</div>
                   <p className="text-xs text-secondary-brown-dark mt-1">
                     {event.listingCount === 1
                       ? t("1 listing you can buy right now", "1 listing yang bisa dibeli sekarang")

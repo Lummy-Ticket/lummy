@@ -64,9 +64,10 @@ export async function GET() {
   const { admin } = s;
 
   const [needs, refunded, recent, stuck, waiting] = await Promise.all([
-    admin.from("payments").select(SELECT).eq("status", "unfulfilled").order("paid_at", { ascending: false }).limit(50),
-    admin.from("payments").select(SELECT).eq("status", "refunded").order("refunded_at", { ascending: false }).limit(10),
-    admin.from("payments").select(SELECT).order("created_at", { ascending: false }).limit(20),
+    // QRIS only: a USDC payment settles on chain, refunds included, so staff have nothing to do here.
+    admin.from("payments").select(SELECT).eq("provider", "xendit").eq("status", "unfulfilled").order("paid_at", { ascending: false }).limit(50),
+    admin.from("payments").select(SELECT).eq("provider", "xendit").eq("status", "refunded").order("refunded_at", { ascending: false }).limit(10),
+    admin.from("payments").select(SELECT).eq("provider", "xendit").order("created_at", { ascending: false }).limit(20),
     admin
       .from("orders")
       .select("id, event_title, amount, escrow_status, ledger_error, ledger_id")
@@ -162,6 +163,7 @@ export async function POST(req: Request) {
       .from("payments")
       .update({ status: "refunded", refunded_at: at, refunded_by: user.id, refund_note: note || null, updated_at: at })
       .eq("id", id)
+      .eq("provider", "xendit")
       .eq("status", "unfulfilled")
       .select("id");
     if (r.error) return fail(500, r.error.message);

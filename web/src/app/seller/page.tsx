@@ -91,7 +91,7 @@ function ClaimsAgainstYou({
   sampleFiles: boolean;
 }) {
   const t = useT();
-  const { formatIDR, formatDateTime } = useFormatters();
+  const { formatMoney, formatDateTime } = useFormatters();
   const [openId, setOpenId] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [file, setFile] = useState<DisputeEvidence | null>(null);
@@ -152,7 +152,7 @@ function ClaimsAgainstYou({
                     <span className="text-neutral-gray"> · {formatDateTime(o.dispute!.openedAtISO)}</span>
                   </div>
                 </div>
-                <span className="tabular-nums font-bold text-lummy-500 text-nowrap">{formatIDR(o.amount)}</span>
+                <span className="tabular-nums font-bold text-lummy-500 text-nowrap">{formatMoney(o.amount, o.currency)}</span>
               </div>
 
               {o.dispute?.note && t(o.dispute.note.en, o.dispute.note.id).trim() && (
@@ -237,7 +237,7 @@ export default function SellerPage() {
   const catalogue = useCatalogue();
   const lang = useActiveLang();
   const ready = useAccessGuard("account");
-  const { formatIDR, formatEventDate } = useFormatters();
+  const { formatIDR, formatMoney, formatEventDate } = useFormatters();
   const user = useUser((s) => s.user);
   const account = !!user?.account;
   const sampleOrders = useOrders((s) => s.orders);
@@ -290,9 +290,11 @@ export default function SellerPage() {
   const views = listings.reduce((a, l) => a + l.views, 0);
   // Fees are paid by the buyer on top of the ticket (docs/09, decision E), so the seller
   // receives exactly what they asked.
-  const est = active.reduce((a, l) => a + l.askPrice * l.quantity, 0);
+  // Both totals are in rupiah, so listings for shows priced in USDC stay out of them.
+  const activeIdr = active.filter((l) => catalogue.eventById(l.eventId)?.currency !== "USDC");
+  const est = activeIdr.reduce((a, l) => a + l.askPrice * l.quantity, 0);
   // What an upheld claim would cost across everything currently on sale.
-  const atStake = active.reduce((a, l) => a + l.askPrice * l.quantity + sellerPenalty(l.askPrice * l.quantity), 0);
+  const atStake = activeIdr.reduce((a, l) => a + l.askPrice * l.quantity + sellerPenalty(l.askPrice * l.quantity), 0);
   const upheld = mine.filter((o) => o.dispute?.verdict && !o.dispute.verdict.toSeller).length;
 
   // Payout timing is not a promise we make up: an account's sale says what its escrow did, and
@@ -451,7 +453,7 @@ export default function SellerPage() {
                     {all.length > 1 ? ` ${i + 1}` : ""}
                   </button>
                 ))}
-                <span className="tabular-nums font-bold text-lummy-500 text-nowrap">{formatIDR(l.askPrice)}{l.quantity > 1 && <span className="text-xs text-neutral-gray font-sans font-normal"> {t("each", "/tiket")}</span>}</span>
+                <span className="tabular-nums font-bold text-lummy-500 text-nowrap">{formatMoney(l.askPrice, catalogue.eventById(l.eventId)?.currency)}{l.quantity > 1 && <span className="text-xs text-neutral-gray font-sans font-normal"> {t("each", "/tiket")}</span>}</span>
                 {l.status === "active" && (
                   <button onClick={() => setPromote(l)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-lummy-500 text-lummy-500 text-sm hover:bg-secondary-blue-light transition cursor-pointer">
                     <Megaphone className="w-4 h-4" /> {t("Promote", "Promosikan")}

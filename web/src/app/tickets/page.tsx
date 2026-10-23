@@ -18,7 +18,7 @@ import { useAccountOrders } from "@/lib/orders/client";
 export default function TicketsPage() {
   const t = useT();
   const ready = useAccessGuard("account");
-  const { formatIDR, formatEventDate, formatCountdown } = useFormatters();
+  const { formatMoney, formatEventDate, formatCountdown } = useFormatters();
 
   // What this ticket's money is doing right now, in one line.
   const stateLine = (o: Order, phase: EscrowPhase) => {
@@ -130,7 +130,7 @@ export default function TicketsPage() {
                 <div className="-mx-4 -mb-4 px-4 py-3 rounded-b-2xl bg-secondary-cream-light border-t-2 border-dashed border-neutral-light-gray-1 flex items-center justify-between">
                   <span className="text-xs text-neutral-gray">{t("Ticket price", "Harga tiket")}</span>
                   <span className="tabular-nums font-bold text-lummy-500 flex items-center gap-1">
-                    {formatIDR(o.amount)} <ChevronRight className="w-4 h-4 text-neutral-gray group-hover:text-primary-navy transition" />
+                    {formatMoney(o.amount, o.currency)} <ChevronRight className="w-4 h-4 text-neutral-gray group-hover:text-primary-navy transition" />
                   </span>
                 </div>
               </Link>
