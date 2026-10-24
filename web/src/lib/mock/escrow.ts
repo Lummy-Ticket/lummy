@@ -188,7 +188,7 @@ export const DISPUTE_REASONS: ReasonMeta[] = [
     eligible: true, window: "BOTH", proof: "DOCS",
     help: {
       en: "No proof to gather: our own record of whether you ever opened the handover documents settles this.",
-      id: "Tidak perlu cari bukti: catatan kami soal apakah kamu pernah membuka dokumen serah-terima yang menentukan.",
+      id: "Tidak perlu cari bukti: patokannya catatan kami soal kamu pernah membuka dokumen serah-terima atau belum.",
     },
   },
   {
