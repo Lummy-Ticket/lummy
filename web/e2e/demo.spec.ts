@@ -58,7 +58,9 @@ test.describe("demo script", { tag: "@smoke" }, () => {
     expect(draft.suggestedFilename()).toMatch(/^draf-surat-kuasa-or-.+\.pdf$/);
     expect(readFileSync(await draft.path()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
     await page.keyboard.press("Escape");
-    await page.getByText("Verify it yourself on-chain").click();
+    // A sample order opens this section by itself; a chain-mode order needs the click.
+    const verify = page.getByText("Verify it yourself on-chain");
+    if (await verify.isVisible()) await verify.click();
     // A sample order says so and links the live contract; a chain-mode order lists its transactions.
     await expect(page.getByText("This is a sample order").or(page.getByText("Escrow contract")).first()).toBeVisible();
   });
