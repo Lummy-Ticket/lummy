@@ -9,7 +9,7 @@ import { Hero } from "@/components/home/Hero";
 import { TicketBand } from "@/components/ui/ticket-band";
 import { useT, useFormatters, useActiveLang, EVENT_TZ } from "@/lib/i18n";
 import { DISPUTE_WINDOW_H, PENALTY_NOTE, SELLER_PENALTY_PCT, type EventItem } from "@/lib/mock";
-import { useCatalogue } from "@/lib/catalogue";
+import { popularEvents, realShowsFirst, useCatalogue } from "@/lib/catalogue";
 
 function SectionHead({ title, href }: { title: string; href?: string }) {
   const t = useT();
@@ -145,10 +145,8 @@ export default function HomePage() {
   const t = useT();
   const { formatEventDate } = useFormatters();
   const { events: all } = useCatalogue();
-  const featured = all.filter((e) => e.featured).slice(0, 3);
-  const upcoming = all
-    .filter((e) => !featured.includes(e))
-    .sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+  const featured = popularEvents(all);
+  const upcoming = all.filter((e) => !featured.includes(e)).sort(realShowsFirst);
   const quickCats = Array.from(new Set(all.map((e) => e.category)));
 
   return (

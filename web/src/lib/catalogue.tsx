@@ -4,8 +4,25 @@
 // loaded from Supabase; without it (no env, or the read failed) this falls back to the
 // sample seed, so the app never breaks on a missing database.
 import { createContext, useContext, useMemo, type ReactNode } from "react";
-import { SEED_LISTINGS, getEventById, getEvents, getListingsByEvent, isEventOver } from "@/lib/mock/seed";
+import { SEED_LISTINGS, getEventById, getEvents, getListingsByEvent, isEventOver, isSampleEvent } from "@/lib/mock/seed";
 import type { EventItem, Listing } from "@/lib/mock/types";
+
+/**
+ * "Popular right now": the featured shows still to come, topped up with the soonest real shows
+ * (those with tickets on sale first), so the row stays full when a featured show is over, as Ye
+ * was on 24 Oct 2026. Done here, not in the data, since the live catalogue comes from the database.
+ * The sample show never fills a gap: it is there for the demo, not as a show to recommend.
+ */
+export function popularEvents(events: EventItem[], n = 3): EventItem[] {
+  const fill = events
+    .filter((e) => !e.featured && !isSampleEvent(e.id))
+    .sort((a, b) => Number(b.listingCount > 0) - Number(a.listingCount > 0) || a.dateISO.localeCompare(b.dateISO));
+  return [...events.filter((e) => e.featured), ...fill].slice(0, n);
+}
+
+/** Soonest first, with the sample show after the real ones. */
+export const realShowsFirst = (a: EventItem, b: EventItem) =>
+  Number(isSampleEvent(a.id)) - Number(isSampleEvent(b.id)) || a.dateISO.localeCompare(b.dateISO);
 
 export type Catalogue = {
   source: "database" | "sample";

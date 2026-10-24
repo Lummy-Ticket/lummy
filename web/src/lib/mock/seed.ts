@@ -54,6 +54,9 @@ export type SeedEvent = Omit<EventItem, "fromPrice" | "listingCount">;
 /** Shows that are always tomorrow, at this hour Jakarta time. Mirrored as events.rolling_hour. */
 export const ROLLING_HOUR: Record<string, number> = { "ev-demo-fest": 14 };
 
+/** The sample show is the one that is always tomorrow; every other show is real. */
+export const isSampleEvent = (id: string) => id in ROLLING_HOUR;
+
 /**
  * Where each venue is, for the location check on claim photos (radius 1.5 km,
  * lib/evidence/server.ts). Taken from each venue's Wikipedia article, not guessed. Tennis Indoor
