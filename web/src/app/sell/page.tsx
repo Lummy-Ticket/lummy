@@ -695,10 +695,10 @@ export default function SellPage() {
             )}
           </div>
 
-          {/* Staging an ID card for the gate. Lummy does not store ID cards yet (lib/features.ts), so an
-              account does not see this, and the server ignores it; a sample persona keeps the stand-in,
-              labelled, for the demo. The transfer note above tells a seller what to do instead. */}
-          {(FEATURES.sellerIdCard || !account) && (
+          {/* Staging an ID card for the gate. Lummy does not store ID cards yet (lib/features.ts), so
+              nobody sees this, a sample persona included, and the server ignores it. The transfer note
+              in the previous step tells a seller what to do instead. */}
+          {FEATURES.sellerIdCard && (
           <div className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-6">
             <label className="flex items-start justify-between gap-4 cursor-pointer">
               <span>
