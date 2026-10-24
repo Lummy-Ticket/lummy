@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -70,6 +70,11 @@ function CheckRow({ ok, unknown, label, detail }: { ok: boolean; unknown?: boole
       </div>
     </div>
   );
+}
+
+/** The English note under an Indonesian line of the letter, for a buyer or a judge from abroad. */
+function En({ children, inline }: { children: ReactNode; inline?: boolean }) {
+  return <span lang="en" className={`${inline ? "" : "block "}text-[10px] italic font-normal normal-case tracking-normal text-neutral-gray`}>{children}</span>;
 }
 
 export default function OrderDetailPage() {
@@ -371,6 +376,14 @@ export default function OrderDetailPage() {
   };
 
   const watermark = `${user?.name ?? t("Buyer", "Pembeli")} · ${new Date().toLocaleDateString("en-GB")} · Lummy`;
+  // The letter names the buyer only when the buyer is the one looking at it.
+  const buyerName = account && order.buyerId && order.buyerId !== user?.id ? undefined : user?.name || undefined;
+  const listedEvent = catalogue.eventById(order.eventId);
+  const letterPlace = [listedEvent?.venue, listedEvent?.city].filter(Boolean).join(", ");
+  // The letter is Indonesian whatever the switch says, so its date is too.
+  const letterDate = new Date(order.eventDateISO).toLocaleDateString("id-ID", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Jakarta",
+  });
 
   return (
     <PageContainer width="app">
@@ -842,7 +855,7 @@ export default function OrderDetailPage() {
                   <div className="text-xs text-neutral-gray">
                     {FEATURES.eStamp
                       ? t("Print-ready, e-stamped and e-signed", "Siap print, ber-e-meterai dan TTE")
-                      : t("A draft to download; the seller signs it on a Rp10,000 stamp", "Draf untuk diunduh; penjual tanda tangan di atas meterai Rp10.000")}
+                      : t("A draft to print and fill in by hand; the seller signs it over a Rp10,000 stamp", "Draf untuk dicetak dan diisi tangan; penjual tanda tangan di atas meterai Rp10.000")}
                   </div>
                 </div>
               </button>
@@ -900,32 +913,121 @@ export default function OrderDetailPage() {
         </div>
       </div>
 
-      {/* Letter of authorisation */}
+      {/* Letter of authorisation: who fills in what, then the letter as it prints (Indonesian, the
+          language venue staff read, with English notes), then the draft. Lummy collects no ID data,
+          so the names and ID numbers stay blank and the parties write them in by hand. */}
       <Modal open={showKuasa} onClose={() => setShowKuasa(false)} title={t("Letter of authorisation", "Surat kuasa")}>
-        <div className="bg-secondary-gray-soft rounded-2xl p-6 text-sm text-neutral-black leading-relaxed" lang="id">
-          <p className="text-center font-bold text-base mb-4">SURAT KUASA</p>
-          <p>Yang bertanda tangan di bawah ini memberi kuasa kepada:</p>
-          <p className="mt-2"><b>Penerima:</b> {user?.name ?? "Pembeli"}</p>
-          <p><b>Pemberi:</b> {order.sellerName}</p>
-          <p className="mt-3">Untuk mengambil dan menggunakan tiket <b>{order.eventTitle}</b> ({order.tierName}) pada {formatEventDate(order.eventDateISO)}.</p>
-          {FEATURES.eStamp ? (
-            <div className="flex justify-between mt-6 text-xs text-neutral-gray">
-              <span>Ditandatangani secara elektronik (TTE)</span>
-              <span className="bg-secondary-gold-soft text-secondary-brown-dark px-2 py-1 rounded">e-Meterai Rp10.000</span>
+        {!FEATURES.eStamp && (
+          <div data-letter-roles className="rounded-2xl bg-secondary-blue-extra p-4 text-xs text-neutral-gray leading-relaxed">
+            <div className="text-sm font-medium text-neutral-black">{t("Who fills in what", "Siapa mengisi apa")}</div>
+            <ul className="mt-2 flex flex-col gap-1.5 list-disc pl-4">
+              <li>
+                <b className="text-neutral-black">Pemberi Kuasa</b>{" "}
+                {t(
+                  `is the seller, ${order.sellerName}, who holds the original ticket. They write in their full name, NIK or passport number and address, and sign over a Rp10,000 meterai (a paper duty stamp).`,
+                  `adalah penjual, ${order.sellerName}, pemegang tiket asli. Penjual menulis nama lengkap, NIK atau nomor paspor, dan alamatnya, lalu tanda tangan di atas meterai Rp10.000.`
+                )}
+              </li>
+              <li>
+                <b className="text-neutral-black">Penerima Kuasa</b>{" "}
+                {t(
+                  `is the buyer${buyerName ? `, ${buyerName}` : ""}, who uses the ticket at the gate. The buyer writes in their own full name and NIK or passport number, and signs too.`,
+                  `adalah pembeli${buyerName ? `, ${buyerName}` : ""}, yang memakai tiketnya di gate. Pembeli menulis nama lengkap dan NIK atau nomor paspornya sendiri, lalu ikut tanda tangan.`
+                )}
+              </li>
+            </ul>
+            <p className="mt-2">
+              {t(
+                "The lines are blank on purpose: Lummy does not collect anyone's ID card or ID number, so they are written by hand, on paper, and never typed into Lummy.",
+                "Kolomnya sengaja kosong: Lummy tidak meminta KTP atau nomor identitas siapa pun, jadi semuanya ditulis tangan di kertas, tidak pernah diketik ke Lummy."
+              )}
+            </p>
+          </div>
+        )}
+
+        <div data-letter-preview lang="id" className="mt-4 rounded-2xl border border-neutral-light-gray-1 bg-neutral-white p-4 sm:p-5 text-xs text-neutral-black leading-relaxed shadow-sm">
+          <div className="flex items-center justify-between gap-2 text-[10px]">
+            <span className="font-semibold text-primary-navy">lummy.id</span>
+            <span className="rounded border border-neutral-gray px-1.5 py-0.5 font-semibold tracking-wide text-neutral-gray">DRAF / <span lang="en">DRAFT</span></span>
+          </div>
+          <p className="mt-2 text-center text-base font-bold tracking-[0.15em]">SURAT KUASA</p>
+          <p lang="en" className="text-center text-[11px] italic text-neutral-gray">Letter of authorisation</p>
+          <p className="mt-1 text-center text-[11px]">
+            Nomor pesanan <span lang="en" className="text-neutral-gray">/ Order no.</span>: <b className="tracking-wide">{order.id.toUpperCase()}</b>
+          </p>
+          <div className="mt-2 border-t-[3px] border-double border-primary-navy" />
+
+          {[
+            { term: "Pemberi Kuasa", en: "Authoriser", role: "penjual, pemegang tiket asli", roleEn: "the seller, who holds the original ticket", lines: [["Nama lengkap", "Full name"], ["NIK / No. Paspor", "ID or passport no."], ["Alamat", "Address"]] },
+            { term: "Penerima Kuasa", en: "Authorised person", role: "pembeli, yang memakai tiket", roleEn: "the buyer, who uses the ticket", lines: [["Nama lengkap", "Full name"], ["NIK / No. Paspor", "ID or passport no."]] },
+          ].map((p) => (
+            <div key={p.term} className="mt-3">
+              <div className="font-semibold uppercase tracking-wide text-[11px]">{p.term} <En inline>· {p.en}</En></div>
+              <div className="text-neutral-gray">= {p.role} <En inline>({p.roleEn})</En></div>
+              <dl className="mt-1.5 flex flex-col gap-1.5">
+                {p.lines.map(([label, en]) => (
+                  <div key={label} className="flex items-end gap-2">
+                    <dt className="w-28 shrink-0 leading-tight">{label}<En>{en}</En></dt>
+                    <dd className="flex-1 min-w-0 border-b border-dashed border-neutral-gray/60 pb-0.5 text-right text-[10px] text-neutral-gray">
+                      diisi tangan / <span lang="en">fill in by hand</span>
+                    </dd>
+                  </div>
+                ))}
+              </dl>
             </div>
-          ) : (
-            <div className="flex justify-between items-end mt-6 text-xs text-neutral-gray">
-              <span>Tanda tangan Pemberi Kuasa</span>
-              <span className="border border-dashed border-neutral-gray px-2 py-3 rounded">Meterai Rp10.000</span>
-            </div>
-          )}
+          ))}
+
+          <div className="mt-4 rounded-xl border border-neutral-light-gray-1 p-3">
+            <div className="font-semibold">Tiket yang dikuasakan <En inline>/ The ticket covered</En></div>
+            <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2">
+              {[
+                { label: "Acara", en: "Event", value: order.eventTitle, wide: true },
+                { label: "Tanggal", en: "Date", value: letterDate, wide: !letterPlace },
+                ...(letterPlace ? [{ label: "Tempat", en: "Venue", value: letterPlace, wide: false }] : []),
+                { label: "Kategori", en: "Category", value: order.tierName, wide: false },
+                { label: "Jumlah", en: "Quantity", value: `${order.quantity} tiket`, wide: false },
+              ].map((c) => (
+                <div key={c.label} className={`min-w-0 ${c.wide ? "col-span-2" : ""}`}>
+                  <dt className="text-[10px] font-semibold uppercase tracking-wide text-neutral-gray">{c.label} <En inline>/ {c.en}</En></dt>
+                  <dd className="font-medium">{c.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-4">
+            {[
+              { term: "Pemberi Kuasa", en: "Authoriser (the seller)", name: order.sellerName, stamp: true },
+              { term: "Penerima Kuasa", en: "Authorised person (the buyer)", name: buyerName, stamp: false },
+            ].map((s) => (
+              <div key={s.term} className="min-w-0">
+                <div className="font-semibold">{s.term},</div>
+                <En>{s.en}</En>
+                <div className="h-16 mt-1 flex items-center">
+                  {s.stamp &&
+                    (FEATURES.eStamp ? (
+                      <span className="rounded bg-secondary-gold-soft px-2 py-1 text-[10px] text-secondary-brown-dark">e-Meterai Rp10.000</span>
+                    ) : (
+                      <span className="rounded border border-dashed border-neutral-gray px-2 py-1.5 text-center text-[10px] leading-tight text-neutral-gray">
+                        METERAI<br />Rp10.000
+                      </span>
+                    ))}
+                </div>
+                <div className="border-t border-neutral-black pt-1 truncate">{s.name ?? <span className="text-neutral-gray">Nama jelas</span>}</div>
+                <span className="block text-[10px] text-neutral-gray">
+                  {s.name ? <>Nama di Lummy <En inline>/ Name on Lummy</En></> : <>diisi tangan <En inline>/ fill in by hand</En></>}
+                </span>
+              </div>
+            ))}
+          </div>
+          {FEATURES.eStamp && <p className="mt-3 text-[10px] text-neutral-gray">Ditandatangani secara elektronik (TTE)</p>}
         </div>
         <p className="text-xs text-neutral-gray mt-3">
           {FEATURES.eStamp
             ? t("The legal document stays in Indonesian, since that is what venue staff and courts read.", "Dokumen hukumnya tetap berbahasa Indonesia, karena itu yang dibaca petugas venue dan pengadilan.")
             : t(
-                "A draft in Indonesian, the language venue staff read. The seller writes in their full name and ID number, signs it on a Rp10,000 stamp, and gives it to you with a copy of their ID card. Lummy does not sign it or add an e-stamp yet.",
-                "Draf berbahasa Indonesia, bahasa yang dibaca petugas venue. Penjual mengisi nama lengkap dan NIK, menandatanganinya di atas meterai Rp10.000, lalu menyerahkannya kepadamu bersama fotokopi KTP-nya. Lummy belum menandatanganinya atau membubuhkan e-meterai."
+                "The letter is in Indonesian, the language venue staff read, with English notes under each line. The seller gives you the signed letter with a copy of their ID card or passport. Lummy does not sign it or add an e-stamp, and the organiser has the final say at the gate.",
+                "Suratnya berbahasa Indonesia, bahasa yang dibaca petugas venue, dengan catatan bahasa Inggris di bawah tiap baris. Penjual menyerahkan surat yang sudah ditandatangani kepadamu bersama fotokopi KTP atau paspornya. Lummy tidak menandatanganinya atau membubuhkan e-meterai, dan keputusan akhir di gate ada pada penyelenggara."
               )}
         </p>
         <Button.Primary
@@ -936,16 +1038,16 @@ export default function OrderDetailPage() {
             setDrafting(true);
             try {
               const { downloadLetter } = await import("@/lib/docs/letter");
-              const ev = catalogue.eventById(order.eventId);
               await downloadLetter({
                 id: order.id,
                 eventTitle: order.eventTitle,
                 eventDateISO: order.eventDateISO,
-                venue: ev?.venue,
-                city: ev?.city,
+                venue: listedEvent?.venue,
+                city: listedEvent?.city,
                 tierName: order.tierName,
                 quantity: order.quantity,
-                buyerName: user?.name,
+                sellerName: order.sellerName,
+                buyerName,
               });
             } catch (e) {
               toast.error(`${t("The draft could not be made", "Draf gagal dibuat")}: ${e instanceof Error ? e.message : String(e)}`);
