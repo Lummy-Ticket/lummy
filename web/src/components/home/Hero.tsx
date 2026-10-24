@@ -7,7 +7,8 @@ import { ArrowRight, Wallet } from "lucide-react";
 import { HeroSearch } from "./HeroSearch";
 import { useT } from "@/lib/i18n";
 import { Notch } from "@/components/ui/notch";
-import { CAP_PCT } from "@/lib/mock";
+import { CAP_PCT, useUser } from "@/lib/mock";
+import { useHydrated } from "@/lib/access";
 import { TEST_MODE } from "@/components/layout/TestModeNotice";
 
 // Background of the hero section. The notches reuse it so they read as bites taken out
@@ -19,6 +20,9 @@ const NOTCH = `w-9 h-9 border-2 border-primary-navy ${BG}`;
 // search; the stub carries the terms, the way a real ticket prints section, row and seat.
 export function Hero({ quickCats }: { quickCats: string[] }) {
   const t = useT();
+  const user = useUser((s) => s.user);
+  // The stored user only after hydration, so the server and the first client render agree.
+  const me = useHydrated() ? user : null;
   const terms = [
     { label: t("Your money", "Uangmu"), value: t("Held in escrow", "Ditahan escrow") },
     { label: t("Seller is paid", "Penjual dibayar"), value: t("After the show", "Setelah acara") },
@@ -78,6 +82,17 @@ export function Hero({ quickCats }: { quickCats: string[] }) {
                   <ArrowRight className="w-4 h-4 transition group-hover:translate-x-1" />
                 </span>
               </Link>
+              {/* The demo accounts sit on the sign-in page under the email form, which a first visit
+                  (a judge, say) had no reason to open. Gone once anyone is signed in. */}
+              {!me && (
+                <Link href="/login" data-hero-demo className="lm-in -mt-3 group inline-flex flex-wrap items-center gap-x-1.5 text-sm text-neutral-gray hover:text-primary-navy transition w-fit" style={{ "--d": "460ms" } as React.CSSProperties}>
+                  {t("Just looking?", "Cuma mau lihat-lihat?")}
+                  <span className="font-semibold text-primary-navy inline-flex items-center gap-1">
+                    {t("Try it with a demo account, no sign-up", "Coba pakai akun demo, tanpa daftar")}
+                    <ArrowRight className="w-4 h-4 transition group-hover:translate-x-1" />
+                  </span>
+                </Link>
+              )}
             </div>
 
             {/* Perforation: horizontal on a phone, vertical from desktop up */}
