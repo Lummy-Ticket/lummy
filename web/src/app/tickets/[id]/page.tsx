@@ -36,6 +36,14 @@ import { CONTACT_EMAIL } from "@/components/legal/LegalPage";
 /** The escrow that new on-chain orders go to, shown even on sample orders so anyone can inspect it. */
 const LIVE_ESCROW = DEPLOYMENTS[421614]?.escrow;
 const LIVE_LEDGER = LEDGERS[421614]?.ledger;
+/**
+ * Real public records from test runs on Arbitrum Sepolia, the ones the docs cite (public-repo.md,
+ * mirror/README.md), so a sample order can point at the real thing instead of a bare address.
+ */
+const EXAMPLE_PROOFS = {
+  usdcPaidOut: "0xc9b869a2c8bba81a4e564ea2126c0651ecef9ddd612d94bd8818cca1f20666bc",
+  qrisRefunded: "0x92b4028867b6babeb33c6f262bdbdb04f2396faf067b57d31a9acf6778948691",
+};
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -650,6 +658,18 @@ export default function OrderDetailPage() {
                   {shortHash(LIVE_ESCROW)} <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               )}
+              {/* Not a dead end: two real records from test runs, read from the contracts like any other. */}
+              <div data-example-proofs className="mt-3 pt-3 border-t border-dashed border-neutral-light-gray-1">
+                <div className="font-medium text-neutral-black">{t("See real records on the test network", "Lihat catatan sungguhan di jaringan uji")}</div>
+                <Link href={`/proof/${EXAMPLE_PROOFS.usdcPaidOut}`} className="mt-1.5 flex items-start gap-1.5 text-primary-navy font-medium hover:opacity-80">
+                  <ShieldCheck className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  {t("A USDC escrow: test USDC locked, handover recorded, paid out to the seller", "Escrow USDC: USDC uji dikunci, serah terima dicatat, cair ke penjual")}
+                </Link>
+                <Link href={`/proof/${EXAMPLE_PROOFS.qrisRefunded}`} className="mt-1.5 flex items-start gap-1.5 text-primary-navy font-medium hover:opacity-80">
+                  <ShieldCheck className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  {t("A QRIS test order: paid, claimed, refunded by an arbiter's ruling", "Pesanan QRIS uji: dibayar, diklaim, direfund lewat putusan arbiter")}
+                </Link>
+              </div>
             </div>
           )}
 
@@ -845,6 +865,26 @@ export default function OrderDetailPage() {
                   <Download className="w-4 h-4 text-primary-navy shrink-0" />
                 </a>
               )
+            )}
+            {/* A sample order has no ticket file behind it: the row says where a real one appears,
+                and offers no download that would pass for one. */}
+            {!order.ticketFile && sampleFiles && (
+              <div data-sample-ticket className="mb-3 w-full flex items-center gap-3 p-3 rounded-2xl border border-dashed border-neutral-light-gray-1 bg-secondary-gray-soft/60">
+                <span className="w-10 h-10 rounded-xl bg-secondary-gray-soft text-neutral-gray grid place-items-center shrink-0"><Ticket className="w-5 h-5" /></span>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-neutral-black">
+                    {t("Your ticket (PDF)", "Tiketmu (PDF)")} <span className="ml-0.5 text-xs font-normal text-neutral-gray">{t("(sample)", "(contoh)")}</span>
+                  </div>
+                  <div className="text-xs text-neutral-gray">
+                    {order.escrowStatus === "REFUNDED"
+                      ? t("Closed: the order was refunded", "Ditutup: pesanan sudah direfund")
+                      : t(
+                          "A sample order has no real ticket file. On a real order, the seller's PDF opens here once your payment is in escrow.",
+                          "Pesanan contoh tidak punya file tiket sungguhan. Di pesanan sungguhan, PDF dari penjual bisa dibuka di sini begitu pembayaranmu masuk escrow."
+                        )}
+                  </div>
+                </div>
+              </div>
             )}
             {/* An Indonesian letter has no place at a show abroad, nor on an order that was refunded. */}
             {order.currency !== "USDC" && order.escrowStatus !== "REFUNDED" && (
