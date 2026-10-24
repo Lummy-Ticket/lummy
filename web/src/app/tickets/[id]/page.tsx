@@ -976,7 +976,7 @@ export default function OrderDetailPage() {
                 )}
               </li>
             </ul>
-            <p className="mt-2">
+            <p className="mt-2 text-xs">
               {t(
                 "The lines are blank on purpose: Lummy does not collect anyone's ID card or ID number, so they are written by hand, on paper, and never typed into Lummy.",
                 "Kolomnya sengaja kosong: Lummy tidak meminta KTP atau nomor identitas siapa pun, jadi semuanya ditulis tangan di kertas, tidak pernah diketik ke Lummy."
