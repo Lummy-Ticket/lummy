@@ -9,7 +9,7 @@
 import { ExternalLink, ShieldCheck } from "lucide-react";
 import { useFormatters, useT } from "@/lib/i18n";
 import { explorerTx } from "@/lib/chain/config";
-import { usdcText, type ChainHistory, type ChainHistoryEvent, type ChainListing } from "@/lib/chain/client";
+import { chainSettled, usdcText, type ChainHistory, type ChainHistoryEvent, type ChainListing } from "@/lib/chain/client";
 
 type Copy = { en: string; id: string };
 type Line = { title: Copy; detail?: Copy; dot: string };
@@ -28,16 +28,38 @@ const REFUND_REASON: Record<string, Copy> = {
   EventPostponed: { en: "The show was postponed and the buyer chose the money.", id: "Acara diundur dan pembeli memilih uangnya kembali." },
 };
 
-function describe(e: ChainHistoryEvent, when: (unix: number) => string, money: (units: string) => string, ledger: boolean): Line {
+/**
+ * What a claim deadline written at one step means today, from the contract's live state. A step keeps
+ * its deadline forever, so a settled record must not go on saying claims are open (QA, 24 Oct): open,
+ * closed, taken up by a claim, moved with a new show date, or past once the order is settled.
+ */
+function claimWindow(deadline: number, now: ChainListing, when: (unix: number) => string): Copy {
+  const at = when(deadline);
+  if (chainSettled(now.status)) {
+    return {
+      en: `The claim window was set to end ${at}. The order is settled, so no claim can be filed now.`,
+      id: `Masa klaim ditetapkan berakhir ${at}. Pesanan ini sudah selesai, jadi klaim tidak bisa diajukan lagi.`,
+    };
+  }
+  if (now.disputed) return { en: `Claim window until ${at}. A claim was filed, see below.`, id: `Masa klaim sampai ${at}. Klaim sudah diajukan, lihat di bawah.` };
+  if (now.deadline && now.deadline !== deadline) {
+    return { en: `The claim window was set to end ${at}, then moved, see below.`, id: `Masa klaim awalnya berakhir ${at}, lalu digeser, lihat di bawah.` };
+  }
+  if (now.now > deadline) return { en: `The claim window closed ${at}.`, id: `Masa klaim sudah berakhir ${at}.` };
+  return { en: `Claims are open until ${at}.`, id: `Klaim bisa diajukan sampai ${at}.` };
+}
+
+function describe(e: ChainHistoryEvent, when: (unix: number) => string, money: (units: string) => string, ledger: boolean, now: ChainListing): Line {
   const amount = e.amount ? money(e.amount) : "";
+  const claims = e.deadline ? claimWindow(e.deadline, now, when) : null;
   switch (e.kind) {
     case "Paid":
       return {
         dot: DOT.step,
         title: { en: "Payment received, the record opened on chain", id: "Pembayaran masuk, catatannya dibuka di chain" },
         detail: {
-          en: `${amount} held for the seller.${e.deadline ? ` Claims are open until ${when(e.deadline)}.` : ""}`,
-          id: `${amount} ditahan untuk penjual.${e.deadline ? ` Klaim bisa diajukan sampai ${when(e.deadline)}.` : ""}`,
+          en: `${amount} held for the seller.${claims ? ` ${claims.en}` : ""}`,
+          id: `${amount} ditahan untuk penjual.${claims ? ` ${claims.id}` : ""}`,
         },
       };
     case "Listed":
@@ -55,7 +77,7 @@ function describe(e: ChainHistoryEvent, when: (unix: number) => string, money: (
       return {
         dot: DOT.step,
         title: { en: "Handover recorded", id: "Serah terima dicatat" },
-        detail: e.deadline ? { en: `Claims are open until ${when(e.deadline)}`, id: `Klaim bisa diajukan sampai ${when(e.deadline)}` } : undefined,
+        detail: claims ?? undefined,
       };
     case "EventPostponed":
       return {
@@ -149,7 +171,8 @@ export function EscrowTimeline({ history, live }: { history: ChainHistory; live?
   const ledger = history.source === "ledger";
   const when = (unix: number) => formatDateTime(new Date(unix * 1000).toISOString());
   const money = (units: string) => (ledger ? formatIDR(Number(units)) : usdcText(units));
-  const next = upcoming(live ?? history.live, when, ledger);
+  const now = live ?? history.live;
+  const next = upcoming(now, when, ledger);
   // Some events are not read yet (a slow node): the contract's live status still says where it stands.
   const settled = history.incomplete ? settledLine(history.live, ledger) : null;
 
@@ -166,7 +189,7 @@ export function EscrowTimeline({ history, live }: { history: ChainHistory; live?
       </p>
       <ol className="relative border-l-2 border-dashed border-neutral-light-gray-1 ml-1.5 flex flex-col gap-4">
         {history.events.map((e, i) => {
-          const line = describe(e, when, money, ledger);
+          const line = describe(e, when, money, ledger, now);
           const href = explorerTx(history.chainId, e.tx);
           return (
             <li key={`${e.tx}-${e.kind}-${i}`} className="pl-4 relative">
