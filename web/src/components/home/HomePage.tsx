@@ -46,7 +46,7 @@ function ComingUp({ events }: { events: EventItem[] }) {
                 <Image src={e.image} alt="" fill sizes="56px" className="object-cover transition-transform duration-500 group-hover:scale-110" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="font-semibold text-neutral-black truncate">{e.title}</div>
+                <div className="font-semibold text-neutral-black line-clamp-2">{e.title}</div>
                 <div className="text-sm text-neutral-gray truncate">{e.venue}, {e.city}</div>
               </div>
               {e.fromPrice > 0 && (
