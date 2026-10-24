@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import {
@@ -85,6 +85,14 @@ const STEPS = [
 ];
 
 export default function SellPage() {
+  return (
+    <Suspense fallback={<PageGate />}>
+      <SellForm />
+    </Suspense>
+  );
+}
+
+function SellForm() {
   const t = useT();
   const { formatIDR, formatEventDate } = useFormatters();
   const ready = useAccessGuard("account");
@@ -123,8 +131,13 @@ export default function SellPage() {
   const [dragging, setDragging] = useState(false);
 
   // extracted / editable
-  const [eventId, setEventId] = useState("ev-5sos-jakarta");
-  const [tierId, setTierId] = useState("t-5sos-cat3");
+  // The show a seller came from (/sell?event=, from its page) starts picked, with its first category
+  // as the show list does, but only a show on sale here that its organiser lets be resold.
+  const params = useSearchParams();
+  const askedId = params.get("event");
+  const asked = askedId ? events.find((e) => e.id === askedId && resaleAllowed(e.transferPolicy)) : undefined;
+  const [eventId, setEventId] = useState(asked?.id ?? "ev-5sos-jakarta");
+  const [tierId, setTierId] = useState(asked ? asked.tiers[0]?.id ?? "" : "t-5sos-cat3");
   const [orderer, setOrderer] = useState("");
   // With the AI step on, a real ticket is read by a model, here and again at publish. The original
   // buyer's name, typed as printed, is what keeps it out of what the model reads, so it comes first.
@@ -197,8 +210,12 @@ export default function SellPage() {
       // category left as it was would be listed without the seller ever choosing it.
       if (res.outcome === "filled") {
         const ev = res.eventId ? catalogue.eventById(res.eventId) : undefined;
-        setEventId(ev?.id ?? "");
-        setTierId(ev?.tiers.some((x) => x.id === res.facts.tierId) ? res.facts.tierId! : "");
+        // The show the seller came from is their own pick, so it stays when the ticket names none; a
+        // show the ticket does name wins, and the page says it is not the one they came from.
+        const kept = !ev && asked && eventId === asked.id ? asked : undefined;
+        const show = ev ?? kept;
+        setEventId(show?.id ?? "");
+        setTierId(show?.tiers.some((x) => x.id === res.facts.tierId) ? res.facts.tierId! : "");
       }
     } catch (e) {
       setFill(null);
@@ -596,8 +613,22 @@ export default function SellPage() {
                         ? fill.facts.tierId
                           ? t("The show and category are picked below. Check them.", "Acara dan kategorinya sudah dipilihkan di bawah. Cek lagi.")
                           : t("The show is picked below. Its category was not found, so pick it yourself.", "Acaranya sudah dipilihkan di bawah. Kategorinya tidak ketemu, jadi pilih sendiri.")
-                        : t("The show was not found in the catalogue: pick it below.", "Acaranya tidak ketemu di katalog: pilih sendiri di bawah.")}
+                        : asked && eventId === asked.id
+                          ? t(
+                              "No show on sale matches the ticket, so the show you came from stays picked. Check it, and pick the category if it is empty.",
+                              "Tidak ada acara yang dijual yang cocok dengan tiketnya, jadi acara yang tadi kamu buka tetap dipilih. Cek lagi, dan pilih kategorinya kalau masih kosong."
+                            )
+                          : t("The show was not found in the catalogue: pick it below.", "Acaranya tidak ketemu di katalog: pilih sendiri di bawah.")}
                     </span>
+                    {asked && fill.eventId && fill.eventId !== asked.id && catalogue.eventById(fill.eventId) && (
+                      <span data-fill-other-show className="flex items-start gap-1.5 text-secondary-orange-dark">
+                        <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+                        {t(
+                          `This ticket is for another show than the one you came from, ${asked.title}, so the ticket's own show is picked.`,
+                          `Tiket ini untuk acara lain, bukan ${asked.title} yang tadi kamu buka, jadi acara sesuai tiketnya yang dipilih.`
+                        )}
+                      </span>
+                    )}
                     {pastTicket && fill.facts.date && (
                       <span data-fill-past className="flex items-start gap-1.5 text-secondary-pink-dark">
                         <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
