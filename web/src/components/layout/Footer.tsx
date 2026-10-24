@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Logo } from "./Logo";
 import { Mail, ShieldCheck } from "lucide-react";
 import { CONTACT_EMAIL } from "@/components/legal/LegalPage";
@@ -35,8 +36,13 @@ const cols: { en: string; id: string; links: { en: string; id: string; href: str
   },
 ];
 
+/** Staff tools are worked in, not browsed: no buyer and seller links under the console or the scanner. */
+const STAFF_PAGES = ["/admin", "/gate"];
+
 export function Footer() {
   const t = useT();
+  const path = usePathname() ?? "";
+  if (STAFF_PAGES.some((p) => path === p || path.startsWith(`${p}/`))) return null;
   return (
     <footer className="mt-24 border-t border-neutral-light-gray-1 bg-secondary-blue-extra">
       <div className="max-w-7xl mx-auto px-5 lg:px-10 py-14 grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">

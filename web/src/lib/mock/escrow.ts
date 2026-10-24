@@ -37,6 +37,8 @@ export const LATE_LISTING_H = 48;
 export const REVIEW_TARGET_H = 24;
 /** Charged to a seller whose ticket failed, on top of losing the sale. */
 export const SELLER_PENALTY_PCT = 40;
+/** How far a phone's clock may run ahead before a claim photo "taken after the claim" counts. */
+const CLOCK_DRIFT_MS = 10 * 60_000;
 
 /** Copy the UI renders, carried in both languages. */
 export interface Bi {
@@ -337,6 +339,23 @@ export function checkEvidence(
     uploaded
       ? required.every((c) => c.ok) && checks.every((c) => c.ok || c.unknown) ? "STRONG" : "WEAK"
       : checks.every((c) => c.ok) ? "STRONG" : "WEAK";
+  // A photo cannot be taken after the claim that carries it: a later capture time means the phone's
+  // clock is off or the file was changed. Only real uploads; a few minutes of clock drift pass.
+  const takenLate =
+    uploaded && !!ev?.capturedAtISO && new Date(ev.capturedAtISO).getTime() > new Date(filedAtISO).getTime() + CLOCK_DRIFT_MS;
+  const taken = {
+    ok: !!ev?.capturedAtISO && !takenLate,
+    unknown: uploaded && !ev?.capturedAtISO,
+    label: { en: "Taken before the claim", id: "Diambil sebelum klaim" },
+    detail: takenLate
+      ? {
+          en: "The photo says it was taken after this claim was filed, which cannot be: the phone's clock is wrong or the file was changed.",
+          id: "Foto ini tercatat diambil setelah klaim diajukan, dan itu mustahil: jam HP-nya salah atau filenya diubah.",
+        }
+      : ev?.capturedAtISO
+      ? { en: "The capture time comes before the claim.", id: "Waktu pengambilannya sebelum klaim diajukan." }
+      : { en: "The file carries no capture time, so this was not checked.", id: "File ini tidak membawa waktu pengambilan, jadi ini tidak dicek." },
+  };
 
   if (reason === "NOT_AS_LISTED") {
     const legible = barcodeCheck(
@@ -345,7 +364,7 @@ export function checkEvidence(
       { en: "The tier and code can be read and compared with the listing.", id: "Kategori dan kodenya bisa dibaca dan dibandingkan dengan listing." },
       { en: "Nothing readable to compare against the listing.", id: "Tidak ada yang bisa dibaca untuk dibandingkan dengan listing." }
     );
-    const checks = [legible, inTime];
+    const checks = uploaded ? [legible, taken, inTime] : [legible, inTime];
     return { strength: strengthOf(checks, [legible, inTime]), checks };
   }
 
@@ -385,12 +404,7 @@ export function checkEvidence(
     { en: "The code on screen matches this order.", id: "Kode di layar cocok dengan order ini." },
     { en: "No readable code, so this could be someone else being refused.", id: "Tidak ada kode yang terbaca, jadi bisa saja ini orang lain yang ditolak." }
   );
-  const checks = [
-    time,
-    place,
-    ticket,
-    inTime,
-  ];
+  const checks = uploaded ? [time, place, ticket, taken, inTime] : [time, place, ticket, inTime];
   // A real photo can be strong without a location (phones strip it), never without the time
   // and this order's code; a location that was read and is elsewhere still weakens it.
   return { strength: strengthOf(checks, [time, ticket, inTime]), checks };
