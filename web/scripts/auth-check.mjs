@@ -92,7 +92,7 @@ try {
   check("email tidak valid ditolak di halaman", await page.getByText("Enter a valid email address.").isVisible());
   await page.getByPlaceholder("you@email.com").fill("zahra@demo.lummy.id");
   await page.getByRole("button", { name: "Email me a sign-in link" }).click();
-  check("email akun demo diarahkan ke Dev Panel", await page.getByText("Demo accounts open from the Dev Panel, not by email.").isVisible());
+  check("email akun demo diarahkan ke tombol akun demo", await page.getByText("Demo accounts open from the demo button below, not by email.").isVisible());
   await page.goto(`${BASE}/login?error=link`, { waitUntil: "networkidle" });
   check("link masuk yang gagal dijelaskan", await page.getByText("That sign-in link did not work.", { exact: false }).isVisible());
 
