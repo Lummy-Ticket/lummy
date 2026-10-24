@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, type ReactNode } from "react";
+import { useState, useRef, useEffect, type ReactNode, type SelectHTMLAttributes } from "react";
 import { ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +10,27 @@ export const MENU_TRIGGER =
 // Filter yang sedang dipakai memakai warna opsi terpilih di popup.
 export const MENU_TRIGGER_ACTIVE = "bg-secondary-blue-soft hover:bg-secondary-blue-soft text-lummy-500 font-medium";
 export const MENU_PANEL = "lm-pop absolute z-40 mt-2 rounded-xl border-2 border-lummy-500 bg-neutral-white shadow-lummy-lg";
+
+/**
+ * A native select dressed like MENU_TRIGGER: the same box, padding and chevron as the custom menus,
+ * while a phone still opens its own picker. The browser's arrow is hidden so it never sits on the edge.
+ */
+export function NativeSelect({ className, children, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <div className="relative">
+      <select
+        {...props}
+        className={cn(
+          "appearance-none w-full h-12 pl-4 pr-10 rounded-xl border border-lummy-500 bg-neutral-white text-sm text-neutral-black outline-none cursor-pointer truncate hover:bg-secondary-blue-light transition",
+          className
+        )}
+      >
+        {children}
+      </select>
+      <ChevronDown className="w-4 h-4 text-neutral-gray absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+    </div>
+  );
+}
 
 // Dropdown kustom (bukan native select), popup rapi, klik-luar nutup.
 export function SelectMenu({

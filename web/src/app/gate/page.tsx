@@ -9,6 +9,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { Camera, CameraOff, CheckCircle2, CircleHelp, DoorOpen, Loader2, ScanLine, Users, XCircle } from "lucide-react";
+import { NativeSelect } from "@/components/ui/select-menu";
 import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { PageGate } from "@/components/layout/PageGate";
@@ -234,17 +235,17 @@ function GateDoor() {
       <div className="mt-5 grid grid-cols-1 sm:grid-cols-[1fr_9rem] gap-3">
         <label className="flex flex-col gap-1.5 text-xs text-neutral-gray">
           {t("Show", "Acara")}
-          <select data-gate-show value={eventId} onChange={(e) => { setEventId(e.target.value); setOutcome(null); }} className={field}>
+          <NativeSelect data-gate-show value={eventId} onChange={(e) => { setEventId(e.target.value); setOutcome(null); }}>
             {shows.map((e) => (
               <option key={e.id} value={e.id}>
                 {e.title} · {formatEventDate(e.dateISO)}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         <label className="flex flex-col gap-1.5 text-xs text-neutral-gray">
           {t("Gate", "Gate")}
-          <input value={gate} onChange={(e) => setGate(e.target.value)} maxLength={40} className={field} />
+          <input value={gate} onChange={(e) => setGate(e.target.value)} maxLength={40} className={`${field} h-12`} />
         </label>
       </div>
 

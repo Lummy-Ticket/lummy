@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import {
-  UploadCloud, FileText, ScanLine, CheckCircle2, AlertTriangle, Loader2, ArrowRight, ArrowLeft, ShieldCheck, ChevronDown, Minus, Plus, IdCard, Lock,
+  UploadCloud, FileText, ScanLine, CheckCircle2, AlertTriangle, Loader2, ArrowRight, ArrowLeft, ShieldCheck, Minus, Plus, IdCard, Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TransferPolicyNote } from "@/components/common/TransferPolicyNote";
@@ -21,6 +21,7 @@ import { useCatalogue } from "@/lib/catalogue";
 import { FEATURES } from "@/lib/features";
 import { useAccessGuard } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
+import { NativeSelect } from "@/components/ui/select-menu";
 import { useT, useFormatters } from "@/lib/i18n";
 
 function Check({ ok, label, detail }: { ok: boolean; label: string; detail: string }) {
@@ -558,21 +559,15 @@ export default function SellPage() {
             <div className="grid sm:grid-cols-2 gap-4">
               <label className="flex flex-col gap-1.5">
                 <span className="text-xs text-neutral-gray">{t("Event", "Event")}</span>
-                <div className="relative">
-                  <select value={eventId} onChange={(e) => { setEventId(e.target.value); const ev = catalogue.eventById(e.target.value); setTierId(ev?.tiers[0]?.id ?? ""); }} className="appearance-none w-full rounded-xl border border-lummy-500 px-4 py-3 pr-10 text-sm text-neutral-black bg-neutral-white outline-none cursor-pointer">
-                    {events.map((ev) => <option key={ev.id} value={ev.id}>{ev.title}</option>)}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-neutral-gray absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
+                <NativeSelect value={eventId} onChange={(e) => { setEventId(e.target.value); const ev = catalogue.eventById(e.target.value); setTierId(ev?.tiers[0]?.id ?? ""); }}>
+                  {events.map((ev) => <option key={ev.id} value={ev.id}>{ev.title}</option>)}
+                </NativeSelect>
               </label>
               <label className="flex flex-col gap-1.5">
                 <span className="text-xs text-neutral-gray">{t("Ticket tier", "Kategori tiket")}</span>
-                <div className="relative">
-                  <select value={tierId} onChange={(e) => setTierId(e.target.value)} className="appearance-none w-full rounded-xl border border-lummy-500 px-4 py-3 pr-10 text-sm text-neutral-black bg-neutral-white outline-none cursor-pointer">
-                    {event?.tiers.map((t) => <option key={t.id} value={t.id}>{t.name} · {formatIDR(t.faceValue)}</option>)}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-neutral-gray absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
+                <NativeSelect value={tierId} onChange={(e) => setTierId(e.target.value)}>
+                  {event?.tiers.map((t) => <option key={t.id} value={t.id}>{t.name} · {formatIDR(t.faceValue)}</option>)}
+                </NativeSelect>
               </label>
               {!holderNeeded && (
                 <label className="flex flex-col gap-1.5">
