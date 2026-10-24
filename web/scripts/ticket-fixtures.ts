@@ -57,10 +57,11 @@ export async function ticketPdf(o: { codes: Code[]; name?: string; producer: str
   const font = await doc.embedFont(StandardFonts.Helvetica);
   for (const code of o.codes.length ? o.codes : [null]) {
     const page = doc.addPage([420, 595]);
-    // The catalogue's 5 Seconds of Summer show (lib/mock/seed.ts): its day and venue, so a model
-    // that checks them against the show finds it, as it should not for the same tour elsewhere.
+    // The catalogue's 5 Seconds of Summer second show (lib/mock/seed.ts): its day, name and venue, so
+    // a model that checks them against the show finds it, as it should not for the first night or
+    // the same tour elsewhere.
     page.drawText("5SOS: EVERYONE'S A STAR! JAKARTA", { x: 36, y: 540, size: 16, font });
-    page.drawText("Minggu, 6 Desember 2026 - 18:00 WIB", { x: 36, y: 524, size: 10, font });
+    page.drawText("Minggu, 6 Desember 2026 - 18:00 WIB - Second Show", { x: 36, y: 524, size: 10, font });
     page.drawText(`Name: ${o.name ?? "Zahra Amelia"}`, { x: 36, y: 506, size: 12, font });
     page.drawText("CAT 3 - Row C - Seat 12 - Indonesia Arena", { x: 36, y: 490, size: 12, font });
     (o.extra ?? []).forEach((line, i) => page.drawText(line, { x: 36, y: 470 - i * 16, size: 10, font }));

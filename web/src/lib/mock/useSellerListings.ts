@@ -40,7 +40,7 @@ const SEED: SellerListing[] = [
     createdAtISO: "2026-07-15T14:00:00+07:00",
   },
   {
-    id: "sl-3", eventId: "ev-5sos-jakarta", eventTitle: "5 Seconds of Summer: Everyone's a Star! Jakarta",
+    id: "sl-3", eventId: "ev-5sos-jakarta", eventTitle: "5 Seconds of Summer: Everyone's a Star! Jakarta, Second Show",
     tierName: "CAT 3", askPrice: 1_450_000, faceValue: 1_320_000, quantity: 1, status: "review", views: 12,
     ai: { autofilled: true, forgeryScore: 78, barcodeDuplicate: false, pdfSuspicious: true },
     createdAtISO: "2026-08-05T11:00:00+07:00",

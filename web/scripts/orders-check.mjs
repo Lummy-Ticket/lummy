@@ -139,7 +139,18 @@ try {
   if (CHAIN) check("checkout: mode chain aktif", await buyer.page.getByText("Chain mode: a real escrow", { exact: false }).isVisible());
   else if (qris) check("checkout: bayar lewat QRIS mode test", true);
   else check("checkout: bilang pembayarannya simulasi", await buyer.page.locator("[data-simulated-payment]").isVisible());
-  await buyer.page.getByRole("button", { name: /^Pay Rp/ }).click();
+  // Where the gate matches the ID to the name (events.transfer_policy id_match, as for 5 Seconds of
+  // Summer on SODTix's terms), Pay waits until the buyer says they understand that risk.
+  const pay = buyer.page.getByRole("button", { name: /^Pay Rp/ });
+  const nameRisk = buyer.page.getByRole("checkbox", { name: /my ID card matches the name on the ticket/ });
+  const { data: show } = await admin.from("events").select("transfer_policy").eq("id", base.event_id).single();
+  if (show?.transfer_policy === "id_match") {
+    check("checkout: aturan nama harus diakui sebelum bayar", (await pay.isDisabled()) && (await nameRisk.isVisible()));
+    await nameRisk.check();
+  } else {
+    check("checkout: tanpa pengakuan nama kalau acaranya tidak mencocokkan KTP", (await nameRisk.count()) === 0, show?.transfer_policy ?? "null");
+  }
+  await pay.click();
   if (qris) await buyer.page.locator("[data-qris-simulate]").click();
   await buyer.page.waitForURL(/\/tickets\/or-/, { timeout: CHAIN ? 120000 : 30000 });
   const orderId = new URL(buyer.page.url()).pathname.split("/").pop();

@@ -72,6 +72,13 @@ test.describe("user tasks", { tag: "@smoke" }, () => {
     await tapUntil(page, page.getByRole("button", { name: DEMO_SIGN_IN }), (u) => u.pathname === "/checkout");
     await expect(page.locator("[data-sample-payment]")).toBeVisible();
     await expectFitsScreen(page);
+    // A show whose gate matches the ID card to the name (id_match, as 5 Seconds of Summer on SODTix's
+    // terms) asks the buyer to say they understand that before Bayar.
+    const nameRisk = page.getByRole("checkbox", { name: /KTP harus sama dengan nama di tiket/ });
+    if (await nameRisk.isVisible()) {
+      await expect(page.getByRole("button", { name: /^Bayar / })).toBeDisabled();
+      await nameRisk.check();
+    }
     await tapUntil(page, page.getByRole("button", { name: /^Bayar / }), (u) => u.pathname.startsWith("/tickets/or-"));
     // Task 3: the money is held, and the page says until when.
     await expect(page.getByText("Dana terkunci").first()).toBeVisible();

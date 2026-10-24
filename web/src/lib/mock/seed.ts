@@ -20,6 +20,8 @@ const PHOTOS: Record<string, { image: string; imageCredit: string }> = {
   "ev-ye-jakarta": { image: "/assets/events/ev-ye-jakarta.jpg", imageCredit: "Photo: Matete Plays, CC BY-SA 4.0, via Wikimedia Commons" },
   "ev-gnr-jakarta": { image: "/assets/events/ev-gnr-jakarta.jpg", imageCredit: "Photo: Raph_PH, CC BY 2.0, via Wikimedia Commons" },
   "ev-5sos-jakarta": { image: "/assets/events/ev-5sos-jakarta.jpg", imageCredit: "Photo: Sharkywoo at English Wikipedia, CC BY-SA 3.0, via Wikimedia Commons" },
+  // The sold-out first night of the same tour, same band and venue: the same photo.
+  "ev-5sos-jakarta-nov": { image: "/assets/events/ev-5sos-jakarta.jpg", imageCredit: "Photo: Sharkywoo at English Wikipedia, CC BY-SA 3.0, via Wikimedia Commons" },
   "ev-boyz-dewa": { image: "/assets/events/ev-boyz-dewa.jpg", imageCredit: "Photo: Library of Congress Life, CC0, via Wikimedia Commons" },
   "ev-men-i-trust": { image: "/assets/events/ev-men-i-trust.jpg", imageCredit: "Photo: Justin Higuchi, CC BY 2.0, via Wikimedia Commons" },
   "ev-simple-plan": { image: "/assets/events/ev-simple-plan.jpg", imageCredit: "Photo: Alfred Nitsch, CC BY-SA 4.0, via Wikimedia Commons" },
@@ -70,8 +72,9 @@ export const VENUE_LOCATION: Record<string, { lat: number; lng: number }> = {
 
 // Real shows (tasks/real-events-2026.md, with a source for every price): title, day, venue and
 // face values as the promoter or the press published them; where a category sold in phases, the
-// last phase's price. A name rule is set only where the promoter's terms state one (Ye's, on
-// Loket); the rest read "not confirmed". Where no start time was published, 19:00 WIB stands in.
+// last phase's price. A name rule is set only where the terms the tickets are sold under state one
+// (Ye's, on Loket; 5 Seconds of Summer's, on SODTix); the rest read "not confirmed". Where no start
+// time was published, 19:00 WIB stands in.
 // Shows abroad are priced in USDC, in micro-USDC.
 // One sample show stays, named as one, for what a demo has to show on any day: the last-minute
 // listing (always tomorrow), a duplicate barcode, a held listing, and an ID-match checkout.
@@ -100,11 +103,37 @@ export const seedEvents = (now: number): SeedEvent[] => [
       { id: "t-gnr-fest-c", name: "Festival C", faceValue: 1_750_000 },
     ],
   },
+  // 5 Seconds of Summer, two nights with the same seat plan and prices; the first sold out in May.
+  // Tickets are sold on SODTix, in the buyer's name with an ID number, and its terms (items 6 and 7)
+  // turn away an e-ticket whose name differs from the ID shown, unless the promoter accepts a signed
+  // letter; Chakra Live Asia has not said it does. Both start at 18:00 WIB: SODTix's own record for
+  // the second show runs 18:00 to 23:00; no door time is published, and the first show's record is
+  // not public, so it takes the same hour. The No.1 Obsession packages are tickets with extras; the
+  // Bite the Apple upgrade is not a ticket, so it is not a category here.
   {
-    id: "ev-5sos-jakarta", title: "5 Seconds of Summer: Everyone's a Star! Jakarta", category: "Music",
-    dateISO: "2026-12-06T18:00:00+07:00", venue: "Indonesia Arena", city: "Jakarta",
-    ...art("ev-5sos-jakarta"), transferPolicy: null,
+    id: "ev-5sos-jakarta-nov", title: "5 Seconds of Summer: Everyone's a Star! Jakarta", category: "Music",
+    dateISO: "2026-11-14T18:00:00+07:00", venue: "Indonesia Arena", city: "Jakarta",
+    ...art("ev-5sos-jakarta-nov"), transferPolicy: "id_match",
     tiers: [
+      { id: "t-5sos-nov-vip-box", name: "VIP Box No.1 Obsession Seat Package", faceValue: 5_000_000 },
+      { id: "t-5sos-nov-cat1-vip", name: "CAT 1 VIP No.1 Obsession Seat Package", faceValue: 4_140_000 },
+      { id: "t-5sos-nov-ga-vip", name: "GA VIP No.1 Obsession Package", faceValue: 3_950_000 },
+      { id: "t-5sos-nov-cat1", name: "CAT 1", faceValue: 2_140_000 },
+      { id: "t-5sos-nov-ga", name: "GA", faceValue: 1_950_000 },
+      { id: "t-5sos-nov-cat2", name: "CAT 2", faceValue: 1_630_000 },
+      { id: "t-5sos-nov-cat3", name: "CAT 3", faceValue: 1_320_000 },
+      { id: "t-5sos-nov-cat4", name: "CAT 4", faceValue: 910_000 },
+    ],
+  },
+  {
+    // SODTix names it the second show, which also tells the two apart in the sell form's list.
+    id: "ev-5sos-jakarta", title: "5 Seconds of Summer: Everyone's a Star! Jakarta, Second Show", category: "Music",
+    dateISO: "2026-12-06T18:00:00+07:00", venue: "Indonesia Arena", city: "Jakarta",
+    ...art("ev-5sos-jakarta"), transferPolicy: "id_match",
+    tiers: [
+      { id: "t-5sos-vip-box", name: "VIP Box No.1 Obsession Seat Package", faceValue: 5_000_000 },
+      { id: "t-5sos-cat1-vip", name: "CAT 1 VIP No.1 Obsession Seat Package", faceValue: 4_140_000 },
+      { id: "t-5sos-ga-vip", name: "GA VIP No.1 Obsession Package", faceValue: 3_950_000 },
       { id: "t-5sos-cat1", name: "CAT 1", faceValue: 2_140_000 },
       { id: "t-5sos-ga", name: "GA", faceValue: 1_950_000 },
       { id: "t-5sos-cat2", name: "CAT 2", faceValue: 1_630_000 },
@@ -210,7 +239,9 @@ export const SEED_LISTINGS: Listing[] = [
   { id: "ls-18", eventId: "ev-ye-jakarta", tierId: "t-ye-fest", sellerName: "Andre S.", askPrice: 4_200_000, faceValue: 3_500_000, quantity: 2, splittable: true, status: "active", gateKtp: false, ai: ok(7) },
   { id: "ls-19", eventId: "ev-ye-jakarta", tierId: "t-ye-cat4", sellerName: "Citra N.", askPrice: 2_450_000, faceValue: 1_875_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(9) },
   { id: "ls-20", eventId: "ev-ye-jakarta", tierId: "t-ye-cat1", sellerName: "Hendra W.", askPrice: 5_600_000, faceValue: 4_875_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(11) },
-  // 5 Seconds of Summer
+  // 5 Seconds of Summer: the sold-out first night, then the second.
+  { id: "ls-27", eventId: "ev-5sos-jakarta-nov", tierId: "t-5sos-nov-cat3", sellerName: "Nabila F.", askPrice: 1_550_000, faceValue: 1_320_000, quantity: 2, splittable: true, status: "active", gateKtp: false, ai: ok(6) },
+  { id: "ls-28", eventId: "ev-5sos-jakarta-nov", tierId: "t-5sos-nov-ga", sellerName: "Rizky H.", askPrice: 2_350_000, faceValue: 1_950_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(9) },
   { id: "ls-12", eventId: "ev-5sos-jakarta", tierId: "t-5sos-cat4", sellerName: "Salsa M.", askPrice: 1_050_000, faceValue: 910_000, quantity: 2, splittable: false, status: "active", gateKtp: false, ai: ok(6) },
   { id: "ls-13", eventId: "ev-5sos-jakarta", tierId: "t-5sos-cat3", sellerName: "Dimas R.", askPrice: 1_450_000, faceValue: 1_320_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(10) },
   { id: "ls-16", eventId: "ev-5sos-jakarta", tierId: "t-5sos-ga", sellerName: "Ayu S.", askPrice: 2_100_000, faceValue: 1_950_000, quantity: 2, splittable: true, status: "active", gateKtp: false, ai: ok(7) },
