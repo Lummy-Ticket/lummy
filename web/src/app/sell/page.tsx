@@ -1,17 +1,17 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import {
-  UploadCloud, FileText, ScanLine, CheckCircle2, AlertTriangle, Loader2, ArrowRight, ArrowLeft, ShieldCheck, Minus, Plus, IdCard, Lock,
+  UploadCloud, FileText, ScanLine, CheckCircle2, AlertTriangle, Loader2, ArrowRight, ArrowLeft, ShieldCheck, Minus, Plus, IdCard, Lock, Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TransferPolicyNote } from "@/components/common/TransferPolicyNote";
 import {
   getTier, CAP_PCT, FLOOR_PCT, useSellerListings, useUser, type ListingAI,
-  isLateListing, LATE_LISTING_H, resaleAllowed,
+  isLateListing, LATE_LISTING_H, resaleAllowed, SELLER_PENALTY_PCT,
 } from "@/lib/mock";
 import { SAMPLE_SIGNALS, type SampleTicket } from "@/lib/listings/rules";
 import { FILL_BY, ListingError, checkTicketFile, createListing, fillFromTicket, useTicketFill, useTicketReader, type TicketFill } from "@/lib/listings/client";
@@ -62,13 +62,21 @@ function fillMessage(outcome: Exclude<TicketFill["outcome"], "filled">, t: T) {
   }
 }
 
-/** The sample tickets' file names, as a seller would see them. */
+/** The sample tickets' file names, as a seller would see them: samples for the sample show, Lummy Demo Fest. */
 const SAMPLE_FILES: Record<SampleTicket, string> = {
-  good: "tulus-genuine.pdf",
-  edited: "tulus-edited.pdf",
-  dup: "tulus-duplicate.pdf",
+  good: "demofest-sample-genuine.pdf",
+  edited: "demofest-sample-edited.pdf",
+  dup: "demofest-sample-duplicate.pdf",
 };
-const SAMPLE_NAMES = new Set([...Object.values(SAMPLE_FILES), "tulus-vip-ticket.pdf"]);
+const SAMPLE_NAMES = new Set(Object.values(SAMPLE_FILES));
+/** The samples a seller can try, as the page names them and their files. */
+const SAMPLES = [
+  { id: "good", en: "Genuine ticket", id_: "Tiket asli", file: { en: "genuine", id: "asli" } },
+  { id: "edited", en: "Edited ticket", id_: "Tiket editan", file: { en: "edited", id: "editan" } },
+  { id: "dup", en: "Duplicate barcode", id_: "Barcode duplikat", file: { en: "duplicate", id: "duplikat" } },
+] as const;
+/** Which sample a file is, by its name, so a downloaded sample uploaded again is checked as itself. */
+const sampleNamed = (name: string) => (Object.keys(SAMPLE_FILES) as SampleTicket[]).find((s) => SAMPLE_FILES[s] === name);
 
 const STEPS = [
   { en: "Upload PDF", id: "Upload PDF" },
@@ -77,6 +85,14 @@ const STEPS = [
 ];
 
 export default function SellPage() {
+  return (
+    <Suspense fallback={<PageGate />}>
+      <SellForm />
+    </Suspense>
+  );
+}
+
+function SellForm() {
   const t = useT();
   const { formatIDR, formatEventDate } = useFormatters();
   const ready = useAccessGuard("account");
@@ -104,6 +120,8 @@ export default function SellPage() {
   const sendsRealFile = !!(check && ticketFile);
   const catalogue = useCatalogue();
   const [fileName, setFileName] = useState<string | null>(null);
+  // A file a sample persona chose itself, as opposed to a sample picked below: either way only simulated.
+  const [uploaded, setUploaded] = useState(false);
   // Selling for a show priced in USDC is not open yet: its listings are added by the team.
   const events = catalogue.events.filter((e) => e.currency !== "USDC");
 
@@ -113,8 +131,13 @@ export default function SellPage() {
   const [dragging, setDragging] = useState(false);
 
   // extracted / editable
-  const [eventId, setEventId] = useState("ev-5sos-jakarta");
-  const [tierId, setTierId] = useState("t-5sos-cat3");
+  // The show a seller came from (/sell?event=, from its page) starts picked, with its first category
+  // as the show list does, but only a show on sale here that its organiser lets be resold.
+  const params = useSearchParams();
+  const askedId = params.get("event");
+  const asked = askedId ? events.find((e) => e.id === askedId && resaleAllowed(e.transferPolicy)) : undefined;
+  const [eventId, setEventId] = useState(asked?.id ?? "ev-5sos-jakarta");
+  const [tierId, setTierId] = useState(asked ? asked.tiers[0]?.id ?? "" : "t-5sos-cat3");
   const [orderer, setOrderer] = useState("");
   // With the AI step on, a real ticket is read by a model, here and again at publish. The original
   // buyer's name, typed as printed, is what keeps it out of what the model reads, so it comes first.
@@ -159,6 +182,14 @@ export default function SellPage() {
   const closed = !!event && !resaleAllowed(event.transferPolicy);
   const nameChecked = event?.transferPolicy === "letter" || event?.transferPolicy === "id_match";
 
+  /** A file chosen where the check is simulated: a sample's own file picks that sample. */
+  const pickDemoFile = (f: File | null | undefined) => {
+    setFileName(f?.name ?? null);
+    setUploaded(!!f);
+    const s = f && sampleNamed(f.name);
+    if (s) setSample(s);
+  };
+
   /** A file chosen from disk, for an account whose server checks real PDFs. */
   const pickTicket = (f: File | null | undefined) => {
     if (!f) return;
@@ -179,8 +210,12 @@ export default function SellPage() {
       // category left as it was would be listed without the seller ever choosing it.
       if (res.outcome === "filled") {
         const ev = res.eventId ? catalogue.eventById(res.eventId) : undefined;
-        setEventId(ev?.id ?? "");
-        setTierId(ev?.tiers.some((x) => x.id === res.facts.tierId) ? res.facts.tierId! : "");
+        // The show the seller came from is their own pick, so it stays when the ticket names none; a
+        // show the ticket does name wins, and the page says it is not the one they came from.
+        const kept = !ev && asked && eventId === asked.id ? asked : undefined;
+        const show = ev ?? kept;
+        setEventId(show?.id ?? "");
+        setTierId(show?.tiers.some((x) => x.id === res.facts.tierId) ? res.facts.tierId! : "");
       }
     } catch (e) {
       setFill(null);
@@ -253,7 +288,13 @@ export default function SellPage() {
       lateListing: late,
       gateKtp,
     });
-    toast.success(flagged || late ? t("Submitted for admin review", "Diajukan untuk review admin") : t("Listing is live, protected by escrow.", "Listing tayang, dijaga escrow."));
+    // A sample persona's listing lives in this browser only: nobody else sees it, the show page included.
+    toast.success(
+      flagged || late
+        ? t("Submitted for review, in this demo only: the listing stays in this browser.", "Diajukan untuk review, khusus di demo ini: listing-nya hanya ada di browser ini.")
+        : t("Listed in this demo. It stays in this browser, so the show page does not list it.", "Tayang di demo ini. Listing-nya hanya ada di browser ini, jadi tidak muncul di halaman acara."),
+      { duration: 6000 }
+    );
     router.push("/seller");
   };
 
@@ -268,6 +309,22 @@ export default function SellPage() {
           "Upload PDF dari penyelenggara. Lummy membaca semua barcode di dalamnya dan mengecek file-nya bukan editan."
         )}
       </p>
+
+      {/* A sample persona has no ticket of its own: it tries the checks on the samples. */}
+      {!account && step === 0 && (
+        <div data-demo-sell className="mt-4 flex items-start gap-3 rounded-2xl bg-secondary-blue-extra p-4 text-sm">
+          <Info className="w-4 h-4 shrink-0 mt-0.5 text-lummy-500" />
+          <div className="min-w-0">
+            <div className="font-semibold text-primary-navy">{t("Demo account: no real ticket needed", "Akun demo: tidak perlu tiket asli")}</div>
+            <p className="mt-0.5 text-neutral-gray">
+              {t(
+                "Pick a sample ticket below, a genuine one, an edited one or a duplicate barcode, then press Check the ticket to see what Lummy checks. With a demo account the check is simulated from the sample, and the listing stays in this browser.",
+                "Pilih tiket contoh di bawah, yang asli, editan, atau barcode duplikat, lalu tekan Cek tiketnya untuk melihat apa saja yang dicek Lummy. Di akun demo, ceknya disimulasikan dari contoh itu, dan listing-nya hanya tersimpan di browser ini."
+              )}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Steps */}
       <div className="flex items-center gap-2 mt-6 mb-8">
@@ -313,7 +370,7 @@ export default function SellPage() {
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (realUpload) pickTicket(f);
-              else setFileName(f?.name ?? null);
+              else pickDemoFile(f);
             }}
           />
           <button
@@ -327,7 +384,7 @@ export default function SellPage() {
               const f = e.dataTransfer.files?.[0];
               if (!f) return;
               if (realUpload) pickTicket(f);
-              else setFileName(f.name);
+              else pickDemoFile(f);
             }}
             className={`border-2 border-dashed border-lummy-500 rounded-3xl py-12 flex flex-col items-center gap-3 text-center hover:bg-secondary-blue-light transition cursor-pointer ${dragging ? "bg-secondary-blue-light scale-[1.01]" : ""}`}
           >
@@ -344,16 +401,21 @@ export default function SellPage() {
               <FileText className="w-4 h-4 text-lummy-500" /> {fileName}
             </div>
           ) : !realUpload ? (
-            <button onClick={() => setFileName("tulus-vip-ticket.pdf")} className="text-sm text-primary-navy font-medium hover:opacity-80 w-fit">
+            <button onClick={() => { setFileName(SAMPLE_FILES[sample]); setUploaded(false); }} className="text-sm text-primary-navy font-medium hover:opacity-80 w-fit">
               {t("No file handy? Use a sample", "Gak punya file? Pakai contoh")}
             </button>
           ) : null}
-          {!account && fileName && !SAMPLE_NAMES.has(fileName) && (
+          {!account && fileName && uploaded && (
             <p data-simulated-check className="text-xs text-neutral-gray">
-              {t(
-                "A demo account only simulates the check: the result comes from the sample you pick below, not from this file. Sign in with email to check a real PDF.",
-                "Akun demo cuma menyimulasikan cek: hasilnya dari contoh yang kamu pilih di bawah, bukan dari file ini. Masuk dengan email untuk mengecek PDF asli."
-              )}
+              {SAMPLE_NAMES.has(fileName)
+                ? t(
+                    "A demo account only simulates the check: this file is not read, and the result shown is the one for this sample. Sign in with email to check a real PDF.",
+                    "Akun demo cuma menyimulasikan cek: file ini tidak dibaca, dan hasil yang tampil adalah hasil untuk contoh ini. Masuk dengan email untuk mengecek PDF asli."
+                  )
+                : t(
+                    "A demo account only simulates the check: the result comes from the sample you pick below, not from this file. Sign in with email to check a real PDF.",
+                    "Akun demo cuma menyimulasikan cek: hasilnya dari contoh yang kamu pilih di bawah, bukan dari file ini. Masuk dengan email untuk mengecek PDF asli."
+                  )}
             </p>
           )}
           </>
@@ -373,17 +435,13 @@ export default function SellPage() {
                   : t("Demo: try the check on different tickets", "Demo: coba cek beberapa jenis tiket")}
             </div>
             <div className="flex flex-wrap gap-2">
-              {([
-                { id: "good", en: "Genuine ticket", id_: "Tiket asli" },
-                { id: "edited", en: "Edited ticket", id_: "Tiket editan" },
-                { id: "dup", en: "Duplicate barcode", id_: "Barcode duplikat" },
-              ] as const).map((s) => {
+              {SAMPLES.map((s) => {
                 // With real uploads on, no sample counts as picked until one is clicked.
                 const picked = !ticketFile && sample === s.id && (!realUpload || fileName === SAMPLE_FILES[s.id]);
                 return (
                   <button
                     key={s.id}
-                    onClick={() => { setSample(s.id); setFileName(SAMPLE_FILES[s.id]); setTicketFile(null); setCheck(null); }}
+                    onClick={() => { setSample(s.id); setFileName(SAMPLE_FILES[s.id]); setUploaded(false); setTicketFile(null); setCheck(null); }}
                     className={`px-3 py-1.5 rounded-lg text-sm border cursor-pointer ${picked ? "bg-primary-navy text-white border-primary-navy" : "bg-neutral-white text-neutral-gray border-neutral-light-gray-1"}`}
                   >
                     {t(s.en, s.id_)}
@@ -391,6 +449,21 @@ export default function SellPage() {
                 );
               })}
             </div>
+            {/* The same samples as files, to try the upload itself. Each is stamped as a sample, and a
+                demo account's upload is still only simulated (said above once a file is chosen). */}
+            {!account && (
+              <p data-sample-downloads className="mt-3 text-xs text-neutral-gray leading-relaxed">
+                {t("Want to try the upload itself? Download a sample PDF for Lummy Demo Fest, marked SAMPLE, not a real ticket:", "Mau coba upload-nya juga? Unduh PDF contoh untuk Lummy Demo Fest, bertanda CONTOH, bukan tiket asli:")}{" "}
+                {SAMPLES.map((s, i) => (
+                  <span key={s.id}>
+                    {i > 0 && " · "}
+                    <a href={`/samples/${SAMPLE_FILES[s.id]}`} download className="text-primary-navy font-medium underline underline-offset-2">
+                      {t(s.file.en, s.file.id)}
+                    </a>
+                  </span>
+                ))}
+              </p>
+            )}
           </div>
 
           <Button.Primary wrapperClass="w-fit" className="flex items-center gap-2" disabled={analyzing || (realUpload ? !fileName : !fileName && !account)} onClick={analyze}>
@@ -546,8 +619,22 @@ export default function SellPage() {
                         ? fill.facts.tierId
                           ? t("The show and category are picked below. Check them.", "Acara dan kategorinya sudah dipilihkan di bawah. Cek lagi.")
                           : t("The show is picked below. Its category was not found, so pick it yourself.", "Acaranya sudah dipilihkan di bawah. Kategorinya tidak ketemu, jadi pilih sendiri.")
-                        : t("The show was not found in the catalogue: pick it below.", "Acaranya tidak ketemu di katalog: pilih sendiri di bawah.")}
+                        : asked && eventId === asked.id
+                          ? t(
+                              "No show on sale matches the ticket, so the show you came from stays picked. Check it, and pick the category if it is empty.",
+                              "Tidak ada acara yang dijual yang cocok dengan tiketnya, jadi acara yang tadi kamu buka tetap dipilih. Cek lagi, dan pilih kategorinya kalau masih kosong."
+                            )
+                          : t("The show was not found in the catalogue: pick it below.", "Acaranya tidak ketemu di katalog: pilih sendiri di bawah.")}
                     </span>
+                    {asked && fill.eventId && fill.eventId !== asked.id && catalogue.eventById(fill.eventId) && (
+                      <span data-fill-other-show className="flex items-start gap-1.5 text-secondary-orange-dark">
+                        <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+                        {t(
+                          `This ticket is for another show than the one you came from, ${asked.title}, so the ticket's own show is picked.`,
+                          `Tiket ini untuk acara lain, bukan ${asked.title} yang tadi kamu buka, jadi acara sesuai tiketnya yang dipilih.`
+                        )}
+                      </span>
+                    )}
                     {pastTicket && fill.facts.date && (
                       <span data-fill-past className="flex items-start gap-1.5 text-secondary-pink-dark">
                         <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
@@ -670,10 +757,10 @@ export default function SellPage() {
             )}
           </div>
 
-          {/* Staging an ID card for the gate. Lummy does not store ID cards yet (lib/features.ts), so an
-              account does not see this, and the server ignores it; a sample persona keeps the stand-in,
-              labelled, for the demo. The transfer note above tells a seller what to do instead. */}
-          {(FEATURES.sellerIdCard || !account) && (
+          {/* Staging an ID card for the gate. Lummy does not store ID cards yet (lib/features.ts), so
+              nobody sees this, a sample persona included, and the server ignores it. The transfer note
+              in the previous step tells a seller what to do instead. */}
+          {FEATURES.sellerIdCard && (
           <div className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-6">
             <label className="flex items-start justify-between gap-4 cursor-pointer">
               <span>
@@ -691,8 +778,8 @@ export default function SellPage() {
               <p className="mt-3 flex items-start gap-2 text-xs text-secondary-orange-dark">
                 <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                 {t(
-                  "This show checks names at the gate. Without your ID card staged, a refusal over the name counts as a failed ticket, with the seller penalty.",
-                  "Acara ini mengecek nama di gate. Tanpa KTP yang disiapkan, penolakan karena nama dihitung sebagai tiket gagal, lengkap dengan penalti penjual."
+                  `This show checks names at the gate. Without your ID card staged, a buyer turned away over the name counts as a failed ticket: the buyer gets their money back and you get the ${SELLER_PENALTY_PCT}% seller penalty.`,
+                  `Acara ini mengecek nama di gate. Tanpa KTP yang disiapkan, pembeli yang ditolak karena nama dihitung tiket gagal: uang pembeli kembali dan kamu kena penalti penjual ${SELLER_PENALTY_PCT}%.`
                 )}
               </p>
             )}
