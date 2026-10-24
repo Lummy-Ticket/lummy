@@ -4,8 +4,30 @@
 // loaded from Supabase; without it (no env, or the read failed) this falls back to the
 // sample seed, so the app never breaks on a missing database.
 import { createContext, useContext, useMemo, type ReactNode } from "react";
-import { SEED_LISTINGS, getEventById, getEvents, getListingsByEvent, isEventOver, isSampleEvent } from "@/lib/mock/seed";
+import { SEARCH_KEYWORDS, SEED_LISTINGS, getEventById, getEvents, getListingsByEvent, isEventOver, isSampleEvent } from "@/lib/mock/seed";
 import type { EventItem, Listing } from "@/lib/mock/types";
+
+// The words a category answers to in either language, so "konser" finds the concerts.
+const CATEGORY_WORDS: Record<string, string> = {
+  Music: "musik concert konser gig",
+  Sports: "olahraga",
+  Theater: "teater",
+  Arts: "seni",
+  Technology: "teknologi tech conference konferensi crypto kripto blockchain web3",
+  Education: "edukasi",
+  Food: "kuliner",
+  Movies: "film",
+};
+// Lower case, accents and apostrophes off, so "guns n roses" finds "Guns N' Roses".
+const fold = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/['’]/g, "");
+
+/** Whether a show answers a search: every word in its title, venue, city, category or short names. */
+export function matchesSearch(e: EventItem, q: string): boolean {
+  const words = fold(q).split(/\s+/).filter(Boolean);
+  if (!words.length) return true;
+  const hay = fold([e.title, e.venue, e.city, e.category, CATEGORY_WORDS[e.category] ?? "", SEARCH_KEYWORDS[e.id] ?? ""].join(" "));
+  return words.every((w) => hay.includes(w));
+}
 
 /**
  * "Popular right now": the featured shows still to come, topped up with the soonest real shows

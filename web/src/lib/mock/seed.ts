@@ -57,6 +57,20 @@ export const ROLLING_HOUR: Record<string, number> = { "ev-demo-fest": 14 };
 /** The sample show is the one that is always tomorrow; every other show is real. */
 export const isSampleEvent = (id: string) => id in ROLLING_HOUR;
 
+/** Short names fans type that the titles do not carry, matched by the search boxes (lib/catalogue). */
+export const SEARCH_KEYWORDS: Record<string, string> = {
+  "ev-ye-jakarta": "kanye west",
+  "ev-gnr-jakarta": "gnr guns and roses",
+  "ev-5sos-jakarta-nov": "5sos first show",
+  "ev-5sos-jakarta": "5sos",
+  "ev-boyz-dewa": "boyz 2 men boys dewa19",
+  "ev-dwp-2026": "dwp",
+  "ev-bbw-2026": "bbw binance",
+  "ev-devcon-8": "ethereum",
+  "ev-sbw-2026": "sbw",
+  "ev-demo-fest": "sample acara contoh",
+};
+
 /**
  * Where each venue is, for the location check on claim photos (radius 1.5 km,
  * lib/evidence/server.ts). Taken from each venue's Wikipedia article, not guessed. Tennis Indoor

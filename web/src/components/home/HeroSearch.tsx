@@ -62,9 +62,14 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
               <TrendingUp className="w-3.5 h-3.5 text-lummy-500" /> {query ? t("Search results", "Hasil pencarian") : t("Popular right now", "Lagi banyak dicari")}
             </div>
             {suggestions.length === 0 && (
-              <p className="px-4 py-4 text-sm text-neutral-gray">
-                {t(`Nothing on sale for "${q.trim()}" yet.`, `Belum ada yang dijual untuk "${q.trim()}".`)}
-              </p>
+              <div className="px-4 py-4 text-sm">
+                <p className="text-sm text-neutral-gray">
+                  {t(`Nothing on sale for "${q.trim()}" yet.`, `Belum ada yang dijual untuk "${q.trim()}".`)}
+                </p>
+                <Link href="/events" onClick={() => setOpen(false)} className="mt-1 inline-block font-medium text-primary-navy hover:underline">
+                  {t("See all events", "Lihat semua event")}
+                </Link>
+              </div>
             )}
             {suggestions.map((e) => (
               <Link
