@@ -69,6 +69,12 @@ const SAMPLE_FILES: Record<SampleTicket, string> = {
   dup: "demofest-sample-duplicate.pdf",
 };
 const SAMPLE_NAMES = new Set(Object.values(SAMPLE_FILES));
+/** The samples a seller can try, as the page names them and their files. */
+const SAMPLES = [
+  { id: "good", en: "Genuine ticket", id_: "Tiket asli", file: { en: "genuine", id: "asli" } },
+  { id: "edited", en: "Edited ticket", id_: "Tiket editan", file: { en: "edited", id: "editan" } },
+  { id: "dup", en: "Duplicate barcode", id_: "Barcode duplikat", file: { en: "duplicate", id: "duplikat" } },
+] as const;
 /** Which sample a file is, by its name, so a downloaded sample uploaded again is checked as itself. */
 const sampleNamed = (name: string) => (Object.keys(SAMPLE_FILES) as SampleTicket[]).find((s) => SAMPLE_FILES[s] === name);
 
@@ -106,6 +112,8 @@ export default function SellPage() {
   const sendsRealFile = !!(check && ticketFile);
   const catalogue = useCatalogue();
   const [fileName, setFileName] = useState<string | null>(null);
+  // A file a sample persona chose itself, as opposed to a sample picked below: either way only simulated.
+  const [uploaded, setUploaded] = useState(false);
   // Selling for a show priced in USDC is not open yet: its listings are added by the team.
   const events = catalogue.events.filter((e) => e.currency !== "USDC");
 
@@ -164,6 +172,7 @@ export default function SellPage() {
   /** A file chosen where the check is simulated: a sample's own file picks that sample. */
   const pickDemoFile = (f: File | null | undefined) => {
     setFileName(f?.name ?? null);
+    setUploaded(!!f);
     const s = f && sampleNamed(f.name);
     if (s) setSample(s);
   };
@@ -369,16 +378,21 @@ export default function SellPage() {
               <FileText className="w-4 h-4 text-lummy-500" /> {fileName}
             </div>
           ) : !realUpload ? (
-            <button onClick={() => setFileName(SAMPLE_FILES[sample])} className="text-sm text-primary-navy font-medium hover:opacity-80 w-fit">
+            <button onClick={() => { setFileName(SAMPLE_FILES[sample]); setUploaded(false); }} className="text-sm text-primary-navy font-medium hover:opacity-80 w-fit">
               {t("No file handy? Use a sample", "Gak punya file? Pakai contoh")}
             </button>
           ) : null}
-          {!account && fileName && !SAMPLE_NAMES.has(fileName) && (
+          {!account && fileName && uploaded && (
             <p data-simulated-check className="text-xs text-neutral-gray">
-              {t(
-                "A demo account only simulates the check: the result comes from the sample you pick below, not from this file. Sign in with email to check a real PDF.",
-                "Akun demo cuma menyimulasikan cek: hasilnya dari contoh yang kamu pilih di bawah, bukan dari file ini. Masuk dengan email untuk mengecek PDF asli."
-              )}
+              {SAMPLE_NAMES.has(fileName)
+                ? t(
+                    "A demo account only simulates the check: this file is not read, and the result shown is the one for this sample. Sign in with email to check a real PDF.",
+                    "Akun demo cuma menyimulasikan cek: file ini tidak dibaca, dan hasil yang tampil adalah hasil untuk contoh ini. Masuk dengan email untuk mengecek PDF asli."
+                  )
+                : t(
+                    "A demo account only simulates the check: the result comes from the sample you pick below, not from this file. Sign in with email to check a real PDF.",
+                    "Akun demo cuma menyimulasikan cek: hasilnya dari contoh yang kamu pilih di bawah, bukan dari file ini. Masuk dengan email untuk mengecek PDF asli."
+                  )}
             </p>
           )}
           </>
@@ -398,17 +412,13 @@ export default function SellPage() {
                   : t("Demo: try the check on different tickets", "Demo: coba cek beberapa jenis tiket")}
             </div>
             <div className="flex flex-wrap gap-2">
-              {([
-                { id: "good", en: "Genuine ticket", id_: "Tiket asli" },
-                { id: "edited", en: "Edited ticket", id_: "Tiket editan" },
-                { id: "dup", en: "Duplicate barcode", id_: "Barcode duplikat" },
-              ] as const).map((s) => {
+              {SAMPLES.map((s) => {
                 // With real uploads on, no sample counts as picked until one is clicked.
                 const picked = !ticketFile && sample === s.id && (!realUpload || fileName === SAMPLE_FILES[s.id]);
                 return (
                   <button
                     key={s.id}
-                    onClick={() => { setSample(s.id); setFileName(SAMPLE_FILES[s.id]); setTicketFile(null); setCheck(null); }}
+                    onClick={() => { setSample(s.id); setFileName(SAMPLE_FILES[s.id]); setUploaded(false); setTicketFile(null); setCheck(null); }}
                     className={`px-3 py-1.5 rounded-lg text-sm border cursor-pointer ${picked ? "bg-primary-navy text-white border-primary-navy" : "bg-neutral-white text-neutral-gray border-neutral-light-gray-1"}`}
                   >
                     {t(s.en, s.id_)}
@@ -416,6 +426,21 @@ export default function SellPage() {
                 );
               })}
             </div>
+            {/* The same samples as files, to try the upload itself. Each is stamped as a sample, and a
+                demo account's upload is still only simulated (said above once a file is chosen). */}
+            {!account && (
+              <p data-sample-downloads className="mt-3 text-xs text-neutral-gray leading-relaxed">
+                {t("Want to try the upload itself? Download a sample PDF for Lummy Demo Fest, marked SAMPLE, not a real ticket:", "Mau coba upload-nya juga? Unduh PDF contoh untuk Lummy Demo Fest, bertanda CONTOH, bukan tiket asli:")}{" "}
+                {SAMPLES.map((s, i) => (
+                  <span key={s.id}>
+                    {i > 0 && " · "}
+                    <a href={`/samples/${SAMPLE_FILES[s.id]}`} download className="text-primary-navy font-medium underline underline-offset-2">
+                      {t(s.file.en, s.file.id)}
+                    </a>
+                  </span>
+                ))}
+              </p>
+            )}
           </div>
 
           <Button.Primary wrapperClass="w-fit" className="flex items-center gap-2" disabled={analyzing || (realUpload ? !fileName : !fileName && !account)} onClick={analyze}>
