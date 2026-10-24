@@ -129,7 +129,7 @@ export async function POST(req: Request) {
   }
 
   const [ev, tier] = await Promise.all([
-    admin.from("catalogue_events").select("starts_at, status, transfer_policy, currency").eq("id", eventId).maybeSingle(),
+    admin.from("catalogue_events").select("starts_at, status, transfer_policy, currency, title, venue, city").eq("id", eventId).maybeSingle(),
     admin.from("tiers").select("face_value").eq("id", tierId).eq("event_id", eventId).maybeSingle(),
   ]);
   if (ev.error || tier.error) return fail(500, (ev.error ?? tier.error)!.message);
@@ -150,11 +150,13 @@ export async function POST(req: Request) {
   if (ticket && checks) {
     // What the ticket itself prints, read here from the stored file rather than taken from the page.
     // Off, busy or unreadable leaves the listing as the other checks decide: the AI step only adds.
+    // A buyer's name the ticket does not print is not read either, and a person looks instead, so a
+    // name typed wrong on purpose cannot skip the cross-check.
     const tiers = await admin.from("tiers").select("id, name").eq("event_id", eventId);
-    const read = tiers.data?.length
-      ? await readTicketFacts(ticket.bytes, namesToTakeOut(user, holder), { tiers: tiers.data }, 15_000).catch(() => null)
-      : null;
+    const who = { holder, names: namesToTakeOut(user, holder), known: [ev.data.title, ev.data.venue, ev.data.city].map((w) => w ?? "") };
+    const read = tiers.data?.length ? await readTicketFacts(ticket.bytes, who, { tiers: tiers.data }, 15_000).catch(() => null) : null;
     if (read?.ok) checks = { ...checks, ai: { model: read.model, facts: read.facts, differs: factDiffs(read.facts, { tierId, startsAt: ev.data.starts_at }) } };
+    else if (read?.reason === "holder_not_found") checks = { ...checks, nameNotOnTicket: true };
   }
   const status = (checks ? reviewReasons(checks).length > 0 : isFlagged(signals)) || late ? "review" : "active";
   const keys = barcodes.map((b) => b.key);

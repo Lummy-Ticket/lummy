@@ -75,9 +75,10 @@ export async function readTicketText(bytes: Uint8Array): Promise<TicketText> {
 
 /**
  * The ticket as it may leave for the model, or why it may not. `names`: the seller's account name
- * and the holder's name the seller typed, both taken out wherever they appear.
+ * and the like, taken out wherever they appear; `holder`: the holder's name as the seller typed it,
+ * which must also be printed on the ticket; `known`: words of the shows on sale (lib/tickets/clean.ts).
  */
-export async function prepareForExtraction(bytes: Uint8Array, names: string[]): Promise<CleanResult> {
+export async function prepareForExtraction(bytes: Uint8Array, names: string[], o: { holder?: string; known?: string[] } = {}): Promise<CleanResult> {
   const { pages, payloads } = await readTicketText(bytes);
-  return cleanTicketText({ pages, payloads, names });
+  return cleanTicketText({ pages, payloads, names, ...o });
 }

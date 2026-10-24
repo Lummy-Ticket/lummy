@@ -53,6 +53,8 @@ export type ListingChecks = {
   producer: string | null;
   /** The AI step at publish, when the server has one: what it read, and where that differs. */
   ai?: { model: string; facts: TicketFacts; differs: FactDiff[] } | null;
+  /** The buyer's name the seller typed is not printed on the ticket, so the AI step did not read it. */
+  nameNotOnTicket?: boolean;
 };
 
 /**
@@ -92,15 +94,17 @@ export const isDuplicate = (c: TicketCheck) => c.sameFile || c.barcodes.some((b)
 
 /**
  * Why a person looks before the listing goes live: a forensic flag or a high score, no barcode
- * to hold (so nothing stops the same ticket being listed twice), pages left unread, or a ticket
- * that prints another category or day than the seller picked.
+ * to hold (so nothing stops the same ticket being listed twice), pages left unread, a ticket
+ * that prints another category or day than the seller picked, or one the AI step could not read
+ * because the buyer's name typed is not the one printed.
  */
 export function reviewReasons(c: ListingChecks) {
-  const out: ("flagged" | "no_barcode" | "unread_pages" | "details_differ")[] = [];
+  const out: ("flagged" | "no_barcode" | "unread_pages" | "details_differ" | "name_not_found")[] = [];
   if (c.suspicious || c.score >= 60) out.push("flagged");
   if (c.barcodes === 0) out.push("no_barcode");
   if (c.scannedPages < c.pages) out.push("unread_pages");
   if (c.ai?.differs.length) out.push("details_differ");
+  if (c.nameNotOnTicket) out.push("name_not_found");
   return out;
 }
 

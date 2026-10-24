@@ -132,7 +132,7 @@ export function checkTicketFile(file: File) {
 /** What the AI step read off a ticket for the sell form, or why it read nothing (docs/09 §5.1). */
 export type TicketFill =
   | { outcome: "filled"; facts: TicketFacts; eventId: string | null }
-  | { outcome: "off" | "no_shows" | "no_text" | "no_ticket_page" | "personal_data_left" | "busy" | "failed" | "bad_answer" };
+  | { outcome: "off" | "no_shows" | "no_text" | "no_ticket_page" | "holder_not_found" | "personal_data_left" | "busy" | "failed" | "bad_answer" };
 
 /** Reads the PDF on the server for the form: the show, category, date, seat and printed price. */
 export function fillFromTicket(file: File, holder: string) {

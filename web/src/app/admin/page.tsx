@@ -555,6 +555,11 @@ function ListingQueue({
                     "Held because no barcode could be read, so nothing stops the same ticket being listed twice. Read the code off the PDF and check it with the organiser before clearing it.",
                     "Ditahan karena tidak ada barcode yang terbaca, jadi tidak ada yang mencegah tiket yang sama dijual dua kali. Baca kodenya dari PDF dan cek ke organizer sebelum diloloskan."
                   )
+                : why.includes("name_not_found")
+                ? t(
+                    "Held because the buyer's name the seller typed is not printed on the ticket, so its category and day were not read. Check them on the PDF against the listing before clearing it.",
+                    "Ditahan karena nama pemesan yang diketik penjual tidak tercetak di tiket, jadi kategori dan tanggalnya tidak terbaca. Cocokkan di PDF-nya dengan listing sebelum diloloskan."
+                  )
                 : why.includes("unread_pages") && !why.includes("flagged")
                 ? t(
                     "Held because not every page could be read in time. Look through the rest of the PDF for more tickets before clearing it.",

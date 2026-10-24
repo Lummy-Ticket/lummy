@@ -47,7 +47,8 @@ export async function POST(req: Request) {
   if (!events.length) return NextResponse.json({ outcome: "no_shows" }, { headers: noStore });
 
   try {
-    const out = await readTicketFacts(new Uint8Array(await file.arrayBuffer()), names, catalogueTiers(events));
+    // Every word of the typed name must be printed on the ticket, or nothing is sent (holder_not_found).
+    const out = await readTicketFacts(new Uint8Array(await file.arrayBuffer()), { holder: typed, names }, catalogueTiers(events));
     if (!out.ok) return NextResponse.json({ outcome: out.reason }, { headers: noStore });
     const event = events.find((e) => e.tiers.some((t) => t.id === out.facts.tierId));
     return NextResponse.json({ outcome: "filled", facts: out.facts, eventId: event?.id ?? null }, { headers: noStore });

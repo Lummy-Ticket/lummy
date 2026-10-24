@@ -11,16 +11,24 @@ if (typeof window !== "undefined") throw new Error("lib/tickets/fill is server-o
 
 export type FillOutcome =
   | { ok: true; facts: TicketFacts; model: string }
-  | { ok: false; reason: "off" | "no_text" | "no_ticket_page" | "personal_data_left" | "busy" | "failed" | "bad_answer" };
+  | { ok: false; reason: "off" | "no_text" | "no_ticket_page" | "holder_not_found" | "personal_data_left" | "busy" | "failed" | "bad_answer" };
 
 /**
- * What the ticket prints, or why it was not read. `names`: the seller's account name and the
- * holder's name the seller typed, both taken out of the text wherever they appear. Throws
+ * What the ticket prints, or why it was not read. `holder`: the original buyer's name as the seller
+ * typed it, which must be printed on the ticket word for word, or nothing is sent; `names`: it and
+ * the account's own (namesToTakeOut), taken out of the text wherever they appear; `known`: words of
+ * the show beyond those `show` carries, so the lines printing them count as facts. Throws
  * TicketError for a file that is not a readable PDF, as the check does.
  */
-export async function readTicketFacts(bytes: Uint8Array, names: string[], show: ShowForTicket, timeoutMs = 20_000): Promise<FillOutcome> {
+export async function readTicketFacts(
+  bytes: Uint8Array,
+  who: { holder: string; names: string[]; known?: string[] },
+  show: ShowForTicket,
+  timeoutMs = 20_000
+): Promise<FillOutcome> {
   if (!aiProvider()) return { ok: false, reason: "off" };
-  const clean = await prepareForExtraction(bytes, names);
+  const known = [...(who.known ?? []), ...show.tiers.flatMap((t) => [t.name, t.show ?? ""])];
+  const clean = await prepareForExtraction(bytes, who.names, { holder: who.holder, known });
   if (!clean.ok) return { ok: false, reason: clean.reason };
   const out = await extractTicketFacts(clean.text, show, { timeoutMs });
   if (!out.ok) {

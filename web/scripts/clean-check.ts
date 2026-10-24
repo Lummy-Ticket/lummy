@@ -58,15 +58,17 @@ for (const gone of ["Luthfi", "LUTHFI", "Hadi", "luthfi.hadi@example.com", "0812
   check(`removes personal data: ${gone}`, !t.toLowerCase().includes(gone.toLowerCase()), t);
 }
 check("says what kind of thing it removed", r.ok && r.removed.payload >= 1 && r.removed.labelled >= 5 && r.removed.name >= 1, JSON.stringify(r.ok && r.removed));
-check("the labels stay, so the model knows a value was there", t.includes("Email: [x]") && t.includes("NIK: [x]"), t);
+check("a line left with only a label once its value is out is not sent at all", !/Email|NIK|No\. HP|Order ID/.test(t), t);
 
 // --- Nothing to send.
 check("a file without text sends nothing", clean(["", "  "]).ok === false && (clean(["", ""]) as { reason: string }).reason === "no_text");
 check("only terms pages: nothing to send", (clean([TERMS]) as { reason?: string }).reason === "no_ticket_page", JSON.stringify(clean([TERMS])));
 check("a ticket page is recognised, a terms page is not", isTicketPage(TICKET) && !isTicketPage(TERMS));
 
-// --- Fail closed: what the strict patterns miss, the last look still catches.
-const odd = (line: string) => clean([`E-TICKET Coldplay\nTanggal: 15 November 2025\nVenue: GBK\n${line}`], [], []);
+// --- Fail closed: what the strict patterns miss, on a line that would go, the last look still catches.
+const odd = (line: string) => clean([`E-TICKET Coldplay\nTanggal: 15 November 2025\nVenue: GBK · ${line}`], [], []);
+const oddAlone = clean(["E-TICKET Coldplay\nTanggal: 15 November 2025\nVenue: GBK\nHubungi 0812/3456/7890 untuk info"], [], []);
+check("the same on a line of its own, no fact of the show, is simply not sent", oddAlone.ok && !text(oddAlone).includes("3456") && text(oddAlone).includes("Venue: GBK"), JSON.stringify(oddAlone));
 const slashPhone = odd("Hubungi 0812/3456/7890 untuk info");
 check("a phone written with slashes stops the text", !slashPhone.ok && slashPhone.reason === "personal_data_left" && !!slashPhone.left?.includes("phone"), JSON.stringify(slashPhone));
 const bracketPhone = odd("Hubungi (0812) 3456-7890 untuk info");
@@ -117,7 +119,7 @@ for (const date of ["08.11.2026 19.00", "08-11-2026 19:00", "08/11/2026 19:00 WI
   check(`a show date stays: ${date}`, d.ok && text(d).includes(date), JSON.stringify(d));
 }
 for (const keep of ["1.250.000 75.000 1.325.000", "14.11.2026 15.11.2026", "IDR1500000", "WeTheFest2026", "Java-Jazz-2026", "Section-B12"]) {
-  const d = page(`Info: ${keep}`);
+  const d = page(`Event: ${keep}`);
   check(`not an ID number or a code: ${keep}`, d.ok && text(d).includes(keep), JSON.stringify(d));
 }
 const named = page("Event Name: Coldplay Jakarta\nNama Acara: Tulus Manusia Tour");
@@ -161,6 +163,39 @@ check("the barcode's number printed in parts or with spaces goes", printedCode.o
 const long = clean([`E-TICKET Coldplay Tanggal Venue Kategori\n${"Kategori CAT 1 Seat ".repeat(1500)}`], [], []);
 check(`never more than ${MAX_CLEAN_CHARS} characters`, long.ok && long.text.length <= MAX_CLEAN_CHARS, String(long.ok && long.text.length));
 
+// --- The holder's name as the seller types it, on a ticket that prints it with no label, the way
+// Loket does (a real one, 24 Oct 2026: a name typed wrong or in part let the printed one through).
+// Every name here is made up.
+const LOKET = `E-Ticket
+Hindia: Lagipula Hidup Akan Berakhir Tour
+Sabtu, 14 November 2026 · 19:00 WIB
+Istora Senayan, Jakarta
+CAT 3B
+Rara Ayu Pramesti
+Guest_2 of Rara Ayu Pramesti
+Terima kasih, Pramesti!
+Dimas Anggara
+Tunjukkan e-ticket ini di pintu masuk.`;
+const typed = (holder: string, names: string[] = []) => cleanTicketText({ pages: [LOKET], payloads: [], names, holder });
+const leaks = (r: CleanResult) => /rara|ayu|pramest/i.test(text(r));
+const exact = typed("Rara Ayu Pramesti");
+check("holder typed as printed: sent, the name gone, the show's facts kept", exact.ok && !leaks(exact) && ["Hindia", "14 November 2026", "Istora Senayan", "CAT 3B"].every((f) => text(exact).includes(f)), JSON.stringify(exact));
+check("a name nobody typed, printed alone, is not sent either", exact.ok && !/dimas|anggara/i.test(text(exact)), text(exact));
+check("holder typed in another case: the same", typed("RARA AYU PRAMESTI").ok && !leaks(typed("rara ayu pramesti")));
+for (const [what, name] of [["one letter off in the last name", "Rara Ayu Pramesty"], ["someone else's name", "Budi Santoso"], ["a printed name with another made up", "Rara Wulandari"]] as const) {
+  const r = typed(name);
+  check(`holder typed with ${what}: nothing is sent, the seller is asked again`, !r.ok && r.reason === "holder_not_found", JSON.stringify(r));
+}
+for (const [what, name] of [["the first name only", "Rara"], ["the last name only", "Pramesti"], ["the middle name only", "Ayu"]] as const) {
+  const r = typed(name);
+  check(`holder typed as ${what}: the rest of the name goes with its line, and wherever else it is printed`, r.ok && !leaks(r), JSON.stringify(r));
+}
+check("too little of a name to look for is refused, not sent", (typed("Al") as { reason?: string }).reason === "holder_not_found");
+const fuzzyName = cleanTicketText({ pages: [LOKET], payloads: [], names: ["Rina Pramesty"] });
+check("another name one letter off a long printed one takes its line too", fuzzyName.ok && !/pramest/i.test(text(fuzzyName)), JSON.stringify(fuzzyName));
+const shortWord = cleanTicketText({ pages: ["E-TICKET Tulus\nHari: Sabtu, 7 November 2026\nKategori: VIP"], payloads: [], names: ["Hadi Wijaya"] });
+check("but not a short one: 'Hadi' typed leaves 'Hari: Sabtu' alone", shortWord.ok && text(shortWord).includes("Hari: Sabtu"), JSON.stringify(shortWord));
+
 // --- A real PDF: text layer through pdf.js, the QR read by the decoder, then cleaned.
 async function pdfChecks() {
   await initWriter();
@@ -177,6 +212,11 @@ async function pdfChecks() {
     r.ok && r.removed.payload >= 1 && !out.includes("8842-7731-2290") && !/zahra/i.test(out) && !out.includes("0813") && !out.includes("TL77QX19"),
     out
   );
+  // The fixture ticket prints "Name: Zahra Amelia"; the seller types the holder four ways.
+  const asTyped = (holder: string) => prepareForExtraction(pdf, [], { holder });
+  const [first, last, typo, other] = await Promise.all(["Zahra", "Amelia", "Zahra Amelya", "Budi Santoso"].map(asTyped));
+  check("a real PDF, holder typed in part: sent without any of the name", first.ok && last.ok && !/zahra|amelia/i.test(text(first) + text(last)), JSON.stringify([first, last]).slice(0, 300));
+  check("a real PDF, holder typed one letter off or as someone else: nothing sent", [typo, other].every((x) => !x.ok && x.reason === "holder_not_found"), JSON.stringify([typo, other]));
   const blank = await PDFDocument.create();
   blank.addPage([420, 595]);
   const scanned = await prepareForExtraction(await blank.save(), []);

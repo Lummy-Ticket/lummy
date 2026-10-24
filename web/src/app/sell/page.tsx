@@ -45,6 +45,11 @@ function fillMessage(outcome: Exclude<TicketFill["outcome"], "filled">, t: T) {
       return t("This PDF has no text to read (a scan or a photo), so fill it in yourself.", "PDF ini tidak punya teks yang bisa dibaca (hasil scan atau foto), jadi isi sendiri ya.");
     case "no_ticket_page":
       return t("No page of this PDF reads like a ticket, so fill it in yourself.", "Tidak ada halaman yang terbaca sebagai tiket, jadi isi sendiri ya.");
+    case "holder_not_found":
+      return t(
+        "The buyer's name was not found on the ticket, so nothing was sent. Type it exactly as the ticket prints it, every word, and try again. Listed as it is, a person checks the ticket first.",
+        "Nama pemesan tidak ketemu di tiket, jadi tidak ada yang dikirim. Ketik persis seperti tercetak di tiket, semua katanya, lalu coba lagi. Kalau tetap begini, listing dicek admin dulu."
+      );
     case "personal_data_left":
       return t(
         "Something personal could not be taken out safely, so the ticket was not sent. Fill it in yourself.",
