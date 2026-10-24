@@ -98,7 +98,6 @@ Also at the event: claims and rulings on USDC orders end to end, Slither (Trail 
 
 ```mermaid
 stateDiagram-v2
-    direction LR
     state "Paid" as paid
     state "In escrow" as escrow
     state "Show over: claim window open" as window
