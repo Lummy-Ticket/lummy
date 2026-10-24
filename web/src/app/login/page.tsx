@@ -96,9 +96,13 @@ function LoginInner() {
   const sampleSignIn = () => {
     login(role);
     toast.success(t("Signed in with a demo account", "Masuk dengan akun demo"));
-    // Back to where the visitor was headed (a checkout, say), else the role's home.
+    // Back to where the visitor was headed (a checkout, say) when that page is the role's own;
+    // another role's page (a buyer's ticket, the admin queue) gives way to the role's home.
     const next = params.get("next");
-    router.push(next ? safePath(next) : ROLES.find((r) => r.role === role)!.home);
+    const to = next ? safePath(next) : null;
+    const fits = (p: string) =>
+      role === "ADMIN" ? /^\/(admin|gate)/.test(p) : role === "SELLER" ? /^\/(sell|events)/.test(p) : !/^\/(admin|gate|seller)/.test(p);
+    router.push(to && fits(to) ? to : ROLES.find((r) => r.role === role)!.home);
   };
 
   return (

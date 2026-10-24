@@ -386,8 +386,11 @@ export default function OrderDetailPage() {
   };
 
   const watermark = `${user?.name ?? t("Buyer", "Pembeli")} · ${new Date().toLocaleDateString("en-GB")} · Lummy`;
-  // The letter names the buyer only when the buyer is the one looking at it.
-  const buyerName = account && order.buyerId && order.buyerId !== user?.id ? undefined : user?.name || undefined;
+  // The letter names the buyer only when the buyer is the one looking at it, and only by a name
+  // they gave: an account with no full name is named after its email (lib/supabase/session).
+  const viewerIsBuyer = !(account && order.buyerId && order.buyerId !== user?.id);
+  const ownName = user?.name && user.name !== user.email?.split("@")[0] && user.name !== "Lummy" ? user.name : undefined;
+  const buyerName = viewerIsBuyer ? ownName : undefined;
   const listedEvent = catalogue.eventById(order.eventId);
   const letterPlace = [listedEvent?.venue, listedEvent?.city].filter(Boolean).join(", ");
   // The letter is Indonesian whatever the switch says, so its date is too.
@@ -984,6 +987,13 @@ export default function OrderDetailPage() {
                 "Kolomnya sengaja kosong: Lummy tidak meminta KTP atau nomor identitas siapa pun, jadi semuanya ditulis tangan di kertas, tidak pernah diketik ke Lummy."
               )}
             </p>
+            {account && viewerIsBuyer && !buyerName && (
+              <p className="mt-2 text-xs">
+                {t("Add your full name, as on your ID, in your", "Isi nama lengkapmu, sesuai KTP, di")}{" "}
+                <Link href="/profile" className="underline underline-offset-2 text-primary-navy">{t("profile", "profil")}</Link>{" "}
+                {t("and it is printed under your signature line.", "supaya tercetak di bawah garis tanda tanganmu.")}
+              </p>
+            )}
           </div>
         )}
 
