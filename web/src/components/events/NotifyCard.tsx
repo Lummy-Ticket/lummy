@@ -61,8 +61,8 @@ export function NotifyCard({ event }: { event: EventItem }) {
         // Nothing is sent yet (lib/features.ts): say so, rather than promise a message.
         <p data-alerts-soon className="text-xs text-neutral-gray mb-3">
           {t(
-            "Coming soon: an email when tickets appear. Nothing is sent yet; your choice is kept in this browser.",
-            "Segera: email saat ada tiket. Belum ada yang dikirim; pilihanmu tersimpan di browser ini."
+            "Coming soon: an email when tickets appear. For now no email is sent; your choice is only kept in this browser.",
+            "Segera hadir: notifikasi email saat ada tiket. Untuk sekarang belum ada email terkirim; pilihanmu cuma tersimpan di browser ini."
           )}
         </p>
       )}
@@ -72,15 +72,28 @@ export function NotifyCard({ event }: { event: EventItem }) {
           onClick={() => unfollow(eventSub.id, t("Alerts off", "Notifikasi dimatikan"))}
           className="w-full flex items-center justify-between p-3 rounded-xl bg-secondary-green-soft text-secondary-green-dark text-sm mb-4 cursor-pointer"
         >
-          <span className="flex items-center gap-2"><Check className="w-4 h-4" /> {t("You will hear about new tickets", "Dikabari kalau ada tiket baru")}</span>
+          <span className="flex items-center gap-2">
+            <Check className="w-4 h-4" />
+            {FEATURES.emails
+              ? t("You will hear about new tickets", "Dikabari kalau ada tiket baru")
+              : t("Following, saved in this browser", "Diikuti, tersimpan di browser ini")}
+          </span>
           <X className="w-4 h-4" />
         </button>
       ) : (
         <button
-          onClick={() => follow(null, t("Done, we will let you know", "Oke, nanti kami kabari"))}
+          onClick={() =>
+            follow(
+              null,
+              FEATURES.emails
+                ? t("Done, we will let you know", "Oke, nanti kami kabari")
+                : t("Saved in this browser. No email is sent yet.", "Tersimpan di browser ini. Belum ada email terkirim.")
+            )
+          }
           className="w-full flex items-center gap-2 p-3 rounded-xl border border-lummy-500 text-lummy-500 text-sm hover:bg-secondary-blue-light transition mb-4 cursor-pointer"
         >
-          <BellRing className="w-4 h-4" /> {t("Notify me about new tickets", "Kabari kalau ada tiket baru")}
+          <BellRing className="w-4 h-4" />{" "}
+          {FEATURES.emails ? t("Notify me about new tickets", "Kabari kalau ada tiket baru") : t("Follow this show", "Ikuti acara ini")}
         </button>
       )}
 
@@ -96,7 +109,17 @@ export function NotifyCard({ event }: { event: EventItem }) {
                   <Check className="w-3 h-3" /> {t("On the list", "Di waitlist")}
                 </button>
               ) : (
-                <button onClick={() => follow({ tierId: tier.id, tierName: tier.name }, t(`Joined the ${tier.name} waitlist`, `Masuk waitlist ${tier.name}`))} className="text-xs text-primary-navy font-medium cursor-pointer">
+                <button
+                  onClick={() =>
+                    follow(
+                      { tierId: tier.id, tierName: tier.name },
+                      FEATURES.emails
+                        ? t(`Joined the ${tier.name} waitlist`, `Masuk waitlist ${tier.name}`)
+                        : t(`On the ${tier.name} waitlist, saved in this browser. No email is sent yet.`, `Masuk waitlist ${tier.name}, tersimpan di browser ini. Belum ada email terkirim.`)
+                    )
+                  }
+                  className="text-xs text-primary-navy font-medium cursor-pointer"
+                >
                   {t("Join waitlist", "Masuk waitlist")}
                 </button>
               )}

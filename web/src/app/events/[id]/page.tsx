@@ -348,16 +348,21 @@ export default function EventDetailPage() {
                 </>
               ) : (
                 <p className="text-sm text-secondary-brown-dark">
-                  {closed
-                    ? t("Resale is closed by the organiser.", "Resale ditutup oleh penyelenggara.")
-                    : t("Nothing on sale right now. Join the waitlist and we will tell you.", "Belum ada yang dijual. Masuk waitlist, nanti kami kabari.")}
+                  {over
+                    ? t("This show is over, so nothing is on sale.", "Acara ini sudah lewat, jadi tidak ada yang dijual.")
+                    : closed
+                      ? t("Resale is closed by the organiser.", "Resale ditutup oleh penyelenggara.")
+                      : FEATURES.emails
+                        ? t("Nothing on sale right now. Join the waitlist and we will tell you.", "Belum ada yang dijual. Masuk waitlist, nanti kami kabari.")
+                        : t("Nothing on sale right now. You can follow the show below; alert emails are coming soon.", "Belum ada yang dijual. Kamu bisa mengikuti acara ini di bawah; notifikasi email segera hadir.")}
                 </p>
               )}
             </div>
           </div>
           {/* The name rules and the letter are for shows in Indonesia; abroad the organiser's own rules apply. */}
           {!over && event.currency !== "USDC" && <TransferPolicyNote policy={event.transferPolicy} audience="buyer" />}
-          {!closed && <NotifyCard event={event} />}
+          {/* A show that is over has no tickets left to wait for. */}
+          {!closed && !over && <NotifyCard event={event} />}
         </aside>
       </div>
     </div>
