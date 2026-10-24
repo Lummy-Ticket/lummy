@@ -77,7 +77,7 @@ function LoginInner() {
       return;
     }
     if (isDemoEmail(address)) {
-      setError(t("Demo accounts open from the Dev Panel, not by email.", "Akun demo dibuka dari Dev Panel, bukan lewat email."));
+      setError(t("Demo accounts open from the demo button below, not by email.", "Akun demo dibuka lewat tombol akun demo di bawah, bukan lewat email."));
       return;
     }
     const sb = supabaseBrowser();

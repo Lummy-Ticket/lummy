@@ -270,8 +270,9 @@ export const useOrders = create<OrderState>()(
       // v2 dropped the fake contract address and transaction hashes that sample orders used to carry.
       // v3: real shows replaced the made-up ones on 23 Oct 2026, and orders kept from before pointed
       // at deleted shows and photos. The sample orders start over; an order placed in this browser
-      // stays while its show is still in the catalogue.
-      version: 3,
+      // stays while its show is still in the catalogue. v4 (25 Oct 2026): the sample orders name
+      // Lummy sample shows instead of real artists, so browsers that stored the old ones start over too.
+      version: 4,
       migrate: (persisted, version) => {
         if (version < 2) return { orders: seedOrders() };
         const stored = (persisted as { orders?: Order[] } | null)?.orders ?? [];

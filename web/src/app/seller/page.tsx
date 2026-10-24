@@ -361,7 +361,7 @@ export default function SellerPage() {
     try {
       const { downloadLetter } = await import("@/lib/docs/letter");
       const ev = catalogue.eventById(o.eventId);
-      await downloadLetter({ id: o.id, eventTitle: o.eventTitle, eventDateISO: o.eventDateISO, venue: ev?.venue, city: ev?.city, tierName: o.tierName, quantity: o.quantity });
+      await downloadLetter({ id: o.id, eventTitle: o.eventTitle, eventDateISO: o.eventDateISO, venue: ev?.venue, city: ev?.city, tierName: o.tierName, quantity: o.quantity, sellerName: o.sellerName });
     } catch (e) {
       toast.error(`${t("The draft could not be made", "Draf gagal dibuat")}: ${e instanceof Error ? e.message : String(e)}`);
     } finally {

@@ -159,7 +159,7 @@ try {
   const items = await page.getByRole("menu").getByRole("menuitem").allInnerTexts();
   check(
     "menu akun biasa: tiket dan dasbor penjual sekaligus, tanpa konsol admin",
-    items.some((x) => x.startsWith("My tickets")) && items.some((x) => x.startsWith("Seller dashboard")) && !items.some((x) => x.includes("Admin console")),
+    items.some((x) => x.startsWith("My tickets")) && items.some((x) => x.startsWith("Seller dashboard")) && !items.some((x) => x.includes("Admin dashboard")),
     items.join(" | ")
   );
   check("tidak ada lagi pilihan tampilan pembeli atau penjual", (await page.getByRole("group", { name: "View as" }).count()) === 0);

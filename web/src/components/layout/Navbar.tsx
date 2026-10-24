@@ -39,7 +39,7 @@ const SELL: NavItem = { en: "Sell a ticket", id: "Jual tiket", href: "/sell", Ic
 const TICKETS: NavItem = { en: "My tickets", id: "Tiket saya", href: "/tickets", Icon: Ticket };
 const DASHBOARD: NavItem = { en: "Seller dashboard", id: "Dasbor penjual", href: "/seller", Icon: LayoutDashboard };
 const PROFILE: NavItem = { en: "Profile", id: "Profil", href: "/profile", Icon: UserIcon };
-const CONSOLE: NavItem = { en: "Admin console", id: "Konsol admin", href: "/admin", Icon: ShieldCheck };
+const CONSOLE: NavItem = { en: "Admin dashboard", id: "Dasbor admin", href: "/admin", Icon: ShieldCheck };
 
 function initials(name: string) {
   return name.split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("");
