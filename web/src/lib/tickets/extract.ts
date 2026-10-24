@@ -42,11 +42,13 @@ async function pageText(page: PDFPageProxy): Promise<string> {
   return joinTextItems(content.items.flatMap((item) => ("str" in item ? [item] : [])));
 }
 
-export type TicketText = { pages: string[]; payloads: string[] };
+/** `barcodePages`: the pages (from 1) a barcode was read on, one per ticket in most files. */
+export type TicketText = { pages: string[]; payloads: string[]; barcodePages: number[] };
 
 /**
- * The text of every page, and the payload of every barcode the decoder reads. The payloads exist
- * only so the cleaner can take them out of the text (a ticket often prints its code under it).
+ * The text of every page, the payload of every barcode the decoder reads, and the pages it read
+ * them on. The payloads exist only so the cleaner can take them out of the text (a ticket often
+ * prints its code under it); the pages, so each ticket's own page goes to the model first.
  */
 export async function readTicketText(bytes: Uint8Array): Promise<TicketText> {
   if (bytes.length > MAX_TICKET_BYTES) throw new TicketError("too_big", `file is over ${MAX_TICKET_BYTES / 1024 / 1024} MB`);
@@ -55,13 +57,16 @@ export async function readTicketText(bytes: Uint8Array): Promise<TicketText> {
   const { task, doc, OPS } = await openPdf(bytes, MAX_IMAGE);
   const pages: string[] = [];
   const payloads = new Set<string>();
+  const barcodePages: number[] = [];
   try {
     for (let n = 1; n <= Math.min(doc.numPages, MAX_PAGES) && Date.now() < deadline; n++) {
       const page = await doc.getPage(n);
       try {
         pages.push(await pageText(page));
         if (mayHoldBarcode(await page.getOperatorList(), OPS)) {
-          for (const c of await readPage(page, DPI)) payloads.add(c.text);
+          const codes = await readPage(page, DPI);
+          for (const c of codes) payloads.add(c.text);
+          if (codes.length) barcodePages.push(n);
         }
       } finally {
         page.cleanup();
@@ -70,15 +75,20 @@ export async function readTicketText(bytes: Uint8Array): Promise<TicketText> {
   } finally {
     await task.destroy();
   }
-  return { pages, payloads: [...payloads] };
+  return { pages, payloads: [...payloads], barcodePages };
 }
 
 /**
- * The ticket as it may leave for the model, or why it may not. `names`: the seller's account name
- * and the like, taken out wherever they appear; `holder`: the holder's name as the seller typed it,
- * which must also be printed on the ticket; `known`: words of the shows on sale (lib/tickets/clean.ts).
+ * The ticket as it may leave for the model, or why it may not, and how many barcodes it holds.
+ * `names`: the seller's account name and the like, taken out wherever they appear; `holder`: the
+ * holder's name as the seller typed it, which must also be printed on the ticket; `known`: words of
+ * the shows on sale (lib/tickets/clean.ts).
  */
-export async function prepareForExtraction(bytes: Uint8Array, names: string[], o: { holder?: string; known?: string[] } = {}): Promise<CleanResult> {
-  const { pages, payloads } = await readTicketText(bytes);
-  return cleanTicketText({ pages, payloads, names, ...o });
+export async function prepareForExtraction(
+  bytes: Uint8Array,
+  names: string[],
+  o: { holder?: string; known?: string[] } = {}
+): Promise<CleanResult & { barcodes: number }> {
+  const { pages, payloads, barcodePages } = await readTicketText(bytes);
+  return { ...cleanTicketText({ pages, payloads, names, barcodePages, ...o }), barcodes: payloads.length };
 }

@@ -25,6 +25,12 @@ export type CleanInput = {
   holder?: string;
   /** Words of the shows on sale (titles, venues, cities, categories): a line with one is a show fact. */
   known?: string[];
+  /**
+   * The pages (from 1) a barcode was read on. Each holds a ticket, so they go first, each with its
+   * share of the text: a file of four tickets, each followed by pages of terms, had only the first
+   * ticket reach the model before (24 Oct 2026).
+   */
+  barcodePages?: number[];
 };
 
 export type Removal = "payload" | "labelled" | "nik" | "email" | "phone" | "code" | "name" | "other";
@@ -37,6 +43,9 @@ export type CleanResult =
 export const MAX_CLEAN_CHARS = 6000;
 // A ticket page is a few thousand characters; a file with far more text gets no more work for it.
 const MAX_PAGE_CHARS = 20_000;
+// What each ticket's page may send at least, however many tickets share the text; a cleaned ticket
+// page is well under it.
+const MIN_PAGE_SHARE = 600;
 const MARK = "[x]";
 
 // Words a ticket page carries, and words a page of terms carries.
@@ -271,7 +280,9 @@ function besideNames(text: string, words: string[], known: Set<string>) {
 export function cleanTicketText(input: CleanInput): CleanResult {
   const pages = input.pages.map((p) => p.replace(/[ \t ]+/g, " ").replace(/\n{3,}/g, "\n\n").trim());
   if (!pages.some((p) => p.length > 0)) return { ok: false, reason: "no_text" };
-  const keep = pages.map((p, i) => (p && isTicketPage(p) ? i : -1)).filter((i) => i >= 0);
+  // The pages a barcode was read on first, whatever they read like, then the other ticket pages.
+  const coded = [...new Set(input.barcodePages ?? [])].map((n) => n - 1).filter((i) => pages[i]).sort((a, b) => a - b);
+  const keep = [...coded, ...pages.map((p, i) => (p && !coded.includes(i) && isTicketPage(p) ? i : -1)).filter((i) => i >= 0)];
   if (!keep.length) return { ok: false, reason: "no_ticket_page" };
   let text = keep.map((i) => pages[i].slice(0, MAX_PAGE_CHARS)).join("\n---\n");
 
@@ -358,9 +369,9 @@ export function cleanTicketText(input: CleanInput): CleanResult {
     .join("\n");
   text = text.replace(/(?:\[x\][ \t]*){2,}/g, `${MARK} `).replace(/\n{3,}/g, "\n\n").trim();
   if (!text.replace(/^---$/gm, "").trim()) return { ok: false, reason: "no_ticket_page" };
-  text = text.slice(0, MAX_CLEAN_CHARS);
 
-  // Fail closed: look again, wider, and for anything we were told to remove.
+  // Fail closed: look again, wider, and for anything we were told to remove, over every page read,
+  // before any is cut short (a number cut in two would no longer look like one).
   const left: Removal[] = [];
   if (count(text, LOOSE.email)) left.push("email");
   const looseNik = [...text.matchAll(LOOSE.nik)].some((m) => !around(text, m.index, m.index + m[0].length).split(/\s+/).every((t) => AMOUNT_OR_DATE.test(t)));
@@ -370,5 +381,23 @@ export function cleanTicketText(input: CleanInput): CleanResult {
   if (names.some((n) => nameRegex(n).test(text)) || wordRes.some((re) => re.test(text))) left.push("name");
   if (left.length) return { ok: false, reason: "personal_data_left", left };
 
-  return { ok: true, text, pages: keep.map((i) => i + 1), removed };
+  // Each page its share: the barcode pages split the text between them, then the other ticket pages
+  // follow while there is room. A page is cut at the end of a line where it can be.
+  const parts = text.split(/\n?^---$\n?/m);
+  if (parts.length !== keep.length) return { ok: true, text: text.slice(0, MAX_CLEAN_CHARS), pages: keep.map((i) => i + 1), removed };
+  const share = Math.max(MIN_PAGE_SHARE, Math.floor(MAX_CLEAN_CHARS / (coded.length || keep.length)) - 5);
+  const cut = (s: string) => {
+    if (s.length <= share) return s;
+    const at = s.lastIndexOf("\n", share);
+    return at > share / 2 ? s.slice(0, at) : s.slice(0, share);
+  };
+  const sent: { page: number; text: string }[] = [];
+  let length = 0;
+  for (const [n, part] of parts.entries()) {
+    const body = cut(part.trim());
+    if (!body || length >= MAX_CLEAN_CHARS) continue;
+    sent.push({ page: keep[n] + 1, text: body });
+    length += body.length + 5;
+  }
+  return { ok: true, text: sent.map((s) => s.text).join("\n---\n").slice(0, MAX_CLEAN_CHARS), pages: sent.map((s) => s.page), removed };
 }

@@ -36,7 +36,9 @@ export async function readTicketFacts(
     if (out.reason !== "off") console.warn(`[ai] no facts from the ticket: ${out.reason}${out.detail ? ` (${out.detail})` : ""}`);
     return { ok: false, reason: out.reason };
   }
-  return { ok: true, facts: out.facts, model: out.model };
+  // One barcode is one ticket, as the listing counts them, whatever the text says it admits.
+  const quantity = clean.barcodes > 0 ? clean.barcodes : out.facts.quantity;
+  return { ok: true, facts: { ...out.facts, quantity }, model: out.model };
 }
 
 /**

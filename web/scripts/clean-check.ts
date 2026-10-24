@@ -12,6 +12,7 @@
 import { PDFDocument } from "pdf-lib";
 import { cleanTicketText, isTicketPage, MAX_CLEAN_CHARS, type CleanResult } from "../src/lib/tickets/clean";
 import { joinTextItems, prepareForExtraction } from "../src/lib/tickets/extract";
+import { readTicketFacts } from "../src/lib/tickets/fill";
 import { GENUINE, initWriter, ticketPdf } from "./ticket-fixtures";
 
 const results: { name: string; ok: boolean; note?: string }[] = [];
@@ -196,6 +197,19 @@ check("another name one letter off a long printed one takes its line too", fuzzy
 const shortWord = cleanTicketText({ pages: ["E-TICKET Tulus\nHari: Sabtu, 7 November 2026\nKategori: VIP"], payloads: [], names: ["Hadi Wijaya"] });
 check("but not a short one: 'Hadi' typed leaves 'Hari: Sabtu' alone", shortWord.ok && text(shortWord).includes("Hari: Sabtu"), JSON.stringify(shortWord));
 
+// --- Four tickets in one file, each followed by seven pages that read like a ticket's too, as a
+// real Loket order of four did (24 Oct 2026): every ticket's own page reaches the model.
+const RULES = "Ticket rules: one ticket admits one person at the gate. Keep your ticket and seat. Show it at the venue entry.\n".repeat(30);
+const order = Array.from({ length: 4 }, (_, i) => [`E-TICKET\nHindia: Lagipula Hidup Akan Berakhir Tour\nSabtu, 14 November 2026\nIstora Senayan, Jakarta\nCAT 3B · Row C · Seat ${11 + i}`, ...Array(7).fill(RULES)]).flat();
+const four = cleanTicketText({ pages: order, payloads: [], names: [], barcodePages: [1, 9, 17, 25] });
+const without = cleanTicketText({ pages: order, payloads: [], names: [] });
+check("with no barcode read, the pages share the text, so one long page cannot fill it", without.ok && without.pages.length > 2 && text(without).includes("Seat 12"), JSON.stringify(without.ok && without.pages));
+check(
+  "four tickets in one file: the pages a barcode was read on go first, every ticket's seat in the text",
+  four.ok && four.pages.slice(0, 4).join() === "1,9,17,25" && [11, 12, 13, 14].every((s) => text(four).includes(`Seat ${s}`)) && four.text.length <= MAX_CLEAN_CHARS,
+  JSON.stringify(four.ok && four.pages)
+);
+
 // --- A real PDF: text layer through pdf.js, the QR read by the decoder, then cleaned.
 async function pdfChecks() {
   await initWriter();
@@ -217,6 +231,15 @@ async function pdfChecks() {
   const [first, last, typo, other] = await Promise.all(["Zahra", "Amelia", "Zahra Amelya", "Budi Santoso"].map(asTyped));
   check("a real PDF, holder typed in part: sent without any of the name", first.ok && last.ok && !/zahra|amelia/i.test(text(first) + text(last)), JSON.stringify([first, last]).slice(0, 300));
   check("a real PDF, holder typed one letter off or as someone else: nothing sent", [typo, other].every((x) => !x.ok && x.reason === "holder_not_found"), JSON.stringify([typo, other]));
+  // A PDF of four tickets: each page's barcode counts one, and the facts read say four, as the
+  // listing will (the fake model, offline, reads one).
+  const codes = [1, 2, 3, 4].map((n) => ({ text: `LMY|ev-5sos-jakarta|CAT3|C-${20 + n}|4444-5555-000${n}`, format: "QRCode" as const }));
+  const fourPdf = await ticketPdf({ codes, producer: "Lummy test issuer PDF engine" });
+  const read = await prepareForExtraction(fourPdf, [], { holder: "Zahra Amelia" });
+  check("a PDF of four tickets: four barcodes, and all four pages go", read.ok && read.barcodes === 4 && read.pages.join() === "1,2,3,4", JSON.stringify(read).slice(0, 200));
+  process.env.AI_PROVIDER = "fake";
+  const facts = await readTicketFacts(fourPdf, { holder: "Zahra Amelia", names: [] }, { tiers: [{ id: "t-5sos-cat3", name: "CAT 3" }] });
+  check("and the quantity read agrees with the barcodes", facts.ok && facts.facts.quantity === 4 && facts.facts.tierId === "t-5sos-cat3", JSON.stringify(facts));
   const blank = await PDFDocument.create();
   blank.addPage([420, 595]);
   const scanned = await prepareForExtraction(await blank.save(), []);
