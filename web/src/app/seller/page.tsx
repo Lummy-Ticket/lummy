@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { Plus, Eye, Megaphone, Copy, ExternalLink, ShieldCheck, Search, Clock, Scale, Paperclip, CheckCircle2, Camera, Loader2, FileText } from "lucide-react";
+import { Plus, Eye, Megaphone, Copy, ExternalLink, ShieldCheck, Search, Clock, Scale, Paperclip, CheckCircle2, Camera, Loader2, FileText, Info, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/common/Modal";
@@ -45,10 +45,24 @@ function PromoteModal({ listing, onClose }: { listing: SellerListing | null; onC
   // The caption stays in Indonesian: it gets pasted straight into local fan communities.
   const caption = `WTS tiket ${listing.eventTitle} (${listing.tierName}), aman via Lummy, dana di-escrow sampai konser selesai. Beli lewat link ya biar dilindungi 👇 ${listingLink}`;
   const copy = (t: string, m: string) => { navigator.clipboard?.writeText(t); toast.success(m); };
+  // Every listing is a sample until real sellers list (lib/features.ts), so nothing here is for
+  // posting yet: the caption and link are shown, not offered to copy.
+  const sample = !FEATURES.realListings;
 
   return (
     <Modal open onClose={onClose} title={t("Promote this listing", "Promosikan listing")}>
       <div className="flex flex-col gap-4">
+        {sample && (
+          <div data-promote-sample className="flex items-start gap-2 text-xs text-secondary-orange-dark bg-secondary-orange-soft rounded-xl p-3">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>
+              {t(
+                "Test mode: this is a sample listing, so do not post it. The caption and link below show what a seller will share once real listings open.",
+                "Mode uji: ini listing contoh, jadi jangan diposting. Caption dan link di bawah contoh yang nanti dibagikan penjual setelah listing asli dibuka."
+              )}
+            </span>
+          </div>
+        )}
         <div>
           <div className="text-xs text-neutral-gray mb-1.5">{t("Find buyers on X", "Cari calon pembeli di X")}</div>
           <a href={searchLink} target="_blank" rel="noreferrer" className="flex items-center justify-between gap-2 p-3 rounded-xl border border-lummy-500 hover:bg-secondary-blue-light transition text-sm text-primary-navy">
@@ -57,15 +71,17 @@ function PromoteModal({ listing, onClose }: { listing: SellerListing | null; onC
           </a>
         </div>
         <div>
-          <div className="text-xs text-neutral-gray mb-1.5">{t("Ready-made caption", "Caption siap pakai")}</div>
-          <div className="p-3 rounded-xl bg-secondary-gray-soft text-sm text-neutral-black">{caption}</div>
-          <button onClick={() => copy(caption, t("Caption copied", "Caption disalin"))} className="mt-2 flex items-center gap-1.5 text-sm text-primary-navy font-medium cursor-pointer"><Copy className="w-4 h-4" /> {t("Copy caption", "Salin caption")}</button>
+          <div className="text-xs text-neutral-gray mb-1.5">{t("Ready-made caption, in Indonesian", "Caption siap pakai")}</div>
+          <div lang="id" className="p-3 rounded-xl bg-secondary-gray-soft text-sm text-neutral-black">{caption}</div>
+          {!sample && (
+            <button onClick={() => copy(caption, t("Caption copied", "Caption disalin"))} className="mt-2 flex items-center gap-1.5 text-sm text-primary-navy font-medium cursor-pointer"><Copy className="w-4 h-4" /> {t("Copy caption", "Salin caption")}</button>
+          )}
         </div>
         <div>
           <div className="text-xs text-neutral-gray mb-1.5">{t("Listing link", "Link listing")}</div>
           <div className="flex items-center gap-2 p-3 rounded-xl border border-neutral-light-gray-1">
             <span className="font-mono text-xs text-neutral-black truncate flex-1">{listingLink}</span>
-            <button onClick={() => copy(listingLink, t("Link copied", "Link disalin"))} className="text-primary-navy cursor-pointer"><Copy className="w-4 h-4" /></button>
+            {!sample && <button onClick={() => copy(listingLink, t("Link copied", "Link disalin"))} className="text-primary-navy cursor-pointer"><Copy className="w-4 h-4" /></button>}
           </div>
         </div>
         <div className="flex items-start gap-2 text-xs text-neutral-gray bg-secondary-blue-extra rounded-xl p-3">
@@ -200,6 +216,12 @@ function ClaimsAgainstYou({
                       </span>
                     </>
                   )}
+                  {/* Made-up files with made-up metadata, so the demo can show a strong and a weak answer. */}
+                  {sampleFiles && (
+                    <span className="text-[11px] text-neutral-gray">
+                      {t("Sample files for the demo, not real screenshots:", "File contoh untuk demo, bukan screenshot asli:")}
+                    </span>
+                  )}
                   {sampleFiles && mockSellerEvidence(o).map((ev) => (
                     <button
                       key={ev.fileName}
@@ -208,6 +230,7 @@ function ClaimsAgainstYou({
                     >
                       <Paperclip className="w-3.5 h-3.5 shrink-0 text-neutral-gray" />
                       <span className="text-xs font-mono truncate">{ev.fileName}</span>
+                      <span className="ml-auto shrink-0 rounded-full bg-secondary-gold-soft text-secondary-brown-dark text-[10px] font-medium px-2 py-0.5">{t("sample", "contoh")}</span>
                     </button>
                   ))}
                   <div className="flex gap-3 mt-2">
@@ -398,6 +421,16 @@ export default function SellerPage() {
       </div>
 
       <h3 className="font-semibold text-neutral-black mb-3">{t("Your listings", "Listing kamu")}</h3>
+      {/* A sample persona's listings live in this browser, so they never reach the show's public page. */}
+      {mounted && !account && listings.length > 0 && (
+        <p data-demo-listings className="flex items-start gap-2 text-xs text-neutral-gray bg-secondary-blue-extra rounded-xl p-3 mb-3">
+          <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-lummy-500" />
+          {t(
+            "Demo account: these listings stay in this browser. The show's public page and other visitors do not see them.",
+            "Akun demo: listing ini hanya ada di browser ini. Halaman publik acaranya dan pengunjung lain tidak melihatnya."
+          )}
+        </p>
+      )}
       {!mounted || (account && !accountListings) ? (
         <p className="text-neutral-gray text-sm">{t("Loading...", "Memuat...")}</p>
       ) : listings.length === 0 ? (
