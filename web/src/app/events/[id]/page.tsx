@@ -16,7 +16,7 @@ import {
   getTier, isBuyable, clearedByStaff, isEventOver, resaleAllowed, CAP_PCT, SELLER_PENALTY_PCT, PENALTY_NOTE, type Listing, type EventItem,
 } from "@/lib/mock";
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
-import { useCatalogue } from "@/lib/catalogue";
+import { useCatalogue, useEventText } from "@/lib/catalogue";
 import { FEATURES } from "@/lib/features";
 import { TEST_MODE } from "@/components/layout/TestModeNotice";
 
@@ -131,6 +131,7 @@ export default function EventDetailPage() {
   const t = useT();
   const { formatMoney, formatEventDate } = useFormatters();
   const categoryLabel = useCategoryLabel();
+  const text = useEventText();
   const params = useParams<{ id: string }>();
   const catalogue = useCatalogue();
   const event = catalogue.eventById(params.id);
@@ -183,14 +184,15 @@ export default function EventDetailPage() {
       <div className="max-w-7xl mx-auto px-5 lg:px-10 mt-4 grid lg:grid-cols-[1.6fr_1fr] gap-8">
         {/* Main */}
         <div>
-          {/* 16:9 photo; the category rides on the image so it never crowds the title */}
+          {/* 16:9 photo; the category rides on the image so it never crowds the title. Top right, as
+              on the cards: top left sat on the logo of the sample show's art. */}
           <div className="relative w-full aspect-video rounded-3xl overflow-hidden border border-lummy-500">
-            <Image src={event.image} alt={event.title} fill sizes="(min-width: 1024px) 60vw, 100vw" className="lm-settle object-cover" priority />
-            <span className="absolute top-3 left-3 bg-neutral-white/95 backdrop-blur-sm text-lummy-500 text-xs font-semibold rounded-full px-3 py-1 shadow-sm">{categoryLabel(event.category)}</span>
+            <Image src={text.image(event)} alt={text.title(event)} fill sizes="(min-width: 1024px) 60vw, 100vw" className="lm-settle object-cover" priority />
+            <span className="absolute top-3 right-3 bg-neutral-white/95 backdrop-blur-sm text-lummy-500 text-xs font-semibold rounded-full px-3 py-1 shadow-sm">{categoryLabel(event.category)}</span>
           </div>
           {/* A licensed photo names its author and licence, as the licence asks. */}
-          {event.imageCredit && <p data-image-credit className="mt-1.5 text-[11px] text-neutral-gray">{event.imageCredit}</p>}
-          <h1 className="lm-in text-3xl md:text-4xl font-bold text-neutral-black mt-6 tracking-tight" style={{ "--d": "120ms" } as React.CSSProperties}>{event.title}</h1>
+          {event.imageCredit && <p data-image-credit className="mt-1.5 text-[11px] text-neutral-gray">{text.credit(event.imageCredit)}</p>}
+          <h1 className="lm-in text-3xl md:text-4xl font-bold text-neutral-black mt-6 tracking-tight" style={{ "--d": "120ms" } as React.CSSProperties}>{text.title(event)}</h1>
           <div className="lm-in flex flex-wrap gap-x-6 gap-y-2 mt-4 text-neutral-gray" style={{ "--d": "180ms" } as React.CSSProperties}>
             <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-primary-navy" /> {formatEventDate(event.dateISO)}</span>
             <span className="flex items-center gap-2"><MapPin className="w-4 h-4 text-primary-navy" /> {event.venue}, {event.city}</span>

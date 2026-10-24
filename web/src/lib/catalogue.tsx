@@ -6,6 +6,7 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { SEARCH_KEYWORDS, SEED_LISTINGS, getEventById, getEvents, getListingsByEvent, isEventOver, isSampleEvent } from "@/lib/mock/seed";
 import type { EventItem, Listing } from "@/lib/mock/types";
+import { useActiveLang } from "@/lib/i18n";
 
 // The words a category answers to in either language, so "konser" finds the concerts.
 const CATEGORY_WORDS: Record<string, string> = {
@@ -40,6 +41,35 @@ export function popularEvents(events: EventItem[], n = 3): EventItem[] {
     .filter((e) => !e.featured && !isSampleEvent(e.id))
     .sort((a, b) => Number(b.listingCount > 0) - Number(a.listingCount > 0) || a.dateISO.localeCompare(b.dateISO));
   return [...events.filter((e) => e.featured), ...fill].slice(0, n);
+}
+
+// The sample show's art with its tag in Indonesian ("Acara contoh"), from the same brand kit.
+const ART_ID: Record<string, string> = { "/assets/events/ev-demo-fest.jpg": "/assets/events/ev-demo-fest-id.jpg" };
+
+/** A photo credit as the licence asks for it, in Indonesian: "Foto: ..., lewat Wikimedia Commons". */
+const creditId = (c: string) =>
+  c
+    .replace(/^Photo of the convention centre:/, "Foto gedung konvensinya:")
+    .replace(/^Photo of (the )?/, "Foto ")
+    .replace(/^Photo:/, "Foto:")
+    .replace(" at English Wikipedia", " di Wikipedia bahasa Inggris")
+    .replace(", via Wikimedia Commons", ", lewat Wikimedia Commons");
+
+/**
+ * How a show reads on the Indonesian page. Titles and photo credits are stored in English (the
+ * database feeds the live site), so the sample show's label, its art and the credit lines are
+ * turned here, for display only: search, orders and forms keep the stored English.
+ */
+export function useEventText() {
+  const lang = useActiveLang();
+  return useMemo(() => {
+    const id = lang === "id";
+    return {
+      title: (e: Pick<EventItem, "title">) => (id ? e.title.replace("(sample event)", "(acara contoh)") : e.title),
+      image: (e: Pick<EventItem, "image">) => (id ? (ART_ID[e.image] ?? e.image) : e.image),
+      credit: (c: string) => (id ? creditId(c) : c),
+    };
+  }, [lang]);
 }
 
 /** Soonest first, with the sample show after the real ones. */

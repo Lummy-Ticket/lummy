@@ -90,3 +90,7 @@ The licences cover the photographs only. Some Commons pages (for example the Sim
 ## ev-demo-fest.jpg
 
 - Lummy's own brand art (the celebrating mascot and the white logo from docs/brand), made for the sample show. No third-party licence.
+
+## ev-demo-fest-id.jpg
+
+- The same art with its tag in Indonesian ("Acara contoh"), shown on the Indonesian page. No third-party licence.

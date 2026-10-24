@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { PriceFilter } from "@/components/events/PriceFilter";
 import type { EventItem } from "@/lib/mock";
-import { matchesSearch, useCatalogue } from "@/lib/catalogue";
+import { matchesSearch, useCatalogue, useEventText } from "@/lib/catalogue";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 
@@ -42,6 +42,7 @@ function EventsInner() {
   const t = useT();
   const { formatEventDate } = useFormatters();
   const categoryLabel = useCategoryLabel();
+  const text = useEventText();
   // Deep links from home: ?q= (search) and ?cat= (category).
   const params = useSearchParams();
   const catParam = params.get("cat");
@@ -189,9 +190,9 @@ function EventsInner() {
               className="lm-in"
               style={{ "--i": Math.min(i, 7) } as React.CSSProperties}
               eager={i < 3}
-              image={e.image}
+              image={text.image(e)}
               date={formatEventDate(e.dateISO)}
-              title={e.title}
+              title={text.title(e)}
               location={`${e.venue}, ${e.city}`}
               category={e.category}
               redirect={`/events/${e.id}`}
