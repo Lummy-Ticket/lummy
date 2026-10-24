@@ -108,6 +108,11 @@ const sections: LegalSection[] = [
       { en: "Everyone: your listing and your public seller name, a first name and an initial (or \"Lummy seller\" if your profile has no name). Never your email.", id: "Semua orang: listing-mu dan nama publik penjual, nama depan dan inisial (atau \"Lummy seller\" kalau profilmu tanpa nama). Email tidak pernah." },
       { en: "The buyer of your ticket: the whole PDF you uploaded, since that is the ticket.", id: "Pembeli tiketmu: seluruh PDF yang kamu upload, karena itulah tiketnya." },
       { en: "The other side of a claim, and Lummy staff: the photos and notes in that claim.", id: "Pihak lawan dalam klaim, dan staf Lummy: foto dan catatan di klaim itu." },
+      // components/common/EvidencePhoto: shown on the order page, the seller's dashboard and the admin queue.
+      {
+        en: "Both sides of the order, and Lummy staff: where a claim photo was taken, if your camera saved its GPS position, with a link to it on Google Maps. A position at the venue helps a claim from the gate; when you do not need it, turn location off in your camera's settings.",
+        id: "Kedua pihak di pesanan, dan staf Lummy: lokasi pengambilan foto klaim, kalau kameramu menyimpan posisi GPS-nya, lengkap dengan link ke Google Maps. Lokasi di venue membantu klaim dari gate; kalau tidak perlu, matikan lokasi di pengaturan kameramu.",
+      },
       { en: "Anyone, on the public Arbitrum ledger: the state of an escrow or of a QRIS order's record, the amounts, and fingerprints of the payment, the ticket and the handover. No names, emails or files go on chain.", id: "Siapa pun, di buku besar publik Arbitrum: status escrow atau catatan pesanan QRIS, nominalnya, dan sidik jari pembayaran, tiket, serta serah terimanya. Nama, email, dan file tidak pernah masuk chain." },
       { en: "Anyone, for a show paid in USDC: the wallet you paid from, its payment into the escrow and any refund back to it. Whoever knows that wallet can see that it paid into Lummy's escrow, how much and when.", id: "Siapa pun, untuk acara yang dibayar dengan USDC: wallet yang kamu pakai untuk membayar, pembayarannya ke escrow, dan refund yang kembali ke wallet itu. Siapa pun yang tahu wallet itu bisa melihat bahwa wallet itu membayar ke escrow Lummy, berapa, dan kapan." },
     ],
@@ -126,7 +131,7 @@ const sections: LegalSection[] = [
       },
       { en: "Before we take real payments, this page will say so first.", id: "Sebelum kami menerima pembayaran sungguhan, halaman ini akan menyebutnya lebih dulu." },
     ],
-    body: [{ en: "This means your data is stored outside Indonesia.", id: "Artinya datamu disimpan di luar Indonesia." }],
+    after: [{ en: "This means your data is stored outside Indonesia.", id: "Artinya datamu disimpan di luar Indonesia." }],
   },
   {
     title: { en: "How long we keep it", id: "Berapa lama kami menyimpannya" },
