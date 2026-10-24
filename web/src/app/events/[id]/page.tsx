@@ -172,8 +172,11 @@ export default function EventDetailPage() {
   }
   const buyable = visibleListings.filter(isBuyable);
   const cheapest = buyable.length ? Math.min(...buyable.map((l) => l.askPrice)) : 0;
-  // Buyable listings the ticket count hides, so the list adds up to the sidebar's count.
-  const otherQuantities = listings.filter(isBuyable).length - buyable.length;
+  // What can be bought, the one count the heading and the sidebar both give. A blocked or held
+  // listing is shown for what it is but not counted (GNR said 3 above and 4 beside; Demo Fest 6).
+  const forSale = listings.filter(isBuyable).length;
+  // Buyable listings the ticket count hides, so the list adds up to that count.
+  const otherQuantities = forSale - buyable.length;
   const over = isEventOver(event);
   const closed = !resaleAllowed(event.transferPolicy);
 
@@ -277,7 +280,7 @@ export default function EventDetailPage() {
 
           <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
             <h2 className="font-semibold text-xl text-neutral-black">
-              {t("Tickets for sale", "Tiket yang dijual")} <span className="text-neutral-gray font-normal text-base">({visibleListings.length})</span>
+              {t("Tickets for sale", "Tiket yang dijual")} <span data-for-sale className="text-neutral-gray font-normal text-base">({forSale})</span>
             </h2>
             {visibleListings.length > 1 && (
               <div className="flex items-center gap-1 bg-secondary-gray-soft rounded-full p-1">
@@ -348,9 +351,9 @@ export default function EventDetailPage() {
                   <div className="text-xs text-secondary-brown-dark">{t("From", "Mulai dari")}</div>
                   <div className="tabular-nums font-bold text-2xl text-neutral-black">{formatMoney(event.fromPrice, event.currency)}</div>
                   <p className="text-xs text-secondary-brown-dark mt-1">
-                    {event.listingCount === 1
+                    {forSale === 1
                       ? t("1 listing you can buy right now", "1 listing yang bisa dibeli sekarang")
-                      : t(`${event.listingCount} listings you can buy right now`, `${event.listingCount} listing yang bisa dibeli sekarang`)}
+                      : t(`${forSale} listings you can buy right now`, `${forSale} listing yang bisa dibeli sekarang`)}
                   </p>
                 </>
               ) : (
