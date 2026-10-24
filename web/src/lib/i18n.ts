@@ -99,8 +99,10 @@ export function useFormatters() {
         currency === "USDC"
           ? `${(n / USDC_UNIT).toLocaleString(lang === "id" ? "id-ID" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC`
           : `Rp${n.toLocaleString(lang === "id" ? "id-ID" : "en-US")}`,
+      // Units spelled so they cannot be misread: "41j 51m 41d" read as 41 days, since "d" is
+      // detik only to someone who already knows (QA, 24 Oct).
       formatCountdown: (ms: number) => {
-        const [h, m, sec] = lang === "id" ? ["j", "m", "d"] : ["h", "m", "s"];
+        const [h, m, sec] = lang === "id" ? [" jam", " mnt", " dtk"] : ["h", "m", "s"];
         if (!Number.isFinite(ms) || ms <= 0) return `00${h} 00${m} 00${sec}`;
         const total = Math.floor(ms / 1000);
         const pad = (n: number) => String(n).padStart(2, "0");
