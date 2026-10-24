@@ -359,6 +359,21 @@ export default function EventDetailPage() {
               )}
             </div>
           </div>
+          {/* A fan with a ticket for this show goes straight to the sell form with the show picked. Not
+              for a show that is over or forbids resale, nor one paid in USDC, where selling is not open. */}
+          {!over && !closed && event.currency !== "USDC" && (
+            <Link
+              href={`/sell?event=${event.id}`}
+              data-sell-this-show
+              className="group flex items-center justify-between gap-3 rounded-3xl border border-neutral-light-gray-1 bg-neutral-white px-5 py-4 hover:border-primary-navy transition"
+            >
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-neutral-black">{t("Sell a ticket for this show", "Jual tiket untuk acara ini")}</span>
+                <span className="block text-xs text-neutral-gray mt-0.5">{t("Listing is free.", "Pasang listing gratis.")}</span>
+              </span>
+              <ArrowRight className="w-4 h-4 text-primary-navy shrink-0 transition group-hover:translate-x-0.5" />
+            </Link>
+          )}
           {/* The name rules and the letter are for shows in Indonesia; abroad the organiser's own rules apply. */}
           {!over && event.currency !== "USDC" && <TransferPolicyNote policy={event.transferPolicy} audience="buyer" />}
           {/* A show that is over has no tickets left to wait for. */}
