@@ -511,8 +511,8 @@ export function remedyOptions(o: Order, reason: DisputeReason, now: number = Dat
     amount: o.amount,
     label: REMEDY_LABEL.REFUND_FULL,
     note: {
-      en: "The buyer got nothing of what they paid for.",
-      id: "Pembeli tidak mendapat apa pun dari yang dibayarnya.",
+      en: "The buyer got nothing of what they paid for, so all of it comes back.",
+      id: "Pembeli sama sekali tidak mendapat yang sudah dibayarnya, jadi uangnya kembali penuh.",
     },
   });
   options.push({
