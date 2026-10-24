@@ -23,7 +23,8 @@ export function TransferPolicyNote({ policy, audience }: { policy: TransferPolic
       <Icon className={`w-4 h-4 shrink-0 mt-0.5 ${head}`} />
       <div className="min-w-0">
         <div className={`font-semibold ${head}`}>{t(meta.label.en, meta.label.id)}</div>
-        <p className="mt-0.5 text-neutral-gray">{t(body.en, body.id)}</p>
+        {/* text-sm here too: the global p style is larger, which set the body above its heading. */}
+        <p className="mt-0.5 text-sm text-neutral-gray">{t(body.en, body.id)}</p>
       </div>
     </div>
   );

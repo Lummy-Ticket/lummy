@@ -85,7 +85,12 @@ function ListingRow({ event, listing, qty, cheapest, index }: { event: EventItem
           {FEATURES.sellerIdCard && !listing.gateKtp && (event.transferPolicy === "letter" || event.transferPolicy === "id_match") && (
             <span className="text-secondary-orange-dark">{t(" · seller's ID card not staged", " · KTP penjual belum disiapkan")}</span>
           )}
-          {listing.splittable && listing.quantity > qty ? t(` · ${listing.quantity - qty} more in this set`, ` · sisa ${listing.quantity - qty} di set ini`) : ""}
+          {listing.splittable && listing.quantity > qty
+            ? t(
+                ` · +${listing.quantity - qty} more ${listing.quantity - qty === 1 ? "ticket" : "tickets"} in this listing`,
+                ` · +${listing.quantity - qty} tiket lagi di listing ini`
+              )
+            : ""}
         </span>
         {aboutSeller && (
           <p data-seller-note className="text-xs text-neutral-gray bg-secondary-gray-soft rounded-xl p-3 max-w-md leading-relaxed">
