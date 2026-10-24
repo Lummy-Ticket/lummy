@@ -103,11 +103,11 @@ The database decides; the chain holds the money or keeps the record. Tickets, ID
 | Suite | What it covers | Last result |
 |---|---|---|
 | `forge test` in `contracts/` | Both contracts: the six escrow outcomes, the claim window, signatures, barcode commitments, access, reentrancy, plus fuzzing and invariant runs (the escrow balance always equals its books, the operator never receives funds) | 114 of 114 pass |
-| `npm run usdc:check` | The USDC checkout end to end on Arbitrum Sepolia: forged signatures, another account sending the buyer's signatures, the wallet paying exactly the price, the listing funded on chain by that wallet, a purchase through the pages with a wallet injected into the browser, and a cancelled show that refunds the wallet in full | 35 of 35 pass |
+| `npm run usdc:check` | The USDC checkout end to end on Arbitrum Sepolia: forged signatures, another account sending the buyer's signatures, the wallet paying exactly the price, the listing funded on chain by that wallet, a purchase through the pages with a wallet injected into the browser, a cancelled show that refunds the wallet in full, and claims on USDC orders with a full or a partial ruling (including a ruling whose reply was lost), checked on the order, the escrow, the wallet and the proof page | 57 of 57 pass |
 | `npm run payments:check` | QRIS in Xendit's test mode end to end: one order per payment however often the webhook arrives, forged webhooks refused, seats given back on cancel or expiry, the order, a claim and a ruling recorded on LummyLedger, and a cancelled show refunded on the record | 62 of 62 pass |
 | Slither (Trail of Bits), in CI on every push | Both contracts, twice: as deployed, and with an analysis-only copy of one OpenZeppelin guard that Slither 0.11.6 cannot parse. Every finding is triaged in [`contracts/SECURITY-ANALYSIS.md`](contracts/SECURITY-ANALYSIS.md); CI fails on any untriaged medium or high finding | 12 findings triaged, none a real medium or high |
 
-Also: row-level security tests in [`supabase/tests`](supabase/tests), Playwright browser tests in [`web/e2e`](web/e2e), and more scripted checks in [`web/scripts`](web/scripts). Anyone can run `forge test`. The `usdc:check` and `payments:check` runs need our testnet keys and database, so the team runs them; the results above are from 23 October 2026.
+Also: row-level security tests in [`supabase/tests`](supabase/tests), Playwright browser tests in [`web/e2e`](web/e2e), and more scripted checks in [`web/scripts`](web/scripts). Anyone can run `forge test`. The `usdc:check` and `payments:check` runs need our testnet keys and database, so the team runs them; the results above are from 24 October 2026.
 
 ## Repo map
 
