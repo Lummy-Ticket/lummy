@@ -18,6 +18,7 @@ import {
 } from "@/lib/mock";
 import { useCatalogue } from "@/lib/catalogue";
 import { chainCheckoutReady, demoPrefs, openChainOrder, useChainInfo } from "@/lib/chain/client";
+import { DEPLOYMENTS } from "@/lib/chain/deployments";
 import { OrderError, placeOrder } from "@/lib/orders/client";
 import { startPayment, usePaymentsConfig, type PaymentView } from "@/lib/payments/client";
 import { QrisPanel } from "@/components/checkout/QrisPanel";
@@ -64,6 +65,8 @@ function CheckoutInner() {
   const usdc = event?.currency === "USDC";
   const chainInfo = useChainInfo();
   const onchain = chainCheckoutReady(chainInfo) && !usdc;
+  // The contract's own claim window, as read from it, or the one it was deployed with.
+  const testnetMinutes = Math.round((chainInfo?.disputeWindow ?? DEPLOYMENTS[421614]?.disputeWindow ?? 600) / 60);
   // With QRIS switched on (docs/09 §6), an account pays through it. Chain mode keeps the testnet
   // escrow, and a sample persona keeps its order in this browser.
   const payments = usePaymentsConfig(account && !onchain);
@@ -213,12 +216,18 @@ function CheckoutInner() {
             </div>
           </div>
 
-          <div className="flex items-start gap-3 text-sm text-neutral-gray bg-secondary-blue-extra rounded-2xl p-4">
+          <div data-escrow-window className="flex items-start gap-3 text-sm text-neutral-gray bg-secondary-blue-extra rounded-2xl p-4">
             <Lock className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" />
-            <span>{t(
-              `Your payment waits in escrow until ${DISPUTE_WINDOW_H} hours after the show. Turned away at the gate? File a claim with a photo from there and an arbiter decides.`,
-              `Pembayaranmu ditahan escrow sampai ${DISPUTE_WINDOW_H} jam setelah acara. Ditolak di gate? Ajukan klaim dengan foto dari sana, lalu arbiter yang memutuskan.`
-            )}</span>
+            {/* The testnet escrow keeps a short window on purpose, so a demo runs to the end; production has the full one. */}
+            <span>{usdc || onchain
+              ? t(
+                  `Your payment waits in the escrow contract until the claim window after the show closes: ${testnetMinutes} minutes on this testnet demo, ${DISPUTE_WINDOW_H} hours in production. Turned away at the gate? File a claim with a photo from there and the Lummy team decides.`,
+                  `Pembayaranmu ditahan kontrak escrow sampai masa klaim setelah acara selesai: ${testnetMinutes} menit di demo testnet ini, ${DISPUTE_WINDOW_H} jam di produksi. Ditolak di gate? Ajukan klaim dengan foto dari sana, lalu tim Lummy yang memutuskan.`
+                )
+              : t(
+                  `Your payment waits in escrow until ${DISPUTE_WINDOW_H} hours after the show. Turned away at the gate? File a claim with a photo from there and the Lummy team decides.`,
+                  `Pembayaranmu ditahan escrow sampai ${DISPUTE_WINDOW_H} jam setelah acara. Ditolak di gate? Ajukan klaim dengan foto dari sana, lalu tim Lummy yang memutuskan.`
+                )}</span>
           </div>
         </div>
 

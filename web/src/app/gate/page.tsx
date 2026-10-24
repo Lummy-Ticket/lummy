@@ -140,7 +140,7 @@ function ResultCard({ o }: { o: Outcome }) {
       )}
       {refundError && (
         <p className="mt-4 text-xs text-secondary-orange-dark">
-          {t("The refund did not go through here; staff should settle it from the admin console", "Refund belum berhasil di sini; staf perlu menyelesaikannya dari konsol admin")}: {refundError}
+          {t("The refund did not go through here; staff should settle it from the admin dashboard", "Refund belum berhasil di sini; staf perlu menyelesaikannya dari dasbor admin")}: {refundError}
         </p>
       )}
     </div>
@@ -171,10 +171,11 @@ function GateDoor() {
   }, [eventId, shows]);
 
   const loadLog = useCallback(async () => {
-    if (!eventId) return;
+    // A sample persona has no session on the server, so asking would only earn a 401.
+    if (!eventId || !account) return;
     const r = await fetch(`/api/gate?event=${encodeURIComponent(eventId)}`, { cache: "no-store" }).catch(() => null);
     if (r?.ok) setLog(await r.json());
-  }, [eventId]);
+  }, [eventId, account]);
   useEffect(() => {
     void loadLog();
   }, [loadLog]);
@@ -211,8 +212,17 @@ function GateDoor() {
     return (
       <PageContainer width="form">
         <h1 className="text-2xl font-bold text-neutral-black">{t("Gate scanner", "Pemindai gate")}</h1>
+        <p data-gate-needs-staff className="text-sm text-neutral-gray mt-2">
+          {t(
+            "The scanner checks real orders in the database, so it only works for Lummy staff signed in with their email. Demo accounts cannot scan.",
+            "Pemindai ini mengecek pesanan sungguhan di database, jadi hanya bisa dipakai staf Lummy yang masuk dengan email. Akun demo tidak bisa memindai."
+          )}
+        </p>
         <p className="text-sm text-neutral-gray mt-2">
-          {t("The gate works on real orders, so it needs a staff account. Sign in with one, or use the demo admin account from the Dev Panel.", "Gate bekerja pada pesanan sungguhan, jadi butuh akun staf. Masuk dengan akun itu, atau pakai akun admin demo dari Dev Panel.")}
+          {t(
+            "At a show's door it lets each ticket in once. When a copy of a Lummy buyer's ticket went in first, their pass is refused and they are refunded on the spot.",
+            "Di pintu masuk acara, pemindai ini cuma meloloskan tiap tiket sekali. Kalau salinan tiket pembeli Lummy masuk lebih dulu, pass-nya ditolak dan pembelinya langsung direfund."
+          )}
         </p>
       </PageContainer>
     );

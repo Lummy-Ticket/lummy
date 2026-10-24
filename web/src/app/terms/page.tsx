@@ -3,8 +3,13 @@
 // The rules of the marketplace, in the words of the policy the app already enforces (docs/01,
 // "Kebijakan sengketa & refund"; lib/mock/escrow.ts). Change the rules and this page together.
 // A draft until counsel has reviewed it.
-import { CONTACT_EMAIL, CONTROLLER, LegalPage, type LegalSection } from "@/components/legal/LegalPage";
+import { CONTROLLER, LegalPage, type LegalSection } from "@/components/legal/LegalPage";
+import { DEPLOYMENTS } from "@/lib/chain/deployments";
 import { FEATURES } from "@/lib/features";
+import { DISPUTE_WINDOW_H, PENALTY_NOTE, SELLER_PENALTY_PCT } from "@/lib/mock";
+
+/** The testnet escrow's claim window, in minutes: short on purpose, so a demo runs to the end. */
+const TESTNET_WINDOW_MIN = Math.round((DEPLOYMENTS[421614]?.disputeWindow ?? 600) / 60);
 
 const sections: LegalSection[] = [
   {
@@ -49,13 +54,13 @@ const sections: LegalSection[] = [
     title: { en: "Buying", id: "Membeli" },
     list: [
       FEATURES.eStamp
-        ? { en: "You pay the ticket price plus a service fee (5%, at least Rp25.000) and the e-stamp duty, all shown before you pay. The ticket price is held in escrow; the fee is not.", id: "Kamu membayar harga tiket ditambah biaya layanan (5%, minimal Rp25.000) dan bea e-meterai, semuanya terlihat sebelum bayar. Harga tiket ditahan di escrow; biaya layanan tidak." }
-        : { en: "You pay the ticket price plus a service fee (5%, at least Rp25.000), both shown before you pay. The ticket price is held in escrow; the fee is not.", id: "Kamu membayar harga tiket ditambah biaya layanan (5%, minimal Rp25.000), keduanya terlihat sebelum bayar. Harga tiket ditahan di escrow; biaya layanan tidak." },
+        ? { en: "You pay the ticket price plus a service fee (5%, at least Rp25,000) and the e-stamp duty, all shown before you pay. The ticket price is held in escrow; the fee is not.", id: "Kamu membayar harga tiket ditambah biaya layanan (5%, minimal Rp25.000) dan bea e-meterai, semuanya terlihat sebelum bayar. Harga tiket ditahan di escrow; biaya layanan tidak." }
+        : { en: "You pay the ticket price plus a service fee (5%, at least Rp25,000), both shown before you pay. The ticket price is held in escrow; the fee is not.", id: "Kamu membayar harga tiket ditambah biaya layanan (5%, minimal Rp25.000), keduanya terlihat sebelum bayar. Harga tiket ditahan di escrow; biaya layanan tidak." },
       // lib/orders/create (priceOf) and lib/payments/usdc: no fee in USDC while it runs on testnet.
       { en: "A show abroad is paid differently: in test USDC from your own wallet on the Arbitrum Sepolia test network, with no service fee while it runs there. You sign the payment in your wallet; Lummy sends the transaction and pays its network fee. A refund goes back to the wallet that paid.", id: "Acara luar negeri dibayar dengan cara lain: dengan USDC uji dari wallet-mu sendiri di jaringan uji Arbitrum Sepolia, tanpa biaya layanan selama masih berjalan di sana. Kamu menandatangani pembayarannya di wallet-mu; Lummy yang mengirim transaksinya dan membayar biaya jaringannya. Refund kembali ke wallet yang membayar." },
       ...(FEATURES.eStamp
         ? []
-        : [{ en: "Where the venue checks names, Lummy gives you a draft letter of authorisation with the order's details. The seller signs it on a Rp10.000 stamp and gives it to you with a copy of their ID card. Lummy does not sign it, add an e-stamp or store ID cards yet.", id: "Kalau venue mengecek nama, Lummy memberimu draf surat kuasa berisi data pesanan. Penjual menandatanganinya di atas meterai Rp10.000 dan menyerahkannya kepadamu bersama fotokopi KTP-nya. Lummy belum menandatanganinya, membubuhkan e-meterai, atau menyimpan KTP." }]),
+        : [{ en: "Where the venue checks names, Lummy gives you a draft letter of authorisation with the order's details. The seller signs it on a Rp10,000 stamp and gives it to you with a copy of their ID card. Lummy does not sign it, add an e-stamp or store ID cards yet.", id: "Kalau venue mengecek nama, Lummy memberimu draf surat kuasa berisi data pesanan. Penjual menandatanganinya di atas meterai Rp10.000 dan menyerahkannya kepadamu bersama fotokopi KTP-nya. Lummy belum menandatanganinya, membubuhkan e-meterai, atau menyimpan KTP." }]),
       { en: "The ticket file and the handover documents are yours as soon as you pay. When you first open the ticket file is recorded, since it answers a \"never handed over\" claim.", id: "File tiket dan dokumen serah terima jadi milikmu begitu kamu bayar. Kapan kamu pertama membuka file tiket dicatat, karena itu yang menjawab klaim \"tidak diserahkan\"." },
       { en: "Without the organiser on board we cannot promise you get in. What we promise is the money back when you are turned away and can show it.", id: "Tanpa kerja sama penyelenggara, kami tidak bisa menjamin kamu masuk. Yang kami janjikan: uang kembali kalau kamu ditolak dan bisa membuktikannya." },
     ],
@@ -63,11 +68,24 @@ const sections: LegalSection[] = [
   {
     title: { en: "When something goes wrong", id: "Kalau ada masalah" },
     list: [
-      { en: "Silence settles it: 48 hours after the show with no claim, the seller is paid automatically.", id: "Diam berarti beres: 48 jam setelah acara tanpa klaim, penjual dibayar otomatis." },
+      {
+        en: `Silence settles it: ${DISPUTE_WINDOW_H} hours after the show with no claim, the seller is paid automatically. A USDC order on the test network gets ${TESTNET_WINDOW_MIN} minutes instead, so a demo can run to the end; in production it is ${DISPUTE_WINDOW_H} hours too.`,
+        id: `Diam berarti beres: ${DISPUTE_WINDOW_H} jam setelah acara tanpa klaim, penjual dibayar otomatis. Pesanan USDC di jaringan uji cuma dapat ${TESTNET_WINDOW_MIN} menit, supaya demonya bisa diikuti sampai selesai; di produksi tetap ${DISPUTE_WINDOW_H} jam.`,
+      },
       { en: "A claim needs evidence recorded at the time, such as a photo of the gate scanner, filed within the window. The seller may answer before staff decide.", id: "Klaim butuh bukti yang direkam saat kejadian, misalnya foto layar scanner gate, diajukan dalam masa klaim. Penjual boleh menjawab sebelum staf memutus." },
       { en: "Not going is not a refund case: resell the ticket before the show instead.", id: "Tidak jadi datang bukan alasan refund: jual lagi tiketnya sebelum acara." },
       { en: "A cancelled show is refunded in full, fee included, without anyone filing. A postponed show: keep the ticket for the new date, or take the money back, fee included, until the new show starts.", id: "Acara batal direfund penuh, termasuk biaya layanan, tanpa perlu mengajukan apa pun. Acara diundur: pakai tiketnya di tanggal baru, atau ambil uangmu kembali, termasuk biaya layanan, selama acara barunya belum mulai." },
-      { en: "A seller whose ticket fails loses the sale and is charged a 40% penalty, except when the gate refused a genuine ticket over the name.", id: "Penjual yang tiketnya gagal kehilangan penjualan dan dikenai penalti 40%, kecuali kalau gate menolak tiket asli karena nama." },
+      // lib/mock/escrow.ts (penaltyFor, availableReasons): any ruling for the buyer costs the seller the
+      // penalty, except a refusal over the name, which a buyer can only claim when the seller staged an
+      // ID card for the gate (FEATURES.sellerIdCard). Change the rule and this line together.
+      {
+        en: `A seller whose ticket fails loses the sale and gets a penalty of ${SELLER_PENALTY_PCT}% of the sale${PENALTY_NOTE.en}. The one exception is a genuine ticket refused at the gate over the name after the seller staged their ID card for the gate: the buyer is refunded and the seller pays no penalty.${
+          FEATURES.sellerIdCard ? "" : " Sellers cannot stage an ID card yet, so for now a refusal over the name counts as a failed ticket."
+        }`,
+        id: `Penjual yang tiketnya gagal kehilangan penjualannya dan kena penalti ${SELLER_PENALTY_PCT}% dari nilai transaksi${PENALTY_NOTE.id}. Satu-satunya pengecualian: tiket asli yang ditolak gate karena nama, padahal penjual sudah menyiapkan KTP-nya untuk gate. Pembeli tetap direfund dan penjual tidak kena penalti.${
+          FEATURES.sellerIdCard ? "" : " Penjual belum bisa menyiapkan KTP, jadi untuk sekarang penolakan karena nama dihitung sebagai tiket gagal."
+        }`,
+      },
     ],
   },
   {
@@ -76,7 +94,7 @@ const sections: LegalSection[] = [
       { en: "Edited or fake tickets, false claims, or evidence that is not what it says.", id: "Tiket editan atau palsu, klaim palsu, atau bukti yang tidak sesuai kenyataan." },
       { en: "Someone else's account or someone else's personal data.", id: "Memakai akun orang lain atau data pribadi orang lain." },
     ],
-    body: [{ en: "We may hold listings, refuse claims, or close accounts that do these.", id: "Kami boleh menahan listing, menolak klaim, atau menutup akun yang melakukannya." }],
+    after: [{ en: "We may hold listings, refuse claims, or close accounts that do these.", id: "Kami boleh menahan listing, menolak klaim, atau menutup akun yang melakukannya." }],
   },
   {
     title: { en: "Your data", id: "Datamu" },
@@ -85,9 +103,10 @@ const sections: LegalSection[] = [
   {
     title: { en: "The rest", id: "Lain-lain" },
     body: [
+      // Where to write is under the last section, on this page and the privacy policy alike.
       {
-        en: `These terms follow Indonesian law. They have not yet been reviewed by a lawyer and will be before Lummy takes real payments; when they change, the date at the top changes. Questions: ${CONTACT_EMAIL}.`,
-        id: `Ketentuan ini mengikuti hukum Indonesia. Ketentuan ini belum ditinjau penasihat hukum, dan akan ditinjau sebelum Lummy menerima pembayaran sungguhan; kalau berubah, tanggal di atas ikut berubah. Pertanyaan: ${CONTACT_EMAIL}.`,
+        en: "These terms follow Indonesian law. They have not yet been reviewed by a lawyer and will be before Lummy takes real payments; when they change, the date at the top changes.",
+        id: "Ketentuan ini mengikuti hukum Indonesia. Ketentuan ini belum ditinjau penasihat hukum, dan akan ditinjau sebelum Lummy menerima pembayaran sungguhan; kalau berubah, tanggal di atas ikut berubah.",
       },
     ],
   },

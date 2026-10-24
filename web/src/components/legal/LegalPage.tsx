@@ -6,7 +6,8 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import { useT } from "@/lib/i18n";
 
 export type Bi = { en: string; id: string };
-export type LegalSection = { title: Bi; body?: Bi[]; list?: Bi[] };
+/** `after`: paragraphs that follow the list, such as what happens to those who break it. */
+export type LegalSection = { title: Bi; body?: Bi[]; list?: Bi[]; after?: Bi[] };
 
 /** Who answers for the data and where to write, until there is a company. */
 export const CONTROLLER: Bi = {
@@ -14,6 +15,20 @@ export const CONTROLLER: Bi = {
   id: "Tim Lummy Ticket (Zahra Sasongko, Luthfi Hadi, dan Joanita Timbin Panggalo), tim pendiri yang menjalankan prototipe ini. Badan usahanya belum ada; halaman ini akan menyebutnya begitu berdiri.",
 };
 export const CONTACT_EMAIL = "team@lummy.id";
+
+/**
+ * A point with its first sentence in bold, so the page can be skimmed by its leads. The lead ends
+ * at the first full stop followed by a space, which no amount (Rp25.000) or address (lummy.id) has.
+ */
+function Lead({ text }: { text: string }) {
+  const m = /^(.+?[.!?])\s+(.+)$/.exec(text);
+  return (
+    <>
+      <strong className="font-semibold text-neutral-black">{m ? m[1] : text}</strong>
+      {m && ` ${m[2]}`}
+    </>
+  );
+}
 
 export function LegalPage({ title, effective, intro, sections }: { title: Bi; effective: Bi; intro: Bi; sections: LegalSection[] }) {
   const t = useT();
@@ -30,13 +45,16 @@ export function LegalPage({ title, effective, intro, sections }: { title: Bi; ef
               {t(s.title.en, s.title.id)}
             </h2>
             {(s.body ?? []).map((p) => (
-              <p key={p.en} className="text-sm text-neutral-gray mt-3 leading-relaxed">{t(p.en, p.id)}</p>
+              <p key={p.en} className="text-sm text-neutral-gray mt-3 leading-relaxed"><Lead text={t(p.en, p.id)} /></p>
             ))}
             {s.list && (
               <ul className="mt-3 flex flex-col gap-2 list-disc pl-5 text-sm text-neutral-gray leading-relaxed">
-                {s.list.map((p) => <li key={p.en}>{t(p.en, p.id)}</li>)}
+                {s.list.map((p) => <li key={p.en}><Lead text={t(p.en, p.id)} /></li>)}
               </ul>
             )}
+            {(s.after ?? []).map((p) => (
+              <p key={p.en} className="text-sm text-neutral-gray mt-3 leading-relaxed"><Lead text={t(p.en, p.id)} /></p>
+            ))}
           </section>
         ))}
       </div>

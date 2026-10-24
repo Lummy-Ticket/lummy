@@ -5,7 +5,7 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
-  ArrowRight, Banknote, CalendarClock, CalendarX, Eye, FileText, FileUp, Flag, Landmark, Lock, PackageX, QrCode, Repeat,
+  ArrowRight, Banknote, CalendarClock, CalendarX, ExternalLink, Eye, FileText, FileUp, Flag, Landmark, Lock, PackageX, QrCode, Repeat,
   ScanLine, Search, ShieldAlert, Tag, Timer, TrendingUp, XCircle, FileWarning, Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,9 +16,16 @@ import { StepTimeline, MiniTrack, TONE_CHIP, type Step } from "@/components/how/
 import { Faq, type FaqItem } from "@/components/how/Faq";
 import { cn } from "@/lib/utils";
 import { useFormatters, useT } from "@/lib/i18n";
-import { CAP_PCT, FLOOR_PCT, DISPUTE_WINDOW_H, LATE_LISTING_H, SELLER_PENALTY_PCT, MATERAI, platformFee } from "@/lib/mock";
+import { CAP_PCT, FLOOR_PCT, DISPUTE_WINDOW_H, LATE_LISTING_H, SELLER_PENALTY_PCT, MATERAI, platformFee, explorerAddr } from "@/lib/mock";
+import { DEPLOYMENTS, LEDGERS } from "@/lib/chain/deployments";
 import { FEATURES } from "@/lib/features";
 import { TEST_MODE } from "@/components/layout/TestModeNotice";
+
+// The contracts on Arbitrum Sepolia: the escrow that holds USDC, and the ledger that records each
+// QRIS order. The escrow's claim window is short on purpose, so a demo runs to the end.
+const ESCROW = DEPLOYMENTS[421614]?.escrow;
+const LEDGER = LEDGERS[421614]?.ledger;
+const TESTNET_WINDOW_MIN = Math.round((DEPLOYMENTS[421614]?.disputeWindow ?? 600) / 60);
 
 // One ticket, followed from both sides: the buyer's order and the seller's listing are the
 // same sale, so the numbers on the two tabs agree. Illustrative, and computed with the
@@ -218,8 +225,8 @@ export default function HowItWorks() {
             `${DISPUTE_WINDOW_H} jam setelah acara, kalau tidak ada masalah, escrow membayar penjual dengan sendirinya. Tidak perlu persetujuan siapa pun.`
           )
         : t(
-            `${DISPUTE_WINDOW_H} hours after the show, if nobody raised a problem, the money is released to the seller without anyone approving it. A USDC escrow pays out on chain; for QRIS, the release is recorded and bank payouts start with real money.`,
-            `${DISPUTE_WINDOW_H} jam setelah acara, kalau tidak ada masalah, dananya dilepas untuk penjual tanpa perlu persetujuan siapa pun. Escrow USDC mencairkannya di chain; untuk QRIS, pelepasannya dicatat dan pencairan ke rekening dimulai saat ada uang sungguhan.`
+            `${DISPUTE_WINDOW_H} hours after the show, if nobody raised a problem, the money is released to the seller without anyone approving it. A USDC escrow pays out on chain, after ${TESTNET_WINDOW_MIN} minutes on this testnet demo; for QRIS, the release is recorded and bank payouts start with real money.`,
+            `${DISPUTE_WINDOW_H} jam setelah acara, kalau tidak ada masalah, dananya dilepas untuk penjual tanpa perlu persetujuan siapa pun. Escrow USDC mencairkannya di chain, setelah ${TESTNET_WINDOW_MIN} menit di demo testnet ini; untuk QRIS, pelepasannya dicatat dan pencairan ke rekening dimulai saat ada uang sungguhan.`
           ),
       state: FEATURES.payouts ? t("Paid to the seller", "Cair ke penjual") : t("Released to the seller", "Dilepas untuk penjual"),
       tone: "done",
@@ -250,8 +257,8 @@ export default function HowItWorks() {
       Icon: Wallet,
       title: t("Shows abroad: USDC", "Acara di luar negeri: USDC"),
       body: t(
-        "Pay from your own wallet. You sign twice, Lummy pays the gas, and the USDC is locked in the escrow contract on Arbitrum. No service fee while it runs on testnet: test USDC on Arbitrum Sepolia, not real money.",
-        "Bayar dari wallet-mu sendiri. Kamu tanda tangan dua kali, gas dibayar Lummy, dan USDC-nya dikunci di kontrak escrow di Arbitrum. Tanpa biaya layanan selama di testnet: USDC uji di Arbitrum Sepolia, bukan uang sungguhan."
+        `Pay from your own wallet. You sign twice, Lummy pays the gas, and the USDC is locked in the escrow contract on Arbitrum. No service fee while it runs on testnet: test USDC on Arbitrum Sepolia, not real money. The claim window after the show is ${TESTNET_WINDOW_MIN} minutes on this testnet demo, ${DISPUTE_WINDOW_H} hours in production.`,
+        `Bayar dari wallet-mu sendiri. Kamu tanda tangan dua kali, gas dibayar Lummy, dan USDC-nya dikunci di kontrak escrow di Arbitrum. Tanpa biaya layanan selama di testnet: USDC uji di Arbitrum Sepolia, bukan uang sungguhan. Masa klaim setelah acara: ${TESTNET_WINDOW_MIN} menit di demo testnet ini, ${DISPUTE_WINDOW_H} jam di produksi.`
       ),
     },
   ];
@@ -262,7 +269,7 @@ export default function HowItWorks() {
       q: t("What if the seller never hands it over?", "Kalau penjual tidak menyerahkan tiket?"),
       a: t(
         "Claim before the show. Our record of whether you opened the handover documents decides it, so there is nothing for you to prove.",
-        "Klaim sebelum acara. Catatan kami soal apakah kamu pernah membuka dokumen serah-terima yang menentukan, jadi tidak ada yang perlu kamu buktikan."
+        "Klaim sebelum acara. Patokannya catatan kami soal kamu pernah membuka dokumen serah-terima atau belum, jadi kamu tidak perlu membuktikan apa-apa."
       ),
     },
     {
@@ -270,7 +277,7 @@ export default function HowItWorks() {
       q: t("What if I am turned away at the gate?", "Kalau aku ditolak di gate?"),
       a: t(
         `File within ${DISPUTE_WINDOW_H} hours with a photo taken there. The time, the venue and the code on screen all have to match, so someone who walked in cannot claim. A person reviews it and decides.`,
-        `Ajukan dalam ${DISPUTE_WINDOW_H} jam dengan foto yang diambil di sana. Waktu, venue, dan kode di layar harus cocok, jadi yang berhasil masuk tidak bisa mengklaim. Orang yang meninjau dan memutus.`
+        `Ajukan dalam ${DISPUTE_WINDOW_H} jam dengan foto yang diambil di sana. Waktu, venue, dan kode di layar harus cocok, jadi yang berhasil masuk tidak bisa mengklaim. Yang meninjau dan memutus tetap manusia, bukan mesin.`
       ),
     },
     {
@@ -425,7 +432,7 @@ export default function HowItWorks() {
       q: t("A buyer says they were turned away. Now what?", "Pembeli bilang ditolak di gate. Terus?"),
       a: t(
         "You see the claim and their photo in your dashboard, and you can answer with your own evidence. The photo has to match the time, the venue and your ticket's code. A person decides; without evidence that holds up, you are paid.",
-        "Kamu melihat klaim dan fotonya di dasbor, dan bisa menjawab dengan buktimu sendiri. Fotonya harus cocok dengan waktu, venue, dan kode tiketmu. Orang yang memutus; tanpa bukti yang kuat, kamu tetap dibayar."
+        "Kamu melihat klaim dan fotonya di dasbor, dan bisa menjawab dengan buktimu sendiri. Fotonya harus cocok dengan waktu, venue, dan kode tiketmu. Yang memutus tetap manusia; tanpa bukti yang kuat, kamu tetap dibayar."
       ),
     },
     {
@@ -655,6 +662,22 @@ export default function HowItWorks() {
             <TicketFeature key={c.title} Icon={c.Icon} title={c.title} body={c.body} />
           ))}
         </div>
+        {/* "Open to audit" holds only if the reader can get there in one tap. */}
+        {(ESCROW || LEDGER) && (
+          <p data-audit-links className="mt-5 text-sm text-neutral-gray flex flex-wrap gap-x-5 gap-y-2">
+            <span>{t("Check it yourself on Arbiscan:", "Cek sendiri di Arbiscan:")}</span>
+            {ESCROW && (
+              <a href={explorerAddr(ESCROW)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary-navy font-medium">
+                {t("LummyEscrow, holding USDC", "LummyEscrow, yang menahan USDC")} <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            )}
+            {LEDGER && (
+              <a href={explorerAddr(LEDGER)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary-navy font-medium">
+                {t("LummyLedger, recording QRIS orders", "LummyLedger, yang mencatat pesanan QRIS")} <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            )}
+          </p>
+        )}
       </section>
 
       <section data-reveal className="max-w-6xl mx-auto px-5 lg:px-10 mt-20">

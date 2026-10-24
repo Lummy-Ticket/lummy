@@ -22,12 +22,14 @@ export interface EventRequest {
   status: "pending" | "approved" | "rejected";
 }
 
+// Samples, so the queue has one clean request and one flagged: no real artist or promoter is named,
+// and the "official source" is a placeholder address (example.com is reserved for examples).
 export const SEED_EVENT_REQUESTS: EventRequest[] = [
   {
-    id: "req-1", status: "pending", submittedBy: "Zahra A.", title: "Bruno Mars Live in Jakarta",
+    id: "req-1", status: "pending", submittedBy: "Zahra A.", title: "Lummy Stadium Night (sample)",
     dateISO: "2027-02-08T20:00:00+07:00", venue: "Stadion Utama GBK", city: "Jakarta",
     category: "Music", forgeryScore: 7, pdfSuspicious: false,
-    pdfTier: "CAT 1", organizerRef: "instagram.com/pkentertainment.id",
+    pdfTier: "CAT 1", organizerRef: "example.com/lummy-stadium-night",
     faceValues: [
       { tier: "Front CAT", value: 4_500_000 },
       { tier: "CAT 1", value: 2_500_000 },
@@ -35,10 +37,10 @@ export const SEED_EVENT_REQUESTS: EventRequest[] = [
     ],
   },
   {
-    id: "req-2", status: "pending", submittedBy: "Bagas W.", title: "Hindia: Menari Dengan Bayangan",
+    id: "req-2", status: "pending", submittedBy: "Bagas W.", title: "Lummy Beach Fest (sample)",
     dateISO: "2026-12-20T19:30:00+07:00", venue: "Beach City International Stadium", city: "Jakarta",
     category: "Music", forgeryScore: 63, pdfSuspicious: true,
-    pdfTier: "VIP", organizerRef: "instagram.com/hindia.official",
+    pdfTier: "VIP", organizerRef: "example.com/lummy-beach-fest",
     faceValues: [
       { tier: "VIP", value: 850_000 },
       { tier: "Regular", value: 450_000 },
@@ -61,8 +63,9 @@ export const useEventRequests = create<ReqState>()(
     }),
     {
       name: "lummy:eventreq",
-      // v2 added pdfTier + organizerRef, so older stored state is reset.
-      version: 2,
+      // v2 added pdfTier + organizerRef; v3 (24 Oct 2026) replaced real artists with samples. Older
+      // stored state is reset either way.
+      version: 3,
       migrate: () => ({ requests: SEED_EVENT_REQUESTS }),
     }
   )

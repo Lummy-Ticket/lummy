@@ -188,7 +188,7 @@ export const DISPUTE_REASONS: ReasonMeta[] = [
     eligible: true, window: "BOTH", proof: "DOCS",
     help: {
       en: "No proof to gather: our own record of whether you ever opened the handover documents settles this.",
-      id: "Tidak perlu cari bukti: catatan kami soal apakah kamu pernah membuka dokumen serah-terima yang menentukan.",
+      id: "Tidak perlu cari bukti: patokannya catatan kami soal kamu pernah membuka dokumen serah-terima atau belum.",
     },
   },
   {
@@ -511,8 +511,8 @@ export function remedyOptions(o: Order, reason: DisputeReason, now: number = Dat
     amount: o.amount,
     label: REMEDY_LABEL.REFUND_FULL,
     note: {
-      en: "The buyer got nothing of what they paid for.",
-      id: "Pembeli tidak mendapat apa pun dari yang dibayarnya.",
+      en: "The buyer got nothing of what they paid for, so all of it comes back.",
+      id: "Pembeli sama sekali tidak mendapat yang sudah dibayarnya, jadi uangnya kembali penuh.",
     },
   });
   options.push({
