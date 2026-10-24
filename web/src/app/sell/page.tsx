@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { TransferPolicyNote } from "@/components/common/TransferPolicyNote";
 import {
   getTier, CAP_PCT, FLOOR_PCT, useSellerListings, useUser, type ListingAI,
-  isLateListing, LATE_LISTING_H, resaleAllowed,
+  isLateListing, LATE_LISTING_H, resaleAllowed, SELLER_PENALTY_PCT,
 } from "@/lib/mock";
 import { SAMPLE_SIGNALS, type SampleTicket } from "@/lib/listings/rules";
 import { FILL_BY, ListingError, checkTicketFile, createListing, fillFromTicket, useTicketFill, useTicketReader, type TicketFill } from "@/lib/listings/client";
@@ -772,8 +772,8 @@ function SellForm() {
               <p className="mt-3 flex items-start gap-2 text-xs text-secondary-orange-dark">
                 <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                 {t(
-                  "This show checks names at the gate. Without your ID card staged, a refusal over the name counts as a failed ticket, with the seller penalty.",
-                  "Acara ini mengecek nama di gate. Tanpa KTP yang disiapkan, penolakan karena nama dihitung sebagai tiket gagal, lengkap dengan penalti penjual."
+                  `This show checks names at the gate. Without your ID card staged, a buyer turned away over the name counts as a failed ticket: the buyer gets their money back and you get the ${SELLER_PENALTY_PCT}% seller penalty.`,
+                  `Acara ini mengecek nama di gate. Tanpa KTP yang disiapkan, pembeli yang ditolak karena nama dihitung tiket gagal: uang pembeli kembali dan kamu kena penalti penjual ${SELLER_PENALTY_PCT}%.`
                 )}
               </p>
             )}

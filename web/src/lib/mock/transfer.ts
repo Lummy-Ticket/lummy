@@ -3,7 +3,7 @@
 // from the organiser's terms and is recorded per event (events.transfer_policy). Null means nobody has
 // confirmed it yet, and the app says so instead of guessing.
 import { FEATURES } from "../features";
-import type { Bi } from "./escrow";
+import { PENALTY_NOTE, SELLER_PENALTY_PCT, type Bi } from "./escrow";
 import type { TransferPolicy } from "./types";
 
 // Until Lummy stores an ID card for the gate (lib/features.ts), the seller hands the signed letter
@@ -71,8 +71,10 @@ const TRANSFER_POLICY: Record<TransferPolicy, TransferPolicyMeta> = {
           id: "Penyelenggara mencocokkan KTP dengan nama, jadi pembeli bisa ditolak karena nama. Penjualan itu di-refund, tanpa penalti untukmu selama KTP kamu sudah disiapkan untuk gate.",
         }
       : {
-          en: "The organiser matches ID cards to names, so a buyer may be refused over the name. Lummy cannot stage your ID card for the gate yet, so that refusal counts as a failed ticket: the sale is refunded with the seller penalty.",
-          id: "Penyelenggara mencocokkan KTP dengan nama, jadi pembeli bisa ditolak karena nama. Lummy belum bisa menyiapkan KTP kamu untuk gate, jadi penolakan itu dihitung tiket gagal: penjualan di-refund dengan penalti penjual.",
+          // A name refusal is penalty-free only on a claim the seller's staged ID card opens
+          // (availableReasons in escrow.ts); without one it is filed as a refusal at the gate.
+          en: `The organiser matches ID cards to names, so a buyer may be turned away over the name. Lummy cannot keep your ID card for the gate check yet, so if that happens the ticket counts as failed: the buyer gets their money back and you get the ${SELLER_PENALTY_PCT}% seller penalty${PENALTY_NOTE.en}.`,
+          id: `Penyelenggara mencocokkan KTP dengan nama di tiket, jadi pembeli bisa ditolak karena nama. Lummy belum bisa menyimpan KTP-mu untuk dicek di gate. Kalau pembeli ditolak karena nama, tiketnya dihitung gagal: uang pembeli kembali dan kamu kena penalti penjual ${SELLER_PENALTY_PCT}%${PENALTY_NOTE.id}.`,
         },
     tone: "warn",
   },
