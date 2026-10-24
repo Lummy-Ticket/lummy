@@ -860,15 +860,15 @@ export default function OrderDetailPage() {
                 </div>
               </button>
             )}
-            {/* The ID card on the gate: a sample persona still sees the stand-in, labelled; an account
-                sees it only once Lummy really stores ID cards (lib/features.ts). */}
-            {order.gateKtp && (FEATURES.sellerIdCard || !account) && (
+            {/* The ID card on the gate, shown only once Lummy really stores ID cards (lib/features.ts).
+                Until then nobody sees it, sample personas included: the pitch and the terms say Lummy
+                keeps no ID cards, and a labelled stand-in still read as a feature (QA, 24 Oct). */}
+            {order.gateKtp && FEATURES.sellerIdCard && (
               <button onClick={() => { setShowKtp(true); openDoc("sellerId"); }} className="mt-3 w-full flex items-center gap-3 p-3 rounded-2xl border border-neutral-light-gray-1 hover:border-lummy-500 transition cursor-pointer text-left">
                 <span className="w-10 h-10 rounded-xl bg-secondary-pink-soft text-secondary-pink-dark grid place-items-center shrink-0"><CreditCard className="w-5 h-5" /></span>
                 <div>
                   <div className="text-sm font-medium text-neutral-black">
                     {t("Seller ID card (gate check)", "Foto KTP penjual (cek gate)")}
-                    {!FEATURES.sellerIdCard && <> <span className="ml-0.5 text-xs font-normal text-neutral-gray">{t("(sample)", "(contoh)")}</span></>}
                   </div>
                   <div className="text-xs text-neutral-gray">{ktpOpen ? t("Unlocked, view-only", "Terbuka, hanya bisa dilihat") : t("Unlocks when you are at the gate", "Terbuka saat kamu di gate")}</div>
                 </div>
@@ -907,7 +907,7 @@ export default function OrderDetailPage() {
             </div>
             <div className="mt-1.5 text-xs text-neutral-gray">
               {t("Help with this order:", "Bantuan untuk pesanan ini:")}{" "}
-              <a href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(`Pesanan ${order.id.toUpperCase()}`)}`} className="text-primary-navy font-medium">{CONTACT_EMAIL}</a>
+              <a href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(`${t("Order", "Pesanan")} ${order.id.toUpperCase()}`)}`} className="text-primary-navy font-medium">{CONTACT_EMAIL}</a>
             </div>
           </div>
         </div>
@@ -1060,8 +1060,8 @@ export default function OrderDetailPage() {
         </Button.Primary>
       </Modal>
 
-      {/* Seller ID */}
-      <Modal open={showKtp} onClose={() => setShowKtp(false)} title={t("Seller ID card", "Foto KTP penjual")}>
+      {/* Seller ID: kept for when Lummy stores ID cards (lib/features.ts), never opened before then. */}
+      <Modal open={FEATURES.sellerIdCard && showKtp} onClose={() => setShowKtp(false)} title={t("Seller ID card", "Foto KTP penjual")}>
         {!ktpOpen ? (
           <div className="flex flex-col items-center text-center gap-3 py-2">
             <span className="w-14 h-14 rounded-2xl bg-secondary-blue-soft text-lummy-500 grid place-items-center"><Lock className="w-7 h-7" /></span>
