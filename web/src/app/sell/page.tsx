@@ -62,11 +62,11 @@ function fillMessage(outcome: Exclude<TicketFill["outcome"], "filled">, t: T) {
   }
 }
 
-/** The sample tickets' file names, as a seller would see them: samples for the sample show, Lummy Demo Fest. */
+/** The sample tickets' file names, as a seller would see them: samples for the show the form starts on. */
 const SAMPLE_FILES: Record<SampleTicket, string> = {
-  good: "demofest-sample-genuine.pdf",
-  edited: "demofest-sample-edited.pdf",
-  dup: "demofest-sample-duplicate.pdf",
+  good: "sample-ticket-genuine.pdf",
+  edited: "sample-ticket-edited.pdf",
+  dup: "sample-ticket-duplicate.pdf",
 };
 const SAMPLE_NAMES = new Set(Object.values(SAMPLE_FILES));
 /** The samples a seller can try, as the page names them and their files. */
@@ -453,7 +453,7 @@ function SellForm() {
                 demo account's upload is still only simulated (said above once a file is chosen). */}
             {!account && (
               <p data-sample-downloads className="mt-3 text-xs text-neutral-gray leading-relaxed">
-                {t("Want to try the upload itself? Download a sample PDF for Lummy Demo Fest, marked SAMPLE, not a real ticket:", "Mau coba upload-nya juga? Unduh PDF contoh untuk Lummy Demo Fest, bertanda CONTOH, bukan tiket asli:")}{" "}
+                {t("Want to try the upload itself? Download a sample PDF for 5 Seconds of Summer, Second Show, marked SAMPLE, not a real ticket:", "Mau coba upload-nya juga? Unduh PDF contoh untuk 5 Seconds of Summer, Second Show, bertanda CONTOH, bukan tiket asli:")}{" "}
                 {SAMPLES.map((s, i) => (
                   <span key={s.id}>
                     {i > 0 && " · "}
@@ -874,7 +874,7 @@ function SellForm() {
           <div className="flex gap-3">
             <Button.Ghost onClick={() => setStep(1)}><ArrowLeft className="w-4 h-4" /> {t("Back", "Kembali")}</Button.Ghost>
             <Button.Primary disabled={blocked || ktpMissing || publishing || closed || (sendsRealFile && !agreed)} onClick={publish}>
-              {blocked ? t("Blocked (duplicate)", "Diblokir (duplikat)") : flagged || late ? t("Submit for review", "Ajukan untuk review") : t("Publish listing", "Publish listing")}
+              {blocked ? t("Blocked (duplicate)", "Diblokir (duplikat)") : flagged || late ? t("Submit for review", "Ajukan untuk review") : t("Publish listing", "Tayangkan listing")}
             </Button.Primary>
           </div>
         </div>

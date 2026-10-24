@@ -212,7 +212,7 @@ export default function EventDetailPage() {
             </p>
           )}
           {/* Real shows, sample listings: no fan should read them as tickets on sale (lib/features.ts). */}
-          {event.currency !== "USDC" && !FEATURES.realListings && (
+          {!over && event.currency !== "USDC" && !FEATURES.realListings && (
             <p data-sample-listings className="mt-3 flex items-start gap-2 rounded-2xl bg-secondary-orange-soft px-3 py-2 text-xs text-secondary-orange-dark">
               <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
               {t(

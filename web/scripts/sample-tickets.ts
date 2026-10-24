@@ -1,7 +1,8 @@
 /**
  * The sample ticket PDFs a demo seller can download on /sell (public/samples): one for each sample
- * the page offers, all for the sample show, Lummy Demo Fest, and stamped as samples so nobody takes
- * one for a ticket. A demo account only simulates the check on them; a real check reads the stamp
+ * the page offers, all for the show the demo form starts on (5 Seconds of Summer, Second Show,
+ * CAT 3), so the file and the filled-in form agree, and stamped as samples so nobody takes one
+ * for a ticket. Lummy Demo Fest is always tomorrow, so a listing on it would wait for review. A demo account only simulates the check on them; a real check reads the stamp
  * and sends the file to a person.
  *
  *   npx tsx scripts/sample-tickets.ts
@@ -12,11 +13,11 @@ import { PDFDocument, StandardFonts, degrees, rgb } from "pdf-lib";
 import { ISSUED, appendRevision, drawCode, initWriter } from "./ticket-fixtures";
 
 const OUT = path.join(process.cwd(), "public", "samples");
-const PAYLOAD = "LUMMY-SAMPLE|ev-demo-fest|CAT1|8842-7731-2290";
+const PAYLOAD = "LUMMY-SAMPLE|ev-5sos-jakarta|CAT3|8842-7731-2290";
 
 async function sample(o: { name: string; seat: string; what: string[]; producer: string; modified?: Date; edit?: boolean }) {
   const doc = await PDFDocument.create({ updateMetadata: false });
-  doc.setTitle("Lummy Demo Fest - SAMPLE ticket / tiket CONTOH");
+  doc.setTitle("5 Seconds of Summer, Jakarta, Second Show - SAMPLE ticket / tiket CONTOH");
   doc.setProducer(o.producer);
   doc.setCreator("Lummy sample ticket");
   doc.setCreationDate(ISSUED);
@@ -27,10 +28,10 @@ async function sample(o: { name: string; seat: string; what: string[]; producer:
   const red = rgb(0.75, 0, 0);
   page.drawText("SAMPLE - NOT A REAL TICKET", { x: 36, y: 560, size: 12, font: bold, color: red });
   page.drawText("CONTOH - BUKAN TIKET ASLI", { x: 36, y: 545, size: 12, font: bold, color: red });
-  page.drawText("LUMMY DEMO FEST (SAMPLE EVENT)", { x: 36, y: 515, size: 16, font: bold });
-  page.drawText("JIExpo Kemayoran, Jakarta", { x: 36, y: 499, size: 10, font });
+  page.drawText("5 SECONDS OF SUMMER, SECOND SHOW", { x: 36, y: 515, size: 15, font: bold });
+  page.drawText("Indonesia Arena, Jakarta. Sun 6 Dec 2026, 18:00 WIB", { x: 36, y: 499, size: 10, font });
   page.drawText(`Name: ${o.name}`, { x: 36, y: 478, size: 12, font });
-  page.drawText("Category: CAT 1", { x: 36, y: 462, size: 12, font });
+  page.drawText("Category: CAT 3", { x: 36, y: 462, size: 12, font });
   page.drawText(`Seat: ${o.seat}`, { x: 36, y: 446, size: 12, font });
   if (o.edit) {
     // Typed over the category the way a quick edit does: a white box, and new words in another font.
@@ -61,7 +62,7 @@ async function main() {
   const edited = appendRevision(
     await sample({
       name: "Zahra Amelia", seat: "Free standing", producer: "iLovePDF", modified: new Date("2026-10-20T21:14:00+07:00"), edit: true,
-      what: ["This sample: edited after issue, CAT 1 typed over as VIP.", "Contoh ini: diedit setelah terbit, CAT 1 ditimpa jadi VIP."],
+      what: ["This sample: edited after issue, CAT 3 typed over as VIP.", "Contoh ini: diedit setelah terbit, CAT 3 ditimpa jadi VIP."],
     }),
     "/Producer (iLovePDF) /ModDate (D:20261020211400+07'00')"
   );
@@ -71,9 +72,9 @@ async function main() {
     what: ["This sample: the same barcode as a ticket already sold.", "Contoh ini: barcode-nya sama dengan tiket yang sudah terjual."],
   });
   const files: [string, Uint8Array][] = [
-    ["demofest-sample-genuine.pdf", genuine],
-    ["demofest-sample-edited.pdf", edited],
-    ["demofest-sample-duplicate.pdf", duplicate],
+    ["sample-ticket-genuine.pdf", genuine],
+    ["sample-ticket-edited.pdf", edited],
+    ["sample-ticket-duplicate.pdf", duplicate],
   ];
   for (const [name, bytes] of files) {
     await writeFile(path.join(OUT, name), bytes);

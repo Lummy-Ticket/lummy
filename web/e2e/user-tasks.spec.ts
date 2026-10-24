@@ -121,7 +121,7 @@ test.describe("user tasks", { tag: "@smoke" }, () => {
     expect(aiClaims(await page.locator("main").innerText())).toEqual([]);
     await expectFitsScreen(page);
     await page.getByRole("button", { name: "Lanjut ke harga" }).click();
-    await page.getByRole("button", { name: /^(Publish listing|Ajukan untuk review)$/ }).click();
+    await page.getByRole("button", { name: /^(Publish listing|Tayangkan listing|Ajukan untuk review)$/ }).click();
     await expect(page).toHaveURL(/\/seller/);
   });
 });

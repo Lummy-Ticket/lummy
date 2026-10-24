@@ -11,7 +11,7 @@ export type LegalSection = { title: Bi; body?: Bi[]; list?: Bi[]; after?: Bi[] }
 
 /** Who answers for the data and where to write, until there is a company. */
 export const CONTROLLER: Bi = {
-  en: "Tim Lummy Ticket (Zahra Sasongko, Luthfi Hadi and Joanita Timbin Panggalo), the founding team running this prototype. There is no company yet; this page will name it once there is.",
+  en: "The Lummy Ticket team (Zahra Sasongko, Luthfi Hadi and Joanita Timbin Panggalo), the founders running this prototype. There is no company yet; this page will name it once there is.",
   id: "Tim Lummy Ticket (Zahra Sasongko, Luthfi Hadi, dan Joanita Timbin Panggalo), tim pendiri yang menjalankan prototipe ini. Badan usahanya belum ada; halaman ini akan menyebutnya begitu berdiri.",
 };
 export const CONTACT_EMAIL = "team@lummy.id";

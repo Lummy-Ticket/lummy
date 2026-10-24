@@ -135,7 +135,9 @@ export default function OrderDetailPage() {
   const catalogue = useCatalogue();
   const [showKtp, setShowKtp] = useState(false);
   const [ktpOpen, setKtpOpen] = useState(false);
-  const [showProof, setShowProof] = useState(false);
+  // Open by itself on a sample order, whose section links the example public records; a click wins.
+  const [proofPref, setProofPref] = useState<boolean | null>(null);
+  const showProof = proofPref ?? !account;
   // Taking the money back from a postponed show gives the ticket up, so it asks twice.
   const [optingOut, setOptingOut] = useState(false);
 
@@ -586,7 +588,7 @@ export default function OrderDetailPage() {
 
           {/* On-chain proof, hidden by default: web2 first */}
           <button
-            onClick={() => setShowProof((v) => !v)}
+            onClick={() => setProofPref(!showProof)}
             aria-expanded={showProof}
             className="mt-5 flex items-center gap-1.5 text-xs text-primary-navy font-medium hover:opacity-80 cursor-pointer"
           >
