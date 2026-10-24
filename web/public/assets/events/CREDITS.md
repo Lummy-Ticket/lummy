@@ -25,6 +25,7 @@ All photos come from Wikimedia Commons under the licence named for each file. Ea
 - Licence: CC BY-SA 3.0 (Creative Commons Attribution-ShareAlike 3.0 Unported), https://creativecommons.org/licenses/by-sa/3.0/
 - Source: https://commons.wikimedia.org/wiki/File:5_Seconds_of_Summer_at_Enmore_Theatre,_Sydney,_30.04.14.jpg
 - Changes: cropped to 16:9 and resized
+- Used for both Jakarta nights: ev-5sos-jakarta (6 December) and ev-5sos-jakarta-nov (14 November), with the same credit
 
 ## ev-boyz-dewa.jpg
 
