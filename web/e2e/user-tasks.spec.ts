@@ -38,7 +38,11 @@ test.describe("user tasks", { tag: "@smoke" }, () => {
     await page.goto("/events/ev-gnr-jakarta");
     // The page opens on one ticket, the cheapest listing's count, where this single is on show.
     const row = page.locator('[data-listing="ls-2"]');
-    await row.locator("[data-seller-info]").click();
+    // A tap that lands before the page is ready does nothing, as on a slow phone: tap until it opens.
+    await expect(async () => {
+      if (!(await row.locator("[data-seller-note]").isVisible())) await row.locator("[data-seller-info]").click();
+      await expect(row.locator("[data-seller-note]")).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
     await expect(row.locator("[data-seller-note]")).toContainText("tidak perlu memercayai penjualnya");
     await expectFitsScreen(page);
   });
