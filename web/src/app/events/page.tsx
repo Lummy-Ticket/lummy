@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { PriceFilter } from "@/components/events/PriceFilter";
 import type { EventItem } from "@/lib/mock";
-import { matchesSearch, useCatalogue, useEventText } from "@/lib/catalogue";
+import { matchesSearch, realShowsFirst, useCatalogue, useEventText } from "@/lib/catalogue";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 
@@ -21,8 +21,8 @@ const STEP = 100_000;
 // Derived from what is on sale, never held at module load: the catalogue changes with the
 // date and with every new listing.
 function catalogueView(onSale: EventItem[]) {
-  // Soonest first, the way people plan.
-  const events = [...onSale].sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+  // Soonest first, the way people plan, with the sample show after the real ones.
+  const events = [...onSale].sort(realShowsFirst);
   // Round the bounds outward so the handles land on tidy numbers. An event with nothing
   // on sale has no price (0), so it does not drag the lower bound down. The filter is in rupiah:
   // shows priced in USDC stay out of its bounds.
