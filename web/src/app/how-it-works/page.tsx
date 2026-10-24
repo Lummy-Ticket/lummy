@@ -250,7 +250,7 @@ export default function HowItWorks() {
       title: t("Shows in Indonesia: QRIS", "Acara di Indonesia: QRIS"),
       body: t(
         `Pay in rupiah from any banking or e-wallet app. Xendit, a licensed payment company, holds the money until the show; each step is recorded publicly on Arbitrum. Service fee 5%, at least ${formatIDR(25_000)}. For now QRIS runs in Xendit's test mode, so no real money moves.`,
-        `Bayar dalam rupiah dari aplikasi bank atau e-wallet apa pun. Xendit, perusahaan pembayaran berlisensi, memegang dananya sampai acara; tiap langkahnya tercatat publik di Arbitrum. Biaya layanan 5%, minimal ${formatIDR(25_000)}. Untuk sekarang QRIS berjalan di mode test Xendit, jadi tidak ada uang sungguhan yang berpindah.`
+        `Bayar dalam rupiah dari aplikasi bank atau e-wallet apa pun. Xendit, perusahaan pembayaran berlisensi, memegang dananya sampai acara; tiap langkahnya tercatat publik di Arbitrum. Biaya layanan 5%, minimal ${formatIDR(25_000)}. Untuk sekarang QRIS berjalan di mode uji Xendit, jadi tidak ada uang sungguhan yang berpindah.`
       ),
     },
     {

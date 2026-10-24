@@ -165,7 +165,7 @@ function LoginInner() {
             </form>
           ))}
 
-        <div className={accounts ? "mt-8 pt-6 border-t border-dashed border-neutral-light-gray-1" : "mt-6"}>
+        <div id="demo" className={accounts ? "mt-8 pt-6 border-t border-dashed border-neutral-light-gray-1 scroll-mt-24" : "mt-6 scroll-mt-24"}>
           {accounts && (
             <>
               <p className="font-semibold text-neutral-black">{t("Just looking around?", "Cuma mau lihat-lihat?")}</p>

@@ -85,7 +85,7 @@ export function Hero({ quickCats }: { quickCats: string[] }) {
               {/* The demo accounts sit on the sign-in page under the email form, which a first visit
                   (a judge, say) had no reason to open. Gone once anyone is signed in. */}
               {!me && (
-                <Link href="/login" data-hero-demo className="lm-in -mt-3 group inline-flex flex-wrap items-center gap-x-1.5 text-sm text-neutral-gray hover:text-primary-navy transition w-fit" style={{ "--d": "460ms" } as React.CSSProperties}>
+                <Link href="/login#demo" data-hero-demo className="lm-in -mt-3 group inline-flex flex-wrap items-center gap-x-1.5 text-sm text-neutral-gray hover:text-primary-navy transition w-fit" style={{ "--d": "460ms" } as React.CSSProperties}>
                   {t("Just looking?", "Cuma mau lihat-lihat?")}
                   <span className="font-semibold text-primary-navy inline-flex items-center gap-1">
                     {t("Try it with a demo account, no sign-up", "Coba pakai akun demo, tanpa daftar")}

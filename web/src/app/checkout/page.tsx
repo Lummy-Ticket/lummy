@@ -256,7 +256,7 @@ function CheckoutInner() {
               <span>
                 {t(
                   "I understand the gate checks that my ID card matches the name on the ticket, so I could be turned away even with a genuine ticket.",
-                  "Saya paham petugas gate mengecek KTP harus sama dengan nama di tiket, jadi saya bisa ditolak walaupun tiketnya asli."
+                  "Saya paham petugas gate mengecek apakah nama di KTP sama dengan nama di tiket, jadi saya bisa ditolak walaupun tiketnya asli."
                 )}
               </span>
             </label>
@@ -324,7 +324,7 @@ function CheckoutInner() {
               {payments?.testMode
                 ? t(
                     "QRIS in Xendit's test mode: a real app cannot pay the code, and no money moves.",
-                    "QRIS mode test Xendit: kodenya tidak bisa dibayar aplikasi sungguhan, dan tidak ada uang yang berpindah."
+                    "QRIS mode uji Xendit: kodenya tidak bisa dibayar aplikasi sungguhan, dan tidak ada uang yang berpindah."
                   )
                 : t("Pay with QRIS from any e-wallet or bank app.", "Bayar dengan QRIS dari e-wallet atau aplikasi bank apa pun.")}
             </p>
@@ -398,7 +398,7 @@ function CheckoutInner() {
             onPaid={(orderId, testMode) => {
               toast.success(
                 testMode
-                  ? t("Payment received (test mode). Your order is saved, and its escrow rules are real.", "Pembayaran (mode test) diterima. Pesananmu tersimpan, dan aturan escrow-nya sungguhan.")
+                  ? t("Payment received (test mode). Your order is saved, and its escrow rules are real.", "Pembayaran (mode uji) diterima. Pesananmu tersimpan, dan aturan escrow-nya sungguhan.")
                   : t("Payment received. Your money is now in escrow.", "Pembayaran diterima. Dana kamu sekarang di escrow.")
               );
               router.push(`/tickets/${orderId}`);

@@ -74,7 +74,7 @@ test.describe("user tasks", { tag: "@smoke" }, () => {
     await expectFitsScreen(page);
     // A show whose gate matches the ID card to the name (id_match, as 5 Seconds of Summer on SODTix's
     // terms) asks the buyer to say they understand that before Bayar.
-    const nameRisk = page.getByRole("checkbox", { name: /KTP harus sama dengan nama di tiket/ });
+    const nameRisk = page.getByRole("checkbox", { name: /nama di KTP sama dengan nama di tiket/ });
     if (await nameRisk.isVisible()) {
       await expect(page.getByRole("button", { name: /^Bayar / })).toBeDisabled();
       await nameRisk.check();

@@ -39,7 +39,12 @@ export function matchesSearch(e: EventItem, q: string): boolean {
 export function popularEvents(events: EventItem[], n = 3): EventItem[] {
   const fill = events
     .filter((e) => !e.featured && !isSampleEvent(e.id))
-    .sort((a, b) => Number(b.listingCount > 0) - Number(a.listingCount > 0) || a.dateISO.localeCompare(b.dateISO));
+    .sort(
+      (a, b) =>
+        Number(b.listingCount > 0) - Number(a.listingCount > 0) ||
+        Number(b.currency !== "USDC") - Number(a.currency !== "USDC") ||
+        a.dateISO.localeCompare(b.dateISO)
+    );
   return [...events.filter((e) => e.featured), ...fill].slice(0, n);
 }
 

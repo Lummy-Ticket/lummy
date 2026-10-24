@@ -125,7 +125,7 @@ export function QrisPanel({
             {p.testMode && (
               <Button.Primary data-qris-simulate wrapperClass="w-full" className="w-full" disabled={!!busy} onClick={() => void act("simulate")}>
                 {busy === "simulate" && <Loader2 className="w-4 h-4 animate-spin" />}
-                {t("Simulate payment (test mode)", "Simulasikan pembayaran (mode test)")}
+                {t("Simulate payment (test mode)", "Simulasikan pembayaran (mode uji)")}
               </Button.Primary>
             )}
             <button

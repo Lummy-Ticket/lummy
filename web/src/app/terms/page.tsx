@@ -36,7 +36,7 @@ const sections: LegalSection[] = [
     body: [
       {
         en: "Payments are simulated: QRIS in Xendit's test mode, or test USDC on the Arbitrum Sepolia test network, neither of which has money value. Nothing you do here moves real money, and penalties below are shown as they would apply, not charged.",
-        id: "Pembayaran masih simulasi: QRIS di mode test Xendit, atau USDC uji di jaringan uji Arbitrum Sepolia, yang dua-duanya tidak bernilai uang. Tidak ada yang kamu lakukan di sini yang memindahkan uang sungguhan, dan penalti di bawah ditampilkan sebagaimana nanti berlaku, tidak ditagihkan.",
+        id: "Pembayaran masih simulasi: QRIS di mode uji Xendit, atau USDC uji di jaringan uji Arbitrum Sepolia, yang dua-duanya tidak bernilai uang. Tidak ada yang kamu lakukan di sini yang memindahkan uang sungguhan, dan penalti di bawah ditampilkan sebagaimana nanti berlaku, tidak ditagihkan.",
       },
     ],
   },
