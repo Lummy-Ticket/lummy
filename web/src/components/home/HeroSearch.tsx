@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Search, TrendingUp } from "lucide-react";
 import { useEventSuggestions } from "@/lib/useEventSuggestions";
+import { useEventText } from "@/lib/catalogue";
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 
 // Search-first hero. Focus shows what is trending, typing filters live. Each row
@@ -14,6 +15,7 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
   const t = useT();
   const { formatEventDate } = useFormatters();
   const categoryLabel = useCategoryLabel();
+  const text = useEventText();
   const router = useRouter();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
@@ -62,9 +64,14 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
               <TrendingUp className="w-3.5 h-3.5 text-lummy-500" /> {query ? t("Search results", "Hasil pencarian") : t("Popular right now", "Lagi banyak dicari")}
             </div>
             {suggestions.length === 0 && (
-              <p className="px-4 py-4 text-sm text-neutral-gray">
-                {t(`Nothing on sale for "${q.trim()}" yet.`, `Belum ada yang dijual untuk "${q.trim()}".`)}
-              </p>
+              <div className="px-4 py-4 text-sm">
+                <p className="text-sm text-neutral-gray">
+                  {t(`Nothing on sale for "${q.trim()}" yet.`, `Belum ada yang dijual untuk "${q.trim()}".`)}
+                </p>
+                <Link href="/events" onClick={() => setOpen(false)} className="mt-1 inline-block font-medium text-primary-navy hover:underline">
+                  {t("See all events", "Lihat semua event")}
+                </Link>
+              </div>
             )}
             {suggestions.map((e) => (
               <Link
@@ -74,10 +81,10 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
                 className="group flex items-center gap-3 px-3 py-2.5 hover:bg-secondary-blue-light transition-colors"
               >
                 <div className="relative w-11 h-11 rounded-lg overflow-hidden border border-neutral-light-gray-1 shrink-0">
-                  <Image src={e.image} alt="" fill sizes="44px" className="object-cover transition-transform duration-500 group-hover:scale-110" />
+                  <Image src={text.image(e)} alt="" fill sizes="44px" className="object-cover transition-transform duration-500 group-hover:scale-110" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-sm font-medium text-neutral-black truncate">{e.title}</div>
+                  <div className="text-sm font-medium text-neutral-black truncate">{text.title(e)}</div>
                   <div className="text-xs text-neutral-gray truncate">{e.city} · {formatEventDate(e.dateISO)}</div>
                 </div>
               </Link>

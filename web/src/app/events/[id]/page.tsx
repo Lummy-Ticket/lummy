@@ -16,7 +16,7 @@ import {
   getTier, isBuyable, clearedByStaff, isEventOver, resaleAllowed, CAP_PCT, SELLER_PENALTY_PCT, PENALTY_NOTE, type Listing, type EventItem,
 } from "@/lib/mock";
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
-import { useCatalogue } from "@/lib/catalogue";
+import { useCatalogue, useEventText } from "@/lib/catalogue";
 import { FEATURES } from "@/lib/features";
 import { TEST_MODE } from "@/components/layout/TestModeNotice";
 
@@ -85,7 +85,12 @@ function ListingRow({ event, listing, qty, cheapest, index }: { event: EventItem
           {FEATURES.sellerIdCard && !listing.gateKtp && (event.transferPolicy === "letter" || event.transferPolicy === "id_match") && (
             <span className="text-secondary-orange-dark">{t(" · seller's ID card not staged", " · KTP penjual belum disiapkan")}</span>
           )}
-          {listing.splittable && listing.quantity > qty ? t(` · ${listing.quantity - qty} more in this set`, ` · sisa ${listing.quantity - qty} di set ini`) : ""}
+          {listing.splittable && listing.quantity > qty
+            ? t(
+                ` · +${listing.quantity - qty} more ${listing.quantity - qty === 1 ? "ticket" : "tickets"} in this listing`,
+                ` · +${listing.quantity - qty} tiket lagi di listing ini`
+              )
+            : ""}
         </span>
         {aboutSeller && (
           <p data-seller-note className="text-xs text-neutral-gray bg-secondary-gray-soft rounded-xl p-3 max-w-md leading-relaxed">
@@ -131,6 +136,7 @@ export default function EventDetailPage() {
   const t = useT();
   const { formatMoney, formatEventDate } = useFormatters();
   const categoryLabel = useCategoryLabel();
+  const text = useEventText();
   const params = useParams<{ id: string }>();
   const catalogue = useCatalogue();
   const event = catalogue.eventById(params.id);
@@ -166,8 +172,11 @@ export default function EventDetailPage() {
   }
   const buyable = visibleListings.filter(isBuyable);
   const cheapest = buyable.length ? Math.min(...buyable.map((l) => l.askPrice)) : 0;
-  // Buyable listings the ticket count hides, so the list adds up to the sidebar's count.
-  const otherQuantities = listings.filter(isBuyable).length - buyable.length;
+  // What can be bought, the one count the heading and the sidebar both give. A blocked or held
+  // listing is shown for what it is but not counted (GNR said 3 above and 4 beside; Demo Fest 6).
+  const forSale = listings.filter(isBuyable).length;
+  // Buyable listings the ticket count hides, so the list adds up to that count.
+  const otherQuantities = forSale - buyable.length;
   const over = isEventOver(event);
   const closed = !resaleAllowed(event.transferPolicy);
 
@@ -183,14 +192,15 @@ export default function EventDetailPage() {
       <div className="max-w-7xl mx-auto px-5 lg:px-10 mt-4 grid lg:grid-cols-[1.6fr_1fr] gap-8">
         {/* Main */}
         <div>
-          {/* 16:9 photo; the category rides on the image so it never crowds the title */}
+          {/* 16:9 photo; the category rides on the image so it never crowds the title. Top right, as
+              on the cards: top left sat on the logo of the sample show's art. */}
           <div className="relative w-full aspect-video rounded-3xl overflow-hidden border border-lummy-500">
-            <Image src={event.image} alt={event.title} fill sizes="(min-width: 1024px) 60vw, 100vw" className="lm-settle object-cover" priority />
-            <span className="absolute top-3 left-3 bg-neutral-white/95 backdrop-blur-sm text-lummy-500 text-xs font-semibold rounded-full px-3 py-1 shadow-sm">{categoryLabel(event.category)}</span>
+            <Image src={text.image(event)} alt={text.title(event)} fill sizes="(min-width: 1024px) 60vw, 100vw" className="lm-settle object-cover" priority />
+            <span className="absolute top-3 right-3 bg-neutral-white/95 backdrop-blur-sm text-lummy-500 text-xs font-semibold rounded-full px-3 py-1 shadow-sm">{categoryLabel(event.category)}</span>
           </div>
           {/* A licensed photo names its author and licence, as the licence asks. */}
-          {event.imageCredit && <p data-image-credit className="mt-1.5 text-[11px] text-neutral-gray">{event.imageCredit}</p>}
-          <h1 className="lm-in text-3xl md:text-4xl font-bold text-neutral-black mt-6 tracking-tight" style={{ "--d": "120ms" } as React.CSSProperties}>{event.title}</h1>
+          {event.imageCredit && <p data-image-credit className="mt-1.5 text-[11px] text-neutral-gray">{text.credit(event.imageCredit)}</p>}
+          <h1 className="lm-in text-3xl md:text-4xl font-bold text-neutral-black mt-6 tracking-tight" style={{ "--d": "120ms" } as React.CSSProperties}>{text.title(event)}</h1>
           <div className="lm-in flex flex-wrap gap-x-6 gap-y-2 mt-4 text-neutral-gray" style={{ "--d": "180ms" } as React.CSSProperties}>
             <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-primary-navy" /> {formatEventDate(event.dateISO)}</span>
             <span className="flex items-center gap-2"><MapPin className="w-4 h-4 text-primary-navy" /> {event.venue}, {event.city}</span>
@@ -270,7 +280,7 @@ export default function EventDetailPage() {
 
           <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
             <h2 className="font-semibold text-xl text-neutral-black">
-              {t("Tickets for sale", "Tiket yang dijual")} <span className="text-neutral-gray font-normal text-base">({visibleListings.length})</span>
+              {t("Tickets for sale", "Tiket yang dijual")} <span data-for-sale className="text-neutral-gray font-normal text-base">({forSale})</span>
             </h2>
             {visibleListings.length > 1 && (
               <div className="flex items-center gap-1 bg-secondary-gray-soft rounded-full p-1">
@@ -341,23 +351,43 @@ export default function EventDetailPage() {
                   <div className="text-xs text-secondary-brown-dark">{t("From", "Mulai dari")}</div>
                   <div className="tabular-nums font-bold text-2xl text-neutral-black">{formatMoney(event.fromPrice, event.currency)}</div>
                   <p className="text-xs text-secondary-brown-dark mt-1">
-                    {event.listingCount === 1
+                    {forSale === 1
                       ? t("1 listing you can buy right now", "1 listing yang bisa dibeli sekarang")
-                      : t(`${event.listingCount} listings you can buy right now`, `${event.listingCount} listing yang bisa dibeli sekarang`)}
+                      : t(`${forSale} listings you can buy right now`, `${forSale} listing yang bisa dibeli sekarang`)}
                   </p>
                 </>
               ) : (
                 <p className="text-sm text-secondary-brown-dark">
-                  {closed
-                    ? t("Resale is closed by the organiser.", "Resale ditutup oleh penyelenggara.")
-                    : t("Nothing on sale right now. Join the waitlist and we will tell you.", "Belum ada yang dijual. Masuk waitlist, nanti kami kabari.")}
+                  {over
+                    ? t("This show is over, so nothing is on sale.", "Acara ini sudah lewat, jadi tidak ada yang dijual.")
+                    : closed
+                      ? t("Resale is closed by the organiser.", "Resale ditutup oleh penyelenggara.")
+                      : FEATURES.emails
+                        ? t("Nothing on sale right now. Join the waitlist and we will tell you.", "Belum ada yang dijual. Masuk waitlist, nanti kami kabari.")
+                        : t("Nothing on sale right now. You can follow the show below; alert emails are coming soon.", "Belum ada yang dijual. Kamu bisa mengikuti acara ini di bawah; notifikasi email segera hadir.")}
                 </p>
               )}
             </div>
           </div>
+          {/* A fan with a ticket for this show goes straight to the sell form with the show picked. Not
+              for a show that is over or forbids resale, nor one paid in USDC, where selling is not open. */}
+          {!over && !closed && event.currency !== "USDC" && (
+            <Link
+              href={`/sell?event=${event.id}`}
+              data-sell-this-show
+              className="group flex items-center justify-between gap-3 rounded-3xl border border-neutral-light-gray-1 bg-neutral-white px-5 py-4 hover:border-primary-navy transition"
+            >
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-neutral-black">{t("Sell a ticket for this show", "Jual tiket untuk acara ini")}</span>
+                <span className="block text-xs text-neutral-gray mt-0.5">{t("Listing is free.", "Pasang listing gratis.")}</span>
+              </span>
+              <ArrowRight className="w-4 h-4 text-primary-navy shrink-0 transition group-hover:translate-x-0.5" />
+            </Link>
+          )}
           {/* The name rules and the letter are for shows in Indonesia; abroad the organiser's own rules apply. */}
           {!over && event.currency !== "USDC" && <TransferPolicyNote policy={event.transferPolicy} audience="buyer" />}
-          {!closed && <NotifyCard event={event} />}
+          {/* A show that is over has no tickets left to wait for. */}
+          {!closed && !over && <NotifyCard event={event} />}
         </aside>
       </div>
     </div>

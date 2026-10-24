@@ -26,7 +26,7 @@ export function TestModeNotice() {
         <span className="hidden sm:inline">
           {t(
             "Prototype: QRIS in Xendit's test mode, USDC on testnet, and the listings are samples. No real money moves.",
-            "Prototipe: QRIS di mode test Xendit, USDC di testnet, dan listing-nya contoh. Tidak ada uang sungguhan yang berpindah."
+            "Prototipe: QRIS di mode uji Xendit, USDC di testnet, dan listing-nya contoh. Tidak ada uang sungguhan yang berpindah."
           )}
         </span>
       </span>

@@ -61,9 +61,11 @@ const Event = (({className, image, date, title, location, category, redirect, so
                 <Badge.Base className={cn("absolute top-2.5 right-2.5 text-xs font-medium rounded-full h-fit w-fit text-nowrap shadow-sm", BADGE_CLASS[category])}>{categoryLabel(category)}</Badge.Base>
             </div>
 
-            <div className="flex flex-col gap-1 px-2 pt-3">
+            {/* Up to two lines of title: the two 5 Seconds of Summer nights cut to the same words on
+                one line. flex-1 keeps the price stubs of a row level when one title takes a line less. */}
+            <div className="flex flex-col gap-1 px-2 pt-3 flex-1">
                 <span className="text-xs font-semibold text-primary-navy">{date}</span>
-                <h3 className="text-lg text-neutral-black font-semibold leading-snug truncate">{title}</h3>
+                <h3 className="text-lg text-neutral-black font-semibold leading-snug line-clamp-2">{title}</h3>
                 <div className="flex w-full items-center gap-1 min-w-0 text-neutral-gray">
                     <MapPin className="w-3.5 h-3.5 shrink-0" />
                     <span className="text-sm truncate">{location}</span>

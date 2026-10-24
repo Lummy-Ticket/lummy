@@ -9,7 +9,7 @@ import { Hero } from "@/components/home/Hero";
 import { TicketBand } from "@/components/ui/ticket-band";
 import { useT, useFormatters, useActiveLang, EVENT_TZ } from "@/lib/i18n";
 import { DISPUTE_WINDOW_H, PENALTY_NOTE, SELLER_PENALTY_PCT, type EventItem } from "@/lib/mock";
-import { useCatalogue } from "@/lib/catalogue";
+import { popularEvents, realShowsFirst, useCatalogue, useEventText } from "@/lib/catalogue";
 
 function SectionHead({ title, href }: { title: string; href?: string }) {
   const t = useT();
@@ -30,6 +30,7 @@ function ComingUp({ events }: { events: EventItem[] }) {
   const t = useT();
   const lang = useActiveLang();
   const { formatMoney } = useFormatters();
+  const text = useEventText();
   const locale = lang === "id" ? "id-ID" : "en-GB";
   return (
     <ul data-reveal="stagger" className="rounded-3xl border border-primary-navy bg-neutral-white divide-y divide-dashed divide-neutral-light-gray-1 overflow-hidden">
@@ -43,10 +44,11 @@ function ComingUp({ events }: { events: EventItem[] }) {
                 <div className="font-bold text-2xl text-neutral-black leading-none mt-0.5">{d.toLocaleDateString(locale, { day: "2-digit", timeZone: EVENT_TZ })}</div>
               </div>
               <div className="relative w-14 h-14 rounded-xl overflow-hidden border border-lummy-500 shrink-0 hidden sm:block">
-                <Image src={e.image} alt="" fill sizes="56px" className="object-cover transition-transform duration-500 group-hover:scale-110" />
+                <Image src={text.image(e)} alt="" fill sizes="56px" className="object-cover transition-transform duration-500 group-hover:scale-110" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="font-semibold text-neutral-black truncate">{e.title}</div>
+                {/* Three lines on a phone, where two cut the second 5 Seconds of Summer night before "Second Show". */}
+                <div className="font-semibold text-neutral-black line-clamp-3 sm:line-clamp-2">{text.title(e)}</div>
                 <div className="text-sm text-neutral-gray truncate">{e.venue}, {e.city}</div>
               </div>
               {e.fromPrice > 0 && (
@@ -144,11 +146,10 @@ function Compare({ rows, dmTitle, luTitle, link }: { rows: CompareRow[]; dmTitle
 export default function HomePage() {
   const t = useT();
   const { formatEventDate } = useFormatters();
+  const text = useEventText();
   const { events: all } = useCatalogue();
-  const featured = all.filter((e) => e.featured).slice(0, 3);
-  const upcoming = all
-    .filter((e) => !featured.includes(e))
-    .sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+  const featured = popularEvents(all);
+  const upcoming = all.filter((e) => !featured.includes(e)).sort(realShowsFirst);
   const quickCats = Array.from(new Set(all.map((e) => e.category)));
 
   return (
@@ -166,9 +167,9 @@ export default function HomePage() {
               key={e.id}
               className="w-[82%] shrink-0 snap-start sm:w-[46%] lg:w-full"
               eager={i < 3}
-              image={e.image}
+              image={text.image(e)}
               date={formatEventDate(e.dateISO)}
-              title={e.title}
+              title={text.title(e)}
               location={`${e.venue}, ${e.city}`}
               category={e.category}
               redirect={`/events/${e.id}`}

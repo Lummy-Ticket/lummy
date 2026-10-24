@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { PriceFilter } from "@/components/events/PriceFilter";
 import type { EventItem } from "@/lib/mock";
-import { useCatalogue } from "@/lib/catalogue";
+import { matchesSearch, realShowsFirst, useCatalogue, useEventText } from "@/lib/catalogue";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 
@@ -21,8 +21,8 @@ const STEP = 100_000;
 // Derived from what is on sale, never held at module load: the catalogue changes with the
 // date and with every new listing.
 function catalogueView(onSale: EventItem[]) {
-  // Soonest first, the way people plan.
-  const events = [...onSale].sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+  // Soonest first, the way people plan, with the sample show after the real ones.
+  const events = [...onSale].sort(realShowsFirst);
   // Round the bounds outward so the handles land on tidy numbers. An event with nothing
   // on sale has no price (0), so it does not drag the lower bound down. The filter is in rupiah:
   // shows priced in USDC stay out of its bounds.
@@ -42,6 +42,7 @@ function EventsInner() {
   const t = useT();
   const { formatEventDate } = useFormatters();
   const categoryLabel = useCategoryLabel();
+  const text = useEventText();
   // Deep links from home: ?q= (search) and ?cat= (category).
   const params = useSearchParams();
   const catParam = params.get("cat");
@@ -52,10 +53,9 @@ function EventsInner() {
 
   // Every filter except the category, so each chip can say how many it would show.
   const base = useMemo(() => {
-    const q = query.toLowerCase().trim();
     return events.filter((e) => {
       const matchCity = city === ALL_CITIES || e.city === city;
-      const matchQ = !q || e.title.toLowerCase().includes(q) || e.city.toLowerCase().includes(q) || e.venue.toLowerCase().includes(q);
+      const matchQ = matchesSearch(e, query);
       // With the full range selected, events with nothing on sale stay visible too, and so do
       // shows priced in USDC; a narrower rupiah range leaves those out.
       const fullRange = price[0] <= PRICE_MIN && price[1] >= PRICE_MAX;
@@ -67,13 +67,12 @@ function EventsInner() {
   // The price filter is in rupiah, so a narrowed range leaves the USDC shows out; say how many.
   const usdcHidden = useMemo(() => {
     if (price[0] <= PRICE_MIN && price[1] >= PRICE_MAX) return 0;
-    const q = query.toLowerCase().trim();
     return events.filter(
       (e) =>
         e.currency === "USDC" &&
         (city === ALL_CITIES || e.city === city) &&
         (cat === "All" || e.category === cat) &&
-        (!q || e.title.toLowerCase().includes(q) || e.city.toLowerCase().includes(q) || e.venue.toLowerCase().includes(q))
+        matchesSearch(e, query)
     ).length;
   }, [events, PRICE_MIN, PRICE_MAX, price, query, city, cat]);
   const countOf = (c: string) => base.filter((e) => e.category === c).length;
@@ -191,9 +190,9 @@ function EventsInner() {
               className="lm-in"
               style={{ "--i": Math.min(i, 7) } as React.CSSProperties}
               eager={i < 3}
-              image={e.image}
+              image={text.image(e)}
               date={formatEventDate(e.dateISO)}
-              title={e.title}
+              title={text.title(e)}
               location={`${e.venue}, ${e.city}`}
               category={e.category}
               redirect={`/events/${e.id}`}
@@ -207,8 +206,8 @@ function EventsInner() {
       ) : (
         <div className="flex flex-col items-center text-center py-16 gap-4">
           <Image src="/assets/brand/maskot-bingung.svg" alt="" width={152} height={130} />
-          <p className="text-neutral-gray">{t("Nothing matches. Try clearing a filter or a different keyword.", "Tidak ada yang cocok. Coba hapus filter atau pakai kata kunci lain.")}</p>
-          <Button.Secondary onClick={clearAll}>{t("Clear filters", "Hapus filter")}</Button.Secondary>
+          <p className="text-neutral-gray">{t("Nothing matches. Try a different keyword, or see every show.", "Tidak ada yang cocok. Coba kata kunci lain, atau lihat semua acara.")}</p>
+          <Button.Secondary data-see-all onClick={clearAll}>{t("See all events", "Lihat semua event")}</Button.Secondary>
         </div>
       )}
     </PageContainer>

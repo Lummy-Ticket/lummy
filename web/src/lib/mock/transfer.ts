@@ -63,7 +63,7 @@ const TRANSFER_POLICY: Record<TransferPolicy, TransferPolicyMeta> = {
     label: { en: "ID must match the name", id: "KTP harus cocok dengan nama" },
     buyer: {
       en: "The organiser checks that your ID card matches the name on the ticket, so you could be turned away even with a genuine ticket. If that happens, file a claim with a photo from the gate and you get your money back in full.",
-      id: "Penyelenggara mengecek KTP harus sama dengan nama di tiket, jadi kamu bisa ditolak walaupun tiketnya asli. Kalau itu terjadi, ajukan klaim dengan foto dari gate dan uangmu kembali penuh.",
+      id: "Penyelenggara mengecek apakah nama di KTP sama dengan nama di tiket, jadi kamu bisa ditolak walaupun tiketnya asli. Kalau itu terjadi, ajukan klaim dengan foto dari gate dan uangmu kembali penuh.",
     },
     seller: ID_STAGED
       ? {
