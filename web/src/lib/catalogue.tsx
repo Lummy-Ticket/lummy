@@ -20,7 +20,7 @@ const CATEGORY_WORDS: Record<string, string> = {
   Movies: "film",
 };
 // Lower case, accents and apostrophes off, so "guns n roses" finds "Guns N' Roses".
-const fold = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/['’]/g, "");
+const fold = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/['\u2019]/g, "");
 
 /** Whether a show answers a search: every word in its title, venue, city, category or short names. */
 export function matchesSearch(e: EventItem, q: string): boolean {
