@@ -97,7 +97,7 @@ test.describe("user tasks", { tag: "@smoke" }, () => {
 
   test("4 a gate claim on the show that has just ended, graded and held", async ({ page }) => {
     await signInSample(page, "/tickets");
-    await page.getByText(/Tulus: Manusia Tour, Surabaya/).first().click();
+    await page.getByText(/Lummy Demo Night, Surabaya/).first().click();
     await page.getByRole("button", { name: "Ada masalah di gate" }).click();
     const dialog = page.getByRole("dialog");
     await dialog.getByText("Ditolak di gate", { exact: true }).click();
