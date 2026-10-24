@@ -67,7 +67,8 @@ const identity = async () => {
 };
 const pickPersona = async (label, home) => {
   await openPanel();
-  await page.locator("div.fixed.bottom-5").getByRole("button", { name: new RegExp(`^${label}$`) }).click();
+  // The panel sits higher while the demo-account bar shows, so match it by its right edge only.
+  await page.locator("div.fixed.right-5").getByRole("button", { name: new RegExp(`^${label}$`) }).click();
   await page.waitForURL((u) => u.pathname === home, { timeout: 30000 });
   await page.waitForLoadState("networkidle");
 };
@@ -85,7 +86,7 @@ try {
   // --- Login page
   await page.goto(`${BASE}/login`, { waitUntil: "networkidle" });
   check("login menawarkan link masuk lewat email", await page.getByRole("button", { name: "Email me a sign-in link" }).isVisible());
-  check("jalur akun contoh tetap ada", await page.getByRole("button", { name: "Continue with a sample account" }).isVisible());
+  check("jalur akun contoh tetap ada", await page.getByRole("button", { name: /^Continue with a (demo|sample) account$/ }).isVisible());
   await page.getByPlaceholder("you@email.com").fill("bukan-email");
   await page.getByRole("button", { name: "Email me a sign-in link" }).click();
   check("email tidak valid ditolak di halaman", await page.getByText("Enter a valid email address.").isVisible());
@@ -166,7 +167,7 @@ try {
 
   // --- Sign out, then sample personas still work
   await openPanel();
-  await page.locator("div.fixed.bottom-5").getByRole("button", { name: "Sign out" }).click();
+  await page.locator("div.fixed.right-5").getByRole("button", { name: "Sign out" }).click();
   await page.waitForTimeout(1500);
   check("keluar menghapus sesi", (await identity()) === "none" && !(await accessToken()));
   await page.evaluate(() => localStorage.removeItem("lummy:demo-accounts"));

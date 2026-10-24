@@ -46,7 +46,7 @@ async function persona(page: Page, label: "Buyer", home: string) {
   const toggle = page.getByRole("button", { name: /^Dev panel$/ });
   if (await toggle.isVisible()) await toggle.click();
   await page.getByText("Persona (demo account)").waitFor({ timeout: 15000 });
-  await page.locator("div.fixed.bottom-5").getByRole("button", { name: new RegExp(`^${label}$`) }).click();
+  await page.locator("div.fixed.right-5").getByRole("button", { name: new RegExp(`^${label}$`) }).click();
   await page.waitForURL((u) => u.pathname === home, { timeout: 30000 });
   await page.waitForLoadState("networkidle");
 }
