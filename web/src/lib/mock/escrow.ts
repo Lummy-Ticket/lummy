@@ -535,6 +535,22 @@ export function suggestedRemedy(o: Order, reason: DisputeReason, check: Evidence
   return "REFUND_FULL";
 }
 
+/**
+ * The reason a ruling carries: the automated read's own when the arbiter follows it, and an
+ * override line when they rule the other way, so a refund never reads "it is not this order's ticket".
+ */
+export function verdictRationale(o: Order, d: Dispute, check: EvidenceCheck, remedy: Remedy, now: number = Date.now()): Bi {
+  const suggested = suggestedRemedy(o, d.reason, check, now);
+  if (remedy === "RELEASE_SELLER" && suggested !== "RELEASE_SELLER")
+    return { en: "Arbiter overrode the automated read and released to the seller.", id: "Arbiter mengesampingkan pembacaan otomatis dan mencairkan ke penjual." };
+  if (remedy !== "RELEASE_SELLER" && suggested === "RELEASE_SELLER")
+    return {
+      en: "Arbiter overrode the automated read and ruled for the buyer after weighing the evidence.",
+      id: "Arbiter mengesampingkan pembacaan otomatis dan memutus untuk pembeli setelah menimbang buktinya.",
+    };
+  return suggestedRationale(d, check);
+}
+
 /** Default rationale offered to the arbiter, so verdicts read consistently. */
 export function suggestedRationale(d: Dispute, check: EvidenceCheck): Bi {
   const failed = check.checks.find((c) => !c.ok);

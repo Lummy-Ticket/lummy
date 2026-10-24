@@ -17,7 +17,7 @@ import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 import { PageContainer } from "@/components/layout/PageContainer";
 import {
   useEventRequests, useOrders, useSellerListings, useUser, isEventOver,
-  checkEvidence, reasonMeta, suggestedRationale, disputeDeadlineISO,
+  checkEvidence, reasonMeta, suggestedRationale, verdictRationale, disputeDeadlineISO,
   remedyOptions, suggestedRemedy, penaltyFor, SELLER_PENALTY_PCT, penaltyNote, REMEDY_LABEL, partialAmount, REVIEW_TARGET_H,
   type ChainSettlement, type EventRequest, type Order, type Remedy, type SellerListing,
 } from "@/lib/mock";
@@ -683,13 +683,7 @@ export default function AdminPage() {
       return;
     }
     const check = checkEvidence(o, o.dispute!.reason, o.dispute!.evidence, o.dispute!.openedAtISO);
-    const rationale =
-      remedy === "RELEASE_SELLER" && check.strength === "STRONG"
-        ? {
-            en: "Arbiter overrode the automated read and released to the seller.",
-            id: "Arbiter mengesampingkan pembacaan otomatis dan mencairkan ke penjual.",
-          }
-        : suggestedRationale(o.dispute!, check);
+    const rationale = verdictRationale(o, o.dispute!, check, remedy);
     // An on-chain order is only settled once the contract has carried the verdict out.
     let onchain: ChainSettlement | undefined;
     if (o.chain) {

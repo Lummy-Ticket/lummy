@@ -17,6 +17,8 @@ export function EscrowSteps({ order, phase, windowText }: { order: Order; phase:
   const movedOut = order.autoRefundReason === "EVENT_POSTPONED";
   const refunded = phase === "REFUNDED";
   const settled = phase === "RELEASED" || refunded;
+  // A claim that was ruled on settled the order, whether or not the show has happened yet.
+  const ruled = settled && !!order.dispute?.verdict;
 
   const reached: Record<EscrowPhase, number> = {
     PRE_EVENT: 1,
@@ -38,6 +40,8 @@ export function EscrowSteps({ order, phase, windowText }: { order: Order; phase:
       ? { Icon: Flag, label: t("Show postponed", "Acara diundur"), sub: t("you chose the money", "kamu pilih dana kembali") }
       : phase === "IN_REVIEW"
       ? { Icon: Flag, label: t("Claim filed", "Klaim diajukan"), sub: t("an arbiter decides", "arbiter memutus") }
+      : ruled
+      ? { Icon: Scale, label: t("Claim decided", "Klaim diputus"), sub: t("by an arbiter", "oleh arbiter") }
       : {
           Icon: Flag,
           label: t("Show over", "Acara selesai"),

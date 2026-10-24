@@ -833,8 +833,8 @@ export default function OrderDetailPage() {
                 </a>
               )
             )}
-            {/* An Indonesian letter has no place at a show abroad: the organiser's rules there apply. */}
-            {order.currency !== "USDC" && (
+            {/* An Indonesian letter has no place at a show abroad, nor on an order that was refunded. */}
+            {order.currency !== "USDC" && order.escrowStatus !== "REFUNDED" && (
               <button onClick={() => { setShowKuasa(true); openDoc("letter"); }} className="w-full flex items-center gap-3 p-3 rounded-2xl border border-neutral-light-gray-1 hover:border-lummy-500 transition cursor-pointer text-left">
                 <span className="w-10 h-10 rounded-xl bg-secondary-blue-soft text-lummy-500 grid place-items-center shrink-0"><FileText className="w-5 h-5" /></span>
                 <div>

@@ -10,7 +10,7 @@ import { chainError, operatorSetup, payOut, readListing, settle, type Operator }
 import { notifyClaimFiled, notifyRuling } from "@/lib/email/notify";
 import {
   availableReasons, canFileDispute, canRefundPostponed, checkEvidence, mockEvidenceOptions, mockSellerEvidence, partialAmount,
-  penaltyFor, remedyOptions, suggestedRationale,
+  penaltyFor, remedyOptions, verdictRationale,
 } from "@/lib/mock/escrow";
 import type { DisputeReason, Remedy } from "@/lib/mock/types";
 import { HELD, ORDER_SELECT, orderFromRow, type OrderRow } from "@/lib/orders/map";
@@ -224,10 +224,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const remedy = String(body.remedy) as Remedy;
       if (!remedyOptions(order, d.reason, now).some((o) => o.remedy === remedy)) return fail(400, "putusan ini tidak tersedia untuk klaim ini");
       const check = checkEvidence(order, d.reason, d.evidence, d.openedAtISO);
-      const rationale =
-        remedy === "RELEASE_SELLER" && check.strength === "STRONG"
-          ? { en: "Arbiter overrode the automated read and released to the seller.", id: "Arbiter mengesampingkan pembacaan otomatis dan mencairkan ke penjual." }
-          : suggestedRationale(d, check);
+      const rationale = verdictRationale(order, d, check, remedy, now);
       const toSeller = remedy === "RELEASE_SELLER";
       // A replacement is settled as a full refund, so the money is never left in limbo.
       const refund = remedy === "REFUND_FULL" || remedy === "REPLACEMENT" ? order.amount : remedy === "REFUND_PARTIAL" ? partialAmount(order, d.reason) : 0;
