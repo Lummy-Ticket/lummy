@@ -13,9 +13,14 @@ export type { TicketFacts };
 
 /**
  * The categories the ticket may match: one show's, when the seller has picked it, or every show on
- * sale, each with `show` saying which, when the page asks the model to find the show as well.
+ * sale, each with `show` saying which, when the page asks the model to find the show as well. With
+ * `showId` too, the show is answered on its own, so a ticket whose category the catalogue does not
+ * have ("CAT 3B", a block of CAT 3) still finds its show.
  */
-export type ShowForTicket = { tiers: { id: string; name: string; show?: string }[] };
+export type ShowForTicket = { tiers: { id: string; name: string; show?: string; showId?: string }[] };
+
+/** The shows the categories belong to, as id and label, when they say so. */
+const showsOf = (show: ShowForTicket) => [...new Map(show.tiers.flatMap((t) => (t.showId ? [[t.showId, t.show ?? t.showId] as const] : []))).entries()];
 
 export type Provider = "claude" | "gemini" | "fake";
 
@@ -49,14 +54,19 @@ export function aiProvider(): Provider | null {
  * one show's, or every show's on sale side by side.
  */
 export function buildPrompt(text: string, show: ShowForTicket) {
+  const shows = showsOf(show);
   return [
     "You read the text of one event e-ticket and report what is printed on it, as JSON.",
+    ...(shows.length ? ["The shows on sale, as id: title, date, venue, city:", ...shows.map(([id, label]) => `- ${id}: ${label}`), ""] : []),
     "The ticket categories the seller can choose from, as id: name, with the show each belongs to when there are several:",
     ...show.tiers.map((t) => `- ${t.id}: ${t.name}${t.show ? ` (${t.show})` : ""}`),
     "",
     "Rules:",
     "- Report only what the ticket text says. Use null for anything it does not print.",
     "- Text shown as [x] was removed on purpose: never guess it.",
+    ...(shows.length
+      ? [`- show: the id above of the show the ticket is for, by the title, date and venue it prints, even when its category matches none above; "${NONE}" when it is for none of them.`]
+      : []),
     `- tier: the id above whose name matches the category printed on the ticket, written in any way ("CAT3", "Cat. 3" and "Kategori 3" are the same), and whose show matches the ticket's when a show is given; "${NONE}" when none does.`,
     "- date: the show date printed on the ticket, as YYYY-MM-DD. For a pass that covers several days, its first day.",
     "- seat: the seat, row, block or section as printed. null when the ticket gives no place, as with standing, free standing or general admission.",
@@ -74,9 +84,11 @@ export function buildPrompt(text: string, show: ShowForTicket) {
 /** The answer's shape, for the model (a JSON Schema subset both providers accept). */
 export function responseSchema(show: ShowForTicket) {
   const nullable = (type: "string" | "integer", description: string) => ({ type: [type, "null"], description });
+  const shows = showsOf(show).map(([id]) => id);
   return {
     type: "object",
     properties: {
+      ...(shows.length ? { show: { type: "string", enum: [...shows, NONE], description: "The id of the show the ticket is for, or none" } } : {}),
       eventTitle: nullable("string", "The show's title as printed"),
       date: nullable("string", "The show date as printed, YYYY-MM-DD"),
       venue: nullable("string", "The venue as printed"),
@@ -86,7 +98,7 @@ export function responseSchema(show: ShowForTicket) {
       printedPrice: nullable("integer", "Price of one ticket in rupiah as printed, without fees"),
       quantity: nullable("integer", "How many people the whole text admits"),
     },
-    required: ["eventTitle", "date", "venue", "tier", "tierPrinted", "seat", "printedPrice", "quantity"],
+    required: [...(shows.length ? ["show"] : []), "eventTitle", "date", "venue", "tier", "tierPrinted", "seat", "printedPrice", "quantity"],
   };
 }
 
@@ -101,6 +113,8 @@ function answerSchema(show: ShowForTicket) {
   const text = (max: number) => z.string().trim().min(1).max(max).nullable().catch(null);
   const tiers: [string, ...string[]] = [NONE, ...show.tiers.map((t) => t.id)];
   return z.object({
+    // Checked against the shows offered when the answer is settled.
+    show: z.string().nullable().optional().catch(null),
     eventTitle: text(200),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(realDay).nullable().catch(null),
     venue: text(200),
@@ -116,21 +130,44 @@ function answerSchema(show: ShowForTicket) {
 // Indonesian tickets use them.
 const spelling = (s: string) => s.toLowerCase().replace(/category|kategori/g, "cat").replace(/[^\p{L}\p{N}]/gu, "");
 
+const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 /**
- * The show's category spelled as the ticket prints it, in the sense above, when exactly one has that
- * name. Only for one show's categories: with every show offered, none can mean the ticket is for a
- * show not on sale, and the same name may belong to several shows.
+ * One show's category spelled as the ticket prints it, in the sense above, when exactly one has that
+ * name. A block letter after the number ("CAT 3B", Loket's block B of CAT 3) is that category when
+ * it is the only sensible match: the show has a CAT 3 and no category of its own with a letter there.
  */
-function sameName(printed: string | null, show: ShowForTicket) {
-  if (!printed || show.tiers.some((t) => t.show)) return null;
-  const hits = show.tiers.filter((t) => spelling(t.name) === spelling(printed));
-  return hits.length === 1 ? hits[0].id : null;
+function sameName(printed: string | null, tiers: ShowForTicket["tiers"]) {
+  if (!printed) return null;
+  const want = spelling(printed);
+  const hits = tiers.filter((t) => spelling(t.name) === want);
+  if (hits.length) return hits.length === 1 ? hits[0].id : null;
+  const base = /^(.*\d)[a-z]$/.exec(want)?.[1];
+  if (!base) return null;
+  const lettered = new RegExp(`^${escape(base)}[a-z]$`);
+  const bases = tiers.filter((t) => spelling(t.name) === base);
+  return bases.length === 1 && !tiers.some((t) => lettered.test(spelling(t.name))) ? bases[0].id : null;
 }
 
 /**
- * Reads a model's JSON answer into facts, or null when it is not an answer at all. A model that
- * copies the category out right and still answers none for it (Haiku 5.5 did, now and then, on
- * 20 Oct 2026) gets the category whose name it copied; a name that is only close stays none.
+ * The category and show an answer names, held to what was offered. With one show's categories, a
+ * category copied out right but answered none (Haiku 5.5 did, now and then, on 20 Oct 2026) gets
+ * the category whose name it copied. With every show's, the show stands on its own: a category of
+ * another show is a slip and is read again from what is printed, among that show's only; and with
+ * no show named, none can mean the ticket is for a show not on sale, so no name is matched.
+ */
+function settle(a: { tier: string; show?: string | null; tierPrinted: string | null }, show: ShowForTicket): Pick<TicketFacts, "tierId" | "showId"> {
+  const tier = show.tiers.find((t) => t.id === a.tier);
+  const ids = new Set(showsOf(show).map(([id]) => id));
+  if (!ids.size) return { tierId: tier?.id ?? (show.tiers.some((t) => t.show) ? null : sameName(a.tierPrinted, show.tiers)) };
+  const showId = (a.show && ids.has(a.show) ? a.show : tier?.showId) ?? null;
+  if (!showId) return { tierId: null, showId: null };
+  return { tierId: tier?.showId === showId ? tier.id : sameName(a.tierPrinted, show.tiers.filter((t) => t.showId === showId)), showId };
+}
+
+/**
+ * Reads a model's JSON answer into facts, or null when it is not an answer at all. A name that is
+ * only close to a category stays none (settle, above).
  */
 export function parseAnswer(raw: string, show: ShowForTicket): TicketFacts | null {
   let json: unknown;
@@ -141,24 +178,26 @@ export function parseAnswer(raw: string, show: ShowForTicket): TicketFacts | nul
   }
   const a = answerSchema(show).safeParse(json);
   if (!a.success) return null;
-  const { tier, ...rest } = a.data;
-  return { ...rest, tierId: tier === NONE ? sameName(rest.tierPrinted, show) : tier };
+  const { tier, show: named, ...rest } = a.data;
+  return { ...rest, ...settle({ tier, show: named, tierPrinted: rest.tierPrinted }, show) };
 }
-
-const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /**
  * A deterministic stand-in for tests: of the categories the text spells out, the one whose show
- * shares the most words with the text, then the longest name; and the first rupiah amount. It never
- * leaves the machine and is not meant to be accurate.
+ * shares the most words with the text, then the longest name; failing one, a "CAT 3B" as printed
+ * and the show that shares the most words; and the first rupiah amount. Its answer is settled as a
+ * model's is. It never leaves the machine and is not meant to be accurate.
  */
 export function fakeFacts(text: string, show: ShowForTicket): TicketFacts {
   const words = (s: string) => s.toLowerCase().match(/\p{L}{4,}/gu) ?? [];
   const inText = new Set(words(text));
-  const shared = (t: ShowForTicket["tiers"][number]) => words(t.show ?? "").filter((w) => inText.has(w)).length;
+  const shared = (label = "") => words(label).filter((w) => inText.has(w)).length;
   const tier = show.tiers
     .filter((t) => new RegExp(`(^|[^\\p{L}\\p{N}])${escape(t.name)}($|[^\\p{L}\\p{N}])`, "iu").test(text))
-    .sort((a, b) => shared(b) - shared(a) || b.name.length - a.name.length)[0];
+    .sort((a, b) => shared(b.show) - shared(a.show) || b.name.length - a.name.length)[0];
+  const [best, next] = showsOf(show).sort((a, b) => shared(b[1]) - shared(a[1]));
+  const likely = best && shared(best[1]) >= 2 && shared(best[1]) > shared(next?.[1]) ? best[0] : null;
+  const tierPrinted = tier?.name ?? /\b(?:CAT|Category|Kategori)\.? ?\d+ ?[A-Z]?\b/i.exec(text)?.[0] ?? null;
   const amount = /(?:Rp\.?|IDR)\s*(\d{1,3}(?:[.,]\d{3})+)/i.exec(text)?.[1];
   // The first line naming a place, whole: enough for the checks to follow a seat to the listing.
   const seat = /^.*\b(?:row|seat|section|block|baris|kursi|blok|tribun)\b.*$/im.exec(text)?.[0].trim().slice(0, 100);
@@ -166,8 +205,8 @@ export function fakeFacts(text: string, show: ShowForTicket): TicketFacts {
     eventTitle: text.split("\n").find((l) => l.trim() && !/^e-?ticket$/i.test(l.trim()))?.trim() ?? null,
     date: null,
     venue: null,
-    tierId: tier?.id ?? null,
-    tierPrinted: tier?.name ?? null,
+    ...settle({ tier: tier?.id ?? NONE, show: tier?.showId ?? likely, tierPrinted }, show),
+    tierPrinted,
     seat: seat || null,
     printedPrice: amount ? Number(amount.replace(/[.,]/g, "")) : null,
     quantity: 1,

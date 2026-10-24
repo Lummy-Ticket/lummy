@@ -128,6 +128,50 @@ async function main() {
   check("nor when two of the show's categories share that name", none("VIP", { tiers: [{ id: "a", name: "VIP" }, { id: "b", name: "V.I.P." }] }) === null && none("CAT 1", { tiers: [{ id: "a", name: "CAT 1" }, { id: "b", name: "Kategori 1" }] }) === null);
   const everyShow: ShowForTicket = { tiers: [{ id: "t-tl-vip", name: "VIP", show: "Tulus" }, { id: "t-cp-cat1", name: "CAT 1", show: "Coldplay" }] };
   check("nor when every show is offered, where none can mean a show not on sale", none("VIP", everyShow) === null);
+
+  // --- Every show on sale, each named by id (lib/tickets/fill.ts): the show is answered on its own,
+  // so a category the catalogue lacks still finds it. Loket prints blocks of a category: "CAT 3B".
+  const SOS = "5 Seconds of Summer: Everyone's a Star!, 2026-12-06, Indonesia Arena, Jakarta";
+  const HINDIA = "Hindia: Lagipula Hidup Akan Berakhir, 2026-11-14, Istora Senayan, Jakarta";
+  const CATALOGUE: ShowForTicket = {
+    tiers: [
+      { id: "t-5sos-cat1", name: "CAT 1", show: SOS, showId: "ev-5sos" },
+      { id: "t-5sos-cat3", name: "CAT 3", show: SOS, showId: "ev-5sos" },
+      { id: "t-hd-cat3", name: "CAT 3", show: HINDIA, showId: "ev-hd" },
+      { id: "t-hd-cat3a", name: "CAT 3A", show: HINDIA, showId: "ev-hd" },
+      { id: "t-tl-vip", name: "VIP", show: "Tulus: Manusia Tour, 2026-11-07, SICC, Bogor", showId: "ev-tl" },
+    ],
+  };
+  const answer = (a: Record<string, unknown>, show = CATALOGUE) => {
+    const f = parseAnswer(JSON.stringify({ ...GOOD, ...a }), show);
+    return `${f?.showId ?? "-"} ${f?.tierId ?? "-"}`;
+  };
+  const catPrompt = buildPrompt(TEXT, CATALOGUE);
+  const catSchema = responseSchema(CATALOGUE) as { properties: { show?: { enum: string[] } }; required: string[] };
+  check(
+    "every show offered: the prompt lists the shows by id, and the answer names one, or none",
+    catPrompt.includes(`- ev-5sos: ${SOS}`) && JSON.stringify(catSchema.properties.show?.enum) === '["ev-5sos","ev-hd","ev-tl","none"]' && catSchema.required.includes("show"),
+    JSON.stringify(catSchema.properties.show)
+  );
+  check("one show's categories: no show is asked for", !("show" in (schema as { properties: object }).properties) && !prompt.includes("The shows on sale"));
+  check("CAT 3B, with the show found: block B of its CAT 3", answer({ show: "ev-5sos", tier: "none", tierPrinted: "CAT 3B" }) === "ev-5sos t-5sos-cat3", answer({ show: "ev-5sos", tier: "none", tierPrinted: "CAT 3B" }));
+  check("written as Kategori 3 B or CAT 3-B, the same", answer({ show: "ev-5sos", tier: "none", tierPrinted: "Kategori 3 B" }) === "ev-5sos t-5sos-cat3" && answer({ show: "ev-5sos", tier: "none", tierPrinted: "CAT 3-B" }) === "ev-5sos t-5sos-cat3");
+  check(
+    "CAT 3B where the show has a CAT 3A of its own: the show, and no category (not a sensible match)",
+    answer({ show: "ev-hd", tier: "none", tierPrinted: "CAT 3B" }) === "ev-hd -",
+    answer({ show: "ev-hd", tier: "none", tierPrinted: "CAT 3B" })
+  );
+  check("a category the show does not have at all: the show stands, the category is not found", answer({ show: "ev-tl", tier: "none", tierPrinted: "VVIP" }) === "ev-tl -");
+  check("CAT 13 or CAT 3 BARAT are not blocks of CAT 3", answer({ show: "ev-5sos", tier: "none", tierPrinted: "CAT 13" }) === "ev-5sos -" && answer({ show: "ev-5sos", tier: "none", tierPrinted: "CAT 3 BARAT" }) === "ev-5sos -");
+  check("no show named and no category: no show at all, for the seller to pick", answer({ show: "none", tier: "none", tierPrinted: "CAT 3B" }) === "- -");
+  check("a show that was not offered counts as none", answer({ show: "ev-made-up", tier: "none", tierPrinted: "CAT 1" }) === "- -");
+  check("no show named but a category picked: the category's show", answer({ show: "none", tier: "t-tl-vip", tierPrinted: "VIP" }) === "ev-tl t-tl-vip");
+  check("a category of another show than the one named: the show stands, its category read from the print", answer({ show: "ev-5sos", tier: "t-hd-cat3", tierPrinted: "CAT 3" }) === "ev-5sos t-5sos-cat3");
+  check("one show's categories, at publish: CAT 3B is its CAT 3 too", answer({ tier: "none", tierPrinted: "CAT 3B" }, { tiers: [{ id: "c1", name: "CAT 1" }, { id: "c3", name: "CAT 3" }] }) === "- c3");
+  const fakeBlock = fakeFacts("5 SECONDS OF SUMMER\nIndonesia Arena, Jakarta\nCAT 3B", CATALOGUE);
+  check("fake: a CAT 3B ticket finds its show and its CAT 3", fakeBlock.showId === "ev-5sos" && fakeBlock.tierId === "t-5sos-cat3" && fakeBlock.tierPrinted === "CAT 3B", JSON.stringify(fakeBlock));
+  const fakeNone = fakeFacts("SOME OTHER BAND\nGedung Kesenian\nREGULER", CATALOGUE);
+  check("fake: a ticket for no show on sale finds none", fakeNone.showId === null && fakeNone.tierId === null, JSON.stringify(fakeNone));
   const messy = parseAnswer(JSON.stringify({ ...GOOD, date: "7 Nov 2026", printedPrice: "1.200.000", quantity: 0, seat: "" }), TULUS);
   check("a malformed field becomes null and the rest survive", messy?.date === null && messy.printedPrice === null && messy.quantity === null && messy.seat === null && messy.tierId === "t-tl-vip", JSON.stringify(messy));
   check("text that is not JSON is no answer", parseAnswer("Sure! The ticket is VIP.", TULUS) === null);

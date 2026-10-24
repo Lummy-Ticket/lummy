@@ -73,7 +73,7 @@ export function fillAllowed(userId: string, now = Date.now()) {
 export function catalogueTiers(events: EventItem[]): ShowForTicket {
   return {
     tiers: events.flatMap((e) =>
-      e.tiers.map((t) => ({ id: t.id, name: t.name, show: `${e.title}, ${showDay(e.dateISO)}, ${e.venue}, ${e.city}` }))
+      e.tiers.map((t) => ({ id: t.id, name: t.name, show: `${e.title}, ${showDay(e.dateISO)}, ${e.venue}, ${e.city}`, showId: e.id }))
     ),
   };
 }

@@ -30,6 +30,11 @@ export type TicketFacts = {
   venue: string | null;
   /** One of the offered categories, or null when none fits what is printed. */
   tierId: string | null;
+  /**
+   * With every show on sale offered, the one the ticket is for, found on its own: a category that
+   * fits none of its ("CAT 3B") still finds the show. Null when it is for none of them.
+   */
+  showId?: string | null;
   /** The category as printed, so a person can see what was matched. */
   tierPrinted: string | null;
   seat: string | null;
