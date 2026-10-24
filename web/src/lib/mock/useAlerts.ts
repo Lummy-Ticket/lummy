@@ -21,16 +21,16 @@ interface AlertState {
   unsubscribe: (id: string) => void;
 }
 
-const SEED: AlertSub[] = [
-  { id: "al-1", eventId: "ev-boyz-dewa", eventTitle: "Boyz II Men & Dewa 19 Live in Jakarta", createdAtISO: "2026-07-30T09:00:00+07:00" },
-  { id: "al-2", eventId: "ev-gnr-jakarta", eventTitle: "Guns N' Roses World Tour 2026, Jakarta", tierId: "t-gnr-fest-a", tierName: "Festival A", createdAtISO: "2026-07-31T11:00:00+07:00" },
-];
+// The sample alerts every browser used to start with (until 25 Oct 2026). A first visit read as
+// somebody else's choices ("On the list" for a tier nobody picked), so the list starts empty, and
+// these are taken out of browsers that stored them.
+const OLD_SEED_IDS = ["al-1", "al-2"];
 
 export const useAlerts = create<AlertState>()(
   persist(
     (set, get) => ({
       channel: "whatsapp",
-      subs: SEED,
+      subs: [],
       setChannel: (channel) => set({ channel }),
       subscribe: (s) => {
         const exists = get().subs.some((x) => x.eventId === s.eventId && (x.tierId ?? null) === (s.tierId ?? null));
@@ -41,14 +41,13 @@ export const useAlerts = create<AlertState>()(
     }),
     {
       name: "lummy:alerts",
-      // v1: real shows replaced the made-up ones on 23 Oct 2026. The sample alerts start over; an
+      // v1: real shows replaced the made-up ones on 23 Oct 2026. v2: no sample alerts any more. An
       // alert set in this browser stays while its show is still in the catalogue.
-      version: 1,
+      version: 2,
       migrate: (persisted) => {
         const stored = (persisted ?? {}) as Partial<AlertState>;
-        const mine = (stored.subs ?? []).filter((s) => !SEED.some((x) => x.id === s.id) && !!getEventById(s.eventId));
-        const same = (a: AlertSub, b: AlertSub) => a.eventId === b.eventId && (a.tierId ?? null) === (b.tierId ?? null);
-        return { ...stored, subs: [...mine, ...SEED.filter((s) => !mine.some((m) => same(m, s)))] };
+        const mine = (stored.subs ?? []).filter((s) => !OLD_SEED_IDS.includes(s.id) && !!getEventById(s.eventId));
+        return { ...stored, subs: mine };
       },
     }
   )
