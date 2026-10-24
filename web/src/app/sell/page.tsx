@@ -408,7 +408,17 @@ export default function SellPage() {
               <ScanLine className="w-5 h-5 text-lummy-500" /> {t("Ticket check", "Cek tiket")}
             </h3>
             <div className="grid sm:grid-cols-3 gap-3">
-              <Check ok={!ai.pdfSuspicious} label={t("PDF structure forensics", "Forensik struktur PDF")} detail={ai.pdfSuspicious ? t("Traces of editing or re-export", "Ada jejak edit atau re-export") : t("Clean, no tampering", "Bersih, bukan editan")} />
+              <Check
+                ok={!ai.pdfSuspicious}
+                label={t("PDF structure forensics", "Forensik struktur PDF")}
+                detail={
+                  !ai.pdfSuspicious
+                    ? t("Clean, no tampering", "Bersih, bukan editan")
+                    : check?.reasons.some((r) => r.code === "void_marker")
+                      ? t("Marked as a sample, not a ticket", "Bertanda contoh, bukan tiket")
+                      : t("Traces of editing or re-export", "Ada jejak edit atau re-export")
+                }
+              />
               {check ? (
                 <Check
                   ok={!blocked && check.barcodes.length > 0}

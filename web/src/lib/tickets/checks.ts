@@ -136,6 +136,8 @@ export function reasonText(r: ForensicReason, t: T) {
       return t(`Contains ${r.what.join(", ")}, which no ticket needs`, `Berisi ${r.what.join(", ")}, yang tidak dibutuhkan tiket`);
     case "appended":
       return t("Has extra data after the end of the file", "Ada data tambahan setelah akhir file");
+    case "void_marker":
+      return t(`Printed as a sample or a test, not a ticket: "${r.text}"`, `Tercetak sebagai contoh atau uji coba, bukan tiket: "${r.text}"`);
   }
 }
 

@@ -1,12 +1,13 @@
 // Reads a ticket PDF the way the gate and a careful person would: renders each page and reads
-// every barcode on it (docs/09 §5.2), and inspects how the file was made and changed (§5.3).
+// every barcode on it (docs/09 §5.2), inspects how the file was made and changed, and reads its
+// text for a "VOID" or "CONTOH" stamp (§5.3).
 // The PDF comes from a stranger, so the work is bounded: file size, pages, image size and time.
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
 import type { PDFDocumentLoadingTask, PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import { barcodeKey, decodeImage, packageFile, payloadTail } from "./barcode";
-import { judge, scanStructure, type Forensics } from "./forensics";
+import { judge, scanStructure, type Forensics, type TextRun } from "./forensics";
 
 if (typeof window !== "undefined") throw new Error("lib/tickets/analyze is server-only");
 
@@ -135,6 +136,12 @@ export async function readPage(page: PDFPageProxy, dpi: number) {
   return decodeImage({ data: ctx.getImageData(0, 0, width, height).data, width, height });
 }
 
+/** A page's text, each run with its size: the vertical scale of its matrix, so slanted text counts too. */
+async function textRuns(page: PDFPageProxy): Promise<TextRun[]> {
+  const content = await page.getTextContent();
+  return content.items.flatMap((item) => ("str" in item ? [{ str: item.str, size: Math.hypot(item.transform[2], item.transform[3]), eol: item.hasEOL }] : []));
+}
+
 export async function analyzeTicket(bytes: Uint8Array, pepper: string): Promise<TicketAnalysis> {
   if (bytes.length > MAX_TICKET_BYTES) throw new TicketError("too_big", `file is over ${MAX_TICKET_BYTES / 1024 / 1024} MB`);
   if (!new TextDecoder("latin1").decode(bytes.subarray(0, 1024)).includes("%PDF-")) throw new TicketError("not_pdf", "not a PDF file");
@@ -153,10 +160,12 @@ export async function analyzeTicket(bytes: Uint8Array, pepper: string): Promise<
     try {
       pages = doc.numPages;
       const scripts: string[] = [];
+      const text: TextRun[][] = [];
       for (let n = 1; n <= Math.min(pages, pass.pages) && Date.now() < deadline; n++) {
         const page = await doc.getPage(n);
         try {
           if (i === 0 && nonEmpty(await page.getJSActions())) scripts.push("JavaScript");
+          if (i === 0) text.push(await textRuns(page));
           // The operator list is cached and reused by render, so the look costs nothing extra.
           if (!pass.onlyGraphics || mayHoldBarcode(await page.getOperatorList(), OPS)) {
             for (const c of await readPage(page, pass.dpi)) {
@@ -188,6 +197,7 @@ export async function analyzeTicket(bytes: Uint8Array, pepper: string): Promise<
           modDate: str(info.ModDate),
           xmp: metadata?.getRaw() ?? null,
           activeContent: [...new Set(active)],
+          text,
         });
       }
     } finally {

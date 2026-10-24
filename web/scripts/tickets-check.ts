@@ -1,14 +1,15 @@
 /**
  * Checks the ticket reader (src/lib/tickets) on PDFs made here, so nothing real is needed or
  * kept: a genuine ticket, the same ticket edited three ways, another file carrying the same
- * barcode, two tickets in one PDF (a QR image and a Code 128 drawn as shapes), and files with
- * no barcode, with a script, or that are not PDFs at all.
+ * barcode, two tickets in one PDF (a QR image and a Code 128 drawn as shapes), samples stamped
+ * as such next to terms that only mention the words, and files with no barcode, with a script,
+ * or that are not PDFs at all.
  *
  *   npm run tickets:check
  */
 import { analyzeTicket, TicketError, type TicketAnalysis } from "../src/lib/tickets/analyze";
 import { barcodeKey } from "../src/lib/tickets/barcode";
-import { judge, parsePdfDate, scanStructure, toolHits, type ForensicReason } from "../src/lib/tickets/forensics";
+import { judge, parsePdfDate, scanStructure, toolHits, voidMarker, type ForensicReason } from "../src/lib/tickets/forensics";
 import { GENUINE, appendRevision, genuineTicket, initWriter, latin1, rewrite, ticketPdf, withScript } from "./ticket-fixtures";
 
 const PEPPER = "tickets-check, not a real pepper";
@@ -53,6 +54,23 @@ async function main() {
   const signed = scanStructure(latin1(body.replace("0000000000", String(body.length - 150).padStart(10, "0"))));
   check("structure: a signature over the whole file is fine", judge(signed, {}).reasons.length === 0, JSON.stringify(judge(signed, {}).reasons));
   check("structure: data after the end", judge(scanStructure(latin1(`%PDF-1.7\n${pad}\n%%EOF\n<script>x</script>`)), {}).reasons.some((r) => r.code === "appended"));
+  // A page of ordinary text at 10 pt, so "large" means large next to it.
+  const run = (str: string, size = 10, eol = true) => ({ str, size, eol });
+  const filler = Array.from({ length: 12 }, () => run("Syarat dan ketentuan berlaku untuk setiap pemegang tiket."));
+  check("void: a line in capitals", voidMarker([[...filler, run("TEST, NOT VALID FOR ENTRY")]]) === "TEST, NOT VALID FOR ENTRY");
+  check("void: one large word", voidMarker([[...filler, run("Specimen", 36)]]) === "Specimen");
+  check("void: an Indonesian stamp", voidMarker([[...filler, run("CONTOH E-TIKET"), run("TIKET INI TIDAK BERLAKU")]]) === "CONTOH E-TIKET");
+  const terms = [
+    "Tickets are not valid for resale or transfer.",
+    "This ticket is void if resold.",
+    "Tiket tidak berlaku apabila dipindahtangankan.",
+    "Contoh: tiket yang sudah dipindai tidak dapat dipakai lagi.",
+    "NOT VALID WITHOUT ID CARD",
+  ];
+  check("void: sentences of the terms are not a marker", terms.every((s) => voidMarker([[...filler, run(s)]]) === null));
+  check("void: a small word on its own, not in capitals, is not one", voidMarker([[...filler, run("Contoh:")]]) === null);
+  check("void: capitals inside a sentence are not one", voidMarker([[...filler, run("Tiket", 10, false), run("TIDAK BERLAKU", 10, false), run("apabila dijual kembali")]]) === null);
+  check("void: whole words only", voidMarker([[...filler, run("VOIDED"), run("SAMPLES")]]) === null);
   const k = barcodeKey(latin1(GENUINE), PEPPER);
   check("key: same payload, same key", k === barcodeKey(latin1(GENUINE), PEPPER) && /^[0-9a-f]{64}$/.test(k));
   check("key: another pepper, another key", k !== barcodeKey(latin1(GENUINE), "another pepper"));
@@ -95,6 +113,16 @@ async function main() {
 
   const js = await timed("with a script", await withScript(genuinePdf));
   check("script: active content flagged", js.forensics.reasons.some((r) => r.code === "active_content") && js.forensics.suspicious, codes(js));
+
+  // A sample file: the same barcode under a watermark, and a test file that says so in a line.
+  const marker = (a: TicketAnalysis) => (a.forensics.reasons.find((r) => r.code === "void_marker") as { text?: string } | undefined)?.text;
+  const stamped = await timed("stamped Sample", await ticketPdf({ codes: [{ text: GENUINE, format: "QRCode" }], producer: "Lummy test issuer PDF engine", stamp: "Sample" }));
+  check("sample watermark: void marker, suspicious", marker(stamped) === "Sample" && stamped.forensics.suspicious, codes(stamped));
+  check("sample watermark: the barcode is still read", stamped.barcodes[0]?.key === k, JSON.stringify(stamped.barcodes));
+  const testLine = await timed("test, not valid", await ticketPdf({ codes: [{ text: GENUINE, format: "QRCode" }], producer: "Lummy test issuer PDF engine", extra: ["TEST, NOT VALID FOR ENTRY"] }));
+  check("test line: void marker", marker(testLine) === "TEST, NOT VALID FOR ENTRY" && testLine.forensics.suspicious, codes(testLine));
+  const withTerms = await timed("with terms", await ticketPdf({ codes: [{ text: GENUINE, format: "QRCode" }], producer: "Lummy test issuer PDF engine", extra: terms }));
+  check("terms that say not valid, void, contoh: clean, score 0", !withTerms.forensics.suspicious && withTerms.forensics.score === 0, codes(withTerms));
 
   await expectError("not a PDF is refused", latin1("hello, this is a jpeg"), "not_pdf");
   await expectError("a broken PDF is refused", latin1(`%PDF-1.7\n${pad}`), "unreadable");

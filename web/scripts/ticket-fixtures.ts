@@ -1,11 +1,12 @@
 /**
  * Ticket PDFs made on the spot for the ticket checks (tickets-check.ts, tickets-flow-check.ts),
  * so no real ticket is needed or kept: a genuine one, the same ticket edited three ways, a file
- * redrawn around the same barcode, two tickets in one PDF, one with no barcode, one with a script.
+ * redrawn around the same barcode, two tickets in one PDF, one with no barcode, one with a script,
+ * one stamped as a sample.
  */
 import { readFile } from "fs/promises";
 import { createCanvas } from "@napi-rs/canvas";
-import { PDFDocument, PDFName, PDFString, StandardFonts, rgb, type PDFPage } from "pdf-lib";
+import { PDFDocument, PDFName, PDFString, StandardFonts, degrees, rgb, type PDFPage } from "pdf-lib";
 import piexif from "piexifjs";
 import { prepareZXingModule, writeBarcode } from "zxing-wasm/writer";
 import { packageFile } from "../src/lib/tickets/barcode";
@@ -48,7 +49,16 @@ export async function drawCode(doc: PDFDocument, page: PDFPage, code: Code) {
   }
 }
 
-export async function ticketPdf(o: { codes: Code[]; name?: string; producer: string; creator?: string; modified?: Date; extra?: string[] }) {
+export async function ticketPdf(o: {
+  codes: Code[];
+  name?: string;
+  producer: string;
+  creator?: string;
+  modified?: Date;
+  extra?: string[];
+  /** Printed large and slanted across the page, clear of the code, the way a sample is watermarked. */
+  stamp?: string;
+}) {
   const doc = await PDFDocument.create({ updateMetadata: false });
   doc.setProducer(o.producer);
   doc.setCreator(o.creator ?? "Lummy test issuer");
@@ -65,6 +75,7 @@ export async function ticketPdf(o: { codes: Code[]; name?: string; producer: str
     page.drawText(`Name: ${o.name ?? "Zahra Amelia"}`, { x: 36, y: 506, size: 12, font });
     page.drawText("CAT 3 - Row C - Seat 12 - Indonesia Arena", { x: 36, y: 490, size: 12, font });
     (o.extra ?? []).forEach((line, i) => page.drawText(line, { x: 36, y: 470 - i * 16, size: 10, font }));
+    if (o.stamp) page.drawText(o.stamp, { x: 60, y: 360, size: 40, font, rotate: degrees(20), color: rgb(0.85, 0, 0), opacity: 0.4 });
     if (code) await drawCode(doc, page, code);
   }
   return doc.save({ useObjectStreams: false });

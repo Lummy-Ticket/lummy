@@ -1,7 +1,7 @@
 // What the bytes of a ticket PDF say about how it was made and whether it was changed afterwards
-// (docs/09 §5.3). Pure functions over the raw bytes and the document info, so they run anywhere
-// and are tested on their own. The verdict is a signal for a person, never a gate: a flagged
-// listing waits for review, it is not refused.
+// (docs/09 §5.3), and whether it says it is no ticket at all. Pure functions over the raw bytes, the
+// document info and the text layer, so they run anywhere and are tested on their own. The verdict
+// is a signal for a person, never a gate: a flagged listing waits for review, it is not refused.
 
 /** Why a file was flagged. The page turns each code into a sentence. */
 export type ForensicReason =
@@ -12,7 +12,8 @@ export type ForensicReason =
   | { code: "print"; tool: string } // printed to PDF: a copy, not the file the organiser sent
   | { code: "modified_later"; days: number } // changed days after it was created
   | { code: "active_content"; what: string[] } // scripts, launch actions, attachments: no ticket needs them
-  | { code: "appended"; bytes: number }; // data after the end of the file
+  | { code: "appended"; bytes: number } // data after the end of the file
+  | { code: "void_marker"; text: string }; // printed as a sample or a test: "VOID", "CONTOH", "NOT VALID FOR ENTRY"
 
 export type ToolKind = "editor" | "design" | "print";
 
@@ -43,7 +44,12 @@ export type DocInfo = {
   xmp?: string | null;
   /** Active content the parser found (document scripts, attachments, XFA forms). */
   activeContent?: string[];
+  /** The text layer of each page read, as pdf.js gives it. */
+  text?: TextRun[][];
 };
+
+/** A piece of a page's text: the string, its size in points, and whether a line ends after it. */
+export type TextRun = { str: string; size: number; eol: boolean };
 
 export type Forensics = {
   suspicious: boolean;
@@ -111,10 +117,11 @@ const WEIGHT: Record<ForensicReason["code"], number> = {
   modified_later: 10,
   active_content: 30,
   appended: 30,
+  void_marker: 60,
 };
 
 /** Codes that send a file to review on their own. The rest only add to the score. */
-const SUSPICIOUS = new Set<ForensicReason["code"]>(["revised", "signed_then_changed", "editor", "design", "active_content", "appended"]);
+const SUSPICIOUS = new Set<ForensicReason["code"]>(["revised", "signed_then_changed", "editor", "design", "active_content", "appended", "void_marker"]);
 
 const DAY = 86_400_000;
 
@@ -199,6 +206,50 @@ export function toolHits(strings: string[]) {
   return [...hits].map(([name, kind]) => ({ name, kind }));
 }
 
+/** Words printed across a sample or a test file instead of a ticket, in English and Indonesian. */
+const VOID_MARKER = /\b(?:void|spe[cs]imen|sample|not\s+valid|test\s+ticket|tidak\s+berlaku|tidak\s+sah|contoh|bukan\s+tiket)\b/i;
+
+/**
+ * What such a stamp is made of. Real terms say "tickets are not valid for resale" and "tiket tidak
+ * berlaku apabila...", so a run of text holding any other word is a sentence, not a stamp.
+ */
+const STAMP_WORDS = new Set(
+  `void specimen spesimen sample not valid test testing ticket tickets tiket e-ticket e-tiket eticket etiket voucher
+  e-voucher tidak berlaku sah contoh bukan for entry admission use do only this is a copy demo dummy ini hanya untuk
+  masuk resmi official`.split(/\s+/)
+);
+
+function stampText(text: string) {
+  const t = text.replace(/\s+/g, " ").trim();
+  const words = t.toLowerCase().match(/[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*/gu) ?? [];
+  return words.length > 0 && words.length <= 8 && VOID_MARKER.test(t) && words.every((w) => STAMP_WORDS.has(w)) ? t.slice(0, 60) : null;
+}
+
+/**
+ * The first void marker that stands on its own: a run printed at least twice the page's usual size
+ * (a watermark or a stamp), or a whole line set in capitals. The same words inside a sentence of the
+ * terms, or a small "Contoh:" before an example, are not one.
+ */
+export function voidMarker(pages: TextRun[][]): string | null {
+  for (const runs of pages) {
+    const sizes = runs.filter((r) => r.str.trim()).map((r) => r.size).sort((a, b) => a - b);
+    const usual = sizes[Math.floor(sizes.length / 2)] ?? 0;
+    for (const r of runs) {
+      const s = usual > 0 && r.size >= 2 * usual ? stampText(r.str) : null;
+      if (s) return s;
+    }
+    let line = "";
+    for (const [i, r] of runs.entries()) {
+      line += `${r.str} `;
+      if (!r.eol && i < runs.length - 1) continue;
+      const s = stampText(line);
+      if (s && !/\p{Ll}/u.test(s)) return s;
+      line = "";
+    }
+  }
+  return null;
+}
+
 export function judge(structure: PdfStructure, info: DocInfo): Forensics {
   const reasons: ForensicReason[] = [];
 
@@ -223,6 +274,8 @@ export function judge(structure: PdfStructure, info: DocInfo): Forensics {
   const active = [...new Set([...(info.activeContent ?? []), ...structure.activeKeywords])];
   if (active.length) reasons.push({ code: "active_content", what: active });
   if (structure.appendedBytes > 0) reasons.push({ code: "appended", bytes: structure.appendedBytes });
+  const marker = voidMarker(info.text ?? []);
+  if (marker) reasons.push({ code: "void_marker", text: marker });
 
   const score = Math.min(100, reasons.reduce((n, r) => n + WEIGHT[r.code], 0));
   return {
