@@ -487,7 +487,7 @@ export default function SellerPage() {
                   </button>
                 ))}
                 <span className="tabular-nums font-bold text-lummy-500 text-nowrap">{formatMoney(l.askPrice, catalogue.eventById(l.eventId)?.currency)}{l.quantity > 1 && <span className="text-xs text-neutral-gray font-sans font-normal"> {t("each", "/tiket")}</span>}</span>
-                {l.status === "active" && (
+                {FEATURES.realListings && l.status === "active" && (
                   <button onClick={() => setPromote(l)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-lummy-500 text-lummy-500 text-sm hover:bg-secondary-blue-light transition cursor-pointer">
                     <Megaphone className="w-4 h-4" /> {t("Promote", "Promosikan")}
                   </button>

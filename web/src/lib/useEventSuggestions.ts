@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { matchesSearch, popularEvents, useCatalogue } from "@/lib/catalogue";
+import { matchesSearch, popularEvents, realShowsFirst, useCatalogue } from "@/lib/catalogue";
 
 /**
  * What a search box offers as you type: trending events when empty, otherwise matches on
@@ -15,6 +15,7 @@ export function useEventSuggestions(q: string, limit = 6) {
     if (!query) return popularEvents(all, 5);
     return all
       .filter((e) => matchesSearch(e, query))
+      .sort(realShowsFirst)
       .slice(0, limit);
   }, [query, all, limit]);
   return { query, suggestions };

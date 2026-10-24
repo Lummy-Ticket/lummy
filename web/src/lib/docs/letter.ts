@@ -33,15 +33,19 @@ const LINE = rgb(0.6, 0.64, 0.7);
 const TINT = rgb(0.94, 0.95, 0.97);
 const BY_HAND = "(diisi tangan / fill in by hand)";
 
-// The standard fonts cover Latin-1 only; anything else (a Korean title, an emoji) is dropped
-// rather than failing the whole file.
+// The standard fonts cover Latin-1 only. A letter outside it falls back to its base letter
+// (Ł to L, ş to s); anything with no Latin form (a Korean title, an emoji) is dropped rather
+// than failing the whole file.
+const BASE: Record<string, string> = { Ł: "L", ł: "l", Đ: "D", đ: "d", ı: "i", Œ: "OE", œ: "oe" };
+const toLatin1 = (c: string) =>
+  (BASE[c] ?? c.normalize("NFD").replace(/[\u0300-\u036f]/g, "")).replace(/[^\x20-\x7E\xA0-\xFF]/g, "");
 const latin = (s: string) =>
   s
     .normalize("NFC")
     .replace(/[–—]/g, "-")
     .replace(/[‘’]/g, "'")
     .replace(/[“”]/g, '"')
-    .replace(/[^\x20-\x7E\xA0-\xFF]/g, "")
+    .replace(/[^\x20-\x7E\xA0-\xFF]/g, toLatin1)
     .replace(/\s{2,}/g, " ")
     .trim();
 
@@ -227,7 +231,7 @@ export async function letterPdf(o: LetterOrder): Promise<Uint8Array> {
     const lineY = y - 80;
     page.drawLine({ start: { x, y: lineY }, end: { x: x + sigW, y: lineY }, thickness: 0.7, color: INK });
     if (name) {
-      write(name, x, lineY - 12, { size: 9.5 });
+      write(name, x, lineY - 12, { size: fit(latin(name), regular, 9.5, sigW) });
       english("Nama di Lummy / Name on Lummy", x, lineY - 21, 6.5);
     } else {
       english("/ Full name", write("Nama jelas", x, lineY - 12, { size: 9.5, color: GREY }) + 3, lineY - 12, 8);

@@ -69,8 +69,8 @@ const sections: LegalSection[] = [
     title: { en: "When something goes wrong", id: "Kalau ada masalah" },
     list: [
       {
-        en: `Silence settles it: ${DISPUTE_WINDOW_H} hours after the show with no claim, the seller is paid automatically. A USDC order on the test network gets ${TESTNET_WINDOW_MIN} minutes instead, so a demo can run to the end; in production it is ${DISPUTE_WINDOW_H} hours too.`,
-        id: `Diam berarti beres: ${DISPUTE_WINDOW_H} jam setelah acara tanpa klaim, penjual dibayar otomatis. Pesanan USDC di jaringan uji cuma dapat ${TESTNET_WINDOW_MIN} menit, supaya demonya bisa diikuti sampai selesai; di produksi tetap ${DISPUTE_WINDOW_H} jam.`,
+        en: `Silence settles it: ${DISPUTE_WINDOW_H} hours after the show with no claim, the seller is paid automatically. An order paid through the escrow on the test network gets ${TESTNET_WINDOW_MIN} minutes instead, so a demo can run to the end; in production it is ${DISPUTE_WINDOW_H} hours too.`,
+        id: `Diam berarti beres: ${DISPUTE_WINDOW_H} jam setelah acara tanpa klaim, penjual dibayar otomatis. Pesanan yang dibayar lewat escrow di jaringan uji cuma dapat ${TESTNET_WINDOW_MIN} menit, supaya demonya bisa diikuti sampai selesai; di produksi tetap ${DISPUTE_WINDOW_H} jam.`,
       },
       { en: "A claim needs evidence recorded at the time, such as a photo of the gate scanner, filed within the window. The seller may answer before staff decide.", id: "Klaim butuh bukti yang direkam saat kejadian, misalnya foto layar scanner gate, diajukan dalam masa klaim. Penjual boleh menjawab sebelum staf memutus." },
       { en: "Not going is not a refund case: resell the ticket before the show instead.", id: "Tidak jadi datang bukan alasan refund: jual lagi tiketnya sebelum acara." },
