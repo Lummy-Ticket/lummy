@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import {
-  UploadCloud, FileText, ScanLine, CheckCircle2, AlertTriangle, Loader2, ArrowRight, ArrowLeft, ShieldCheck, Minus, Plus, IdCard, Lock,
+  UploadCloud, FileText, ScanLine, CheckCircle2, AlertTriangle, Loader2, ArrowRight, ArrowLeft, ShieldCheck, Minus, Plus, IdCard, Lock, Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TransferPolicyNote } from "@/components/common/TransferPolicyNote";
@@ -62,13 +62,15 @@ function fillMessage(outcome: Exclude<TicketFill["outcome"], "filled">, t: T) {
   }
 }
 
-/** The sample tickets' file names, as a seller would see them. */
+/** The sample tickets' file names, as a seller would see them: samples for the sample show, Lummy Demo Fest. */
 const SAMPLE_FILES: Record<SampleTicket, string> = {
-  good: "tulus-genuine.pdf",
-  edited: "tulus-edited.pdf",
-  dup: "tulus-duplicate.pdf",
+  good: "demofest-sample-genuine.pdf",
+  edited: "demofest-sample-edited.pdf",
+  dup: "demofest-sample-duplicate.pdf",
 };
-const SAMPLE_NAMES = new Set([...Object.values(SAMPLE_FILES), "tulus-vip-ticket.pdf"]);
+const SAMPLE_NAMES = new Set(Object.values(SAMPLE_FILES));
+/** Which sample a file is, by its name, so a downloaded sample uploaded again is checked as itself. */
+const sampleNamed = (name: string) => (Object.keys(SAMPLE_FILES) as SampleTicket[]).find((s) => SAMPLE_FILES[s] === name);
 
 const STEPS = [
   { en: "Upload PDF", id: "Upload PDF" },
@@ -158,6 +160,13 @@ export default function SellPage() {
   // The organiser's rule for this show: closed to resale, or a name the gate checks.
   const closed = !!event && !resaleAllowed(event.transferPolicy);
   const nameChecked = event?.transferPolicy === "letter" || event?.transferPolicy === "id_match";
+
+  /** A file chosen where the check is simulated: a sample's own file picks that sample. */
+  const pickDemoFile = (f: File | null | undefined) => {
+    setFileName(f?.name ?? null);
+    const s = f && sampleNamed(f.name);
+    if (s) setSample(s);
+  };
 
   /** A file chosen from disk, for an account whose server checks real PDFs. */
   const pickTicket = (f: File | null | undefined) => {
@@ -269,6 +278,22 @@ export default function SellPage() {
         )}
       </p>
 
+      {/* A sample persona has no ticket of its own: it tries the checks on the samples. */}
+      {!account && step === 0 && (
+        <div data-demo-sell className="mt-4 flex items-start gap-3 rounded-2xl bg-secondary-blue-extra p-4 text-sm">
+          <Info className="w-4 h-4 shrink-0 mt-0.5 text-lummy-500" />
+          <div className="min-w-0">
+            <div className="font-semibold text-primary-navy">{t("Demo account: no real ticket needed", "Akun demo: tidak perlu tiket asli")}</div>
+            <p className="mt-0.5 text-neutral-gray">
+              {t(
+                "Pick a sample ticket below, a genuine one, an edited one or a duplicate barcode, then press Check the ticket to see what Lummy checks. With a demo account the check is simulated from the sample, and the listing stays in this browser.",
+                "Pilih tiket contoh di bawah, yang asli, editan, atau barcode duplikat, lalu tekan Cek tiketnya untuk melihat apa saja yang dicek Lummy. Di akun demo, ceknya disimulasikan dari contoh itu, dan listing-nya hanya tersimpan di browser ini."
+              )}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Steps */}
       <div className="flex items-center gap-2 mt-6 mb-8">
         {STEPS.map((s, i) => (
@@ -313,7 +338,7 @@ export default function SellPage() {
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (realUpload) pickTicket(f);
-              else setFileName(f?.name ?? null);
+              else pickDemoFile(f);
             }}
           />
           <button
@@ -327,7 +352,7 @@ export default function SellPage() {
               const f = e.dataTransfer.files?.[0];
               if (!f) return;
               if (realUpload) pickTicket(f);
-              else setFileName(f.name);
+              else pickDemoFile(f);
             }}
             className={`border-2 border-dashed border-lummy-500 rounded-3xl py-12 flex flex-col items-center gap-3 text-center hover:bg-secondary-blue-light transition cursor-pointer ${dragging ? "bg-secondary-blue-light scale-[1.01]" : ""}`}
           >
@@ -344,7 +369,7 @@ export default function SellPage() {
               <FileText className="w-4 h-4 text-lummy-500" /> {fileName}
             </div>
           ) : !realUpload ? (
-            <button onClick={() => setFileName("tulus-vip-ticket.pdf")} className="text-sm text-primary-navy font-medium hover:opacity-80 w-fit">
+            <button onClick={() => setFileName(SAMPLE_FILES[sample])} className="text-sm text-primary-navy font-medium hover:opacity-80 w-fit">
               {t("No file handy? Use a sample", "Gak punya file? Pakai contoh")}
             </button>
           ) : null}
