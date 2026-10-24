@@ -1040,10 +1040,10 @@ export default function OrderDetailPage() {
               { term: "Pemberi Kuasa", en: "Authoriser (the seller)", name: order.sellerName, stamp: true },
               { term: "Penerima Kuasa", en: "Authorised person (the buyer)", name: buyerName, stamp: false },
             ].map((s) => (
-              <div key={s.term} className="min-w-0">
+              <div key={s.term} className="min-w-0 flex flex-col">
                 <div className="font-semibold">{s.term},</div>
                 <En>{s.en}</En>
-                <div className="h-16 mt-1 flex items-center">
+                <div className="min-h-16 grow mt-1 flex items-center">
                   {s.stamp &&
                     (FEATURES.eStamp ? (
                       <span className="rounded bg-secondary-gold-soft px-2 py-1 text-[10px] text-secondary-brown-dark">e-Meterai Rp10.000</span>
