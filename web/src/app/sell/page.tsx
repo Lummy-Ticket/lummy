@@ -288,7 +288,13 @@ function SellForm() {
       lateListing: late,
       gateKtp,
     });
-    toast.success(flagged || late ? t("Submitted for admin review", "Diajukan untuk review admin") : t("Listing is live, protected by escrow.", "Listing tayang, dijaga escrow."));
+    // A sample persona's listing lives in this browser only: nobody else sees it, the show page included.
+    toast.success(
+      flagged || late
+        ? t("Submitted for review, in this demo only: the listing stays in this browser.", "Diajukan untuk review, khusus di demo ini: listing-nya hanya ada di browser ini.")
+        : t("Listed in this demo. It stays in this browser, so the show page does not list it.", "Tayang di demo ini. Listing-nya hanya ada di browser ini, jadi tidak muncul di halaman acara."),
+      { duration: 6000 }
+    );
     router.push("/seller");
   };
 
