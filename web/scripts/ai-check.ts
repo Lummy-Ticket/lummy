@@ -9,7 +9,7 @@
  *   npm run ai:check
  */
 import { aiProvider, buildPrompt, extractTicketFacts, fakeFacts, parseAnswer, responseSchema, type ShowForTicket } from "../src/lib/tickets/ai";
-import { factDiffs, MIN_HOLDER_CHARS, reviewReasons, showDay, type ListingChecks, type TicketFacts } from "../src/lib/tickets/checks";
+import { factDiffs, isPastDay, MIN_HOLDER_CHARS, reviewReasons, showDay, type ListingChecks, type TicketFacts } from "../src/lib/tickets/checks";
 import { FILL_WINDOW_MS, FILLS_PER_WINDOW, fillAllowed, namesToTakeOut } from "../src/lib/tickets/fill";
 
 const results: { name: string; ok: boolean; note?: string }[] = [];
@@ -103,6 +103,13 @@ async function main() {
   check("a clean ticket that agrees goes live", reviewReasons({ ...listing, ai: { model: "m", facts: facts({}), differs: [] } }).length === 0);
   check("a clean ticket that disagrees waits for a person", reviewReasons({ ...listing, ai: { model: "m", facts: facts({ date: "2026-11-08" }), differs: ["date"] } }).includes("details_differ"));
   check("no AI step at all changes nothing", reviewReasons({ ...listing, ai: null }).length === 0 && reviewReasons(listing).length === 0);
+  check("a buyer's name the ticket does not print waits for a person, so a wrong name cannot skip the cross-check", JSON.stringify(reviewReasons({ ...listing, ai: null, nameNotOnTicket: true })) === '["name_not_found"]');
+
+  // --- A ticket for a day already gone stops the listing on the sell page (Jakarta days).
+  const at = Date.parse("2026-10-24T10:00:00+07:00");
+  check("a ticket dated yesterday is past, today and later are not", isPastDay("2026-10-23", at) && !isPastDay("2026-10-24", at) && !isPastDay("2026-12-06", at));
+  check("just after midnight in Jakarta, the day before is past", isPastDay("2026-10-24", Date.parse("2026-10-25T00:30:00+07:00")) && !isPastDay("2026-10-25", Date.parse("2026-10-24T18:00:00Z")));
+  check("no date read: nothing to stop", !isPastDay(null, at));
 
   // --- The brake on fills, per account
   const t0 = 1_000_000;

@@ -71,6 +71,9 @@ export const MIN_HOLDER_CHARS = 3;
 /** A show's date in Jakarta as YYYY-MM-DD, the way a ticket prints it. */
 export const showDay = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
 
+/** Whether a day read off a ticket (YYYY-MM-DD) is already gone in Jakarta: such a ticket is not listed. */
+export const isPastDay = (day: string | null, now = Date.now()) => !!day && day < showDay(new Date(now).toISOString());
+
 /**
  * Where what the ticket prints disagrees with what the seller picked. Something the ticket does not
  * print disagrees with nothing; a printed category that fits none of the show's is a difference,

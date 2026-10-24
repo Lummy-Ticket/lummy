@@ -200,6 +200,21 @@ async function main() {
         check(`fill: ${outcome} is said plainly, and the form is left to the seller`, message.includes(words), message);
         await page.unroute("**/api/tickets/extract");
       }
+      // A ticket for no show on sale leaves nothing picked, so the seller must choose; one for a day
+      // already gone says so and stops the listing.
+      const read = { eventTitle: "SOME OTHER BAND", date: null, venue: null, tierId: null, tierPrinted: "CAT 3B", seat: null, printedPrice: null, quantity: 1, showId: null };
+      const goOn = page.getByRole("button", { name: "Continue to price" });
+      await stub({ json: { outcome: "filled", facts: read, eventId: null } });
+      await page.getByRole("button", { name: "Fill in again" }).click();
+      await page.locator('[data-fill-result="filled"]').waitFor({ timeout: 15000 }).catch(() => undefined);
+      const left = `${await selects.nth(0).inputValue()}|${await selects.nth(1).inputValue()}`;
+      check("fill: no show found, so no show or category stays picked, and going on waits for the seller's pick", left === "|" && (await goOn.isDisabled()), left);
+      await page.unroute("**/api/tickets/extract");
+      await stub({ json: { outcome: "filled", facts: { ...read, date: "2025-01-01", tierId: "t-5sos-cat3", showId: "ev-5sos-jakarta" }, eventId: "ev-5sos-jakarta" } });
+      await page.getByRole("button", { name: "Fill in again" }).click();
+      const past = await page.locator("[data-fill-past]").innerText({ timeout: 15000 }).catch(() => "");
+      check("fill: a ticket for a day already gone says so, and the listing stops there", past.includes("has passed") && (await goOn.isDisabled()), past);
+      await page.unroute("**/api/tickets/extract");
       await stub({ status: 429, json: { error: "terlalu sering, coba lagi beberapa menit lagi" } });
       await page.getByRole("button", { name: "Fill in again" }).click();
       check("fill: too many tries says so", await page.getByText("terlalu sering").first().waitFor({ timeout: 15000 }).then(() => true, () => false));

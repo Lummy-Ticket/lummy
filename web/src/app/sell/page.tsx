@@ -15,7 +15,7 @@ import {
 } from "@/lib/mock";
 import { SAMPLE_SIGNALS, type SampleTicket } from "@/lib/listings/rules";
 import { FILL_BY, ListingError, checkTicketFile, createListing, fillFromTicket, useTicketFill, useTicketReader, type TicketFill } from "@/lib/listings/client";
-import { factDiffs, formatName, isDuplicate, MIN_HOLDER_CHARS, reasonText, reviewReasons, toListingChecks, type TicketCheck } from "@/lib/tickets/checks";
+import { factDiffs, formatName, isDuplicate, isPastDay, MIN_HOLDER_CHARS, reasonText, reviewReasons, toListingChecks, type TicketCheck } from "@/lib/tickets/checks";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { useCatalogue } from "@/lib/catalogue";
 import { FEATURES } from "@/lib/features";
@@ -147,6 +147,8 @@ export default function SellPage() {
   const aiDiffs = facts && event && tier ? factDiffs(facts, { tierId: tier.id, startsAt: event.dateISO }) : [];
   const blocked = check ? isDuplicate(check) : !!ai?.barcodeDuplicate;
   const flagged = !!ai && !blocked && (check ? review.length > 0 || aiDiffs.length > 0 : ai.pdfSuspicious || ai.forgeryScore >= 60);
+  // A ticket for a day already gone cannot be sold, whatever show is picked.
+  const pastTicket = isPastDay(facts?.date ?? null);
   // One barcode is one ticket, and the buyer gets the whole PDF, so that count is not the seller's to set.
   const lockedQty = !!check && check.barcodes.length > 0;
   const tooMany = !!check && check.barcodes.length > 8;
@@ -173,10 +175,12 @@ export default function SellPage() {
     try {
       const res = await fillFromTicket(ticketFile, orderer);
       setFill(res);
-      const ev = res.outcome === "filled" && res.eventId ? catalogue.eventById(res.eventId) : undefined;
-      if (ev && res.outcome === "filled") {
-        setEventId(ev.id);
-        setTierId(ev.tiers.some((x) => x.id === res.facts.tierId) ? res.facts.tierId! : (ev.tiers[0]?.id ?? ""));
+      // The show and category the ticket prints, and nothing picked where it found none: a show or
+      // category left as it was would be listed without the seller ever choosing it.
+      if (res.outcome === "filled") {
+        const ev = res.eventId ? catalogue.eventById(res.eventId) : undefined;
+        setEventId(ev?.id ?? "");
+        setTierId(ev?.tiers.some((x) => x.id === res.facts.tierId) ? res.facts.tierId! : "");
       }
     } catch (e) {
       setFill(null);
@@ -529,9 +533,20 @@ export default function SellPage() {
                     </span>
                     <span className="text-neutral-gray">
                       {fill.eventId && catalogue.eventById(fill.eventId)
-                        ? t("The show and category are picked below. Check them.", "Acara dan kategorinya sudah dipilihkan di bawah. Cek lagi.")
+                        ? fill.facts.tierId
+                          ? t("The show and category are picked below. Check them.", "Acara dan kategorinya sudah dipilihkan di bawah. Cek lagi.")
+                          : t("The show is picked below. Its category was not found, so pick it yourself.", "Acaranya sudah dipilihkan di bawah. Kategorinya tidak ketemu, jadi pilih sendiri.")
                         : t("The show was not found in the catalogue: pick it below.", "Acaranya tidak ketemu di katalog: pilih sendiri di bawah.")}
                     </span>
+                    {pastTicket && fill.facts.date && (
+                      <span data-fill-past className="flex items-start gap-1.5 text-secondary-pink-dark">
+                        <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+                        {t(
+                          `This ticket is for ${formatEventDate(`${fill.facts.date}T12:00:00+07:00`)}, which has passed. A ticket for a show that is over cannot be listed.`,
+                          `Tiket ini untuk ${formatEventDate(`${fill.facts.date}T12:00:00+07:00`)}, yang sudah lewat. Tiket untuk acara yang sudah lewat tidak bisa dijual.`
+                        )}
+                      </span>
+                    )}
                     {aiDiffs.includes("tier") && (
                       <span className="flex items-start gap-1.5 text-secondary-orange-dark">
                         <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
@@ -565,12 +580,14 @@ export default function SellPage() {
               <label className="flex flex-col gap-1.5">
                 <span className="text-xs text-neutral-gray">{t("Event", "Event")}</span>
                 <NativeSelect value={eventId} onChange={(e) => { setEventId(e.target.value); const ev = catalogue.eventById(e.target.value); setTierId(ev?.tiers[0]?.id ?? ""); }}>
+                  {!event && <option value="" disabled>{t("Pick the show", "Pilih acaranya")}</option>}
                   {events.map((ev) => <option key={ev.id} value={ev.id}>{ev.title}</option>)}
                 </NativeSelect>
               </label>
               <label className="flex flex-col gap-1.5">
                 <span className="text-xs text-neutral-gray">{t("Ticket tier", "Kategori tiket")}</span>
                 <NativeSelect value={tierId} onChange={(e) => setTierId(e.target.value)}>
+                  {!tier && <option value="" disabled>{event ? t("Pick the category", "Pilih kategorinya") : t("Pick the show first", "Pilih acaranya dulu")}</option>}
                   {event?.tiers.map((t) => <option key={t.id} value={t.id}>{t.name} · {formatIDR(t.faceValue)}</option>)}
                 </NativeSelect>
               </label>
@@ -612,7 +629,7 @@ export default function SellPage() {
 
           <div className="flex gap-3">
             <Button.Ghost onClick={() => setStep(0)}><ArrowLeft className="w-4 h-4" /> {t("Back", "Kembali")}</Button.Ghost>
-            <Button.Primary className="flex items-center gap-2" disabled={closed || tooMany || (holderNeeded && !holderTyped)} onClick={() => { setPrice((p) => Math.min(Math.max(p || cap, floor), cap)); setStep(2); }}>{t("Continue to price", "Lanjut ke harga")} <ArrowRight className="w-4 h-4" /></Button.Primary>
+            <Button.Primary className="flex items-center gap-2" disabled={!event || !tier || closed || tooMany || pastTicket || (holderNeeded && !holderTyped)} onClick={() => { setPrice((p) => Math.min(Math.max(p || cap, floor), cap)); setStep(2); }}>{t("Continue to price", "Lanjut ke harga")} <ArrowRight className="w-4 h-4" /></Button.Primary>
           </div>
         </div>
       )}
