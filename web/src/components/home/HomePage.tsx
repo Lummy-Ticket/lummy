@@ -47,7 +47,8 @@ function ComingUp({ events }: { events: EventItem[] }) {
                 <Image src={text.image(e)} alt="" fill sizes="56px" className="object-cover transition-transform duration-500 group-hover:scale-110" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="font-semibold text-neutral-black line-clamp-2">{text.title(e)}</div>
+                {/* Three lines on a phone, where two cut the second 5 Seconds of Summer night before "Second Show". */}
+                <div className="font-semibold text-neutral-black line-clamp-3 sm:line-clamp-2">{text.title(e)}</div>
                 <div className="text-sm text-neutral-gray truncate">{e.venue}, {e.city}</div>
               </div>
               {e.fromPrice > 0 && (
