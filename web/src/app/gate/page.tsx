@@ -140,7 +140,7 @@ function ResultCard({ o }: { o: Outcome }) {
       )}
       {refundError && (
         <p className="mt-4 text-xs text-secondary-orange-dark">
-          {t("The refund did not go through here; staff should settle it from the admin console", "Refund belum berhasil di sini; staf perlu menyelesaikannya dari konsol admin")}: {refundError}
+          {t("The refund did not go through here; staff should settle it from the admin dashboard", "Refund belum berhasil di sini; staf perlu menyelesaikannya dari dasbor admin")}: {refundError}
         </p>
       )}
     </div>

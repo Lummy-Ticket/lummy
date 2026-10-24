@@ -657,7 +657,11 @@ export default function AdminPage() {
         ]
       : []),
   ];
-  const doApprove = (r: EventRequest) => { approve(r.id); toast.success(t("Event approved, tickets can be listed", "Event disetujui, tiketnya boleh dijual")); };
+  // The queue holds sample requests only (lib/mock/useEventRequests): approving marks one, and adds no show.
+  const doApprove = (r: EventRequest) => {
+    approve(r.id);
+    toast.success(t("Approved here only: this is a sample request, so no show was added to the catalogue.", "Disetujui di sini saja: ini contoh pengajuan, jadi tidak ada acara yang masuk katalog."));
+  };
 
   const toastVerdict = (remedy: Remedy) =>
     toast.success(
@@ -707,7 +711,7 @@ export default function AdminPage() {
 
   return (
     <PageContainer width="app">
-      <h1 className="text-2xl md:text-3xl font-bold text-neutral-black">{t("Admin console", "Konsol admin")}</h1>
+      <h1 className="text-2xl md:text-3xl font-bold text-neutral-black">{t("Admin dashboard", "Dasbor admin")}</h1>
       <p className="text-neutral-gray text-sm mt-1">
         {account
           ? t("What needs a person: money in dispute, listings held back, events waiting to open, shows that changed, and payments owed back.",
@@ -819,8 +823,8 @@ export default function AdminPage() {
                   <p className="text-xs text-neutral-gray mt-3">
                     {penalty > 0
                       ? t(
-                          `Anything other than paying the seller also costs them a penalty of ${SELLER_PENALTY_PCT}% of the sale, ${formatMoney(penalty, o.currency)}${penaltyNote(!!o.chain || o.currency === "USDC").en}, on top of losing it. That is what makes a bad listing cost more than it earns.`,
-                          `Selain mencairkan ke penjual, semua opsi juga membebani penjual penalti ${SELLER_PENALTY_PCT}% dari nilai transaksi, ${formatMoney(penalty, o.currency)}${penaltyNote(!!o.chain || o.currency === "USDC").id}, di luar kehilangan penjualannya. Itu yang bikin listing bermasalah lebih mahal daripada hasilnya.`
+                          `Ruling for the buyer also costs the seller a penalty of ${SELLER_PENALTY_PCT}% of the sale, ${formatMoney(penalty, o.currency)}${penaltyNote(!!o.chain || o.currency === "USDC").en}, on top of losing it. That is what makes a bad listing cost more than it earns.`,
+                          `Kalau kamu memutus untuk pembeli, penjual juga kena penalti ${SELLER_PENALTY_PCT}% dari nilai transaksi, ${formatMoney(penalty, o.currency)}${penaltyNote(!!o.chain || o.currency === "USDC").id}, selain kehilangan penjualannya. Itu yang bikin listing bermasalah lebih mahal daripada hasilnya.`
                         )
                       : t(
                           "The ticket was genuine and was refused over the name, with the seller's ID card staged. A refund here charges the seller nothing beyond losing the sale.",
