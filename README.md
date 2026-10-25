@@ -33,7 +33,7 @@
 
 **Demo video (2:50):** [youtu.be/090tOYfTQ4I](https://youtu.be/090tOYfTQ4I). A seller's ticket checked, a QRIS order recorded on Arbitrum, a claim and its ruling, and the USDC checkout from a real browser wallet.
 
-**Pitch deck:** [canva.link/z2vv4sv33mrfg9t](https://canva.link/z2vv4sv33mrfg9t), two slides: the problem, how Lummy works, the model, traction and the ask.
+**Pitch video:** [youtu.be/DeOXEoOJfJ4](https://youtu.be/DeOXEoOJfJ4), by Zahra, our CEO. **Pitch deck:** [canva.link/z2vv4sv33mrfg9t](https://canva.link/z2vv4sv33mrfg9t), two slides: the problem, how Lummy works, the model, traction and the ask. **HackQuest:** [our Founder House submission](https://www.hackquest.io/projects/Lummy-Ticket).
 
 ## What it does
 
