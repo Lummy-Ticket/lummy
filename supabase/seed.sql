@@ -95,6 +95,8 @@ insert into public.listings (id, event_id, tier_id, seller_name, ask_price, face
   ('ls-bbw-1', 'ev-bbw-2026', 't-bbw-early', 'Arif T.', 9500000, 19000000, 1, false, false, 'active', true, 4, false, false),
   ('ls-bbw-2', 'ev-bbw-2026', 't-bbw-early', 'Mei L.', 24000000, 19000000, 2, true, false, 'active', true, 6, false, false),
   ('ls-bbw-3', 'ev-bbw-2026', 't-bbw-full', 'Daniel K.', 139000000, 129000000, 1, false, false, 'active', true, 8, false, false),
+  ('ls-bbw-4', 'ev-bbw-2026', 't-bbw-early', 'Hana W.', 9500000, 19000000, 3, true, false, 'active', true, 5, false, false),
+  ('ls-bbw-5', 'ev-bbw-2026', 't-bbw-early', 'Rafi S.', 9500000, 19000000, 3, true, false, 'active', true, 4, false, false),
   ('ls-devcon-1', 'ev-devcon-8', 't-devcon-ga', 'Priya S.', 520000000, 499000000, 1, false, false, 'active', true, 5, false, false),
   ('ls-sbw-1', 'ev-sbw-2026', 't-sbw-general', 'Wei Jie T.', 75000000, 88000000, 1, false, false, 'active', true, 5, false, false),
   ('ls-sbw-2', 'ev-sbw-2026', 't-sbw-corporate', 'Nur A.', 420000000, 388000000, 1, false, false, 'active', true, 8, false, false),
