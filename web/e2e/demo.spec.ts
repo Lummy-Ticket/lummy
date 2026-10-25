@@ -134,19 +134,22 @@ test.describe("demo script", { tag: "@smoke" }, () => {
 
   test("a show opens on the ticket count of its cheapest listing, so the From price is in the list", async ({ page }) => {
     // 9.50 USDC is one ticket; a fixed default of 2 hid it while the sidebar said "From 9.50 USDC".
+    // No listing is named: on lummy.id the first 9.50 USDC sample was bought in a real-wallet test.
     await page.goto("/events/ev-bbw-2026");
     await expect(page.getByRole("group", { name: "Number of tickets" }).getByRole("button", { name: "1", exact: true })).toHaveAttribute("aria-pressed", "true");
-    await expect(page.locator('[data-listing="ls-bbw-1"]')).toBeVisible();
+    const from = (await page.getByText("From", { exact: true }).first().locator("xpath=following-sibling::div[1]").innerText()).trim();
+    await expect(page.locator("[data-listing]").filter({ hasText: from }).first()).toBeVisible();
   });
 
   test("a USDC checkout says before and at the till that a demo account cannot pay", async ({ page }) => {
     await page.goto("/events/ev-bbw-2026");
     await expect(page.locator("[data-usdc-needs]")).toContainText("browser wallet");
-    await page.goto("/checkout?listing=ls-bbw-1&qty=1");
+    // The full pass: dearer than a faucet's test USDC, so a visitor's purchase does not take it off sale.
+    await page.goto("/checkout?listing=ls-bbw-3&qty=1");
     await expect(page).toHaveURL(/\/login/);
     await expect(page.locator("[data-login-usdc]")).toContainText("paid in USDC");
     await page.getByRole("button", { name: /^Continue with a (demo|sample) account$/ }).click();
-    await expect(page).toHaveURL(/\/checkout\?listing=ls-bbw-1/);
+    await expect(page).toHaveURL(/\/checkout\?listing=ls-bbw-3/);
     await expect(page.locator("[data-usdc-needs-account]")).toContainText("cannot pay in USDC");
     await expect(page.getByRole("button", { name: /^Pay / })).toBeDisabled();
   });
