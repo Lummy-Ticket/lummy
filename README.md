@@ -31,6 +31,8 @@
 
 ## What it does
 
+<p align="center"><img src="assets/promise.gif" alt="An order moves from Paid to In escrow to Show over, and the seller is paid only when no claim stands" width="760"></p>
+
 - **The money waits for the show.** The buyer's money is held until 48 hours after the show (10 minutes on the testnet escrow, so a demo can run to the end). No claim, and the seller is paid. Turned away at the gate with proof, and the buyer gets it back.
 - **Every ticket is checked before it is listed.** Each barcode is read and stored as a keyed hash, so a barcode can be sold only once. Edited PDFs are flagged for a person. Claude reads the show, category and seat from the ticket text after personal data is taken out; it fills in details and does not judge.
 - **Two payment rails, one public record.** Shows in Indonesia: rupiah by QRIS through Xendit, a licensed provider, with every paid order recorded on **LummyLedger**. Shows abroad: USDC from the buyer's own wallet, locked per listing in **LummyEscrow**, with two signatures and no gas.
@@ -91,6 +93,7 @@ sequenceDiagram
 - **Guards:** a "Testnet, not real money" label, sign-in required, at most 3 open USDC orders per wallet, a rate limit per account, and a switch that turns the rail off without a deploy. If the order cannot be written after funding, the USDC goes straight back to the wallet on chain.
 - **Where it lives:** [`web/src/lib/payments/usdc.ts`](web/src/lib/payments/usdc.ts) (server), [`web/src/components/checkout/UsdcPanel.tsx`](web/src/components/checkout/UsdcPanel.tsx) and [`web/src/lib/chain/wallet.ts`](web/src/lib/chain/wallet.ts) (wallet side). The contract source did not change: it was built for this.
 - **Limits today:** the seller's USDC payout goes to a simulated seller address, because sellers have no wallet yet in our email-first model. Listing a ticket for a USDC show is closed for now; the sample listings were added by the team. There is no service fee on USDC orders while they run on testnet.
+- **Tried with a real wallet:** on 24 Oct 2026 (UTC) a 9.5 test USDC purchase from a Rabby wallet, with two signatures. The wallet sent no transaction and paid no gas: [the funding transaction on Arbiscan](https://sepolia.arbiscan.io/tx/0x16fbe1ca8519c97e7458848f052e9d6f6edc16943d345ccb0fc7fbe0f847abed).
 
 Also at the event: claims and rulings on USDC orders end to end, Slither (Trail of Bits) on both contracts in CI, Quicknode as our RPC, a real show catalogue, stricter ticket checks (a holder's name never reaches the AI, tickets marked TEST or VOID go to a person), a demo-account link on the home page, and sample ticket PDFs so anyone can try the checks.
 
