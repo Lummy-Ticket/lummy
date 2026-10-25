@@ -33,6 +33,8 @@
 
 **Demo video (2:50):** [youtu.be/090tOYfTQ4I](https://youtu.be/090tOYfTQ4I). A seller's ticket checked, a QRIS order recorded on Arbitrum, a claim and its ruling, and the USDC checkout from a real browser wallet.
 
+**Pitch deck:** [canva.link/z2vv4sv33mrfg9t](https://canva.link/z2vv4sv33mrfg9t), two slides: the problem, how Lummy works, the model, traction and the ask.
+
 ## What it does
 
 <p align="center"><img src="assets/promise.gif" alt="An order moves from Paid to In escrow to Show over, and the seller is paid only when no claim stands" width="760"></p>
