@@ -4,6 +4,8 @@
 
 ### Escrow for concert ticket resale in Indonesia.<br>The seller gets paid only after the show.
 
+[<kbd> <br> Watch the demo (2:50) &nbsp;→ <br> </kbd>](https://youtu.be/090tOYfTQ4I)
+&nbsp;
 [<kbd> <br> Live site &nbsp;→ <br> </kbd>](https://lummy.id)
 &nbsp;
 [<kbd> <br> Try a demo account &nbsp;→ <br> </kbd>](https://lummy.id/login#demo)
@@ -28,6 +30,8 @@
 
 > [!IMPORTANT]
 > **Status (October 2026):** a working prototype. USDC is test USDC on Arbitrum Sepolia, QRIS runs in Xendit's test mode, so no real money moves. Not launched: no users and no revenue yet. Every listing on the site is a sample.
+
+**Demo video (2:50):** [youtu.be/090tOYfTQ4I](https://youtu.be/090tOYfTQ4I). A seller's ticket checked, a QRIS order recorded on Arbitrum, a claim and its ruling, and the USDC checkout from a real browser wallet.
 
 ## What it does
 
