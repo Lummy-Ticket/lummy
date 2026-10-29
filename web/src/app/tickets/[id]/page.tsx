@@ -860,10 +860,18 @@ export default function OrderDetailPage() {
                 >
                   <span className="w-10 h-10 rounded-xl bg-secondary-blue-soft text-primary-navy grid place-items-center shrink-0"><Ticket className="w-5 h-5" /></span>
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium text-neutral-black">{t("Your ticket (PDF)", "Tiketmu (PDF)")}</div>
+                    <div className="text-sm font-medium text-neutral-black">
+                      {t("Your ticket (PDF)", "Tiketmu (PDF)")}
+                      {!FEATURES.payouts && <span className="ml-1.5 text-xs font-normal text-neutral-gray">{t("(beta stand-in)", "(pengganti beta)")}</span>}
+                    </div>
                     <div className="text-xs text-neutral-gray">
                       {order.docsAccessed?.ticketAtISO
                         ? t(`Downloaded ${formatDateTime(order.docsAccessed.ticketAtISO)}`, `Diunduh ${formatDateTime(order.docsAccessed.ticketAtISO)}`)
+                        : !FEATURES.payouts
+                        ? t(
+                            "The payment was simulated, so you get a stand-in with this order's details and no barcode, not the seller's ticket.",
+                            "Pembayarannya simulasi, jadi yang kamu dapat file pengganti berisi data pesanan ini tanpa barcode, bukan tiket penjual."
+                          )
                         : t("The file the seller uploaded. Download it before the show.", "File yang diupload penjual. Unduh sebelum acara.")}
                     </div>
                   </div>

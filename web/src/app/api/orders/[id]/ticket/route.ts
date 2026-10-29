@@ -3,7 +3,14 @@
 // since it is what answers a "never handed over" claim. Staff may open it to rule on a claim;
 // their opening is not the buyer's. A refunded order has given the ticket back, so it is closed, and
 // a month after the show the file is deleted (lib/retention.ts), so it is closed from then on too.
+//
+// While every payment is simulated (FEATURES.payouts off), anyone with an account can press
+// "Simulate payment", so the buyer gets a stand-in with the order's facts and no barcode instead of
+// the seller's file (lib/docs/standin.ts). Its first download still counts as the handover, and
+// staff still open the real file to rule on a claim.
 import { NextResponse } from "next/server";
+import { standInTicket } from "@/lib/docs/standin";
+import { FEATURES } from "@/lib/features";
 import { HELD } from "@/lib/orders/map";
 import { TICKET_RETENTION_DAYS, isGone, ticketFileGoneAt } from "@/lib/retention";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -25,7 +32,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const { data: order, error } = await admin
     .from("orders")
-    .select("buyer_id, listing_id, ticket_file, escrow_status, docs_ticket_at, event_ends_at")
+    .select("buyer_id, listing_id, event_id, event_title, event_date, tier_name, quantity, ticket_file, escrow_status, docs_ticket_at, event_ends_at")
     .eq("id", id)
     .maybeSingle();
   if (error) return fail(500, error.message);
@@ -49,6 +56,29 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     // The first download is the one that counts, so a later one changes nothing.
     const logged = await admin.from("orders").update({ docs_ticket_at: new Date().toISOString() }).eq("id", id).is("docs_ticket_at", null);
     if (logged.error) return fail(500, logged.error.message);
+  }
+  if (buyer && !user.staff && !FEATURES.payouts) {
+    const { data: event } = order.event_id
+      ? await admin.from("events").select("venue, city").eq("id", order.event_id).maybeSingle()
+      : { data: null };
+    const pdf = await standInTicket({
+      id,
+      eventTitle: order.event_title,
+      eventDate: order.event_date,
+      venue: event?.venue,
+      city: event?.city,
+      tierName: order.tier_name,
+      quantity: order.quantity,
+    });
+    return new NextResponse(Buffer.from(pdf), {
+      status: 200,
+      headers: {
+        ...noStore,
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="lummy-beta-${id}.pdf"`,
+        "X-Lummy-Stand-In": "1",
+      },
+    });
   }
   const signed = await admin.storage.from("tickets").createSignedUrl(listing.ticket_path, 60, { download: `lummy-ticket-${id}.pdf` });
   if (signed.error || !signed.data) return fail(500, signed.error?.message ?? "link file gagal dibuat");

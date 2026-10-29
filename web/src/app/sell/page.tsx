@@ -854,6 +854,18 @@ function SellForm() {
             </div>
           )}
 
+          {/* Every payment is simulated during the beta, so the seller's file is never handed over (api/orders/[id]/ticket). */}
+          {sendsRealFile && !FEATURES.payouts && (
+            <div data-beta-handover className="flex items-start gap-2 rounded-2xl bg-secondary-blue-extra p-3 text-xs text-neutral-black leading-relaxed">
+              <Info className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" />
+              <span>
+                {t(
+                  "Beta: payments are simulated, so a buyer gets a stand-in without the barcode, never your PDF. The ticket stays yours, and Lummy staff open the file only to rule on a claim.",
+                  "Beta: pembayarannya masih simulasi, jadi pembeli mendapat file pengganti tanpa barcode, bukan PDF-mu. Tiketnya tetap milikmu, dan staf Lummy membuka filenya hanya untuk memutus klaim."
+                )}
+              </span>
+            </div>
+          )}
           {sendsRealFile && (
             <label className="flex items-start gap-2.5 cursor-pointer">
               <input data-consent type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 accent-primary-navy cursor-pointer" />

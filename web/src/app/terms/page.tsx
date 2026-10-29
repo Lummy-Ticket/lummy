@@ -61,7 +61,10 @@ const sections: LegalSection[] = [
       ...(FEATURES.eStamp
         ? []
         : [{ en: "Where the venue checks names, Lummy gives you a draft letter of authorisation with the order's details. The seller signs it on a Rp10,000 stamp and gives it to you with a copy of their ID card. Lummy does not sign it, add an e-stamp or store ID cards yet.", id: "Kalau venue mengecek nama, Lummy memberimu draf surat kuasa berisi data pesanan. Penjual menandatanganinya di atas meterai Rp10.000 dan menyerahkannya kepadamu bersama fotokopi KTP-nya. Lummy belum menandatanganinya, membubuhkan e-meterai, atau menyimpan KTP." }]),
-      { en: "The ticket file and the handover documents are yours as soon as you pay. When you first open the ticket file is recorded, since it answers a \"never handed over\" claim.", id: "File tiket dan dokumen serah terima jadi milikmu begitu kamu bayar. Kapan kamu pertama membuka file tiket dicatat, karena itu yang menjawab klaim \"tidak diserahkan\"." },
+      // api/orders/[id]/ticket: while every payment is simulated, the buyer gets a stand-in, never the seller's file.
+      FEATURES.payouts
+        ? { en: "The ticket file and the handover documents are yours as soon as you pay. When you first open the ticket file is recorded, since it answers a \"never handed over\" claim.", id: "File tiket dan dokumen serah terima jadi milikmu begitu kamu bayar. Kapan kamu pertama membuka file tiket dicatat, karena itu yang menjawab klaim \"tidak diserahkan\"." }
+        : { en: "During the beta every payment is simulated, so the ticket file you open is a stand-in with the order's details and no barcode, not the seller's ticket. The handover documents are yours once the order is placed, and when you first open the file is recorded.", id: "Selama beta semua pembayaran simulasi, jadi file tiket yang kamu buka adalah file pengganti berisi data pesanan tanpa barcode, bukan tiket penjual. Dokumen serah terima jadi milikmu begitu pesanan dibuat, dan kapan kamu pertama membuka filenya dicatat." },
       { en: "Without the organiser on board we cannot promise you get in. What we promise is the money back when you are turned away and can show it.", id: "Tanpa kerja sama penyelenggara, kami tidak bisa menjamin kamu masuk. Yang kami janjikan: uang kembali kalau kamu ditolak dan bisa membuktikannya." },
     ],
   },

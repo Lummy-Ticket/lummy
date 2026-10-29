@@ -106,7 +106,10 @@ const sections: LegalSection[] = [
     title: { en: "Who sees it", id: "Siapa yang bisa melihat" },
     list: [
       { en: "Everyone: your listing and your public seller name, a first name and an initial (or \"Lummy seller\" if your profile has no name). Never your email.", id: "Semua orang: listing-mu dan nama publik penjual, nama depan dan inisial (atau \"Lummy seller\" kalau profilmu tanpa nama). Email tidak pernah." },
-      { en: "The buyer of your ticket: the whole PDF you uploaded, since that is the ticket.", id: "Pembeli tiketmu: seluruh PDF yang kamu upload, karena itulah tiketnya." },
+      // api/orders/[id]/ticket: the stand-in while payments are simulated.
+      FEATURES.payouts
+        ? { en: "The buyer of your ticket: the whole PDF you uploaded, since that is the ticket.", id: "Pembeli tiketmu: seluruh PDF yang kamu upload, karena itulah tiketnya." }
+        : { en: "The buyer of your ticket: during the beta, only a stand-in with the order's details (show, category, number of tickets), never your PDF, since payments are simulated. Lummy staff open your PDF only to rule on a claim.", id: "Pembeli tiketmu: selama beta, hanya file pengganti berisi data pesanan (acara, kategori, jumlah tiket), tidak pernah PDF-mu, karena pembayarannya masih simulasi. Staf Lummy membuka PDF-mu hanya untuk memutus klaim." },
       { en: "The other side of a claim, and Lummy staff: the photos and notes in that claim.", id: "Pihak lawan dalam klaim, dan staf Lummy: foto dan catatan di klaim itu." },
       // components/common/EvidencePhoto: shown on the order page, the seller's dashboard and the admin queue.
       {

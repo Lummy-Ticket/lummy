@@ -18,6 +18,7 @@
 import { createHash } from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { chromium, type Page } from "playwright-core";
+import { FEATURES } from "../src/lib/features";
 import type { Database } from "../src/lib/supabase/types";
 import { GENUINE, genuineTicket, initWriter, latin1, photo, rewrite, ticketPdf, withExif } from "./ticket-fixtures";
 
@@ -351,9 +352,19 @@ async function main() {
       await page.locator('[data-ticket-file="open"]').waitFor({ timeout: 30000 });
       check("order page offers the ticket file", true);
       const handed = await page.request.get(`${BASE}/api/orders/${orderId}/ticket`, { maxRedirects: 0 });
-      check("ticket route answers with a signed link", handed.status() === 302 && !!handed.headers()["location"], `HTTP ${handed.status()}`);
-      const file = handed.headers()["location"] ? await page.request.get(handed.headers()["location"]) : null;
-      check("the buyer gets the seller's file, byte for byte", !!file && sha(new Uint8Array(await file.body())) === sha(files.editedSecond));
+      if (FEATURES.payouts) {
+        check("ticket route answers with a signed link", handed.status() === 302 && !!handed.headers()["location"], `HTTP ${handed.status()}`);
+        const file = handed.headers()["location"] ? await page.request.get(handed.headers()["location"]) : null;
+        check("the buyer gets the seller's file, byte for byte", !!file && sha(new Uint8Array(await file.body())) === sha(files.editedSecond));
+      } else {
+        // Every payment is simulated, so the seller's ticket must never reach the buyer.
+        const body = new Uint8Array(await handed.body());
+        check(
+          "simulated payment: the buyer gets a stand-in PDF, never the seller's file",
+          handed.status() === 200 && handed.headers()["x-lummy-stand-in"] === "1" && new TextDecoder("latin1").decode(body.slice(0, 5)) === "%PDF-" && sha(body) !== sha(files.editedSecond),
+          `HTTP ${handed.status()}`
+        );
+      }
       const logged = await admin.from("orders").select("ticket_file, docs_ticket_at").eq("id", orderId).single();
       check("the download is logged as the handover", logged.data?.ticket_file === true && !!logged.data.docs_ticket_at, JSON.stringify(logged.data ?? logged.error));
 
@@ -425,6 +436,10 @@ async function main() {
         (["buyer", "seller"] as const).map((side) => page.request.get(`${BASE}/api/orders/${orderId}/evidence?side=${side}`, { maxRedirects: 0 }))
       );
       check("staff can open both sides' photos", both.every((r) => r.status() === 302), both.map((r) => r.status()).join(","));
+      // Staff rule on the real file, stand-in or not.
+      const real = await page.request.get(`${BASE}/api/orders/${orderId}/ticket`, { maxRedirects: 0 });
+      const realFile = real.headers()["location"] ? await page.request.get(real.headers()["location"]) : null;
+      check("staff open the seller's own file, byte for byte", !!realFile && sha(new Uint8Array(await realFile.body())) === sha(files.editedSecond), `HTTP ${real.status()}`);
     }
   } catch (e) {
     check("flow ran to the end", false, (e as Error).message.split("\n")[0].slice(0, 200));
