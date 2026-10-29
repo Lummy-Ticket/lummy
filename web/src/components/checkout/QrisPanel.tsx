@@ -12,6 +12,90 @@ import { useFormatters, useT } from "@/lib/i18n";
 import { paymentAction, readPayment, type PaymentStatus, type PaymentView } from "@/lib/payments/client";
 
 const POLL_MS = 3000;
+/** How long a QRIS stays open, the same as an account's (lib/payments). */
+const SAMPLE_VALID_S = 15 * 60;
+
+/**
+ * The same QRIS step for a demo account, which has no account for Xendit to bill: the same code
+ * box, clock and buttons, with a code that is a demo one and says so, and "Simulate payment" saving
+ * the order in this browser instead of asking Xendit. So a demo walks the checkout an account walks.
+ */
+export function SampleQrisPanel({
+  amount,
+  code,
+  onSimulate,
+  onClose,
+}: {
+  amount: number;
+  /** What the demo code carries: the listing and the amount, nothing that could pay. */
+  code: string;
+  onSimulate: () => Promise<void>;
+  onClose: () => void;
+}) {
+  const t = useT();
+  const { formatIDR } = useFormatters();
+  const [busy, setBusy] = useState(false);
+  const [opened] = useState(() => Date.now());
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const i = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(i);
+  }, []);
+  const left = Math.max(0, SAMPLE_VALID_S - Math.floor((now - opened) / 1000));
+  const clock = `${String(Math.floor(left / 60)).padStart(2, "0")}:${String(left % 60).padStart(2, "0")}`;
+
+  return (
+    <div data-qris-panel data-qris-sample data-qris-status={left > 0 ? "pending" : "expired"} className="flex flex-col items-center gap-4 p-6 text-center">
+      <div className="flex items-center gap-2 font-semibold text-lg text-neutral-black">
+        <QrCode className="w-5 h-5 text-lummy-500" /> {t("Pay with QRIS", "Bayar dengan QRIS")}
+      </div>
+      {left > 0 ? (
+        <>
+          <div className="rounded-2xl border border-neutral-light-gray-1 bg-neutral-white p-3">
+            <QRCodeSVG value={code} size={208} marginSize={1} level="M" aria-label={t("Demo QRIS code", "Kode QRIS demo")} />
+          </div>
+          <div>
+            <div className="tabular-nums font-bold text-xl text-neutral-black">{formatIDR(amount)}</div>
+            <div className="text-xs text-neutral-gray mt-0.5">{t(`Valid for ${clock}`, `Berlaku ${clock}`)}</div>
+          </div>
+          <div className="w-full rounded-2xl bg-secondary-orange-soft p-3 text-xs text-secondary-orange-dark text-left">
+            {t(
+              "Demo account: this code is a demo one, not from Xendit, so no app can pay it. The button below completes a simulated payment in this browser; no money moves.",
+              "Akun demo: kode ini kode demo, bukan dari Xendit, jadi tidak bisa dibayar aplikasi apa pun. Tombol di bawah menyelesaikan pembayaran simulasi di browser ini; tidak ada uang yang berpindah."
+            )}
+          </div>
+          <div className="flex w-full flex-col gap-2">
+            <Button.Primary
+              data-qris-simulate
+              wrapperClass="w-full"
+              className="w-full"
+              disabled={busy}
+              onClick={() => {
+                setBusy(true);
+                void onSimulate().finally(() => setBusy(false));
+              }}
+            >
+              {busy && <Loader2 className="w-4 h-4 animate-spin" />}
+              {t("Simulate payment (test mode)", "Simulasikan pembayaran (mode uji)")}
+            </Button.Primary>
+            <button data-qris-cancel type="button" disabled={busy} onClick={onClose} className="text-sm text-neutral-gray hover:text-primary-navy disabled:opacity-50 cursor-pointer">
+              {t("Cancel payment", "Batalkan pembayaran")}
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="rounded-2xl bg-secondary-pink-soft p-3 text-sm text-secondary-pink-dark">
+            {t("This QRIS expired before it was paid. Press Pay for a new code.", "QRIS ini kedaluwarsa sebelum dibayar. Tekan Bayar untuk kode baru.")}
+          </p>
+          <Button.Primary wrapperClass="w-full" className="w-full" onClick={onClose}>
+            {t("Close", "Tutup")}
+          </Button.Primary>
+        </>
+      )}
+    </div>
+  );
+}
 
 export function QrisPanel({
   initial,

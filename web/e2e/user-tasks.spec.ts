@@ -79,7 +79,14 @@ test.describe("user tasks", { tag: "@smoke" }, () => {
       await expect(page.getByRole("button", { name: /^Bayar / })).toBeDisabled();
       await nameRisk.check();
     }
-    await tapUntil(page, page.getByRole("button", { name: /^Bayar / }), (u) => u.pathname.startsWith("/tickets/or-"));
+    // Bayar opens the same QRIS step an account meets, with a demo code; simulating it saves the order.
+    const bayar = page.getByRole("button", { name: /^Bayar / });
+    const simulate = page.locator("[data-qris-simulate]");
+    await expect(async () => {
+      if (!(await simulate.isVisible())) await bayar.click({ timeout: 3_000 });
+      await expect(simulate).toBeVisible({ timeout: 6_000 });
+    }).toPass({ timeout: 45_000 });
+    await tapUntil(page, simulate, (u) => u.pathname.startsWith("/tickets/or-"));
     // Task 3: the money is held, and the page says until when.
     await expect(page.getByText("Dana terkunci").first()).toBeVisible();
     await expect(page.getByText("Menunggu acara, lalu 48 jam")).toBeVisible();

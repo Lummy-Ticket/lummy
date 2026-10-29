@@ -21,7 +21,7 @@ import { chainCheckoutReady, demoPrefs, openChainOrder, useChainInfo } from "@/l
 import { DEPLOYMENTS } from "@/lib/chain/deployments";
 import { OrderError, placeOrder } from "@/lib/orders/client";
 import { startPayment, usePaymentsConfig, type PaymentView } from "@/lib/payments/client";
-import { QrisPanel } from "@/components/checkout/QrisPanel";
+import { QrisPanel, SampleQrisPanel } from "@/components/checkout/QrisPanel";
 import { USDC_FAUCET, UsdcPanel } from "@/components/checkout/UsdcPanel";
 import { useAccessGuard } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
@@ -73,6 +73,8 @@ function CheckoutInner() {
   const payments = usePaymentsConfig(account && !onchain);
   const qris = account && !onchain && !!payments?.enabled && !usdc;
   const [payment, setPayment] = useState<PaymentView | null>(null);
+  // A demo account walks the same QRIS step, with a demo code and the order kept in this browser.
+  const [samplePay, setSamplePay] = useState(false);
   const [usdcOpen, setUsdcOpen] = useState(false);
 
   const [processing, setProcessing] = useState(false);
@@ -142,6 +144,7 @@ function CheckoutInner() {
   const pay = async () => {
     if (usdc) return setUsdcOpen(true);
     if (account) return qris ? payQris() : payAccount();
+    if (!onchain) return setSamplePay(true);
     setProcessing(true);
     let chain: OrderChain | undefined;
     if (onchain && chainInfo?.escrow) {
@@ -153,8 +156,6 @@ function CheckoutInner() {
         const msg = e instanceof Error ? e.message : String(e);
         toast.error(`${t("Chain unavailable, saved as a sample order", "Chain tidak tersedia, pesanan disimpan sebagai contoh")}: ${msg}`);
       }
-    } else {
-      await new Promise((r) => setTimeout(r, 1800));
     }
     const id = buy(listing, event, tier, qty, user?.id ?? "u-buyer", chain);
     toast.success(
@@ -337,11 +338,11 @@ function CheckoutInner() {
               )}
             </p>
           ) : (
-            // A sample account sees the QRIS rail but pays nothing; say so before the tap, not after.
+            // A demo account walks the QRIS step with a demo code; say so before the tap, not after.
             <p data-sample-payment className="text-[11px] text-neutral-gray text-center -mt-2">
               {t(
-                "Demo account: the payment is simulated, so there is no QR code to scan and no money moves.",
-                "Akun demo: pembayarannya simulasi, jadi tidak ada QR yang perlu discan dan tidak ada uang yang berpindah."
+                "Demo account: the QRIS code is a demo one and the payment is simulated in this browser, so no money moves.",
+                "Akun demo: kode QRIS-nya kode demo dan pembayarannya disimulasikan di browser ini, jadi tidak ada uang yang berpindah."
               )}
             </p>
           )}
@@ -387,6 +388,23 @@ function CheckoutInner() {
               setUsdcOpen(false);
               router.refresh();
             }}
+          />
+        )}
+      </Modal>
+
+      <Modal open={samplePay} onClose={() => {}} className="max-w-md">
+        {samplePay && (
+          <SampleQrisPanel
+            amount={total}
+            code={`LUMMY-DEMO|${listing.id}|${qty}|${total}`}
+            onSimulate={async () => {
+              // About as long as Xendit's simulator and webhook take for an account.
+              await new Promise((r) => setTimeout(r, 1200));
+              const id = buy(listing, event, tier, qty, user?.id ?? "u-buyer");
+              toast.success(t("Payment received (test mode). Your order is saved, and its escrow rules are real.", "Pembayaran (mode uji) diterima. Pesananmu tersimpan, dan aturan escrow-nya sungguhan."));
+              router.push(`/tickets/${id}`);
+            }}
+            onClose={() => setSamplePay(false)}
           />
         )}
       </Modal>

@@ -58,6 +58,9 @@ test.describe("demo script", { tag: "@smoke" }, () => {
     await persona(page, "buyer");
     await page.goto("/checkout?listing=ls-1&qty=2");
     await page.getByRole("button", { name: /^Pay / }).click();
+    // The same QRIS step an account meets, with a demo code.
+    await expect(page.locator("[data-qris-sample]")).toContainText("this code is a demo one");
+    await page.locator("[data-qris-simulate]").click();
     await expect(page).toHaveURL(/\/tickets\/or-/);
     await expect(page.getByText("Letter of authorisation").first()).toBeVisible();
     // The letter is a real draft to download, a PDF with the order on it, not a picture of one.
@@ -192,6 +195,7 @@ test.describe("demo script", { tag: "@smoke" }, () => {
     await persona(page, "buyer");
     await page.goto("/checkout?listing=ls-1&qty=2");
     await page.getByRole("button", { name: /^Pay / }).click();
+    await page.locator("[data-qris-simulate]").click();
     await expect(page).toHaveURL(/\/tickets\/or-/);
     await page.getByRole("button", { name: "Mark event as finished" }).click();
     await page.getByRole("button", { name: "Something went wrong at the gate" }).click();
