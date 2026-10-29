@@ -10,7 +10,7 @@ import { NextResponse } from "next/server";
 import { notifyListingLive } from "@/lib/email/notify";
 import { emailDeadline } from "@/lib/email/send";
 import { FEATURES } from "@/lib/features";
-import { EVENT_DURATION_H, isLateListing } from "@/lib/mock/escrow";
+import { isLateListing } from "@/lib/mock/escrow";
 import { resaleAllowed } from "@/lib/mock/transfer";
 import type { ListingAI } from "@/lib/mock/types";
 import { SAMPLE_SIGNALS, inPriceBand, isBlocked, isFlagged, isSampleTicket, publicSellerName } from "@/lib/listings/rules";
@@ -29,7 +29,6 @@ export const runtime = "nodejs";
 // Reading a long PDF takes seconds.
 export const maxDuration = 60;
 
-const H = 3_600_000;
 /**
  * The catalogue is shared, and listing costs nothing, so an ordinary account keeps at most this
  * many listings live or in review. Demo accounts and staff are not limited.
@@ -138,8 +137,9 @@ export async function POST(req: Request) {
   if (!resaleAllowed(ev.data.transfer_policy)) return fail(409, "penyelenggara acara ini melarang tiketnya dijual ulang");
   // Shows priced in USDC take listings from the team only, for now (tasks/founder-house-usdc.md).
   if (ev.data.currency === "USDC") return fail(409, "jual tiket untuk acara di luar negeri belum dibuka");
-  if (ev.data.status === "cancelled" || Date.now() >= new Date(ev.data.starts_at).getTime() + EVENT_DURATION_H * H) {
-    return fail(409, "acara ini sudah lewat atau dibatalkan");
+  // Nothing is listed once the show has started, as nothing is bought then (lib/orders/create).
+  if (ev.data.status === "cancelled" || Date.now() >= new Date(ev.data.starts_at).getTime()) {
+    return fail(409, "acara ini sudah dimulai atau dibatalkan");
   }
   const faceValue = tier.data.face_value;
   if (!inPriceBand(askPrice, faceValue)) return fail(400, "harga harus di antara 50% dan 150% harga asli");

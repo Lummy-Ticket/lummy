@@ -79,7 +79,9 @@ export async function checkPurchase(admin: Admin, buyerId: string, listingId: st
   if (!listing || listing.status !== "active") return fail(409, "listing ini sudah tidak dijual");
   if (listing.seller_id === buyerId) return fail(400, "tidak bisa membeli listing sendiri");
   if (!purchase) return fail(409, "acara untuk listing ini tidak ditemukan");
-  if (purchase.event.status === "cancelled" || Date.now() >= purchase.scheduledEnd) return fail(409, "acara ini sudah lewat atau dibatalkan");
+  if (purchase.event.status === "cancelled") return fail(409, "acara ini dibatalkan");
+  // Sales close when the show starts: a ticket bought after the doors open cannot be handed over in time.
+  if (Date.now() >= new Date(purchase.event.starts_at).getTime()) return fail(409, "penjualan ditutup karena acaranya sudah dimulai");
   // A listing that went up before the organiser's rule was recorded still cannot be bought.
   if (!resaleAllowed(purchase.event.transfer_policy)) return fail(409, "penyelenggara acara ini melarang tiketnya dijual ulang");
   return { ok: true, purchase };

@@ -608,6 +608,8 @@ export default function AdminPage() {
   const [tab, setTab] = useState<"claims" | "listings" | "events" | "shows" | "payments">("claims");
   // The order whose verdict is on its way, so the wait says what is actually happening.
   const [sending, setSending] = useState<Order | null>(null);
+  // A verdict cannot be taken back once recorded, so the chosen remedy is confirmed first (uji manual 25 Oct).
+  const [ruling, setRuling] = useState<{ o: Order; remedy: Remedy; label: { en: string; id: string }; amount: number } | null>(null);
 
   // Staff signed in with an account rule on the claims in the database; a sample admin on the
   // sample orders in this browser.
@@ -799,7 +801,7 @@ export default function AdminPage() {
                       return (
                         <button
                           key={opt.remedy}
-                          onClick={() => doResolve(o, opt.remedy)}
+                          onClick={() => setRuling({ o, remedy: opt.remedy, label: opt.label, amount: opt.amount })}
                           className={`text-left p-3 rounded-2xl border-2 transition cursor-pointer ${isSuggested ? "border-primary-navy bg-secondary-blue-light" : "border-neutral-light-gray-1 hover:border-primary-navy"}`}
                         >
                           <div className="flex items-center gap-2 text-sm font-medium text-neutral-black">
@@ -816,8 +818,8 @@ export default function AdminPage() {
                   <p className="text-xs text-neutral-gray mt-3">
                     {penalty > 0
                       ? t(
-                          `Ruling for the buyer also costs the seller a penalty of ${SELLER_PENALTY_PCT}% of the sale, ${formatMoney(penalty, o.currency)}${penaltyNote(!!o.chain || o.currency === "USDC").en}, on top of losing it. That is what makes a bad listing cost more than it earns.`,
-                          `Kalau kamu memutus untuk pembeli, penjual juga kena penalti ${SELLER_PENALTY_PCT}% dari nilai transaksi, ${formatMoney(penalty, o.currency)}${penaltyNote(!!o.chain || o.currency === "USDC").id}, selain kehilangan penjualannya. Itu yang bikin listing bermasalah lebih mahal daripada hasilnya.`
+                          `Ruling for the buyer also costs the seller a penalty of ${SELLER_PENALTY_PCT}% of what is refunded, ${formatMoney(penalty, o.currency)} on a full refund${penaltyNote(!!o.chain || o.currency === "USDC").en}, on top of losing it. That is what makes a bad listing cost more than it earns.`,
+                          `Kalau kamu memutus untuk pembeli, penjual juga kena penalti ${SELLER_PENALTY_PCT}% dari yang direfund, ${formatMoney(penalty, o.currency)} untuk refund penuh${penaltyNote(!!o.chain || o.currency === "USDC").id}, selain kehilangan penjualannya. Itu yang bikin listing bermasalah lebih mahal daripada hasilnya.`
                         )
                       : t(
                           "The ticket was genuine and was refused over the name, with the seller's ID card staged. A refund here charges the seller nothing beyond losing the sale.",
@@ -849,6 +851,27 @@ export default function AdminPage() {
 
       {mounted && tab === "events" && <ShowRequestsPanel queue={showQueue} />}
 
+
+      <Modal open={!!ruling} onClose={() => setRuling(null)} title={t("Record this verdict?", "Catat putusan ini?")}>
+        {ruling && (
+          <div data-verdict-confirm className="flex flex-col gap-4 p-6">
+            <p className="text-sm text-neutral-black">
+              <b>{t(ruling.label.en, ruling.label.id)}</b>
+              {ruling.amount > 0 ? ` · ${formatMoney(ruling.amount, ruling.o.currency)}` : ""}
+              <span className="block text-neutral-gray mt-1">{ruling.o.eventTitle} · {ruling.o.tierName} · {t("Seller", "Penjual")} {ruling.o.sellerName}</span>
+            </p>
+            <p className="text-xs text-neutral-gray">
+              {t("A verdict is final: both sides are told, and the money moves as it says.", "Putusan bersifat final: kedua pihak diberi tahu, dan uangnya bergerak sesuai putusan.")}
+            </p>
+            <div className="flex gap-3">
+              <Button.Ghost className="flex-1 text-sm" onClick={() => setRuling(null)}>{t("Cancel", "Batal")}</Button.Ghost>
+              <Button.Primary data-verdict-confirm-yes wrapperClass="flex-1" className="w-full text-sm" onClick={() => { const r = ruling; setRuling(null); void doResolve(r.o, r.remedy); }}>
+                {t("Yes, record it", "Ya, catat")}
+              </Button.Primary>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Modal open={!!sending} onClose={() => {}}>
         <div className="flex flex-col items-center gap-3 py-4">

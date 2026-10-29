@@ -82,10 +82,10 @@ const sections: LegalSection[] = [
       // penalty, except a refusal over the name, which a buyer can only claim when the seller staged an
       // ID card for the gate (FEATURES.sellerIdCard). Change the rule and this line together.
       {
-        en: `A seller whose ticket fails loses the sale and gets a penalty of ${SELLER_PENALTY_PCT}% of the sale${PENALTY_NOTE.en}. The one exception is a genuine ticket refused at the gate over the name after the seller staged their ID card for the gate: the buyer is refunded and the seller pays no penalty.${
+        en: `A seller whose ticket fails loses the sale and gets a penalty of ${SELLER_PENALTY_PCT}% of what is refunded to the buyer${PENALTY_NOTE.en}. The one exception is a genuine ticket refused at the gate over the name after the seller staged their ID card for the gate: the buyer is refunded and the seller pays no penalty.${
           FEATURES.sellerIdCard ? "" : " Sellers cannot stage an ID card yet, so for now a refusal over the name counts as a failed ticket."
         }`,
-        id: `Penjual yang tiketnya gagal kehilangan penjualannya dan kena penalti ${SELLER_PENALTY_PCT}% dari nilai transaksi${PENALTY_NOTE.id}. Satu-satunya pengecualian: tiket asli yang ditolak gate karena nama, padahal penjual sudah menyiapkan KTP-nya untuk gate. Pembeli tetap direfund dan penjual tidak kena penalti.${
+        id: `Penjual yang tiketnya gagal kehilangan penjualannya dan kena penalti ${SELLER_PENALTY_PCT}% dari nilai yang direfund ke pembeli${PENALTY_NOTE.id}. Satu-satunya pengecualian: tiket asli yang ditolak gate karena nama, padahal penjual sudah menyiapkan KTP-nya untuk gate. Pembeli tetap direfund dan penjual tidak kena penalti.${
           FEATURES.sellerIdCard ? "" : " Penjual belum bisa menyiapkan KTP, jadi untuk sekarang penolakan karena nama dihitung sebagai tiket gagal."
         }`,
       },

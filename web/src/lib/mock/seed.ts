@@ -290,6 +290,13 @@ function catalogue(): EventItem[] {
 export const isEventOver = (e: EventItem, now: number = Date.now()) =>
   now >= new Date(e.dateISO).getTime() + EVENT_DURATION_H * H;
 
+/**
+ * True once the show has started: nothing is bought or listed from then on, since a ticket bought
+ * after the doors open could not be handed over in time (uji manual 25 Oct 2026). The server routes
+ * apply the same rule (lib/orders/create, api/listings).
+ */
+export const isSaleClosed = (e: Pick<EventItem, "dateISO">, now: number = Date.now()) => now >= new Date(e.dateISO).getTime();
+
 // --- selectors ---
 /** The catalogue: shows that have not ended yet. */
 export const getEvents = (now: number = Date.now()) => catalogue().filter((e) => !isEventOver(e, now));

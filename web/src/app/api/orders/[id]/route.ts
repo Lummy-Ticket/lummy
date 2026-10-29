@@ -253,7 +253,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           verdict_remedy: remedy,
           verdict_to_seller: toSeller,
           refund_amount: refund,
-          seller_penalty: penaltyFor(d.reason, toSeller, order.amount),
+          seller_penalty: penaltyFor(d.reason, toSeller, refund),
           rationale_en: rationale.en,
           rationale_id: rationale.id,
           decided_at: at,

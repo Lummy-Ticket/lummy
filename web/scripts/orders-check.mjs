@@ -257,7 +257,8 @@ try {
     return o?.escrow_status === "Refunded" ? o : null;
   }, CHAIN ? 90000 : 25000);
   const verdict = claimOf(ruled);
-  check("putusan: refund sebagian dan penalti penjual 40%", verdict?.verdict_remedy === "REFUND_PARTIAL" && verdict.refund_amount === 500000 && verdict.seller_penalty === 400000, JSON.stringify(verdict ?? {}).slice(0, 160));
+  // The penalty is 40% of what went back, not of the whole sale (decided 29 Oct 2026).
+  check("putusan: refund sebagian dan penalti penjual 40% dari yang direfund", verdict?.verdict_remedy === "REFUND_PARTIAL" && verdict.refund_amount === 500000 && verdict.seller_penalty === 200000, JSON.stringify(verdict ?? {}).slice(0, 160));
   check("alasan putusan ditulis server", !!verdict?.rationale_en && verdict.decided_by === staff.user.id);
   if (CHAIN) check("putusan dijalankan kontrak", !!ruled?.tx_settle);
   check("putusan kedua ditolak 409", (await staff.act(orderId, { action: "verdict", remedy: "REFUND_FULL" })).status() === 409);

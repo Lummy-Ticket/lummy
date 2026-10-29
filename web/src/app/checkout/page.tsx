@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/common/Modal";
 import {
-  getTier, isBuyable, isEventOver, platformFee, MATERAI, useOrders, useUser, DISPUTE_WINDOW_H, EVENT_DURATION_H, type OrderChain,
+  getTier, isBuyable, isSaleClosed, platformFee, MATERAI, useOrders, useUser, DISPUTE_WINDOW_H, EVENT_DURATION_H, type OrderChain,
   needsNameAcknowledgement, resaleAllowed,
 } from "@/lib/mock";
 import { useCatalogue } from "@/lib/catalogue";
@@ -82,7 +82,7 @@ function CheckoutInner() {
   const [nameRiskOk, setNameRiskOk] = useState(false);
 
   // Not found, flagged, duplicate, or for a show that is already over: nothing to pay for.
-  if (!listing || !event || !tier || !isBuyable(listing) || isEventOver(event) || !resaleAllowed(event.transferPolicy)) {
+  if (!listing || !event || !tier || !isBuyable(listing) || isSaleClosed(event) || !resaleAllowed(event.transferPolicy)) {
     return (
       <div className="max-w-lg mx-auto px-5 pt-28 pb-16 text-center flex flex-col items-center gap-3">
         <p className="text-neutral-gray">{t("This listing is not available to buy.", "Listing ini tidak bisa dibeli.")}</p>

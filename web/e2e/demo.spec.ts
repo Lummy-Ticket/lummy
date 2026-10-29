@@ -119,10 +119,12 @@ test.describe("demo script", { tag: "@smoke" }, () => {
       await page.goto("/admin");
       await expect(page.getByText("Seller replied").first()).toBeVisible();
       await expect(page.getByRole("button", { name: /Full refund|Release to seller/ }).nth(1)).toBeVisible();
-      await expect(page.getByText(/40% of the sale/).first()).toBeVisible();
+      await expect(page.getByText(/40% of what is refunded/).first()).toBeVisible();
     });
     await test.step("2:22 the verdict lands on the buyer's order", async () => {
       await page.getByRole("button", { name: /Full refund/ }).first().click();
+      // A verdict is confirmed before it is recorded.
+      await page.getByRole("button", { name: "Yes, record it" }).click();
       await persona(page, "buyer");
       await page.goto("/tickets");
       await expect(page.getByText("Refunded to you").first()).toBeVisible();

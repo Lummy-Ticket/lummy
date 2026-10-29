@@ -13,6 +13,7 @@ export {
   isBuyable,
   clearedByStaff,
   isEventOver,
+  isSaleClosed,
 } from "./seed";
 export * from "./util";
 export * from "./escrow";

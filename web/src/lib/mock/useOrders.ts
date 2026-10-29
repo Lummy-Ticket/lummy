@@ -199,7 +199,7 @@ export const useOrders = create<OrderState>()(
                   toSeller,
                   remedy,
                   refundAmount: remedy === "REPLACEMENT" ? o.amount : refundAmount,
-                  sellerPenalty: penaltyFor(o.dispute.reason, toSeller, o.amount),
+                  sellerPenalty: penaltyFor(o.dispute.reason, toSeller, remedy === "REPLACEMENT" ? o.amount : refundAmount),
                   rationale,
                   decidedAtISO: new Date().toISOString(),
                 },

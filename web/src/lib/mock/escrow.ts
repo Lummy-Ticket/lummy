@@ -456,9 +456,15 @@ export const sellerPenalty = (amount: number) => Math.round((amount * SELLER_PEN
  */
 const NO_FAULT: DisputeReason[] = ["NAME_MISMATCH", "EVENT_CANCELLED"];
 
-/** What a verdict charges the seller: nothing when they are paid, nothing when the refusal was not their doing. */
-export const penaltyFor = (reason: DisputeReason, toSeller: boolean, amount: number) =>
-  toSeller || NO_FAULT.includes(reason) ? 0 : sellerPenalty(amount);
+/**
+ * What a verdict charges the seller: a share of what went back to the buyer, so a partial refund
+ * (one ticket of a set, a downgraded seat) costs in proportion and a full one the whole share
+ * (decided 29 Oct 2026; until then it was always a share of the whole sale). Nothing when the seller
+ * is paid, nothing when the refusal was not their doing. `refunded` is what the buyer gets back; a
+ * replacement counts as the whole sale.
+ */
+export const penaltyFor = (reason: DisputeReason, toSeller: boolean, refunded: number) =>
+  toSeller || NO_FAULT.includes(reason) ? 0 : sellerPenalty(refunded);
 
 export interface RemedyOption {
   remedy: Remedy;

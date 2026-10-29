@@ -106,6 +106,7 @@ try {
   await page.goto(`${BASE}/admin`, { waitUntil: "networkidle" });
   const card = page.locator("div.rounded-3xl", { has: page.locator("h3", { hasText: "Coldplay" }) }).first();
   await card.getByRole("button", { name: /Full refund/ }).click();
+  await page.getByRole("button", { name: "Yes, record it" }).click();
   await page.getByText("Upheld: full refund").waitFor({ timeout: 90000 });
   check("putusan admin terkirim ke kontrak", true);
   await as("buyer");

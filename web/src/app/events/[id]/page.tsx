@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { NotifyCard } from "@/components/events/NotifyCard";
 import { TransferPolicyNote } from "@/components/common/TransferPolicyNote";
 import {
-  getTier, isBuyable, clearedByStaff, isEventOver, resaleAllowed, CAP_PCT, SELLER_PENALTY_PCT, PENALTY_NOTE, type Listing, type EventItem,
+  getTier, isBuyable, clearedByStaff, isEventOver, isSaleClosed, resaleAllowed, CAP_PCT, SELLER_PENALTY_PCT, PENALTY_NOTE, type Listing, type EventItem,
 } from "@/lib/mock";
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 import { useCatalogue, useEventText } from "@/lib/catalogue";
@@ -178,6 +178,8 @@ export default function EventDetailPage() {
   // Buyable listings the ticket count hides, so the list adds up to that count.
   const otherQuantities = forSale - buyable.length;
   const over = isEventOver(event);
+  // Running now: still on the page until it ends, but nothing can be bought or listed any more.
+  const started = !over && isSaleClosed(event);
   const closed = !resaleAllowed(event.transferPolicy);
 
   return (
@@ -242,10 +244,14 @@ export default function EventDetailPage() {
             </p>
           )}
 
-          {over ? (
-            <div className="mt-10 rounded-2xl bg-secondary-gray-soft p-6 text-center">
-              <p className="font-semibold text-neutral-black">{t("This show has ended", "Acara ini sudah selesai")}</p>
-              <p className="text-sm text-neutral-gray mt-1">{t("Tickets for it are no longer on sale.", "Tiketnya sudah tidak dijual lagi.")}</p>
+          {over || started ? (
+            <div data-sales-closed className="mt-10 rounded-2xl bg-secondary-gray-soft p-6 text-center">
+              <p className="font-semibold text-neutral-black">{over ? t("This show has ended", "Acara ini sudah selesai") : t("This show has started", "Acara ini sudah dimulai")}</p>
+              <p className="text-sm text-neutral-gray mt-1">
+                {over
+                  ? t("Tickets for it are no longer on sale.", "Tiketnya sudah tidak dijual lagi.")
+                  : t("Sales closed when the doors opened, since a ticket bought now could not be handed over in time.", "Penjualan ditutup saat pintu dibuka, karena tiket yang dibeli sekarang tidak sempat diserahkan.")}
+              </p>
               <Link href="/events" className="inline-block mt-4"><Button.Secondary className="text-sm">{t("See what is coming up", "Lihat acara berikutnya")}</Button.Secondary></Link>
             </div>
           ) : closed ? (
@@ -346,7 +352,7 @@ export default function EventDetailPage() {
             </div>
             {/* Price stub: perforation + cream reads as ticket paper */}
             <div className="px-6 py-4 bg-secondary-cream-light border-t-2 border-dashed border-neutral-light-gray-1">
-              {event.fromPrice > 0 && !over ? (
+              {event.fromPrice > 0 && !over && !started ? (
                 <>
                   <div className="text-xs text-secondary-brown-dark">{t("From", "Mulai dari")}</div>
                   <div className="tabular-nums font-bold text-2xl text-neutral-black">{formatMoney(event.fromPrice, event.currency)}</div>
@@ -360,6 +366,8 @@ export default function EventDetailPage() {
                 <p className="text-sm text-secondary-brown-dark">
                   {over
                     ? t("This show is over, so nothing is on sale.", "Acara ini sudah lewat, jadi tidak ada yang dijual.")
+                    : started
+                    ? t("This show has started, so sales are closed.", "Acara ini sudah dimulai, jadi penjualan ditutup.")
                     : closed
                       ? t("Resale is closed by the organiser.", "Resale ditutup oleh penyelenggara.")
                       : FEATURES.emails
@@ -371,7 +379,7 @@ export default function EventDetailPage() {
           </div>
           {/* A fan with a ticket for this show goes straight to the sell form with the show picked. Not
               for a show that is over or forbids resale, nor one paid in USDC, where selling is not open. */}
-          {!over && !closed && event.currency !== "USDC" && (
+          {!over && !started && !closed && event.currency !== "USDC" && (
             <Link
               href={`/sell?event=${event.id}`}
               data-sell-this-show
