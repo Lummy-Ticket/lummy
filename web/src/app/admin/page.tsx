@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import {
   CheckCircle2, XCircle, AlertTriangle, Calendar, CalendarClock, CalendarX, MapPin, Scale, Paperclip,
-  ExternalLink, Gavel, Clock, Loader2, Ticket, MinusCircle, Banknote, DoorOpen,
+  ExternalLink, Gavel, Clock, Loader2, Ticket, MinusCircle, Banknote, DoorOpen, Activity,
 } from "lucide-react";
 import { PaymentsPanel, usePaymentsOverview } from "@/components/admin/PaymentsPanel";
 import { EvidencePhoto } from "@/components/common/EvidencePhoto";
@@ -31,6 +31,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { ShowRequestsPanel, useShowRequestQueue } from "@/components/admin/ShowRequestsPanel";
+import { BetaPanel } from "@/components/admin/BetaPanel";
 
 /**
  * What the buyer gets back on chain, in USDC units: the same share of the locked amount as the
@@ -605,7 +606,7 @@ export default function AdminPage() {
   const listings = useSellerListings((s) => s.listings);
   const approveListing = useSellerListings((s) => s.approve);
   const rejectListing = useSellerListings((s) => s.reject);
-  const [tab, setTab] = useState<"claims" | "listings" | "events" | "shows" | "payments">("claims");
+  const [tab, setTab] = useState<"claims" | "listings" | "events" | "shows" | "payments" | "beta">("claims");
   // The order whose verdict is on its way, so the wait says what is actually happening.
   const [sending, setSending] = useState<Order | null>(null);
   // A verdict cannot be taken back once recorded, so the chosen remedy is confirmed first (uji manual 25 Oct).
@@ -654,6 +655,8 @@ export default function AdminPage() {
             Icon: Banknote,
             count: (payments.data?.needsRefund.length ?? 0) + (payments.data?.stuck.length ?? 0),
           },
+          // The beta in numbers, for the weekly meeting (tasks 11.7).
+          { id: "beta" as const, en: "Beta", id_: "Beta", Icon: Activity, count: 0 },
         ]
       : []),
   ];
@@ -847,6 +850,7 @@ export default function AdminPage() {
       )}
 
       {mounted && account && tab === "shows" && <ShowsPanel />}
+      {mounted && account && tab === "beta" && <BetaPanel />}
       {mounted && account && tab === "payments" && <PaymentsPanel data={payments.data} error={payments.error} refresh={payments.refresh} />}
 
       {mounted && tab === "events" && <ShowRequestsPanel queue={showQueue} />}

@@ -1,7 +1,15 @@
 "use client";
 
+import { CONTACT_EMAIL } from "@/components/legal/LegalPage";
 import { useT } from "@/lib/i18n";
 import { FEATURES } from "@/lib/features";
+
+/** Feedback goes to the team inbox, with the page it was sent from (tasks 11.7). */
+export function feedbackHref(page?: string) {
+  const subject = encodeURIComponent("Masukan beta Lummy");
+  const body = page ? `&body=${encodeURIComponent(`Halaman: ${page}\n\n`)}` : "";
+  return `mailto:${CONTACT_EMAIL}?subject=${subject}${body}`;
+}
 
 /**
  * On while the site takes test money or shows sample listings (lib/features.ts). The strip is 24px
@@ -19,17 +27,25 @@ export function TestModeNotice() {
   const t = useT();
   if (!TEST_MODE) return null;
   return (
-    <div data-test-mode className="fixed z-50 top-0 inset-x-0 h-6 bg-primary-navy-dark text-white text-[11px] font-medium flex items-center justify-center px-4">
+    <div data-test-mode className="fixed z-50 top-0 inset-x-0 h-6 bg-primary-navy-dark text-white text-[11px] font-medium flex items-center justify-center gap-3 px-4">
       {/* A span, not a p: the global p style would set its own colour and size. */}
       <span className="block truncate">
-        <span className="sm:hidden">{t("Prototype: test payments only, sample listings.", "Prototipe: pembayaran uji, listing contoh.")}</span>
+        <span className="sm:hidden">{t("Beta: test payments, no real money.", "Beta: pembayaran uji, tanpa uang sungguhan.")}</span>
         <span className="hidden sm:inline">
           {t(
-            "Prototype: QRIS in Xendit's test mode, USDC on testnet, and the listings are samples. No real money moves.",
-            "Prototipe: QRIS di mode uji Xendit, USDC di testnet, dan listing-nya contoh. Tidak ada uang sungguhan yang berpindah."
+            "Beta: QRIS in Xendit's test mode and USDC on testnet, so no real money moves. Some listings are samples.",
+            "Beta: QRIS di mode uji Xendit dan USDC di testnet, jadi tidak ada uang sungguhan yang berpindah. Sebagian listing masih contoh."
           )}
         </span>
       </span>
+      <a
+        data-feedback
+        href={feedbackHref()}
+        onClick={(e) => { e.currentTarget.href = feedbackHref(window.location.href); }}
+        className="shrink-0 underline underline-offset-2 text-white hover:opacity-80"
+      >
+        {t("Feedback", "Kasih masukan")}
+      </a>
     </div>
   );
 }

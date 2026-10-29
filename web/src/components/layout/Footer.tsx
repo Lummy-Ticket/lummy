@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Logo } from "./Logo";
 import { Mail, ShieldCheck } from "lucide-react";
 import { CONTACT_EMAIL } from "@/components/legal/LegalPage";
+import { TEST_MODE, feedbackHref } from "./TestModeNotice";
 import { useT } from "@/lib/i18n";
 
 // Only pages that exist. A footer full of "#" links reads as a template.
@@ -58,6 +59,11 @@ export function Footer() {
           <a data-contact href={`mailto:${CONTACT_EMAIL}`} className="inline-flex items-center gap-2 text-sm text-neutral-gray hover:text-primary-navy transition w-fit">
             <Mail className="w-4 h-4" /> {CONTACT_EMAIL}
           </a>
+          {TEST_MODE && (
+            <a href={feedbackHref()} className="text-sm text-primary-navy font-medium w-fit">
+              {t("Tried the beta? Tell us what was confusing", "Sudah coba beta? Kasih tahu kami yang membingungkan")}
+            </a>
+          )}
         </div>
         {cols.map((c) => (
           <div key={c.en} className="flex flex-col gap-3">
