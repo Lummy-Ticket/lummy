@@ -12,8 +12,8 @@ const RPC = process.env.RPC ?? "https://sepolia-rollup.arbitrum.io/rpc";
 const DEMO_KEY = process.env.DEMO_KEY ?? "";
 const EXEC = process.env.CHROME ?? "/opt/google/chrome/chrome";
 const USERS = {
-  buyer: { id: "u-buyer", name: "Raka Pratama", email: "raka@demo.id", role: "BUYER" },
-  admin: { id: "u-admin", name: "Admin Lummy", email: "admin@lummy.id", role: "ADMIN" },
+  buyer: { id: "u-buyer", name: "Raka Pratama", email: "raka@demo.lummy.id", role: "BUYER" },
+  admin: { id: "u-admin", name: "Admin Lummy", email: "admin@demo.lummy.id", role: "ADMIN" },
 };
 let failed = 0;
 

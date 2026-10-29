@@ -2,7 +2,7 @@
  * The sample ticket PDFs a demo seller can download on /sell (public/samples): one for each sample
  * the page offers, all for the show the demo form starts on (5 Seconds of Summer, Second Show,
  * CAT 3), so the file and the filled-in form agree, and stamped as samples so nobody takes one
- * for a ticket. Lummy Demo Fest is always tomorrow, so a listing on it would wait for review. A demo account only simulates the check on them; a real check reads the stamp
+ * for a ticket. A demo account only simulates the check on them; a real check reads the stamp
  * and sends the file to a person.
  *
  *   npx tsx scripts/sample-tickets.ts
@@ -55,13 +55,13 @@ async function main() {
   await initWriter();
   await mkdir(OUT, { recursive: true });
   const genuine = await sample({
-    name: "Zahra Amelia", seat: "Free standing", producer: "Lummy sample issuer",
+    name: "Maya Kusuma", seat: "Free standing", producer: "Lummy sample issuer",
     what: ["This sample: as issued, never edited.", "Contoh ini: seperti diterbitkan, tidak pernah diedit."],
   });
   // Edited after issue and saved again by an online editor, which appends a revision.
   const edited = appendRevision(
     await sample({
-      name: "Zahra Amelia", seat: "Free standing", producer: "iLovePDF", modified: new Date("2026-10-20T21:14:00+07:00"), edit: true,
+      name: "Maya Kusuma", seat: "Free standing", producer: "iLovePDF", modified: new Date("2026-10-20T21:14:00+07:00"), edit: true,
       what: ["This sample: edited after issue, CAT 3 typed over as VIP.", "Contoh ini: diedit setelah terbit, CAT 3 ditimpa jadi VIP."],
     }),
     "/Producer (iLovePDF) /ModDate (D:20261020211400+07'00')"

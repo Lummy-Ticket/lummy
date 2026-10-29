@@ -26,24 +26,28 @@ export interface SellerListing {
   checks?: ListingChecks | null;
 }
 
+// The sample seller's own listings, the same ones the catalogue and the demo accounts carry: on sale
+// on Guns N' Roses (seed ls-1), sold on Ye, the show that has happened (ls-18, whose buyer's claim
+// waits in the admin queue, lib/mock/seed-orders.ts), and one held for a check since this morning,
+// as the presenter's reset holds one in the database (api/demo/reset, ls-demo-held).
 const SEED: SellerListing[] = [
   {
     id: "sl-1", eventId: "ev-gnr-jakarta", eventTitle: "Guns N' Roses World Tour 2026, Jakarta",
     tierName: "Tribune B", askPrice: 2_800_000, faceValue: 2_250_000, quantity: 2, status: "active", views: 142,
     ai: { autofilled: true, forgeryScore: 8, barcodeDuplicate: false, pdfSuspicious: false },
-    createdAtISO: "2026-07-28T09:00:00+07:00",
+    createdAtISO: "2026-10-12T09:00:00+07:00",
   },
   {
-    id: "sl-2", eventId: "ev-demo-fest", eventTitle: "Lummy Demo Fest (sample event)",
-    tierName: "CAT 1", askPrice: 1_650_000, faceValue: 1_500_000, quantity: 1, status: "sold", views: 310,
-    ai: { autofilled: true, forgeryScore: 6, barcodeDuplicate: false, pdfSuspicious: false },
-    createdAtISO: "2026-07-15T14:00:00+07:00",
+    id: "sl-2", eventId: "ev-ye-jakarta", eventTitle: "Ye Live in Jakarta",
+    tierName: "Festival A", askPrice: 4_200_000, faceValue: 3_500_000, quantity: 1, status: "sold", views: 310,
+    ai: { autofilled: true, forgeryScore: 7, barcodeDuplicate: false, pdfSuspicious: false },
+    createdAtISO: "2026-10-06T14:00:00+07:00",
   },
   {
     id: "sl-3", eventId: "ev-5sos-jakarta", eventTitle: "5 Seconds of Summer: Everyone's a Star! Jakarta, Second Show",
     tierName: "CAT 3", askPrice: 1_450_000, faceValue: 1_320_000, quantity: 1, status: "review", views: 12,
     ai: { autofilled: true, forgeryScore: 78, barcodeDuplicate: false, pdfSuspicious: true },
-    createdAtISO: "2026-08-05T11:00:00+07:00",
+    createdAtISO: new Date(Date.now() - 5 * 3_600_000).toISOString(),
   },
 ];
 
@@ -78,8 +82,9 @@ export const useSellerListings = create<SellerState>()(
     {
       name: "lummy:seller",
       // v1: real shows replaced the made-up ones on 23 Oct 2026. The sample listings start over; a
-      // listing made in this browser stays while its show is still in the catalogue.
-      version: 1,
+      // listing made in this browser stays while its show is still in the catalogue. v2 (29 Oct 2026):
+      // the made-up sample show is gone, so its sold listing became one on Ye.
+      version: 2,
       migrate: (persisted) => {
         const stored = (persisted as { listings?: SellerListing[] } | null)?.listings ?? [];
         const made = stored.filter((l) => !SEED.some((s) => s.id === l.id) && !!getEventById(l.eventId));

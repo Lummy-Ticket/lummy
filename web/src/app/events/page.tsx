@@ -21,7 +21,7 @@ const STEP = 100_000;
 // Derived from what is on sale, never held at module load: the catalogue changes with the
 // date and with every new listing.
 function catalogueView(onSale: EventItem[]) {
-  // Soonest first, the way people plan, with the sample show after the real ones.
+  // Soonest first, the way people plan.
   const events = [...onSale].sort(realShowsFirst);
   // Round the bounds outward so the handles land on tidy numbers. An event with nothing
   // on sale has no price (0), so it does not drag the lower bound down. The filter is in rupiah:

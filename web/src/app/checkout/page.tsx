@@ -60,6 +60,7 @@ function CheckoutInner() {
   // A real account buys through the server and keeps the order in the database. A sample
   // persona keeps it in this browser, as before.
   const account = useUser((s) => !!s.user?.account);
+  const user = useUser((s) => s.user);
   // A show abroad priced in USDC is paid from the buyer's own wallet, whatever else is switched on
   // (tasks/founder-house-usdc.md).
   const usdc = event?.currency === "USDC";
@@ -155,7 +156,7 @@ function CheckoutInner() {
     } else {
       await new Promise((r) => setTimeout(r, 1800));
     }
-    const id = buy(listing, event, tier, qty, chain);
+    const id = buy(listing, event, tier, qty, user?.id ?? "u-buyer", chain);
     toast.success(
       chain
         ? t("Paid. Your money is locked in the escrow contract on Arbitrum.", "Pembayaran berhasil. Dana kamu dikunci di kontrak escrow di Arbitrum.")

@@ -97,7 +97,9 @@ test.describe("user tasks", { tag: "@smoke" }, () => {
 
   test("4 a gate claim on the show that has just ended, graded and held", async ({ page }) => {
     await signInSample(page, "/tickets");
-    await page.getByText(/Lummy Demo Night, Surabaya/).first().click();
+    // The upcoming order, its show marked over with the demo control (every show is real).
+    await page.locator('a[href="/tickets/or-seed-1"]').first().click();
+    await page.getByRole("button", { name: "Tandai acara selesai" }).click();
     await page.getByRole("button", { name: "Ada masalah di gate" }).click();
     const dialog = page.getByRole("dialog");
     await dialog.getByText("Ditolak di gate", { exact: true }).click();

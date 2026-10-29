@@ -72,9 +72,9 @@ export const aiClaims = (text: string) =>
 
 /** The sample personas of lib/mock/seed.ts, switched the way the demo switches them. */
 const PERSONAS = {
-  buyer: { id: "u-buyer", name: "Raka Pratama", email: "raka@demo.id", role: "BUYER" },
-  seller: { id: "u-seller", name: "Zahra Amelia", email: "zahra@demo.id", role: "SELLER" },
-  admin: { id: "u-admin", name: "Admin Lummy", email: "admin@lummy.id", role: "ADMIN" },
+  buyer: { id: "u-buyer", name: "Raka Pratama", email: "raka@demo.lummy.id", role: "BUYER" },
+  seller: { id: "u-seller", name: "Maya Kusuma", email: "maya@demo.lummy.id", role: "SELLER" },
+  admin: { id: "u-admin", name: "Admin Lummy", email: "admin@demo.lummy.id", role: "ADMIN" },
 } as const;
 
 /** Becomes a sample persona; the next page load reads it. Sample orders and claims stay in this browser. */

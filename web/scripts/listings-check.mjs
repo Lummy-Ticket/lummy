@@ -125,7 +125,7 @@ try {
   );
   await listFromPage(seller, "Genuine ticket", "Publish listing");
   const live = await newestOf(seller.user.id);
-  check("listing tersimpan atas nama penjual, dengan nama publik yang disingkat", live?.status === "active" && live.seller_name === "Zahra A.", `${live?.status} ${live?.seller_name}`);
+  check("listing tersimpan atas nama penjual, dengan nama publik yang disingkat", live?.status === "active" && live.seller_name === "Maya K.", `${live?.status} ${live?.seller_name}`);
   check("harga asli diambil server dari kategori", live?.face_value === 1_320_000 && live.ask_price === 1_518_000, `${live?.face_value} ${live?.ask_price}`);
   check("sinyal AI dari tabel server", live?.forgery_score === 9 && !live.pdf_suspicious && live.extraction?.sample === "good");
   // The dashboard reads the account's listings after it loads, so give the read a moment.
@@ -162,7 +162,7 @@ try {
   const bought = await buyer.buy(live?.id);
   const orderId = bought.ok() ? (await bought.json()).id : null;
   const order = orderId ? (await admin.from("orders").select("seller_id, seller_name").eq("id", orderId).single()).data : null;
-  check("akun lain membeli listing akun, penjualannya milik penjual", order?.seller_id === seller.user.id && order.seller_name === "Zahra A.", String(bought.status()));
+  check("akun lain membeli listing akun, penjualannya milik penjual", order?.seller_id === seller.user.id && order.seller_name === "Maya K.", String(bought.status()));
   check("penjual tidak bisa membeli listingnya sendiri", (await seller.buy(held?.id)).status() === 400);
   await seller.page.goto(`${BASE}/seller`, { waitUntil: "networkidle" });
   check("dasbor penjual menandai yang terjual", (await seller.page.locator(`[data-listing="${live?.id}"]`).innerText()).includes("Sold"));

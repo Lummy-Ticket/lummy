@@ -5,7 +5,7 @@ import type {
 } from "./types";
 import { DISPUTE_WINDOW_H, canFileDispute, canRefundPostponed, disputeDeadlineISO, partialAmount, penaltyFor } from "./escrow";
 import { seedOrders } from "./seed-orders";
-import { getEventById } from "./seed";
+import { DEMO_USERS, getEventById } from "./seed";
 
 /** What the contract reports for an on-chain order, as read through /api/chain/listing. */
 export interface ChainSnapshot {
@@ -31,8 +31,8 @@ const SEED_ORDERS = seedOrders();
 
 interface OrderState {
   orders: Order[];
-  /** Places an order. With `chain`, it is a real escrow on Arbitrum; without, sample data. */
-  buy: (listing: Listing, event: EventItem, tier: Tier, quantity: number, chain?: OrderChain) => string;
+  /** Places an order for the sample persona `buyerId`. With `chain`, it is a real escrow on Arbitrum; without, sample data. */
+  buy: (listing: Listing, event: EventItem, tier: Tier, quantity: number, buyerId: string, chain?: OrderChain) => string;
   /** Confirms the show is over. In production this comes from the event schedule. */
   markEventFinished: (id: string) => void;
   /** Demo shortcut: jump to the end of the 48h window. */
@@ -96,13 +96,13 @@ export const useOrders = create<OrderState>()(
     (set, get) => ({
       orders: SEED_ORDERS,
 
-      buy: (listing, event, tier, quantity, chain) => {
+      buy: (listing, event, tier, quantity, buyerId, chain) => {
         const id = "or-" + Date.now();
         const order: Order = {
           id, listingId: listing.id, eventId: event.id, eventTitle: event.title,
           eventImage: event.image, eventDateISO: event.dateISO, tierName: tier.name,
           sellerName: listing.sellerName, quantity, amount: listing.askPrice * quantity,
-          gateKtp: listing.gateKtp, escrowStatus: "LOCKED", chain,
+          gateKtp: listing.gateKtp, escrowStatus: "LOCKED", chain, buyerId,
           createdAtISO: new Date().toISOString(),
         };
         set((s) => ({ orders: [order, ...s.orders] }));
@@ -272,11 +272,16 @@ export const useOrders = create<OrderState>()(
       // at deleted shows and photos. The sample orders start over; an order placed in this browser
       // stays while its show is still in the catalogue. v4 (25 Oct 2026): the sample orders name
       // Lummy sample shows instead of real artists, so browsers that stored the old ones start over too.
-      version: 4,
+      // v5 (29 Oct 2026): the made-up shows are gone; the sample orders sit on real shows, on their own
+      // dates, and every order names the persona that placed it. Orders placed here before carry no
+      // persona, and only the sample buyer ever placed one, so they are the buyer's.
+      version: 5,
       migrate: (persisted, version) => {
         if (version < 2) return { orders: seedOrders() };
         const stored = (persisted as { orders?: Order[] } | null)?.orders ?? [];
-        const placed = stored.filter((o) => !o.id.startsWith("or-seed-") && !!getEventById(o.eventId));
+        const placed = stored
+          .filter((o) => !o.id.startsWith("or-seed-") && !!getEventById(o.eventId))
+          .map((o) => (o.buyerId ? o : { ...o, buyerId: DEMO_USERS.BUYER.id }));
         return { orders: [...placed, ...seedOrders()] };
       },
     }

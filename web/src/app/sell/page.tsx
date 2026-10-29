@@ -254,7 +254,7 @@ function SellForm() {
       // The same table the server uses, so the page shows what the server will decide.
       const result: ListingAI = SAMPLE_SIGNALS[sample];
       setAi(result);
-      setOrderer("Zahra Amelia");
+      setOrderer("Maya Kusuma");
       setBarcode("TIX-8842-7731-2290");
       setPrice(Math.round(faceValue * 1.15));
       setAnalyzing(false);

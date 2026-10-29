@@ -31,6 +31,7 @@ import { shortAddress } from "@/lib/chain/wallet";
 import { OrderError, orderAction, uploadEvidence, useAccountOrders } from "@/lib/orders/client";
 import { useCatalogue } from "@/lib/catalogue";
 import { FEATURES } from "@/lib/features";
+import { publicSellerName } from "@/lib/listings/rules";
 import { CONTACT_EMAIL } from "@/components/legal/LegalPage";
 
 /** The escrow that new on-chain orders go to, shown even on sample orders so anyone can inspect it. */
@@ -92,9 +93,16 @@ export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const user = useUser((s) => s.user);
   // An account's order comes from the database and changes only through the server; a sample
-  // persona's lives in this browser.
+  // persona's lives in this browser. Like an account, a persona opens only an order it bought or
+  // sold, or any as staff.
   const account = !!user?.account;
-  const sampleOrder = useOrders((s) => s.orders.find((o) => o.id === id));
+  const sampleOrder = useOrders((s) =>
+    s.orders.find(
+      (o) =>
+        o.id === id &&
+        (!o.buyerId || o.buyerId === user?.id || user?.role === "ADMIN" || (!!user && o.sellerName === publicSellerName(user.name)))
+    )
+  );
   const { orders: fetched, error: loadError, refresh: refreshOrder } = useAccountOrders(account ? { id } : null);
   const stored = account ? fetched?.[0] : sampleOrder;
   const markEventFinished = useOrders((s) => s.markEventFinished);
@@ -388,7 +396,7 @@ export default function OrderDetailPage() {
   const watermark = `${user?.name ?? t("Buyer", "Pembeli")} · ${new Date().toLocaleDateString("en-GB")} · Lummy`;
   // The letter names the buyer only when the buyer is the one looking at it, and only by a name
   // they gave: an account with no full name is named after its email (lib/supabase/session).
-  const viewerIsBuyer = !(account && order.buyerId && order.buyerId !== user?.id);
+  const viewerIsBuyer = !(order.buyerId && order.buyerId !== user?.id);
   const ownName = user?.name && user.name !== user.email?.split("@")[0] && user.name !== "Lummy" ? user.name : undefined;
   const buyerName = viewerIsBuyer ? ownName : undefined;
   const listedEvent = catalogue.eventById(order.eventId);
@@ -791,10 +799,10 @@ export default function OrderDetailPage() {
           {order.escrowStatus === "LOCKED" && !onchain && !account && (
             <div className="mt-5 rounded-2xl border-2 border-dashed border-neutral-light-gray-1 p-4">
               <div className="text-xs font-semibold text-neutral-gray flex items-center gap-1.5 mb-1">
-                <FlaskConical className="w-3.5 h-3.5 text-secondary-pink-dark" /> {t("Prototype controls", "Kontrol prototipe")}
+                <FlaskConical className="w-3.5 h-3.5 text-secondary-pink-dark" /> {t("Demo controls", "Kontrol demo")}
               </div>
               <p className="text-xs text-neutral-gray mb-3">
-                {t("In production these come from the event schedule and the contract clock.", "Di produksi, ini datang dari jadwal acara dan jam kontrak.")}
+                {t("Demo accounts only: on a real order, the show's schedule and the contract's clock move these.", "Khusus akun demo: di pesanan sungguhan, jadwal acara dan jam kontrak yang menggerakkan ini.")}
               </p>
               <div className="flex flex-col sm:flex-row gap-2">
                 {!order.eventEndedAtISO && (

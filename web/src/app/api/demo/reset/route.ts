@@ -12,7 +12,7 @@ import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { chainError, chainTarget, operatorSetup, readListing, settle } from "@/lib/chain/server";
 import { demoKeyAllowed, demoMode } from "@/lib/demo-key";
-import { ROLLING_HOUR, SEED_LISTINGS, seedEvents } from "@/lib/mock/seed";
+import { SEED_LISTINGS, seedEvents } from "@/lib/mock/seed";
 import { seedOrders } from "@/lib/mock/seed-orders";
 import { SAMPLE_SIGNALS, publicSellerName } from "@/lib/listings/rules";
 import { HELD, rowsFromOrder } from "@/lib/orders/map";
@@ -135,10 +135,10 @@ export async function POST(req: Request) {
     // rehearsal, and every seed show that a rehearsal cancelled or moved is back on, on its date.
     const restored = await Promise.all([
       ...SEED_LISTINGS.map((l) => admin.from("listings").update({ quantity: l.quantity, status: l.status, cleared_at: null }).eq("id", l.id).select("id")),
-      ...seedEvents(Date.now()).map((e) =>
+      ...seedEvents().map((e) =>
         admin
           .from("events")
-          .update({ status: "scheduled", starts_at: e.dateISO, rolling_hour: ROLLING_HOUR[e.id] ?? null })
+          .update({ status: "scheduled", starts_at: e.dateISO, rolling_hour: null })
           .eq("id", e.id)
           .neq("status", "scheduled")
           .select("id")
@@ -210,7 +210,7 @@ export async function POST(req: Request) {
     const rows = seedOrders().map((o) =>
       rowsFromOrder(
         { ...o, id: demoOrderId(o.id) },
-        { buyerId: buyer, sellerId: o.sellerName === DEMO_ACCOUNTS.SELLER.name ? seller : null, decidedBy: staff, eventIds, listingIds }
+        { buyerId: buyer, sellerId: o.sellerName === sellerName ? seller : null, decidedBy: staff, eventIds, listingIds }
       )
     );
     const ordersIn = await admin.from("orders").insert(rows.map((r) => r.order));

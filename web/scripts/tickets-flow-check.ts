@@ -56,7 +56,7 @@ async function checked(page: Page, name: string, bytes: Uint8Array) {
 /** With the AI step on, the original buyer's name comes before going on, typed as a seller would. */
 async function typeHolder(page: Page) {
   const field = page.locator("[data-holder]");
-  if (await field.count()) await field.fill("Zahra Amelia");
+  if (await field.count()) await field.fill("Maya Kusuma");
 }
 
 /** Checks the file, then publishes it at the suggested price. */
@@ -173,7 +173,7 @@ async function main() {
         return { status: res.status, body: await res.json() };
       }, [...files.genuine]);
       check("fill: the server refuses a ticket sent without the buyer's name", noName.status === 400 && noName.body.code === "need_holder", JSON.stringify(noName));
-      await page.getByLabel("Original buyer name").fill("Zahra Amelia");
+      await page.getByLabel("Original buyer name").fill("Maya Kusuma");
       await fillButton.click();
       const result = page.locator("[data-fill-result]");
       await result.waitFor({ timeout: 60000 });
@@ -181,7 +181,7 @@ async function main() {
       const picked = `${await selects.nth(0).inputValue()} ${await selects.nth(1).inputValue()}`;
       check("fill: the ticket picks its show and category", outcome === "filled" && picked === "ev-5sos-jakarta t-5sos-cat3", `${outcome} ${picked}`);
       const shown = await result.innerText();
-      check("fill: what was read is shown, with no name in it", shown.includes("CAT 3") && !/zahra|amelia/i.test(shown), shown);
+      check("fill: what was read is shown, with no name in it", shown.includes("CAT 3") && !/maya|kusuma/i.test(shown), shown);
 
       // Every other answer a fill can get, as the page words it, with the route stubbed for each.
       const said: Record<string, string> = {

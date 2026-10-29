@@ -6,16 +6,17 @@ import { eventPoster } from "../poster";
 export const CAP_PCT = 150;
 export const FLOOR_PCT = 50;
 
+// Made-up people, never the team's own names, on Lummy's own demo subdomain (no DNS, so no mail
+// can reach it), the same names and addresses as the presenter's demo accounts (lib/supabase/demo.ts).
 export const DEMO_USERS: Record<Role, User> = {
-  BUYER: { id: "u-buyer", name: "Raka Pratama", email: "raka@demo.id", role: "BUYER" },
-  SELLER: { id: "u-seller", name: "Zahra Amelia", email: "zahra@demo.id", role: "SELLER" },
-  ADMIN: { id: "u-admin", name: "Admin Lummy", email: "admin@lummy.id", role: "ADMIN" },
+  BUYER: { id: "u-buyer", name: "Raka Pratama", email: "raka@demo.lummy.id", role: "BUYER" },
+  SELLER: { id: "u-seller", name: "Maya Kusuma", email: "maya@demo.lummy.id", role: "SELLER" },
+  ADMIN: { id: "u-admin", name: "Admin Lummy", email: "admin@demo.lummy.id", role: "ADMIN" },
 };
 
 // Photos of the real shows: freely licensed (CC BY, CC BY-SA, CC0) from Wikimedia Commons, cropped
 // to 16:9, with the credit their licence asks for shown under the photo on the show's page
-// (public/assets/events/CREDITS.md). The sample show uses Lummy's own brand art, and a show
-// without either gets a generated poster.
+// (public/assets/events/CREDITS.md). A show without one gets a generated poster.
 const PHOTOS: Record<string, { image: string; imageCredit: string }> = {
   "ev-ye-jakarta": { image: "/assets/events/ev-ye-jakarta.jpg", imageCredit: "Photo: Matete Plays, CC BY-SA 4.0, via Wikimedia Commons" },
   "ev-gnr-jakarta": { image: "/assets/events/ev-gnr-jakarta.jpg", imageCredit: "Photo: Raph_PH, CC BY 2.0, via Wikimedia Commons" },
@@ -35,27 +36,9 @@ const art = (id: string) => PHOTOS[id] ?? { image: eventPoster(id) };
 export const eventArt = (id: string): { image: string; imageCredit?: string } => art(id);
 
 const H = 3_600_000;
-const WIB_H = 7;
-
-/**
- * Tomorrow at `hour` o'clock Jakarta time. One show always sits this close, so the
- * last-minute listing rule (48h before doors) can be demonstrated on any day.
- */
-function tomorrowWIB(hour: number, now: number) {
-  const wib = new Date(now + WIB_H * H);
-  return new Date(
-    Date.UTC(wib.getUTCFullYear(), wib.getUTCMonth(), wib.getUTCDate() + 1, hour - WIB_H)
-  ).toISOString();
-}
 
 // Price and listing count are derived from SEED_LISTINGS below, so they are left out here.
 export type SeedEvent = Omit<EventItem, "fromPrice" | "listingCount">;
-
-/** Shows that are always tomorrow, at this hour Jakarta time. Mirrored as events.rolling_hour. */
-export const ROLLING_HOUR: Record<string, number> = { "ev-demo-fest": 14 };
-
-/** The sample show is the one that is always tomorrow; every other show is real. */
-export const isSampleEvent = (id: string) => id in ROLLING_HOUR;
 
 /** Short names fans type that the titles do not carry, matched by the search boxes (lib/catalogue). */
 export const SEARCH_KEYWORDS: Record<string, string> = {
@@ -68,7 +51,6 @@ export const SEARCH_KEYWORDS: Record<string, string> = {
   "ev-bbw-2026": "bbw binance",
   "ev-devcon-8": "ethereum",
   "ev-sbw-2026": "sbw",
-  "ev-demo-fest": "sample acara contoh",
 };
 
 /**
@@ -93,9 +75,10 @@ export const VENUE_LOCATION: Record<string, { lat: number; lng: number }> = {
 // (Ye's, on Loket; 5 Seconds of Summer's, on SODTix); the rest read "not confirmed". Where no start
 // time was published, 19:00 WIB stands in.
 // Shows abroad are priced in USDC, in micro-USDC.
-// One sample show stays, named as one, for what a demo has to show on any day: the last-minute
-// listing (always tomorrow), a duplicate barcode, a held listing, and an ID-match checkout.
-export const seedEvents = (now: number): SeedEvent[] => [
+// Every show is real (decided 29 Oct 2026: no made-up sample show). What a demo has to show lives on
+// them: a held listing, an ID-match checkout (5 Seconds of Summer), and past orders on a show that
+// has happened, on its own date. A show that has passed stays here, so its orders keep their show.
+export const seedEvents = (): SeedEvent[] => [
   {
     id: "ev-ye-jakarta", title: "Ye Live in Jakarta", category: "Music",
     dateISO: "2026-10-24T19:00:00+07:00", venue: "Stadion Utama GBK", city: "Jakarta",
@@ -229,33 +212,22 @@ export const seedEvents = (now: number): SeedEvent[] => [
       { id: "t-sbw-vip", name: "VIP", faceValue: 988_000_000 },
     ],
   },
-  {
-    // The sample: its brand picture and its name say so.
-    id: "ev-demo-fest", title: "Lummy Demo Fest (sample event)", category: "Music",
-    dateISO: tomorrowWIB(ROLLING_HOUR["ev-demo-fest"], now), venue: "JIExpo Kemayoran", city: "Jakarta",
-    image: "/assets/events/ev-demo-fest.jpg", transferPolicy: "id_match",
-    tiers: [
-      { id: "t-demo-vip", name: "VIP", faceValue: 2_800_000 },
-      { id: "t-demo-cat1", name: "CAT 1", faceValue: 1_500_000 },
-      { id: "t-demo-3day", name: "3-Day Pass", faceValue: 1_850_000 },
-      { id: "t-demo-1day", name: "1-Day Pass", faceValue: 850_000 },
-    ],
-  },
 ];
 
-// Resale listings, all samples (sellers without an account), checked like any other: one
-// flagged for review and one duplicate barcode sit on the sample show for the trust demo.
+// Resale listings, all samples (sellers without an account), checked like any other. One is held
+// for review (ls-29, on DWP), as a real account's flagged listing is.
 const ok = (forgeryScore: number) => ({ autofilled: true, forgeryScore, barcodeDuplicate: false, pdfSuspicious: false });
 export const SEED_LISTINGS: Listing[] = [
   // Guns N' Roses: mixed quantities, so the "how many tickets" filter has something to do.
-  { id: "ls-1", eventId: "ev-gnr-jakarta", tierId: "t-gnr-trib-b", sellerName: "Zahra A.", askPrice: 2_800_000, faceValue: 2_250_000, quantity: 2, splittable: false, status: "active", gateKtp: true, ai: ok(8) },
+  { id: "ls-1", eventId: "ev-gnr-jakarta", tierId: "t-gnr-trib-b", sellerName: "Maya K.", askPrice: 2_800_000, faceValue: 2_250_000, quantity: 2, splittable: false, status: "active", gateKtp: true, ai: ok(8) },
   { id: "ls-2", eventId: "ev-gnr-jakarta", tierId: "t-gnr-fest-c", sellerName: "Rian P.", askPrice: 1_950_000, faceValue: 1_750_000, quantity: 1, splittable: false, status: "active", gateKtp: true, ai: ok(12) },
   { id: "ls-6", eventId: "ev-gnr-jakarta", tierId: "t-gnr-trib-b", sellerName: "Vino M.", askPrice: 2_650_000, faceValue: 2_250_000, quantity: 2, splittable: true, status: "active", gateKtp: true, ai: ok(6) },
   { id: "ls-7", eventId: "ev-gnr-jakarta", tierId: "t-gnr-fest-a", sellerName: "Kirana W.", askPrice: 3_900_000, faceValue: 3_750_000, quantity: 4, splittable: true, status: "active", gateKtp: true, ai: ok(10) },
-  // Ye: tomorrow, so the 48-hour rule and a show about to start are both real.
-  { id: "ls-18", eventId: "ev-ye-jakarta", tierId: "t-ye-fest", sellerName: "Andre S.", askPrice: 4_200_000, faceValue: 3_500_000, quantity: 2, splittable: true, status: "active", gateKtp: false, ai: ok(7) },
-  { id: "ls-19", eventId: "ev-ye-jakarta", tierId: "t-ye-cat4", sellerName: "Citra N.", askPrice: 2_450_000, faceValue: 1_875_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(9) },
-  { id: "ls-20", eventId: "ev-ye-jakarta", tierId: "t-ye-cat1", sellerName: "Hendra W.", askPrice: 5_600_000, faceValue: 4_875_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(11) },
+  // Ye has happened (24 Oct 2026): what is left of its listings is what the sample orders bought
+  // (lib/mock/seed-orders.ts), one of them the sample seller's.
+  { id: "ls-18", eventId: "ev-ye-jakarta", tierId: "t-ye-fest", sellerName: "Maya K.", askPrice: 4_200_000, faceValue: 3_500_000, quantity: 1, splittable: false, status: "sold", gateKtp: false, ai: ok(7) },
+  { id: "ls-19", eventId: "ev-ye-jakarta", tierId: "t-ye-cat4", sellerName: "Citra N.", askPrice: 2_450_000, faceValue: 1_875_000, quantity: 1, splittable: false, status: "sold", gateKtp: false, ai: ok(9) },
+  { id: "ls-20", eventId: "ev-ye-jakarta", tierId: "t-ye-cat1", sellerName: "Hendra W.", askPrice: 5_600_000, faceValue: 4_875_000, quantity: 1, splittable: false, status: "sold", gateKtp: false, ai: ok(11) },
   // 5 Seconds of Summer: the sold-out first night, then the second.
   { id: "ls-27", eventId: "ev-5sos-jakarta-nov", tierId: "t-5sos-nov-cat3", sellerName: "Nabila F.", askPrice: 1_550_000, faceValue: 1_320_000, quantity: 2, splittable: true, status: "active", gateKtp: false, ai: ok(6) },
   { id: "ls-28", eventId: "ev-5sos-jakarta-nov", tierId: "t-5sos-nov-ga", sellerName: "Rizky H.", askPrice: 2_350_000, faceValue: 1_950_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(9) },
@@ -274,6 +246,9 @@ export const SEED_LISTINGS: Listing[] = [
   { id: "ls-24", eventId: "ev-simple-plan", tierId: "t-sp-cat4", sellerName: "Tegar M.", askPrice: 1_600_000, faceValue: 1_450_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(9) },
   { id: "ls-25", eventId: "ev-dwp-2026", tierId: "t-dwp-ga", sellerName: "Kevin H.", askPrice: 2_300_000, faceValue: 2_100_000, quantity: 2, splittable: true, status: "active", gateKtp: false, ai: ok(7) },
   { id: "ls-26", eventId: "ev-dwp-2026", tierId: "t-dwp-vip", sellerName: "Sinta R.", askPrice: 4_600_000, faceValue: 4_200_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(10) },
+  // Held for a person to check: the PDF's structure looked edited, so it is shown "under review" and
+  // cannot be bought until staff clear it, as a real account's flagged listing is.
+  { id: "ls-29", eventId: "ev-dwp-2026", tierId: "t-dwp-ga", sellerName: "Dinda K.", askPrice: 2_250_000, faceValue: 2_100_000, quantity: 2, splittable: true, status: "active", gateKtp: false, ai: { autofilled: true, forgeryScore: 74, barcodeDuplicate: false, pdfSuspicious: true } },
   // Shows abroad, in micro-USDC. The cheapest sits at half its face value, so one faucet top-up buys it.
   { id: "ls-bbw-1", eventId: "ev-bbw-2026", tierId: "t-bbw-early", sellerName: "Arif T.", askPrice: 9_500_000, faceValue: 19_000_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(4) },
   { id: "ls-bbw-2", eventId: "ev-bbw-2026", tierId: "t-bbw-early", sellerName: "Mei L.", askPrice: 24_000_000, faceValue: 19_000_000, quantity: 2, splittable: true, status: "active", gateKtp: false, ai: ok(6) },
@@ -282,15 +257,9 @@ export const SEED_LISTINGS: Listing[] = [
   { id: "ls-sbw-1", eventId: "ev-sbw-2026", tierId: "t-sbw-general", sellerName: "Wei Jie T.", askPrice: 75_000_000, faceValue: 88_000_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(5) },
   { id: "ls-sbw-2", eventId: "ev-sbw-2026", tierId: "t-sbw-corporate", sellerName: "Nur A.", askPrice: 420_000_000, faceValue: 388_000_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(8) },
   { id: "ls-devcon-2", eventId: "ev-devcon-8", tierId: "t-devcon-early", sellerName: "Kenji M.", askPrice: 399_000_000, faceValue: 349_000_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(7) },
-  // The sample show: a flagged listing ("under review", cannot be bought), a duplicate barcode,
-  // an ID-match checkout, and clean ones beside them.
-  { id: "ls-3", eventId: "ev-demo-fest", tierId: "t-demo-cat1", sellerName: "Dinda K.", askPrice: 1_650_000, faceValue: 1_500_000, quantity: 2, splittable: true, status: "active", gateKtp: true, ai: { autofilled: true, forgeryScore: 74, barcodeDuplicate: false, pdfSuspicious: true } },
-  { id: "ls-4", eventId: "ev-demo-fest", tierId: "t-demo-1day", sellerName: "Bagas W.", askPrice: 950_000, faceValue: 850_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: { autofilled: true, forgeryScore: 5, barcodeDuplicate: true, pdfSuspicious: false } },
-  { id: "ls-8", eventId: "ev-demo-fest", tierId: "t-demo-cat1", sellerName: "Nadia P.", askPrice: 1_720_000, faceValue: 1_500_000, quantity: 2, splittable: true, status: "active", gateKtp: true, ai: ok(7) },
-  { id: "ls-9", eventId: "ev-demo-fest", tierId: "t-demo-vip", sellerName: "Gilang F.", askPrice: 3_300_000, faceValue: 2_800_000, quantity: 1, splittable: false, status: "active", gateKtp: true, ai: ok(11) },
-  { id: "ls-10", eventId: "ev-demo-fest", tierId: "t-demo-1day", sellerName: "Putri L.", askPrice: 900_000, faceValue: 850_000, quantity: 2, splittable: true, status: "active", gateKtp: false, ai: ok(4) },
-  { id: "ls-11", eventId: "ev-demo-fest", tierId: "t-demo-3day", sellerName: "Reza H.", askPrice: 2_050_000, faceValue: 1_850_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(8) },
 ];
+// No seed listing carries a duplicate barcode: the server refuses one at publish, so a real show
+// never lists it. The duplicate is shown where it happens, on the Sell page's sample ticket.
 
 /**
  * A buyer can pay for it: never a known duplicate, and either nothing flagged it or a person
@@ -309,15 +278,12 @@ const withPrices = (e: SeedEvent): EventItem => {
   return { ...e, listingCount: live.length, fromPrice: live.length ? Math.min(...live.map((l) => l.askPrice)) : 0 };
 };
 
-// Rebuilt when the Jakarta date changes, not once at module load: a server instance
-// that lives past midnight would otherwise keep yesterday's "tomorrow" and disagree
-// with a fresh browser. Within a day the objects stay the same, so they are stable
-// as React memo dependencies.
-let built: { day: number; events: EventItem[] } | null = null;
-function catalogue(now: number): EventItem[] {
-  const day = Math.floor((now + WIB_H * H) / (24 * H));
-  if (built?.day !== day) built = { day, events: seedEvents(now).map(withPrices) };
-  return built.events;
+// Built once: every show has a fixed date, so the objects stay the same and are stable as React
+// memo dependencies. Which of them are still on is decided per call, below.
+let built: EventItem[] | null = null;
+function catalogue(): EventItem[] {
+  built ??= seedEvents().map(withPrices);
+  return built;
 }
 
 /** True once the show has run its course. Past shows are not for sale. */
@@ -326,9 +292,10 @@ export const isEventOver = (e: EventItem, now: number = Date.now()) =>
 
 // --- selectors ---
 /** The catalogue: shows that have not ended yet. */
-export const getEvents = (now: number = Date.now()) => catalogue(now).filter((e) => !isEventOver(e, now));
+export const getEvents = (now: number = Date.now()) => catalogue().filter((e) => !isEventOver(e, now));
 export const getFeaturedEvents = (now: number = Date.now()) => getEvents(now).filter((e) => e.featured);
-export const getEventById = (id: string, now: number = Date.now()) => catalogue(now).find((e) => e.id === id);
+/** Any show in the catalogue, the ones that have happened included. */
+export const getEventById = (id: string) => catalogue().find((e) => e.id === id);
 export const getListingsByEvent = (eventId: string) =>
   SEED_LISTINGS.filter((l) => l.eventId === eventId);
 export const getTier = (event: EventItem, tierId: string) =>

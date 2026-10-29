@@ -90,7 +90,7 @@ try {
   await page.getByPlaceholder("you@email.com").fill("bukan-email");
   await page.getByRole("button", { name: "Email me a sign-in link" }).click();
   check("email tidak valid ditolak di halaman", await page.getByText("Enter a valid email address.").isVisible());
-  await page.getByPlaceholder("you@email.com").fill("zahra@demo.lummy.id");
+  await page.getByPlaceholder("you@email.com").fill("maya@demo.lummy.id");
   await page.getByRole("button", { name: "Email me a sign-in link" }).click();
   check("email akun demo diarahkan ke tombol akun demo", await page.getByText("Demo accounts open from the demo button below, not by email.").isVisible());
   await page.goto(`${BASE}/login?error=link`, { waitUntil: "networkidle" });
@@ -107,14 +107,14 @@ try {
   await openPanel();
   check("Dev Panel: persona = akun demo", await page.getByText("Persona (demo account)").waitFor({ timeout: 10000 }).then(() => true, () => false));
   await pickPersona("Seller", "/seller");
-  check("masuk sebagai penjual demo", (await identity()) === "account" && (await page.getByText("zahra@demo.lummy.id").isVisible()));
+  check("masuk sebagai penjual demo", (await identity()) === "account" && (await page.getByText("maya@demo.lummy.id").isVisible()));
   check("cookie sesi Supabase terpasang", !!(await accessToken()));
 
   // --- Profile saved to the database
   const phone = `0812-7000-${Math.floor(1000 + Math.random() * 9000)}`;
   await page.goto(`${BASE}/profile`, { waitUntil: "networkidle" });
   await page.getByRole("textbox", { name: "Name" }).waitFor();
-  check("profil membaca nama dari database", (await page.getByRole("textbox", { name: "Name" }).inputValue()) === "Zahra Amelia");
+  check("profil membaca nama dari database", (await page.getByRole("textbox", { name: "Name" }).inputValue()) === "Maya Kusuma");
   await page.getByPlaceholder("0812 3456 7890").fill(phone);
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await page.getByText("Profile saved").waitFor();
@@ -179,7 +179,7 @@ try {
   // Needs the secret key to mint the link, so it only runs where web/.env.local has it.
   if (process.env.SUPABASE_SECRET_KEY) {
     const admin = createClient(SB_URL, process.env.SUPABASE_SECRET_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
-    const { data: link, error } = await admin.auth.admin.generateLink({ type: "magiclink", email: "luthfi@demo.lummy.id" });
+    const { data: link, error } = await admin.auth.admin.generateLink({ type: "magiclink", email: "raka@demo.lummy.id" });
     const fresh = await browser.newContext();
     const phone = await fresh.newPage();
     const redirectTo = encodeURIComponent(`${BASE}/auth/callback?next=${encodeURIComponent("/profile")}`);

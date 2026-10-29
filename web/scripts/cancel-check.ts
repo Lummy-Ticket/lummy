@@ -65,11 +65,11 @@ async function main() {
     const made = [
       await admin.from("events").insert({ id: EVENT, title: "Uji pembatalan", category: "Music", starts_at: iso(start), venue: "Istora", city: "Jakarta", transfer_policy: "open" }),
       await admin.from("tiers").insert({ id: TIER, event_id: EVENT, name: "Festival", face_value: 500_000 }),
-      await admin.from("listings").insert({ id: LISTING, event_id: EVENT, tier_id: TIER, seller_id: seller, seller_name: "Zahra A.", ask_price: 550_000, face_value: 500_000, quantity: 1, status: "active" }),
+      await admin.from("listings").insert({ id: LISTING, event_id: EVENT, tier_id: TIER, seller_id: seller, seller_name: "Maya K.", ask_price: 550_000, face_value: 500_000, quantity: 1, status: "active" }),
       await admin.from("orders").insert(
         ORDERS.map((id, i) => ({
           id, listing_id: LISTING, event_id: EVENT, buyer_id: buyer, seller_id: seller, event_title: "Uji pembatalan", event_date: iso(start),
-          tier_name: "Festival", seller_name: "Zahra A.", quantity: 1, amount: 550_000, fee: 27_500, materai: 10_000,
+          tier_name: "Festival", seller_name: "Maya K.", quantity: 1, amount: 550_000, fee: 27_500, materai: 10_000,
           escrow_status: "Funded" as const, disputed: i === 1, event_ends_at: iso(start + 5 * 3_600_000), dispute_deadline: iso(start + 53 * 3_600_000),
         }))
       ),

@@ -88,12 +88,12 @@ async function main() {
     const aheadStart = Date.now() + 10 * DAY;
     const show = (id: string, start: number) => ({ id, title: "Uji masa simpan", category: "Music", starts_at: iso(start), venue: "Istora", city: "Jakarta", transfer_policy: "open" as const });
     const listing = (id: string, event: string, status: "active" | "sold") => ({
-      id, event_id: event, tier_id: TIERS[event], seller_id: seller, seller_name: "Zahra A.", ask_price: 550_000, face_value: 500_000, quantity: 1, status,
+      id, event_id: event, tier_id: TIERS[event], seller_id: seller, seller_name: "Maya K.", ask_price: 550_000, face_value: 500_000, quantity: 1, status,
       ticket_path: ticketPath(id), ticket_sha256: "0".repeat(64),
     });
     const order = (id: string, listingId: string, status: "Released" | "Funded") => ({
       id, listing_id: listingId, event_id: OLD, buyer_id: buyer, seller_id: seller, event_title: "Uji masa simpan", event_date: iso(oldStart),
-      tier_name: "Festival", seller_name: "Zahra A.", quantity: 1, amount: 550_000, fee: 27_500, materai: 10_000, ticket_file: true,
+      tier_name: "Festival", seller_name: "Maya K.", quantity: 1, amount: 550_000, fee: 27_500, materai: 10_000, ticket_file: true,
       escrow_status: status, disputed: true, event_ends_at: iso(oldStart + 4 * H), dispute_deadline: iso(oldStart + 52 * H),
     });
     const made = [

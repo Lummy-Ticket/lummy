@@ -1,57 +1,70 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Category } from "./types";
+import type { Category, Currency } from "./types";
 
-// New events are requested by whoever lists a ticket first. Reality check from real
-// tickets: a seller's PDF only shows THEIR tier and THEIR price, sometimes no price at
-// all. So the full tier table is completed by an admin from the ORGANISER'S OFFICIAL
-// SOURCE (site, socials, poster), not extracted wholesale from one PDF.
+// A show that is not in the catalogue yet is requested by the first seller who has a ticket for it
+// (the Sell page). A seller's PDF shows only their own category and price, sometimes no price at
+// all, so the full price list is filled in by staff from the organiser's official source before the
+// show goes live, never taken wholesale from one PDF. Accounts' requests live in the database
+// (event_requests, api/events/requests); the sample admin sees the ones below.
 export interface EventRequest {
   id: string;
+  /** The seller's public name: first name and initial. */
   submittedBy: string;
   title: string;
   dateISO: string;
   venue: string;
   city: string;
+  country?: string;
+  currency?: Currency;
   category: Category;
+  /** What the seller filled in: at least their own category when the ticket prints a price. */
   faceValues: { tier: string; value: number }[];
-  pdfTier: string; // the only tier readable from the seller's own PDF
-  organizerRef: string; // official source used to verify prices
+  /** The category on the seller's own ticket, empty when it was not read. */
+  pdfTier: string;
+  /** The organiser's official page the seller pointed to, a full URL. */
+  organizerRef: string;
+  /** What the seller added, in their own words, such as what the official page does not say yet. */
+  note?: string;
   forgeryScore: number;
   pdfSuspicious: boolean;
   status: "pending" | "approved" | "rejected";
+  /** The staff's reason, shown to the seller. */
+  reviewNote?: string;
+  createdAtISO?: string;
+  /** The show approval created. */
+  eventId?: string;
 }
 
-// Samples, so the queue has one clean request and one flagged: no real artist or promoter is named,
-// and the "official source" is a placeholder address (example.com is reserved for examples).
+/** A source as a link: stored requests from before 29 Oct 2026 kept it without the scheme. */
+export const sourceUrl = (ref: string) => (/^https?:\/\//.test(ref) ? ref : `https://${ref}`);
+
+// Two shows that are announced but not in the catalogue, with the pages they were announced on
+// (tasks/real-events-2026.md): neither page lists a price per category yet, which is exactly what
+// staff have to settle before approving. One ticket is clean, one was flagged by the PDF check.
 export const SEED_EVENT_REQUESTS: EventRequest[] = [
   {
-    id: "req-1", status: "pending", submittedBy: "Zahra A.", title: "Lummy Stadium Night (sample)",
-    dateISO: "2027-02-08T20:00:00+07:00", venue: "Stadion Utama GBK", city: "Jakarta",
-    category: "Music", forgeryScore: 7, pdfSuspicious: false,
-    pdfTier: "CAT 1", organizerRef: "example.com/lummy-stadium-night",
-    faceValues: [
-      { tier: "Front CAT", value: 4_500_000 },
-      { tier: "CAT 1", value: 2_500_000 },
-      { tier: "Festival", value: 1_800_000 },
-    ],
+    id: "req-dmasiv", status: "pending", submittedBy: "Rani K.", title: "D'Masiv, Jakarta",
+    dateISO: "2026-12-05T19:00:00+07:00", venue: "Tennis Indoor Senayan", city: "Jakarta",
+    category: "Music", forgeryScore: 6, pdfSuspicious: false, pdfTier: "", faceValues: [],
+    organizerRef: "https://www.detik.com/pop/music/d-8263273/kalender-konser-2026-dari-musisi-lokal-internasional-di-indonesia",
+    note: "Di halamannya baru ada Rp325.000 sampai Rp800.000, belum per kategori.",
+    createdAtISO: "2026-10-28T10:15:00+07:00",
   },
   {
-    id: "req-2", status: "pending", submittedBy: "Bagas W.", title: "Lummy Beach Fest (sample)",
-    dateISO: "2026-12-20T19:30:00+07:00", venue: "Beach City International Stadium", city: "Jakarta",
-    category: "Music", forgeryScore: 63, pdfSuspicious: true,
-    pdfTier: "VIP", organizerRef: "example.com/lummy-beach-fest",
-    faceValues: [
-      { tier: "VIP", value: 850_000 },
-      { tier: "Regular", value: 450_000 },
-    ],
+    id: "req-babymonster-sg", status: "pending", submittedBy: "Wei Jie T.", title: "BABYMONSTER, Singapore",
+    dateISO: "2026-11-28T19:00:00+08:00", venue: "Singapore Indoor Stadium", city: "Singapore", country: "SG", currency: "USDC",
+    category: "Music", forgeryScore: 63, pdfSuspicious: true, pdfTier: "", faceValues: [],
+    organizerRef: "https://www.livenation.sg/singapore-indoor-stadium-tickets-vdp40651",
+    note: "Live Nation lists S$168 to S$358 before the booking fee, not per category yet.",
+    createdAtISO: "2026-10-27T21:40:00+07:00",
   },
 ];
 
 interface ReqState {
   requests: EventRequest[];
   approve: (id: string) => void;
-  reject: (id: string) => void;
+  reject: (id: string, reviewNote?: string) => void;
 }
 
 export const useEventRequests = create<ReqState>()(
@@ -59,13 +72,14 @@ export const useEventRequests = create<ReqState>()(
     (set) => ({
       requests: SEED_EVENT_REQUESTS,
       approve: (id) => set((s) => ({ requests: s.requests.map((r) => (r.id === id ? { ...r, status: "approved" } : r)) })),
-      reject: (id) => set((s) => ({ requests: s.requests.map((r) => (r.id === id ? { ...r, status: "rejected" } : r)) })),
+      reject: (id, reviewNote) => set((s) => ({ requests: s.requests.map((r) => (r.id === id ? { ...r, status: "rejected", reviewNote } : r)) })),
     }),
     {
       name: "lummy:eventreq",
-      // v2 added pdfTier + organizerRef; v3 (24 Oct 2026) replaced real artists with samples. Older
+      // v2 added pdfTier + organizerRef; v3 (24 Oct 2026) replaced real artists with samples; v4
+      // (29 Oct 2026) made them requests for real announced shows, with their real sources. Older
       // stored state is reset either way.
-      version: 3,
+      version: 4,
       migrate: () => ({ requests: SEED_EVENT_REQUESTS }),
     }
   )

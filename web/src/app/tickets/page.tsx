@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Ticket, ChevronRight, Timer, Lock, Scale, CheckCircle2, RotateCcw, Hourglass } from "lucide-react";
@@ -50,9 +50,10 @@ export default function TicketsPage() {
     }
   };
   // Data follows who is signed in: an account's orders come from the database, a sample
-  // persona's from this browser.
+  // persona's from this browser, and only the ones it bought, as an account sees only its own.
   const user = useUser((s) => s.user);
-  const sample = useOrders((s) => s.orders);
+  const all = useOrders((s) => s.orders);
+  const sample = useMemo(() => all.filter((o) => o.buyerId === user?.id), [all, user?.id]);
   const { orders: mine, error: loadError, refresh } = useAccountOrders(user?.account ? { buyer: user.id } : null);
   const orders = user?.account ? mine : sample;
   const sweepAutoRelease = useOrders((s) => s.sweepAutoRelease);

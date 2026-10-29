@@ -173,7 +173,7 @@ export default function EventDetailPage() {
   const buyable = visibleListings.filter(isBuyable);
   const cheapest = buyable.length ? Math.min(...buyable.map((l) => l.askPrice)) : 0;
   // What can be bought, the one count the heading and the sidebar both give. A blocked or held
-  // listing is shown for what it is but not counted (GNR said 3 above and 4 beside; Demo Fest 6).
+  // listing is shown for what it is but not counted (GNR once said 3 above and 4 beside).
   const forSale = listings.filter(isBuyable).length;
   // Buyable listings the ticket count hides, so the list adds up to that count.
   const otherQuantities = forSale - buyable.length;
@@ -193,7 +193,7 @@ export default function EventDetailPage() {
         {/* Main */}
         <div>
           {/* 16:9 photo; the category rides on the image so it never crowds the title. Top right, as
-              on the cards: top left sat on the logo of the sample show's art. */}
+              on the cards. */}
           <div className="relative w-full aspect-video rounded-3xl overflow-hidden border border-lummy-500">
             <Image src={text.image(event)} alt={text.title(event)} fill sizes="(min-width: 1024px) 60vw, 100vw" className="lm-settle object-cover" priority />
             <span className="absolute top-3 right-3 bg-neutral-white/95 backdrop-blur-sm text-lummy-500 text-xs font-semibold rounded-full px-3 py-1 shadow-sm">{categoryLabel(event.category)}</span>

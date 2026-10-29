@@ -345,13 +345,22 @@ try {
 
   const demoOrders = (await admin.from("orders").select("id, escrow_status, disputed, seller_id, event_ends_at, disputes(*)").eq("buyer_id", buyer.user.id).order("id")).data ?? [];
   const seededIds = demoOrders.map((o) => o.id).join(",");
-  check("reset: pembeli demo punya tepat lima pesanan, satu di tiap fase", seededIds === "or-demo-1,or-demo-2,or-demo-3,or-demo-4,or-demo-5", seededIds);
+  // Every show is real (lib/mock/seed-orders.ts): a window is running (or-demo-2) only while a show
+  // really ended in the last 48 hours, so it is the one order that may be missing.
+  const settled = ["or-demo-1", "or-demo-3", "or-demo-4", "or-demo-5"];
+  check(
+    "reset: pembeli demo punya satu pesanan di tiap fase",
+    settled.every((id) => seededIds.split(",").includes(id)) && seededIds.split(",").every((id) => [...settled, "or-demo-2"].includes(id)),
+    seededIds
+  );
   const byId = Object.fromEntries(demoOrders.map((o) => [o.id, o]));
   const inReview = byId["or-demo-4"];
   check("reset: klaim yang sedang ditinjau ditujukan ke penjual demo", inReview?.disputed && inReview.seller_id === seller.user.id && claimOf(inReview)?.reason === "BARCODE_USED" && !claimOf(inReview)?.decided_at);
   check("reset: putusan lama tercatat atas nama staf demo", claimOf(byId["or-demo-5"])?.decided_by === staff.user.id && byId["or-demo-5"]?.escrow_status === "Refunded");
-  const windowLeft = new Date(byId["or-demo-2"]?.event_ends_at).getTime() + 48 * 3_600_000 - Date.now();
-  check("reset: masa sengketa satu pesanan sedang berjalan", windowLeft > 40 * 3_600_000 && windowLeft < 43 * 3_600_000, String(windowLeft));
+  if (byId["or-demo-2"]) {
+    const windowLeft = new Date(byId["or-demo-2"].event_ends_at).getTime() + 48 * 3_600_000 - Date.now();
+    check("reset: masa sengketa satu pesanan sedang berjalan", windowLeft > 0 && windowLeft < 48 * 3_600_000, String(windowLeft));
+  }
   check("reset: listing seed yang habis dijual lagi", JSON.stringify(await listingOf(SEED_TOUCHED)) === JSON.stringify({ quantity: 2, status: "active" }));
   check("reset: katalog langsung ikut", (await (await fetch(`${BASE}/events/ev-5sos-jakarta`)).text()).includes(SEED_TOUCHED));
   if (CHAIN) {
@@ -360,9 +369,11 @@ try {
   }
 
   const links2 = await buyer.page.locator('a[href^="/tickets/or-"]').evaluateAll((as) => as.map((a) => a.getAttribute("href")));
-  check("reset: tiket saya menampilkan kelima pesanan", links2.filter((h) => h.startsWith("/tickets/or-demo-")).length === 5, links2.join(" "));
-  await buyer.page.goto(`${BASE}/tickets/or-demo-2`, { waitUntil: "networkidle" });
-  check("reset: hitung mundur masa sengketa tampil", await buyer.page.getByText("Auto-releases to the seller in").isVisible());
+  check("reset: tiket saya menampilkan semua pesanan demo", links2.filter((h) => h.startsWith("/tickets/or-demo-")).length === demoOrders.length, links2.join(" "));
+  if (byId["or-demo-2"]) {
+    await buyer.page.goto(`${BASE}/tickets/or-demo-2`, { waitUntil: "networkidle" });
+    check("reset: hitung mundur masa sengketa tampil", await buyer.page.getByText("Auto-releases to the seller in").isVisible());
+  }
 
   await seller.page.goto(`${BASE}/seller`, { waitUntil: "networkidle" });
   await seller.page.locator('[data-claim="or-demo-4"]').waitFor();
@@ -377,7 +388,7 @@ try {
   const heldDemo = (await admin.from("listings").select("status, seller_id, pdf_suspicious").eq("id", "ls-demo-held").single()).data;
   check("reset: satu listing ter-flag penjual demo menunggu review", heldDemo?.status === "review" && heldDemo.seller_id === seller.user.id && heldDemo.pdf_suspicious);
   const hers = (await admin.from("listings").select("id").eq("id", "ls-1").eq("seller_id", seller.user.id)).data ?? [];
-  check("reset: listing contoh atas nama Zahra jadi milik penjual demo", hers.length === 1);
+  check("reset: listing contoh atas nama Maya jadi milik penjual demo", hers.length === 1);
 
   const again = await fetch(`${BASE}/api/demo/reset`, { method: "POST", headers: DEMO_KEY ? { "x-demo-key": DEMO_KEY } : {} });
   const count = (await admin.from("orders").select("id", { count: "exact", head: true }).eq("buyer_id", buyer.user.id)).count;

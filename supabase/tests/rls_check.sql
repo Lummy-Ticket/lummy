@@ -41,9 +41,10 @@ end $$;
 
 -- Real shows get added next to the 7 seed ones, so the seed is a floor, not a total.
 select pg_temp.probe('anon', null, 'anon: reads the catalogue, at least the 7 seed events', 'select (count(*) >= 7)::text from public.catalogue_events', 'true');
-select pg_temp.probe('anon', null, 'anon: WTF is tomorrow 14:00 WIB', $q$select (starts_at = ((((now() at time zone 'Asia/Jakarta')::date + 1) + time '14:00') at time zone 'Asia/Jakarta'))::text from public.catalogue_events where id = 'ev-demo-fest'$q$, 'true');
+-- Every seed show is real and on a fixed date since 29 Oct 2026; no show rolls to tomorrow.
+select pg_temp.probe('anon', null, 'anon: no seed show rolls to tomorrow', $q$select (count(*) = 0)::text from public.events where rolling_hour is not null$q$, 'true');
 -- The catalogue's price and count follow the buyable rule for every show, whatever is listed,
--- and the seed's edited and duplicate listings (still on sale, still flagged) are left out.
+-- and the seed's held listing (ls-29, still on sale, still flagged) is left out.
 select pg_temp.probe('anon', null, 'anon: catalogue counts only buyable listings, flagged ones left out', $q$
   with buyable as (
     select event_id, min(ask_price) as low, count(*) as n from public.listings

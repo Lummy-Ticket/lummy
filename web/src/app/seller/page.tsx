@@ -10,6 +10,7 @@ import { Modal } from "@/components/common/Modal";
 import { EvidencePhoto } from "@/components/common/EvidencePhoto";
 import { isDemoEmail } from "@/lib/supabase/demo";
 import { FEATURES } from "@/lib/features";
+import { publicSellerName } from "@/lib/listings/rules";
 import { CONTACT_EMAIL } from "@/components/legal/LegalPage";
 import { PageContainer } from "@/components/layout/PageContainer";
 import {
@@ -268,7 +269,7 @@ export default function SellerPage() {
   // An account's sales come from the database, where the seller is the account on the order.
   // A sample persona's claims land on the seller whose name is on the sale.
   const { orders: sales, refresh: refreshSales } = useAccountOrders(account && user ? { seller: user.id } : null);
-  const mine = account ? sales ?? [] : sampleOrders.filter((o) => o.sellerName === user?.name);
+  const mine = account ? sales ?? [] : sampleOrders.filter((o) => !!user && o.sellerName === publicSellerName(user.name));
   // One reading of the clock per render, so the same list cannot disagree with itself.
   const [now] = useState(() => Date.now());
   const claims = mine.filter((o) => o.escrowStatus === "DISPUTED");

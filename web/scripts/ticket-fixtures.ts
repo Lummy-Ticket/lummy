@@ -72,7 +72,7 @@ export async function ticketPdf(o: {
     // the same tour elsewhere.
     page.drawText("5SOS: EVERYONE'S A STAR! JAKARTA", { x: 36, y: 540, size: 16, font });
     page.drawText("Minggu, 6 Desember 2026 - 18:00 WIB - Second Show", { x: 36, y: 524, size: 10, font });
-    page.drawText(`Name: ${o.name ?? "Zahra Amelia"}`, { x: 36, y: 506, size: 12, font });
+    page.drawText(`Name: ${o.name ?? "Maya Kusuma"}`, { x: 36, y: 506, size: 12, font });
     page.drawText("CAT 3 - Row C - Seat 12 - Indonesia Arena", { x: 36, y: 490, size: 12, font });
     (o.extra ?? []).forEach((line, i) => page.drawText(line, { x: 36, y: 470 - i * 16, size: 10, font }));
     if (o.stamp) page.drawText(o.stamp, { x: 60, y: 360, size: 40, font, rotate: degrees(20), color: rgb(0.85, 0, 0), opacity: 0.4 });

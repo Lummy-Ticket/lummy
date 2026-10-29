@@ -37,13 +37,21 @@ test.describe("demo script", { tag: "@smoke" }, () => {
       await page.getByRole("button", { name: "Continue to price" }).click();
       await expect(page.getByRole("button", { name: /Blocked \(duplicate\)/ })).toBeVisible();
     });
-    await test.step("0:50 a last-minute listing goes to review", async () => {
-      await check();
-      await page.getByRole("combobox").first().selectOption("ev-demo-fest");
-      await page.getByRole("button", { name: "Continue to price" }).click();
-      await expect(page.getByText(/duplicate-ticket fraud happens/)).toBeVisible();
-      await expect(page.getByRole("button", { name: /Submit for review/ })).toBeVisible();
-    });
+  });
+
+  test("0:50 a last-minute listing goes to review", async ({ page }) => {
+    // Every show is real, so the browser's clock is set to the day before one (DWP, 11 Dec 2026)
+    // rather than keeping a made-up show that is always tomorrow.
+    await page.clock.setFixedTime(new Date("2026-12-10T12:00:00+07:00"));
+    await persona(page, "seller");
+    await page.goto("/sell");
+    await page.getByRole("button", { name: "No file handy? Use a sample" }).click();
+    await page.getByRole("button", { name: "Check the ticket" }).click();
+    await expect(page.getByRole("heading", { name: "Ticket check" })).toBeVisible();
+    await page.getByRole("combobox").first().selectOption("ev-dwp-2026");
+    await page.getByRole("button", { name: "Continue to price" }).click();
+    await expect(page.getByText(/duplicate-ticket fraud happens/)).toBeVisible();
+    await expect(page.getByRole("button", { name: /Submit for review/ })).toBeVisible();
   });
 
   test("1:00 to 1:10 checkout creates the order, with the letter and the on-chain panel", async ({ page }) => {
@@ -67,7 +75,10 @@ test.describe("demo script", { tag: "@smoke" }, () => {
 
   test("1:20 to 2:22 a claim, from the countdown to the verdict", async ({ page }) => {
     await persona(page, "buyer");
-    await page.goto("/tickets/or-seed-2");
+    // The upcoming order, its show marked over with the demo control: every show is real, so a
+    // window is running in the sample orders only while one really ended in the last 48 hours.
+    await page.goto("/tickets/or-seed-1");
+    await page.getByRole("button", { name: "Mark event as finished" }).click();
     await test.step("1:20 the live countdown", async () => {
       await expect(page.getByText("Auto-releases to the seller in")).toBeVisible();
     });
@@ -155,8 +166,8 @@ test.describe("demo script", { tag: "@smoke" }, () => {
   });
 
   test("a listing held for a check says when it can be bought", async ({ page }) => {
-    await page.goto("/events/ev-demo-fest");
-    await expect(page.locator('[data-listing="ls-3"] [data-review-why]')).toContainText("once the Lummy team has checked the file");
+    await page.goto("/events/ev-dwp-2026");
+    await expect(page.locator('[data-listing="ls-29"] [data-review-why]')).toContainText("once the Lummy team has checked the file");
   });
 
   test("what is not live says so: the review target, and no real payout yet", async ({ page }) => {
@@ -169,7 +180,8 @@ test.describe("demo script", { tag: "@smoke" }, () => {
 
   test("an ID-match show has the buyer confirm the risk before paying", async ({ page }) => {
     await persona(page, "buyer");
-    await page.goto("/checkout?listing=ls-9&qty=1");
+    // 5 Seconds of Summer's terms match the ticket's name to an ID (tasks/real-events-2026.md).
+    await page.goto("/checkout?listing=ls-12&qty=2");
     const pay = page.getByRole("button", { name: /^Pay / });
     await expect(pay).toBeDisabled();
     await page.getByText(/my ID card matches the name/).click();
