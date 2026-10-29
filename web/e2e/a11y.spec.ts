@@ -1,13 +1,15 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
-import { expect, signInSample, test } from "./support";
+import { expect, isBuyable, listingWhere, rupiah, signInSample, test } from "./support";
 
 // The pages testers and buyers use, checked by axe against WCAG 2.1 A and AA on a phone. Serious
 // and critical problems fail; the rest is listed in the report for the next pass. Motion is reduced
 // and the page's heading awaited first, so an entrance still fading in is not read as faint text.
 
-const PUBLIC = ["/", "/events", "/events/ev-5sos-jakarta", "/how-it-works", "/login"];
-const SIGNED_IN = ["/tickets", "/sell", "/checkout?listing=ls-1&qty=1"];
+// A listing on a show still to come, by what it is: every show is real and passes (tasks 11.8).
+const ON_SALE = listingWhere("a rupiah listing on sale", (l, e) => rupiah(e) && isBuyable(l));
+const PUBLIC = ["/", "/events", `/events/${ON_SALE.eventId}`, "/how-it-works", "/login"];
+const SIGNED_IN = ["/tickets", "/sell", `/checkout?listing=${ON_SALE.id}&qty=${ON_SALE.splittable ? 1 : ON_SALE.quantity}`];
 
 async function audit(page: Page, path: string) {
   await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();

@@ -1,4 +1,10 @@
-import { DEMO_SIGN_IN, aiClaims, expect, expectFitsScreen, isLocal, signInSample, tapUntil, test } from "./support";
+import { DEMO_SIGN_IN, aiClaims, cheapestSingle, expect, expectFitsScreen, isBuyable, isLocal, rupiah, showWhere, signInSample, tapUntil, test } from "./support";
+
+// Shows by what they are, not by id: every show is real and passes on its own date (tasks 11.8).
+const SHOW = showWhere("a rupiah show selling single tickets", (e, ls) => rupiah(e) && ls.some((l) => isBuyable(l) && (l.splittable || l.quantity === 1)));
+const SINGLE = cheapestSingle();
+// The longest word of the show's name, which a fan would type.
+const WORD = SHOW.title.split(/[^A-Za-z0-9]+/).sort((a, b) => b.length - a.length)[0];
 
 // The five user-testing tasks (tasks/user-testing.md), the way a first-time tester meets them on a
 // phone: signed out, in Indonesian, with a sample account only, so nothing reaches the database.
@@ -17,7 +23,7 @@ test.describe("user tasks", { tag: "@smoke" }, () => {
   test("no page or link preview claims AI checks tickets", async ({ page }) => {
     await page.goto("/");
     expect(await page.locator('meta[name="description"]').getAttribute("content")).not.toMatch(/\bAI\b/);
-    for (const path of ["/", "/events", "/events/ev-5sos-jakarta", "/how-it-works", "/about"]) {
+    for (const path of ["/", "/events", `/events/${SHOW.id}`, "/how-it-works", "/about"]) {
       await page.goto(path);
       await expect(page.locator("html")).toHaveAttribute("lang", "id");
       expect(aiClaims(await page.locator("body").innerText()), path).toEqual([]);
@@ -35,9 +41,9 @@ test.describe("user tasks", { tag: "@smoke" }, () => {
   });
 
   test("the seller's name says why no record is needed", async ({ page }) => {
-    await page.goto("/events/ev-gnr-jakarta");
+    await page.goto(`/events/${SINGLE.show.id}`);
     // The page opens on one ticket, the cheapest listing's count, where this single is on show.
-    const row = page.locator('[data-listing="ls-2"]');
+    const row = page.locator(`[data-listing="${SINGLE.listing.id}"]`);
     // A tap that lands before the page is ready does nothing, as on a slow phone: tap until it opens.
     await expect(async () => {
       if (!(await row.locator("[data-seller-note]").isVisible())) await row.locator("[data-seller-info]").click();
@@ -50,10 +56,10 @@ test.describe("user tasks", { tag: "@smoke" }, () => {
   test("1 a search finds a show and its cheapest price", async ({ page }) => {
     await page.goto("/");
     const search = page.getByRole("textbox", { name: "Cari event" }).first();
-    await search.fill("summer");
+    await search.fill(WORD);
     await search.press("Enter");
-    await expect(page).toHaveURL(/\/events\?q=summer/);
-    await page.getByRole("link", { name: /Seconds of Summer/ }).first().click();
+    await expect(page).toHaveURL(new RegExp(`/events\\?q=${WORD}`));
+    await page.getByRole("link", { name: new RegExp(WORD, "i") }).first().click();
     await expect(page).toHaveURL(/\/events\/ev-/);
     await expect(page.getByText("Termurah").first()).toBeVisible();
     await expect(page.getByText("Mulai dari")).toBeVisible();
@@ -61,7 +67,7 @@ test.describe("user tasks", { tag: "@smoke" }, () => {
   });
 
   test("2 one ticket with a sample account, told the payment is simulated, then where the money is", async ({ page }) => {
-    await page.goto("/events/ev-5sos-jakarta");
+    await page.goto(`/events/${SHOW.id}`);
     // Up to 8, the most one listing holds, so a set of 7 or 8 that cannot be split can be found; it fits a phone.
     const counts = page.getByRole("group", { name: "Jumlah tiket" }).getByRole("button");
     await expect(counts).toHaveText(["1", "2", "3", "4", "5", "6", "7", "8"]);

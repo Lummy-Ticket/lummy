@@ -1,4 +1,6 @@
 import { test as base, expect, type Locator, type Page } from "@playwright/test";
+import { SEED_LISTINGS, isBuyable, seedEvents, type SeedEvent } from "../src/lib/mock/seed";
+import type { Listing } from "../src/lib/mock/types";
 
 /**
  * Every test also fails on an error the page throws or logs, not only on what it asserts: a crash,
@@ -81,4 +83,48 @@ const PERSONAS = {
 export async function persona(page: Page, who: keyof typeof PERSONAS) {
   if (page.url() === "about:blank") await page.goto("/");
   await page.evaluate((u) => localStorage.setItem("lummy:user", JSON.stringify({ state: { user: u }, version: 0 })), PERSONAS[who]);
+}
+
+// --- Shows and listings that are still to come (tasks 11.8) ---
+// Tests name no show or listing by id when its date matters: every show in the catalogue is real
+// and passes on its own date, and a test that names one breaks the day after. These pick from the
+// seed (which the database mirrors) the first show at least three days away that fits, and fail
+// with a plain message once the catalogue runs out, which is the cue to add the next real shows.
+
+const AHEAD_MS = 3 * 86_400_000;
+const upcoming = () =>
+  seedEvents()
+    .filter((e) => Date.parse(e.dateISO) > Date.now() + AHEAD_MS)
+    .sort((a, b) => Date.parse(a.dateISO) - Date.parse(b.dateISO));
+const onSale = (e: SeedEvent) => SEED_LISTINGS.filter((l) => l.eventId === e.id && l.status === "active");
+
+/** The first upcoming show that fits and has listings on sale. */
+export function showWhere(what: string, fits: (e: SeedEvent, listings: Listing[]) => boolean): SeedEvent {
+  const e = upcoming().find((x) => fits(x, onSale(x)));
+  if (!e) throw new Error(`no upcoming show in the seed is ${what}: add the next real shows (tasks 12.7)`);
+  return e;
+}
+
+/** The first listing on an upcoming show that fits. */
+export function listingWhere(what: string, fits: (l: Listing, e: SeedEvent) => boolean): Listing {
+  for (const e of upcoming()) {
+    const l = onSale(e).find((x) => fits(x, e));
+    if (l) return l;
+  }
+  throw new Error(`no listing on an upcoming show in the seed is ${what}: add the next real shows (tasks 12.7)`);
+}
+
+export const rupiah = (e: SeedEvent) => (e.currency ?? "IDR") === "IDR";
+export { isBuyable };
+
+/** A rupiah show whose cheapest listing sells one ticket, the count its page opens on, and that listing. */
+export function cheapestSingle(): { show: SeedEvent; listing: Listing } {
+  for (const e of upcoming().filter(rupiah)) {
+    const ls = onSale(e).filter(isBuyable);
+    if (!ls.length) continue;
+    const low = Math.min(...ls.map((l) => l.askPrice));
+    const l = ls.find((x) => x.askPrice === low && (x.splittable || x.quantity === 1));
+    if (l) return { show: e, listing: l };
+  }
+  throw new Error("no upcoming rupiah show opens on a single ticket: add the next real shows (tasks 12.7)");
 }

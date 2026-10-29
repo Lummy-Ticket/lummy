@@ -1,5 +1,14 @@
 import { readFileSync } from "node:fs";
-import { expect, persona, test } from "./support";
+import { expect, isBuyable, listingWhere, persona, rupiah, showWhere, test } from "./support";
+
+// Shows and listings by what they are, not by id: every show is real and passes on its own date.
+const LATE_SHOW = showWhere("a rupiah show with listings", (e, ls) => rupiah(e) && ls.length > 0 && e.transferPolicy !== "no_resale");
+const PAIR = listingWhere("a rupiah listing of two", (l, e) => rupiah(e) && isBuyable(l) && l.quantity >= 2);
+const OPEN_SHOW = showWhere("a rupiah show with no name rule", (e, ls) => rupiah(e) && !e.transferPolicy && ls.some(isBuyable));
+const USDC_SHOW = showWhere("a USDC show with tickets on sale", (e, ls) => e.currency === "USDC" && ls.some(isBuyable));
+const USDC_DEAR = listingWhere("a USDC listing above a faucet's 20 test USDC", (l, e) => e.currency === "USDC" && isBuyable(l) && l.askPrice > 20_000_000);
+const HELD = listingWhere("held for a check", (l) => !isBuyable(l) && !l.ai.barcodeDuplicate);
+const ID_MATCH = listingWhere("on an ID-match show", (l, e) => rupiah(e) && e.transferPolicy === "id_match" && isBuyable(l));
 
 // Every beat of the demo script (docs/06-demo-script.md), in English on a laptop the way it is
 // presented. Run it before recording: a script that has not been walked through the real app is a
@@ -40,15 +49,15 @@ test.describe("demo script", { tag: "@smoke" }, () => {
   });
 
   test("0:50 a last-minute listing goes to review", async ({ page }) => {
-    // Every show is real, so the browser's clock is set to the day before one (DWP, 11 Dec 2026)
-    // rather than keeping a made-up show that is always tomorrow.
-    await page.clock.setFixedTime(new Date("2026-12-10T12:00:00+07:00"));
+    // Every show is real, so the browser's clock is set to the day before one rather than keeping a
+    // made-up show that is always tomorrow.
+    await page.clock.setFixedTime(new Date(Date.parse(LATE_SHOW.dateISO) - 24 * 3_600_000));
     await persona(page, "seller");
     await page.goto("/sell");
     await page.getByRole("button", { name: "No file handy? Use a sample" }).click();
     await page.getByRole("button", { name: "Check the ticket" }).click();
     await expect(page.getByRole("heading", { name: "Ticket check" })).toBeVisible();
-    await page.getByRole("combobox").first().selectOption("ev-dwp-2026");
+    await page.getByRole("combobox").first().selectOption(LATE_SHOW.id);
     await page.getByRole("button", { name: "Continue to price" }).click();
     await expect(page.getByText(/duplicate-ticket fraud happens/)).toBeVisible();
     await expect(page.getByRole("button", { name: /Submit for review/ })).toBeVisible();
@@ -56,7 +65,7 @@ test.describe("demo script", { tag: "@smoke" }, () => {
 
   test("1:00 to 1:10 checkout creates the order, with the letter and the on-chain panel", async ({ page }) => {
     await persona(page, "buyer");
-    await page.goto("/checkout?listing=ls-1&qty=2");
+    await page.goto(`/checkout?listing=${PAIR.id}&qty=2`);
     await page.getByRole("button", { name: /^Pay / }).click();
     // The same QRIS step an account meets, with a demo code.
     await expect(page.locator("[data-qris-sample]")).toContainText("this code is a demo one");
@@ -140,7 +149,7 @@ test.describe("demo script", { tag: "@smoke" }, () => {
 
   test("the show's name rule is on the event page, unconfirmed for a real show", async ({ page }) => {
     // Real shows carry a name rule only when the promoter's terms say so (tasks/real-events-2026.md).
-    await page.goto("/events/ev-gnr-jakarta");
+    await page.goto(`/events/${OPEN_SHOW.id}`);
     await expect(page.getByText("Name rules not confirmed").first()).toBeVisible();
     // Real shows, sample listings: the page says so (lib/features.ts).
     await expect(page.locator("[data-sample-listings]")).toBeVisible();
@@ -151,28 +160,28 @@ test.describe("demo script", { tag: "@smoke" }, () => {
   test("a show opens on the ticket count of its cheapest listing, so the From price is in the list", async ({ page }) => {
     // 9.50 USDC is one ticket; a fixed default of 2 hid it while the sidebar said "From 9.50 USDC".
     // No listing is named: on lummy.id the first 9.50 USDC sample was bought in a real-wallet test.
-    await page.goto("/events/ev-bbw-2026");
+    await page.goto(`/events/${USDC_SHOW.id}`);
     await expect(page.getByRole("group", { name: "Number of tickets" }).getByRole("button", { name: "1", exact: true })).toHaveAttribute("aria-pressed", "true");
     const from = (await page.getByText("From", { exact: true }).first().locator("xpath=following-sibling::div[1]").innerText()).trim();
     await expect(page.locator("[data-listing]").filter({ hasText: from }).first()).toBeVisible();
   });
 
   test("a USDC checkout says before and at the till that a demo account cannot pay", async ({ page }) => {
-    await page.goto("/events/ev-bbw-2026");
+    await page.goto(`/events/${USDC_DEAR.eventId}`);
     await expect(page.locator("[data-usdc-needs]")).toContainText("browser wallet");
     // The full pass: dearer than a faucet's test USDC, so a visitor's purchase does not take it off sale.
-    await page.goto("/checkout?listing=ls-bbw-3&qty=1");
+    await page.goto(`/checkout?listing=${USDC_DEAR.id}&qty=1`);
     await expect(page).toHaveURL(/\/login/);
     await expect(page.locator("[data-login-usdc]")).toContainText("paid in USDC");
     await page.getByRole("button", { name: /^Continue with a (demo|sample) account$/ }).click();
-    await expect(page).toHaveURL(/\/checkout\?listing=ls-bbw-3/);
+    await expect(page).toHaveURL(new RegExp(`/checkout\\?listing=${USDC_DEAR.id}`));
     await expect(page.locator("[data-usdc-needs-account]")).toContainText("cannot pay in USDC");
     await expect(page.getByRole("button", { name: /^Pay / })).toBeDisabled();
   });
 
   test("a listing held for a check says when it can be bought", async ({ page }) => {
-    await page.goto("/events/ev-dwp-2026");
-    await expect(page.locator('[data-listing="ls-29"] [data-review-why]')).toContainText("once the Lummy team has checked the file");
+    await page.goto(`/events/${HELD.eventId}`);
+    await expect(page.locator(`[data-listing="${HELD.id}"] [data-review-why]`)).toContainText("once the Lummy team has checked the file");
   });
 
   test("what is not live says so: the review target, and no real payout yet", async ({ page }) => {
@@ -185,42 +194,37 @@ test.describe("demo script", { tag: "@smoke" }, () => {
 
   test("an ID-match show has the buyer confirm the risk before paying", async ({ page }) => {
     await persona(page, "buyer");
-    // 5 Seconds of Summer's terms match the ticket's name to an ID (tasks/real-events-2026.md).
-    await page.goto("/checkout?listing=ls-12&qty=2");
+    // A show whose terms match the ticket's name to an ID (tasks/real-events-2026.md).
+    await page.goto(`/checkout?listing=${ID_MATCH.id}&qty=${ID_MATCH.splittable ? 1 : ID_MATCH.quantity}`);
     const pay = page.getByRole("button", { name: /^Pay / });
     await expect(pay).toBeDisabled();
     await page.getByText(/my ID card matches the name/).click();
     await expect(pay).toBeEnabled();
   });
 
-  test("refused over the name: a refund without a seller penalty", async ({ page }) => {
+  test("with no ID card staged, a refusal over the name is the seller's: no no-fault name claim", async ({ page }) => {
+    // Sellers cannot stage an ID card yet (FEATURES.sellerIdCard), on a demo account as on a real
+    // one, so the no-fault "Turned away over the name" is not offered; the buyer files it as a gate
+    // refusal, which counts against the seller (docs/04, Status fitur).
     await persona(page, "buyer");
-    await page.goto("/checkout?listing=ls-1&qty=2");
+    await page.goto(`/checkout?listing=${PAIR.id}&qty=2`);
     await page.getByRole("button", { name: /^Pay / }).click();
     await page.locator("[data-qris-simulate]").click();
     await expect(page).toHaveURL(/\/tickets\/or-/);
     await page.getByRole("button", { name: "Mark event as finished" }).click();
     await page.getByRole("button", { name: "Something went wrong at the gate" }).click();
-    await page.getByText("Turned away over the name").click();
-    await page.getByText("gate-id-check-refused.jpg").click();
-    await expect(page.getByText("STRONG").first()).toBeVisible();
-    await page.getByRole("dialog").getByRole("checkbox").check();
-    await page.getByRole("button", { name: "File dispute" }).click();
-    await expect(page.getByText("Under review").first()).toBeVisible();
-    await persona(page, "admin");
-    await page.goto("/admin");
-    const card = page.locator("[data-claim]", { hasText: "Turned away over the name" }).first();
-    await expect(card.getByText(/charges the seller nothing/)).toBeVisible();
-    await expect(card.getByText(/40% of the sale/)).toHaveCount(0);
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByText("Turned away at the gate")).toBeVisible();
+    await expect(dialog.getByText("Turned away over the name")).toHaveCount(0);
   });
 
   test("a first visit is signed out, and a sample account returns to checkout", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
-    await page.goto("/checkout?listing=ls-1");
+    await page.goto(`/checkout?listing=${PAIR.id}`);
     await expect(page).toHaveURL(/\/login/);
     await page.getByRole("button", { name: /^(Continue with a (demo|sample) account|Sign in)$/ }).click();
-    await expect(page).toHaveURL(/\/checkout\?listing=ls-1/);
+    await expect(page).toHaveURL(new RegExp(`/checkout\\?listing=${PAIR.id}`));
     await expect(page.locator("[data-demo-bar]")).toContainText("Demo account: Buyer");
   });
 

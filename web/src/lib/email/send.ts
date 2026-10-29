@@ -57,7 +57,7 @@ function transport(): Transport | null {
     // For the check only. Set on Vercel by mistake, it sends nothing at all rather than write there.
     const dir = process.env.EMAIL_DIR?.trim();
     if (!dir || process.env.VERCEL) return null;
-    return { kind: "file", from: process.env.MAIL_FROM?.trim() || "Lummy <notify@lummy.id>", dir };
+    return { kind: "file", from: process.env.MAIL_FROM?.trim() || "Lummy <no-reply@lummy.id>", dir };
   }
   if (!FEATURES.emails) return null;
   const host = process.env.SMTP_HOST?.trim();

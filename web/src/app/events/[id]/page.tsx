@@ -20,7 +20,7 @@ import { useCatalogue, useEventText } from "@/lib/catalogue";
 import { FEATURES } from "@/lib/features";
 import { TEST_MODE } from "@/components/layout/TestModeNotice";
 
-function ListingRow({ event, listing, qty, cheapest, index }: { event: EventItem; listing: Listing; qty: number; cheapest?: boolean; index: number }) {
+function ListingRow({ event, listing, qty, cheapest, index, sampleTag }: { event: EventItem; listing: Listing; qty: number; cheapest?: boolean; index: number; sampleTag?: boolean }) {
   const t = useT();
   const { formatMoney } = useFormatters();
   const money = (n: number) => formatMoney(n, event.currency);
@@ -78,6 +78,7 @@ function ListingRow({ event, listing, qty, cheapest, index }: { event: EventItem
           >
             {listing.sellerName}
           </button>
+          {sampleTag && <span data-sample-tag className="ml-1.5 text-neutral-gray">{t("(sample)", "(contoh)")}</span>}
           {/* Until sellers can stage an ID card (FEATURES.sellerIdCard), no listing has one, so a mark
               per listing would only tell the sample listings apart; the name rule is in the sidebar. */}
           {FEATURES.sellerIdCard && listing.gateKtp ? t(" · ID checked at the gate", " · KTP dicek di gate") : ""}
@@ -177,6 +178,8 @@ export default function EventDetailPage() {
   const forSale = listings.filter(isBuyable).length;
   // Buyable listings the ticket count hides, so the list adds up to that count.
   const otherQuantities = forSale - buyable.length;
+  // Beta testers' own tickets next to Lummy's samples: then each sample row says so.
+  const mixed = !FEATURES.realListings && listings.some((l) => l.realTicket);
   const over = isEventOver(event);
   // Running now: still on the page until it ends, but nothing can be bought or listed any more.
   const started = !over && isSaleClosed(event);
@@ -213,14 +216,20 @@ export default function EventDetailPage() {
               {t("Postponed by the organiser. The date above is the new one.", "Diundur penyelenggara. Tanggal di atas adalah jadwal barunya.")}
             </p>
           )}
-          {/* Real shows, sample listings: no fan should read them as tickets on sale (lib/features.ts). */}
+          {/* Real shows, sample listings: no fan should read them as tickets on sale (lib/features.ts).
+              Once beta testers list their own tickets, the page says which are which. */}
           {!over && event.currency !== "USDC" && !FEATURES.realListings && (
             <p data-sample-listings className="mt-3 flex items-start gap-2 rounded-2xl bg-secondary-orange-soft px-3 py-2 text-xs text-secondary-orange-dark">
               <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-              {t(
-                "Test mode: the listings on this page are samples for the Lummy demo, not real tickets for sale, and no real money is taken yet.",
-                "Mode uji: listing di halaman ini contoh untuk demo Lummy, bukan tiket sungguhan yang dijual, dan belum ada uang sungguhan yang ditarik."
-              )}
+              {mixed
+                ? t(
+                    "Beta: payments are simulated, so no real money is taken. Listings tagged \"sample\" are Lummy's examples; the others are beta testers' own tickets, and a buyer gets a stand-in, not the ticket itself.",
+                    "Beta: pembayarannya simulasi, jadi belum ada uang sungguhan yang ditarik. Listing bertanda \"contoh\" adalah contoh dari Lummy; sisanya tiket milik peserta beta, dan pembeli mendapat file pengganti, bukan tiketnya."
+                  )
+                : t(
+                    "Test mode: the listings on this page are samples for the Lummy demo, not real tickets for sale, and no real money is taken yet.",
+                    "Mode uji: listing di halaman ini contoh untuk demo Lummy, bukan tiket sungguhan yang dijual, dan belum ada uang sungguhan yang ditarik."
+                  )}
             </p>
           )}
           {/* A real show abroad, sold here only as a testnet demo: no fan should read these as real
@@ -308,7 +317,7 @@ export default function EventDetailPage() {
           <div className="flex flex-col gap-4">
             {visibleListings.length > 0 ? (
               visibleListings.map((l, i) => (
-                <ListingRow key={l.id} event={event} listing={l} qty={qty} cheapest={l.askPrice === cheapest} index={i} />
+                <ListingRow key={l.id} event={event} listing={l} qty={qty} cheapest={l.askPrice === cheapest} index={i} sampleTag={mixed && !l.realTicket} />
               ))
             ) : (
               <div className="text-center py-10 bg-secondary-gray-soft rounded-2xl">

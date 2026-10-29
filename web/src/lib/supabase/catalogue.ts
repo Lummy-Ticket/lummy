@@ -33,7 +33,7 @@ async function fetchCatalogue(url: string, key: string): Promise<CatalogueData> 
     db.from("tiers").select("id, event_id, name, face_value").order("sort"),
     db
       .from("listings")
-      .select("id, event_id, tier_id, seller_name, ask_price, face_value, quantity, splittable, gate_ktp, autofilled, forgery_score, pdf_suspicious, barcode_duplicate, cleared_at, seat:checks->ai->facts->>seat")
+      .select("id, event_id, tier_id, seller_name, ask_price, face_value, quantity, splittable, gate_ktp, autofilled, forgery_score, pdf_suspicious, barcode_duplicate, cleared_at, seat:checks->ai->facts->>seat, barcodes_read:checks->>barcodes")
       .eq("status", "active")
       .order("created_at"),
   ]);
@@ -82,8 +82,10 @@ async function fetchCatalogue(url: string, key: string): Promise<CatalogueData> 
       pdfSuspicious: l.pdf_suspicious,
     },
     cleared: !!l.cleared_at,
-    // Only the seat leaves listings.checks: the rest is for the seller and staff.
+    // Only the seat leaves listings.checks, and whether a real file was read: the rest is for the
+    // seller and staff.
     seat: l.seat || null,
+    realTicket: l.barcodes_read != null,
   }));
   return { events, listings };
 }

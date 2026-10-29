@@ -93,6 +93,8 @@ export interface Listing {
   /** The seat, row, block or section printed on the ticket, as the AI step read it at publish
    *  (listings.checks). Absent when nothing was printed or nothing read it, as with a sample. */
   seat?: string | null;
+  /** Listed from a ticket PDF a seller really uploaded (its barcodes were read), not from a sample. */
+  realTicket?: boolean;
 }
 
 // --- Escrow -----------------------------------------------------------------

@@ -29,8 +29,8 @@ const emailLines: { list: Bi[]; mailspace: Bi } = FEATURES.emails
         },
       ],
       mailspace: {
-        en: `Mailspace (DomaiNesia), the mail service of lummy.id, as our data processor: it delivers the sign-in email that Supabase writes for us, from no-reply@lummy.id, and the emails our server sends (see "Email we send"), from notify@lummy.id, and holds our team inbox (${CONTACT_EMAIL}), where your messages and replies to us arrive.`,
-        id: `Mailspace (DomaiNesia), layanan email lummy.id, sebagai prosesor data kami: mengantar email untuk masuk yang dibuat Supabase untuk kami, dari no-reply@lummy.id, dan email yang dikirim server kami (lihat "Email yang kami kirim"), dari notify@lummy.id, serta menyimpan kotak masuk tim (${CONTACT_EMAIL}), tempat pesan dan balasanmu ke kami masuk.`,
+        en: `Mailspace (DomaiNesia), the mail service of lummy.id, as our data processor: it delivers the sign-in email that Supabase writes for us, from no-reply@lummy.id, and the emails our server sends (see "Email we send"), from the same address, and holds our team inbox (${CONTACT_EMAIL}), where your messages and replies to us arrive.`,
+        id: `Mailspace (DomaiNesia), layanan email lummy.id, sebagai prosesor data kami: mengantar email untuk masuk yang dibuat Supabase untuk kami, dari no-reply@lummy.id, dan email yang dikirim server kami (lihat "Email yang kami kirim"), dari alamat yang sama, serta menyimpan kotak masuk tim (${CONTACT_EMAIL}), tempat pesan dan balasanmu ke kami masuk.`,
       },
     }
   : {
@@ -188,7 +188,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage
       title={{ en: "Privacy policy", id: "Kebijakan privasi" }}
-      effective={{ en: "23 Oct 2026", id: "23 Okt 2026" }}
+      effective={{ en: "29 Oct 2026", id: "29 Okt 2026" }}
       intro={{
         en: "What Lummy Ticket keeps about you, why, who can see it, and when it is deleted. Written to match what the app actually does.",
         id: "Apa yang disimpan Lummy Ticket tentang kamu, untuk apa, siapa yang bisa melihatnya, dan kapan dihapus. Ditulis sesuai yang benar-benar dilakukan aplikasinya.",

@@ -65,10 +65,10 @@ insert into public.tiers (id, event_id, name, face_value, sort) values
 on conflict (id) do update set event_id = excluded.event_id, name = excluded.name, face_value = excluded.face_value, sort = excluded.sort;
 
 insert into public.listings (id, event_id, tier_id, seller_name, ask_price, face_value, quantity, splittable, gate_ktp, status, autofilled, forgery_score, pdf_suspicious, barcode_duplicate) values
-  ('ls-1', 'ev-gnr-jakarta', 't-gnr-trib-b', 'Maya K.', 2800000, 2250000, 2, false, true, 'active', true, 8, false, false),
-  ('ls-2', 'ev-gnr-jakarta', 't-gnr-fest-c', 'Rian P.', 1950000, 1750000, 1, false, true, 'active', true, 12, false, false),
-  ('ls-6', 'ev-gnr-jakarta', 't-gnr-trib-b', 'Vino M.', 2650000, 2250000, 2, true, true, 'active', true, 6, false, false),
-  ('ls-7', 'ev-gnr-jakarta', 't-gnr-fest-a', 'Kirana W.', 3900000, 3750000, 4, true, true, 'active', true, 10, false, false),
+  ('ls-1', 'ev-gnr-jakarta', 't-gnr-trib-b', 'Maya K.', 2800000, 2250000, 2, false, false, 'active', true, 8, false, false),
+  ('ls-2', 'ev-gnr-jakarta', 't-gnr-fest-c', 'Rian P.', 1950000, 1750000, 1, false, false, 'active', true, 12, false, false),
+  ('ls-6', 'ev-gnr-jakarta', 't-gnr-trib-b', 'Vino M.', 2650000, 2250000, 2, true, false, 'active', true, 6, false, false),
+  ('ls-7', 'ev-gnr-jakarta', 't-gnr-fest-a', 'Kirana W.', 3900000, 3750000, 4, true, false, 'active', true, 10, false, false),
   ('ls-18', 'ev-ye-jakarta', 't-ye-fest', 'Maya K.', 4200000, 3500000, 1, false, false, 'sold', true, 7, false, false),
   ('ls-19', 'ev-ye-jakarta', 't-ye-cat4', 'Citra N.', 2450000, 1875000, 1, false, false, 'sold', true, 9, false, false),
   ('ls-20', 'ev-ye-jakarta', 't-ye-cat1', 'Hendra W.', 5600000, 4875000, 1, false, false, 'sold', true, 11, false, false),

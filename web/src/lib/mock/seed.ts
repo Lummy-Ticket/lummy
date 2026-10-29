@@ -219,10 +219,10 @@ export const seedEvents = (): SeedEvent[] => [
 const ok = (forgeryScore: number) => ({ autofilled: true, forgeryScore, barcodeDuplicate: false, pdfSuspicious: false });
 export const SEED_LISTINGS: Listing[] = [
   // Guns N' Roses: mixed quantities, so the "how many tickets" filter has something to do.
-  { id: "ls-1", eventId: "ev-gnr-jakarta", tierId: "t-gnr-trib-b", sellerName: "Maya K.", askPrice: 2_800_000, faceValue: 2_250_000, quantity: 2, splittable: false, status: "active", gateKtp: true, ai: ok(8) },
-  { id: "ls-2", eventId: "ev-gnr-jakarta", tierId: "t-gnr-fest-c", sellerName: "Rian P.", askPrice: 1_950_000, faceValue: 1_750_000, quantity: 1, splittable: false, status: "active", gateKtp: true, ai: ok(12) },
-  { id: "ls-6", eventId: "ev-gnr-jakarta", tierId: "t-gnr-trib-b", sellerName: "Vino M.", askPrice: 2_650_000, faceValue: 2_250_000, quantity: 2, splittable: true, status: "active", gateKtp: true, ai: ok(6) },
-  { id: "ls-7", eventId: "ev-gnr-jakarta", tierId: "t-gnr-fest-a", sellerName: "Kirana W.", askPrice: 3_900_000, faceValue: 3_750_000, quantity: 4, splittable: true, status: "active", gateKtp: true, ai: ok(10) },
+  { id: "ls-1", eventId: "ev-gnr-jakarta", tierId: "t-gnr-trib-b", sellerName: "Maya K.", askPrice: 2_800_000, faceValue: 2_250_000, quantity: 2, splittable: false, status: "active", gateKtp: false, ai: ok(8) },
+  { id: "ls-2", eventId: "ev-gnr-jakarta", tierId: "t-gnr-fest-c", sellerName: "Rian P.", askPrice: 1_950_000, faceValue: 1_750_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(12) },
+  { id: "ls-6", eventId: "ev-gnr-jakarta", tierId: "t-gnr-trib-b", sellerName: "Vino M.", askPrice: 2_650_000, faceValue: 2_250_000, quantity: 2, splittable: true, status: "active", gateKtp: false, ai: ok(6) },
+  { id: "ls-7", eventId: "ev-gnr-jakarta", tierId: "t-gnr-fest-a", sellerName: "Kirana W.", askPrice: 3_900_000, faceValue: 3_750_000, quantity: 4, splittable: true, status: "active", gateKtp: false, ai: ok(10) },
   // Ye has happened (24 Oct 2026): what is left of its listings is what the sample orders bought
   // (lib/mock/seed-orders.ts), one of them the sample seller's.
   { id: "ls-18", eventId: "ev-ye-jakarta", tierId: "t-ye-fest", sellerName: "Maya K.", askPrice: 4_200_000, faceValue: 3_500_000, quantity: 1, splittable: false, status: "sold", gateKtp: false, ai: ok(7) },
