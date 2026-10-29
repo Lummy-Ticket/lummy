@@ -21,6 +21,8 @@ insert into public.disputes (order_id, reason, note_en) values ('or-test', 'GATE
 insert into public.ktp_assets (listing_id, owner_id, path, sha256, access_open_at, purge_after)
   values ('ls-review', '22222222-2222-2222-2222-222222222222', 'x/ktp.jpg', 'abc', now() + interval '1 day', now() + interval '3 days');
 insert into public.listing_barcodes (listing_id, barcode_hmac, format, page) values ('ls-review', repeat('c', 64), 'QRCode', 1);
+insert into public.event_requests (id, submitted_by, submitter_name, title, starts_at, venue, city, category, pdf_tier, organizer_ref)
+  values ('req-test', '22222222-2222-2222-2222-222222222222', 'Penjual U.', 'Acara Uji', now() + interval '40 days', 'Venue Uji', 'Jakarta', 'Music', 'CAT 1', 'https://example.com/acara');
 
 -- Runs p_sql as p_role (and as user p_uid, via the JWT claims auth.uid() reads) and
 -- records whether the single value it returns, or DENIED, matches p_expect.
@@ -111,6 +113,15 @@ select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'b
 -- Who went through which door is for the server: a pass is checked there, never by the browser (docs/09 §8).
 select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: read gate_scans', 'select count(*)::text from public.gate_scans', 'DENIED');
 select pg_temp.probe('authenticated', '44444444-4444-4444-4444-444444444444', 'admin: let a ticket in directly', $q$insert into public.gate_scans (event_id, unit, credential, result) values ('ev-boyz-dewa', 'order:x', 'pass', 'admitted') returning id::text$q$, 'DENIED');
+
+-- Show requests (api/events/requests): the seller sees their own, staff the queue, nobody files one
+-- from the browser, since the server checks it.
+select pg_temp.probe('anon', null, 'anon: event requests', 'select count(*)::text from public.event_requests', 'DENIED');
+select pg_temp.probe('authenticated', '22222222-2222-2222-2222-222222222222', 'seller: own event request visible', $q$select count(*)::text from public.event_requests where id = 'req-test'$q$, '1');
+select pg_temp.probe('authenticated', '33333333-3333-3333-3333-333333333333', 'stranger: no event requests of others', $q$select count(*)::text from public.event_requests where id = 'req-test'$q$, '0');
+select pg_temp.probe('authenticated', '44444444-4444-4444-4444-444444444444', 'admin: event request queue visible', $q$select count(*)::text from public.event_requests where id = 'req-test'$q$, '1');
+select pg_temp.probe('authenticated', '22222222-2222-2222-2222-222222222222', 'seller: file an event request directly', $q$insert into public.event_requests (submitter_name, title, starts_at, venue, city, category, pdf_tier) values ('x','x',now(),'x','x','Music','x') returning id$q$, 'DENIED');
+select pg_temp.probe('authenticated', '44444444-4444-4444-4444-444444444444', 'admin: approve an event request directly', $q$update public.event_requests set status = 'approved' where id = 'req-test' returning id$q$, 'DENIED');
 
 insert into t_out(line)
   select (case when role = 'member' then 'ok    ' else 'FAIL  ' end) || 'signup metadata cannot set role -> ' || role::text

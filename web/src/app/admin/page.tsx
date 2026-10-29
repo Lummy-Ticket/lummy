@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import {
-  CheckCircle2, XCircle, AlertTriangle, Sparkles, Calendar, CalendarClock, CalendarX, MapPin, Scale, Paperclip,
+  CheckCircle2, XCircle, AlertTriangle, Calendar, CalendarClock, CalendarX, MapPin, Scale, Paperclip,
   ExternalLink, Gavel, Clock, Loader2, Ticket, MinusCircle, Banknote, DoorOpen,
 } from "lucide-react";
 import { PaymentsPanel, usePaymentsOverview } from "@/components/admin/PaymentsPanel";
@@ -13,13 +13,13 @@ import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/common/Modal";
 import { useAccessGuard, useHydrated } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
-import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
+import { useT, useFormatters } from "@/lib/i18n";
 import { PageContainer } from "@/components/layout/PageContainer";
 import {
-  useEventRequests, useOrders, useSellerListings, useUser, isEventOver,
+  useOrders, useSellerListings, useUser, isEventOver,
   checkEvidence, reasonMeta, suggestedRationale, verdictRationale, disputeDeadlineISO,
   remedyOptions, suggestedRemedy, penaltyFor, SELLER_PENALTY_PCT, penaltyNote, REMEDY_LABEL, partialAmount, REVIEW_TARGET_H,
-  type ChainSettlement, type EventRequest, type Order, type Remedy, type SellerListing,
+  type ChainSettlement, type Order, type Remedy, type SellerListing,
 } from "@/lib/mock";
 import { chainAction } from "@/lib/chain/client";
 import { useCatalogue } from "@/lib/catalogue";
@@ -29,7 +29,8 @@ import { formatName, reasonText, reviewReasons } from "@/lib/tickets/checks";
 import { inIndonesia, mapsLink, parseLocation, type LatLng } from "@/lib/events/location";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { SampleBadge } from "@/components/common/SampleBadge";
+
+import { ShowRequestsPanel, useShowRequestQueue } from "@/components/admin/ShowRequestsPanel";
 
 /**
  * What the buyer gets back on chain, in USDC units: the same share of the locked amount as the
@@ -597,13 +598,8 @@ function ListingQueue({
 export default function AdminPage() {
   const t = useT();
   const ready = useAccessGuard("staff");
-  const { formatIDR, formatMoney, formatEventDate } = useFormatters();
-  const categoryLabel = useCategoryLabel();
+  const { formatMoney, formatEventDate } = useFormatters();
   const mounted = useHydrated();
-  const [confirmReq, setConfirmReq] = useState<EventRequest | null>(null);
-  const requests = useEventRequests((s) => s.requests);
-  const approve = useEventRequests((s) => s.approve);
-  const reject = useEventRequests((s) => s.reject);
   const orders = useOrders((s) => s.orders);
   const resolveDispute = useOrders((s) => s.resolveDispute);
   const listings = useSellerListings((s) => s.listings);
@@ -629,7 +625,9 @@ export default function AdminPage() {
     // A cleared listing goes on sale, and the catalogue sits in the root layout.
     if (action === "approve") router.refresh();
   };
-  const pendingEvents = requests.filter((r) => r.status === "pending");
+  // Show requests: the database for staff with an account, this browser for a demo admin.
+  const showQueue = useShowRequestQueue();
+  const pendingEvents = showQueue.requests.filter((r) => r.status === "pending");
   // QRIS money that needs a person: read on arrival for the count, and again whenever the tab opens.
   const payments = usePaymentsOverview(account);
   const refreshPayments = payments.refresh;
@@ -657,11 +655,6 @@ export default function AdminPage() {
         ]
       : []),
   ];
-  // The queue holds sample requests only (lib/mock/useEventRequests): approving marks one, and adds no show.
-  const doApprove = (r: EventRequest) => {
-    approve(r.id);
-    toast.success(t("Approved here only: this is a sample request, so no show was added to the catalogue.", "Disetujui di sini saja: ini contoh pengajuan, jadi tidak ada acara yang masuk katalog."));
-  };
 
   const toastVerdict = (remedy: Remedy) =>
     toast.success(
@@ -838,13 +831,6 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* These two queues still run on sample data; say so to staff signed in with an account. */}
-      {account && tab === "events" && (
-        <p className="flex flex-wrap items-center gap-2 text-xs text-neutral-gray mb-4">
-          <SampleBadge />
-          {t("This queue is not in the database yet. Claims and listings are.", "Antrean ini belum di database. Klaim dan listing sudah.")}
-        </p>
-      )}
 
       {mounted && tab === "listings" && account && !heldListings && (
         <p className="text-neutral-gray text-sm">{t("Loading...", "Memuat...")}</p>
@@ -861,110 +847,8 @@ export default function AdminPage() {
       {mounted && account && tab === "shows" && <ShowsPanel />}
       {mounted && account && tab === "payments" && <PaymentsPanel data={payments.data} error={payments.error} refresh={payments.refresh} />}
 
-      {tab === "events" && (
-      <>
-      <div className="flex items-start gap-2 text-sm text-neutral-gray bg-secondary-blue-extra rounded-2xl p-4 mb-6">
-        <Sparkles className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" />
-        <span>{t(
-          "New events are verified before their tickets can be sold. The details start from the first seller's listing. Face value is a pre-fill: check it against the official source before approving.",
-          "Event baru diverifikasi sebelum tiketnya boleh dijual. Data awalnya dari listing penjual pertama. Harga asli itu isian awal: cek ke sumber resmi sebelum menyetujui."
-        )}</span>
-      </div>
+      {mounted && tab === "events" && <ShowRequestsPanel queue={showQueue} />}
 
-      {!mounted ? (
-        <p className="text-neutral-gray text-sm">{t("Loading...", "Memuat...")}</p>
-      ) : (
-        <div data-reveal="stagger" className="flex flex-col gap-4">
-          {requests.map((r) => (
-            <div key={r.id} className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="font-semibold text-lg text-neutral-black">{r.title}</h3>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-neutral-gray mt-1">
-                    <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-primary-navy" /> {formatEventDate(r.dateISO)}</span>
-                    <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-primary-navy" /> {r.venue}, {r.city}</span>
-                    <Badge.Base className="bg-secondary-blue-soft text-lummy-500 text-xs">{categoryLabel(r.category)}</Badge.Base>
-                  </div>
-                  <div className="text-xs text-neutral-gray mt-1">{t("Submitted by", "Diajukan oleh")} {r.submittedBy}</div>
-                </div>
-                {r.status !== "pending" && (
-                  <Badge.Base className={r.status === "approved" ? "bg-secondary-green-soft text-secondary-green-dark text-xs" : "bg-secondary-pink-soft text-secondary-pink-dark text-xs"}>
-                    {r.status === "approved" ? t("Approved", "Disetujui") : t("Rejected", "Ditolak")}
-                  </Badge.Base>
-                )}
-              </div>
-
-              <div className="mt-4 bg-secondary-gray-soft rounded-2xl p-4">
-                <div className="text-xs text-neutral-gray mb-2">{t("Face value per tier", "Harga asli per tier")} <span className="text-neutral-black">{t("(verify against the organiser, not just the PDF)", "(cek ke organizer, jangan cuma dari PDF)")}</span></div>
-                <div className="flex flex-wrap gap-2">
-                  {r.faceValues.map((f) => {
-                    const fromPdf = f.tier === r.pdfTier;
-                    return (
-                      <span key={f.tier} className={`text-sm rounded-lg px-3 py-1.5 flex items-center gap-1.5 ${fromPdf ? "bg-secondary-blue-soft border border-lummy-500 text-neutral-black" : "bg-neutral-white border border-neutral-light-gray-1 text-neutral-black"}`}>
-                        {f.tier} <b className="text-lummy-500">{formatIDR(f.value)}</b>
-                        {fromPdf && <span className="text-[10px] text-lummy-500 font-medium">{t("from PDF", "dari PDF")}</span>}
-                      </span>
-                    );
-                  })}
-                </div>
-                <div className="text-xs text-neutral-gray mt-3 flex flex-wrap items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-lummy-500 shrink-0" />
-                  {t("The seller's PDF shows only", "PDF penjual cuma memuat")} <b className="text-neutral-black">{t("one tier", "satu tier")}</b> ({r.pdfTier}). {t("An admin fills in the rest from", "Sisanya dilengkapi admin dari")}
-                  <a href={`https://${r.organizerRef}`} target="_blank" rel="noreferrer" className="text-primary-navy font-medium hover:opacity-80 inline-flex items-center gap-0.5">{r.organizerRef} <ExternalLink className="w-3 h-3" /></a>
-                </div>
-              </div>
-
-              <div className={`mt-3 flex items-center gap-2 text-sm rounded-xl p-3 ${r.pdfSuspicious || r.forgeryScore >= 60 ? "bg-secondary-orange-soft text-secondary-orange-dark" : "bg-secondary-green-soft text-secondary-green-dark"}`}>
-                {r.pdfSuspicious || r.forgeryScore >= 60 ? <AlertTriangle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
-                {t("Forgery score", "Skor pemalsuan")} {r.forgeryScore}/100 {r.pdfSuspicious ? t("· PDF structure looks tampered with", "· struktur PDF mencurigakan") : t("· PDF is clean", "· PDF bersih")}
-              </div>
-
-              {r.status === "pending" && (
-                // The recommended call is the raised button; the other one is still there, just quieter.
-                <div className="flex flex-wrap gap-3 mt-4">
-                  {r.pdfSuspicious || r.forgeryScore >= 60 ? (
-                    <>
-                      <Button.Primary className="flex items-center gap-2 text-sm" onClick={() => { reject(r.id); toast(t("Event rejected", "Event ditolak")); }}>
-                        <XCircle className="w-4 h-4" /> {t("Reject", "Tolak")}
-                      </Button.Primary>
-                      <Button.Ghost tone="warning" className="text-sm" onClick={() => setConfirmReq(r)}>
-                        <AlertTriangle className="w-4 h-4" /> {t("Approve anyway", "Tetap setujui")}
-                      </Button.Ghost>
-                    </>
-                  ) : (
-                    <>
-                      <Button.Primary className="flex items-center gap-2 text-sm" onClick={() => doApprove(r)}>
-                        <CheckCircle2 className="w-4 h-4" /> {t("Approve", "Setujui")}
-                      </Button.Primary>
-                      <Button.Ghost tone="danger" className="text-sm" onClick={() => { reject(r.id); toast(t("Event rejected", "Event ditolak")); }}>
-                        <XCircle className="w-4 h-4" /> {t("Reject", "Tolak")}
-                      </Button.Ghost>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      </>
-      )}
-
-      <Modal open={!!confirmReq} onClose={() => setConfirmReq(null)} title={t("Approve a flagged ticket?", "Setujui tiket ter-flag?")}>
-        {confirmReq && (
-          <>
-            <p className="text-sm text-neutral-gray">
-              <b className="text-neutral-black">{confirmReq.title}</b> {t("was flagged by the checks", "kena flag pengecekan")} ({t("score", "skor")} {confirmReq.forgeryScore}/100{confirmReq.pdfSuspicious ? t(", PDF structure looks tampered with", ", struktur PDF mencurigakan") : ""}).
-              {t(" Approving lets this ticket be sold. Make sure you checked the document by hand.", " Menyetujui berarti tiket ini boleh dijual. Pastikan kamu sudah cek dokumennya manual.")}
-            </p>
-            <div className="flex gap-3 mt-5">
-              <Button.Ghost className="flex-1 text-sm" onClick={() => setConfirmReq(null)}>{t("Cancel", "Batal")}</Button.Ghost>
-              <Button.Primary wrapperClass="flex-1" className="w-full text-sm" onClick={() => { doApprove(confirmReq); setConfirmReq(null); }}>{t("Yes, approve", "Ya, setujui")}</Button.Primary>
-            </div>
-          </>
-        )}
-      </Modal>
 
       <Modal open={!!sending} onClose={() => {}}>
         <div className="flex flex-col items-center gap-3 py-4">

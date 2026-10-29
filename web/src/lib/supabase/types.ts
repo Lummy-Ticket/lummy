@@ -187,6 +187,14 @@ export type Database = {
         Row: {
           category: string
           city: string
+          country: string
+          currency: string
+          event_id: string | null
+          note: string
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          ticket_checked: boolean
           created_at: string
           face_values: Json
           forgery_score: number
@@ -204,6 +212,14 @@ export type Database = {
         Insert: {
           category: string
           city: string
+          country?: string
+          currency?: string
+          event_id?: string | null
+          note?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          ticket_checked?: boolean
           created_at?: string
           face_values?: Json
           forgery_score?: number
@@ -221,6 +237,14 @@ export type Database = {
         Update: {
           category?: string
           city?: string
+          country?: string
+          currency?: string
+          event_id?: string | null
+          note?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          ticket_checked?: boolean
           created_at?: string
           face_values?: Json
           forgery_score?: number
@@ -236,6 +260,20 @@ export type Database = {
           venue?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "event_requests_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "event_requests_submitted_by_fkey"
             columns: ["submitted_by"]

@@ -22,6 +22,8 @@ import { FEATURES } from "@/lib/features";
 import { useAccessGuard } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
 import { NativeSelect } from "@/components/ui/select-menu";
+import { Modal } from "@/components/common/Modal";
+import { EventRequestForm } from "@/components/events/EventRequestForm";
 import { useT, useFormatters } from "@/lib/i18n";
 
 function Check({ ok, label, detail }: { ok: boolean; label: string; detail: string }) {
@@ -117,6 +119,8 @@ function SellForm() {
   const [check, setCheck] = useState<TicketCheck | null>(null);
   // A real ticket carries someone's name and maybe their ID number, so publishing it asks first.
   const [agreed, setAgreed] = useState(false);
+  const [requesting, setRequesting] = useState(false);
+  const [requested, setRequested] = useState(false);
   const sendsRealFile = !!(check && ticketFile);
   const catalogue = useCatalogue();
   const [fileName, setFileName] = useState<string | null>(null);
@@ -720,7 +724,27 @@ function SellForm() {
                 )}
               </label>
             </div>
+            {/* A show that is not on sale yet is requested here, with what the ticket read (tasks 11.5). */}
+            <p data-request-show className="mt-3 text-sm text-neutral-gray">
+              {requested
+                ? t("Request sent. You can list this ticket once staff approve the show; follow it on your seller dashboard.", "Pengajuan terkirim. Tiket ini bisa dijual setelah staf menyetujui acaranya; pantau di dasbor penjual.")
+                : t("Your show is not in the list?", "Acaramu tidak ada di daftar?")}{" "}
+              {!requested && (
+                <button type="button" onClick={() => setRequesting(true)} className="text-primary-navy font-medium underline underline-offset-2 cursor-pointer">
+                  {t("Request it", "Ajukan acaranya")}
+                </button>
+              )}
+            </p>
           </div>
+
+          <Modal open={requesting} onClose={() => setRequesting(false)} title={t("Request a show", "Ajukan acara")} className="max-w-lg">
+            {requesting && (
+              <EventRequestForm
+                prefill={fill?.outcome === "filled" ? { title: fill.facts.eventTitle ?? undefined, date: fill.facts.date ?? undefined, tier: fill.facts.tierPrinted ?? undefined, printedPrice: fill.facts.printedPrice ?? undefined } : undefined}
+                onDone={() => { setRequesting(false); setRequested(true); }}
+              />
+            )}
+          </Modal>
 
           {event && <TransferPolicyNote policy={event.transferPolicy} audience="seller" />}
 

@@ -26,6 +26,9 @@ export interface EventRequest {
   organizerRef: string;
   /** What the seller added, in their own words, such as what the official page does not say yet. */
   note?: string;
+  /** Whether a ticket PDF was checked with the request. Requests carry none yet: the ticket is
+   *  checked when the seller lists it, once the show is approved. */
+  ticketChecked?: boolean;
   forgeryScore: number;
   pdfSuspicious: boolean;
   status: "pending" | "approved" | "rejected";
@@ -41,12 +44,12 @@ export const sourceUrl = (ref: string) => (/^https?:\/\//.test(ref) ? ref : `htt
 
 // Two shows that are announced but not in the catalogue, with the pages they were announced on
 // (tasks/real-events-2026.md): neither page lists a price per category yet, which is exactly what
-// staff have to settle before approving. One ticket is clean, one was flagged by the PDF check.
+// staff have to settle before approving. Like an account's request, neither carries a checked ticket.
 export const SEED_EVENT_REQUESTS: EventRequest[] = [
   {
     id: "req-dmasiv", status: "pending", submittedBy: "Rani K.", title: "D'Masiv, Jakarta",
     dateISO: "2026-12-05T19:00:00+07:00", venue: "Tennis Indoor Senayan", city: "Jakarta",
-    category: "Music", forgeryScore: 6, pdfSuspicious: false, pdfTier: "", faceValues: [],
+    category: "Music", forgeryScore: 0, pdfSuspicious: false, pdfTier: "", faceValues: [],
     organizerRef: "https://www.detik.com/pop/music/d-8263273/kalender-konser-2026-dari-musisi-lokal-internasional-di-indonesia",
     note: "Di halamannya baru ada Rp325.000 sampai Rp800.000, belum per kategori.",
     createdAtISO: "2026-10-28T10:15:00+07:00",
@@ -54,7 +57,7 @@ export const SEED_EVENT_REQUESTS: EventRequest[] = [
   {
     id: "req-babymonster-sg", status: "pending", submittedBy: "Wei Jie T.", title: "BABYMONSTER, Singapore",
     dateISO: "2026-11-28T19:00:00+08:00", venue: "Singapore Indoor Stadium", city: "Singapore", country: "SG", currency: "USDC",
-    category: "Music", forgeryScore: 63, pdfSuspicious: true, pdfTier: "", faceValues: [],
+    category: "Music", forgeryScore: 0, pdfSuspicious: false, pdfTier: "", faceValues: [],
     organizerRef: "https://www.livenation.sg/singapore-indoor-stadium-tickets-vdp40651",
     note: "Live Nation lists S$168 to S$358 before the booking fee, not per category yet.",
     createdAtISO: "2026-10-27T21:40:00+07:00",
@@ -63,6 +66,8 @@ export const SEED_EVENT_REQUESTS: EventRequest[] = [
 
 interface ReqState {
   requests: EventRequest[];
+  /** A demo seller's request, kept in this browser like the rest of a demo account's data. */
+  add: (r: Omit<EventRequest, "id" | "status" | "createdAtISO">) => void;
   approve: (id: string) => void;
   reject: (id: string, reviewNote?: string) => void;
 }
@@ -71,6 +76,7 @@ export const useEventRequests = create<ReqState>()(
   persist(
     (set) => ({
       requests: SEED_EVENT_REQUESTS,
+      add: (r) => set((s) => ({ requests: [{ ...r, id: "req-" + Date.now(), status: "pending", createdAtISO: new Date().toISOString() }, ...s.requests] })),
       approve: (id) => set((s) => ({ requests: s.requests.map((r) => (r.id === id ? { ...r, status: "approved" } : r)) })),
       reject: (id, reviewNote) => set((s) => ({ requests: s.requests.map((r) => (r.id === id ? { ...r, status: "rejected", reviewNote } : r)) })),
     }),

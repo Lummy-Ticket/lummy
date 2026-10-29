@@ -11,6 +11,7 @@ import { EvidencePhoto } from "@/components/common/EvidencePhoto";
 import { isDemoEmail } from "@/lib/supabase/demo";
 import { FEATURES } from "@/lib/features";
 import { publicSellerName } from "@/lib/listings/rules";
+import { ShowRequests } from "@/components/events/ShowRequests";
 import { CONTACT_EMAIL } from "@/components/legal/LegalPage";
 import { PageContainer } from "@/components/layout/PageContainer";
 import {
@@ -506,6 +507,8 @@ export default function SellerPage() {
           ))}
         </div>
       )}
+
+      <ShowRequests />
 
       <PromoteModal listing={promote} onClose={() => setPromote(null)} />
     </PageContainer>
