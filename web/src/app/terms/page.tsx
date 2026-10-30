@@ -32,7 +32,7 @@ const sections: LegalSection[] = [
     ],
   },
   {
-    title: { en: "This is a prototype", id: "Ini prototipe" },
+    title: { en: "This is a beta", id: "Ini masih beta" },
     body: [
       {
         en: "Payments are simulated: QRIS in Xendit's test mode, or test USDC on the Arbitrum Sepolia test network, neither of which has money value. Nothing you do here moves real money, and penalties below are shown as they would apply, not charged.",

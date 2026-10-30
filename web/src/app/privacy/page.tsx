@@ -174,7 +174,7 @@ const sections: LegalSection[] = [
     ],
   },
   {
-    title: { en: "This is a prototype", id: "Ini prototipe" },
+    title: { en: "This is a beta", id: "Ini masih beta" },
     body: [
       {
         en: "Payments are simulated or run on a test network, so no real money moves. This policy has not yet been reviewed by a lawyer and will be before Lummy takes real payments. When it changes, the date at the top changes.",

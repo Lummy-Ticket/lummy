@@ -344,6 +344,9 @@ async function main() {
       await page.goto(`${BASE}/checkout?listing=${secondId}&qty=1`, { waitUntil: "networkidle" });
       // With QRIS on, Xendit's simulator pays the code (test mode, docs/09 §6).
       const qris = await page.locator("[data-qris-note]").isVisible();
+      // 5 Seconds of Summer matches the name to an ID at the gate, so the buyer says they know first.
+      const nameRisk = page.getByText(/my ID card matches the name/);
+      if (await nameRisk.isVisible()) await nameRisk.click();
       await page.getByRole("button", { name: /^Pay / }).click();
       if (qris) await page.locator("[data-qris-simulate]").click();
       await page.waitForURL(/\/tickets\/[\w-]+$/, { timeout: 60000 });

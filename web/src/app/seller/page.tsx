@@ -327,7 +327,9 @@ export default function SellerPage() {
   // only means the money is due, not that it has gone out.
   const payoutNote = (l: SellerListing) => {
     if (l.status !== "sold") return null;
-    const its = account ? mine.filter((o) => o.listingId === l.id) : [];
+    // A demo seller's listings live in this browser under their own ids, so her sales are matched
+    // to them by show and category, the way she sold them.
+    const its = account ? mine.filter((o) => o.listingId === l.id) : mine.filter((o) => o.eventId === l.eventId && o.tierName === l.tierName);
     if (its.some((o) => o.escrowStatus === "DISPUTED")) return t("A claim is open", "Ada klaim terbuka");
     if (its.length && its.every((o) => o.escrowStatus === "REFUNDED")) return t("Refunded to the buyer", "Dikembalikan ke pembeli");
     if (its.length && its.every((o) => o.escrowStatus === "RELEASED")) return t("Paid out", "Sudah cair");

@@ -252,6 +252,8 @@ try {
   await staffCard.waitFor();
   check("klaim masuk antrean admin", await staffCard.isVisible());
   await staffCard.getByRole("button", { name: /Partial refund/ }).click();
+  // A verdict is confirmed before it is recorded (uji manual 25 Oct 2026).
+  await staff.page.getByRole("button", { name: "Yes, record it" }).click();
   const ruled = await until(async () => {
     const o = (await orderOf(L1))[0];
     return o?.escrow_status === "Refunded" ? o : null;
@@ -393,7 +395,7 @@ try {
 
   const again = await fetch(`${BASE}/api/demo/reset`, { method: "POST", headers: DEMO_KEY ? { "x-demo-key": DEMO_KEY } : {} });
   const count = (await admin.from("orders").select("id", { count: "exact", head: true }).eq("buyer_id", buyer.user.id)).count;
-  check("reset kedua kali tetap lima pesanan", again.ok && count === 5, `${again.status} ${count}`);
+  check("reset kedua kali tetap sama banyaknya", again.ok && count === demoOrders.length, `${again.status} ${count}`);
 } catch (e) {
   check("alur pesanan selesai tanpa macet", false, e.message.split("\n")[0].slice(0, 200));
 } finally {

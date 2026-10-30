@@ -78,7 +78,7 @@ export function Footer() {
       </div>
       <div className="border-t border-neutral-light-gray-1">
         <div className="max-w-7xl mx-auto px-5 lg:px-10 py-5 flex flex-col sm:flex-row justify-between gap-2 text-xs text-neutral-gray">
-          <span>© 2026 Lummy Ticket · {t("Prototype with sample data", "Prototipe dengan data contoh")}</span>
+          <span>© 2026 Lummy Ticket · {TEST_MODE ? t("Beta, test payments only", "Beta, pembayaran uji") : t("Escrow-backed ticket resale", "Resale tiket dengan escrow")}</span>
           <span>{t("Built for Indonesia.", "Dibangun untuk Indonesia.")}</span>
         </div>
       </div>

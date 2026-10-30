@@ -16,6 +16,7 @@ import { createClient } from "@supabase/supabase-js";
 import { chromium, type Page } from "playwright-core";
 import type { Database, Json } from "../src/lib/supabase/types";
 import { DEMO_ACCOUNTS } from "../src/lib/supabase/demo";
+import { FEATURES } from "../src/lib/features";
 import { purgeExpired } from "../src/lib/retention-purge";
 
 try {
@@ -174,7 +175,13 @@ async function main() {
     const goneTicket = await ask(page, `/api/orders/${O.paid}/ticket`);
     check("the paid-out order's ticket answers 410", goneTicket.status === 410, JSON.stringify(goneTicket));
     const keptTicket = await ask(page, `/api/orders/${O.held}/ticket`);
-    check("the held order's ticket still opens", keptTicket.served, JSON.stringify(keptTicket));
+    // While payments are simulated the buyer gets a stand-in, not the file (api/orders/[id]/ticket);
+    // that the file itself is kept is what storage says above.
+    check(
+      "the held order's ticket still opens",
+      FEATURES.payouts ? keptTicket.served : keptTicket.status === 200,
+      JSON.stringify(keptTicket)
+    );
     const gonePhoto = await ask(page, `/api/orders/${O.paid}/evidence?side=buyer`);
     check("the decided claim's photo answers 410", gonePhoto.status === 410, JSON.stringify(gonePhoto));
     const keptPhoto = await ask(page, `/api/orders/${O.held}/evidence?side=buyer`);
