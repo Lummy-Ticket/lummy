@@ -34,12 +34,19 @@ export default defineConfig({
   // testMatch is tried on the whole path, so each names the spec file: a checkout in a folder
   // called opertix-demo would otherwise make every file in e2e a demo test, support.ts included.
   projects: [
-    // The five user-testing tasks (tasks/user-testing.md) on the phones testers bring, and the
-    // accessibility audit on the Android one.
-    { name: "phone", testMatch: /\/(user-tasks|a11y)\.spec\.ts$/, use: { ...devices["Galaxy S24"], ...chrome, locale: "id-ID" } },
-    { name: "iphone", testMatch: /\/user-tasks\.spec\.ts$/, use: { ...devices["iPhone 15"], locale: "id-ID" } },
-    // The demo script (docs/06), in English on a laptop, the way it is presented, and the site's
-    // headers, files and links.
-    { name: "desktop", testMatch: /\/(demo|site)\.spec\.ts$/, use: { ...devices["Desktop Chrome"], ...chrome, locale: "en-US", viewport: { width: 1280, height: 1000 } } },
+    // Playwright's test agents (docs/testing/playwright-agents.md): the seed they start from and the
+    // drafts they write, a name.draft.spec.ts on the laptop in English or a name.draft.phone.spec.ts
+    // on the Android phone in Indonesian, until a person reviews one into the projects below. First
+    // in the list, because an agent that names no project takes the first one, and in a project
+    // without a seed it writes a blank seed over ours. Nothing here is tagged @smoke, so CI skips it.
+    { name: "agents", testMatch: /\/(seed|[\w-]+\.draft)\.spec\.ts$/, use: { ...devices["Desktop Chrome"], ...chrome, locale: "en-US", viewport: { width: 1280, height: 1000 } } },
+    { name: "agents-phone", testMatch: /\/(seed|[\w-]+\.draft\.phone)\.spec\.ts$/, use: { ...devices["Galaxy S24"], ...chrome, locale: "id-ID" } },
+    // The five user-testing tasks (tasks/user-testing.md) on the phones testers bring, the edges of
+    // a sale a buyer meets, and the accessibility audit on the Android one.
+    { name: "phone", testMatch: /\/(user-tasks|buyer|a11y)\.spec\.ts$/, use: { ...devices["Galaxy S24"], ...chrome, locale: "id-ID" } },
+    { name: "iphone", testMatch: /\/(user-tasks|buyer)\.spec\.ts$/, use: { ...devices["iPhone 15"], locale: "id-ID" } },
+    // The demo script (docs/06), in English on a laptop, the way it is presented; what sellers and
+    // staff do beyond it; and the site's headers, files and links.
+    { name: "desktop", testMatch: /\/(demo|seller-staff|site)\.spec\.ts$/, use: { ...devices["Desktop Chrome"], ...chrome, locale: "en-US", viewport: { width: 1280, height: 1000 } } },
   ],
 });
