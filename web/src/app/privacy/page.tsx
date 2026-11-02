@@ -51,6 +51,19 @@ const emailLines: { list: Bi[]; mailspace: Bi } = FEATURES.emails
       },
     };
 
+// Error tracking runs only in a build that has Sentry's DSN (next.config.ts, lib/sentry), so its line
+// follows the DSN the way the email lines follow their flag: what Sentry receives is what
+// lib/sentry/scrub.ts lets through. Setting the DSN changes this page, so move `effective` below to
+// that day as well.
+const sentryLine: Bi[] = process.env.NEXT_PUBLIC_SENTRY_DSN
+  ? [
+      {
+        en: "Sentry, our error tracker, in the EU (Frankfurt): when a page or our server fails, it receives a report with the page address without its query, the browser and type of device, the error and where in our code it happened. No names, emails or ticket files are in it, and reports from your browser pass through our server first, so Sentry does not get your IP address. It keeps them for 30 days.",
+        id: "Sentry, layanan pelacak error kami, di Uni Eropa (Frankfurt): saat sebuah halaman atau server kami gagal, Sentry menerima laporan berisi alamat halaman tanpa query-nya, jenis browser dan perangkat, error-nya, dan di bagian kode kami mana terjadinya. Nama, email, dan file tiket tidak ada di dalamnya, dan laporan dari browser-mu lewat server kami dulu, jadi Sentry tidak mendapat alamat IP-mu. Sentry menyimpannya 30 hari.",
+      },
+    ]
+  : [];
+
 const sections: LegalSection[] = [
   {
     title: { en: "Who is responsible", id: "Siapa yang bertanggung jawab" },
@@ -125,6 +138,7 @@ const sections: LegalSection[] = [
     list: [
       { en: "Supabase: the database and private file storage, in Singapore.", id: "Supabase: database dan penyimpanan file privat, di Singapura." },
       { en: "Vercel: the servers that run the site, in Singapore.", id: "Vercel: server yang menjalankan situs, di Singapura." },
+      ...sentryLine,
       emailLines.mailspace,
       { en: "Arbitrum (a public blockchain): the escrow ledger described above.", id: "Arbitrum (blockchain publik): buku besar escrow seperti di atas." },
       { en: "Xendit: takes QRIS payments. For now it runs in test mode, so no real money moves, and it receives only the amount and a payment number, never your name or email.", id: "Xendit: menerima pembayaran QRIS. Untuk sekarang berjalan di mode uji, jadi tidak ada uang sungguhan yang berpindah, dan Xendit hanya menerima nominal dan nomor pembayaran, tidak pernah nama atau emailmu." },

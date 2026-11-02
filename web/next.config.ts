@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 /**
  * Files the ticket reader (src/lib/tickets) opens by path at run time, so tracing cannot find
@@ -79,4 +80,48 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+/**
+ * Error tracking (docs/config/06-monitoring.md). Sentry joins only a build that has its DSN: without
+ * NEXT_PUBLIC_SENTRY_DSN the config is returned as it is, so the browser gets no Sentry code, there
+ * is no tunnel, and nothing is uploaded or sent. Source maps go to Sentry only from a build that also
+ * has SENTRY_AUTH_TOKEN, SENTRY_ORG and SENTRY_PROJECT (Vercel's), and are deleted from the build
+ * once uploaded, so lummy.id never serves them.
+ */
+function withSentry(config: NextConfig): NextConfig {
+  if (!process.env.NEXT_PUBLIC_SENTRY_DSN) return config;
+  const upload = !!(process.env.SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT);
+  const tracing = Number(process.env.NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE) > 0;
+  return withSentryConfig(
+    {
+      ...config,
+      // The browser half, loaded before the page hydrates (Next 16.3).
+      instrumentationClientInject: [...(config.instrumentationClientInject ?? []), "./src/lib/sentry/instrumentation-client.ts"],
+      env: { ...config.env, SENTRY_ENVIRONMENT: process.env.SENTRY_ENVIRONMENT || process.env.VERCEL_ENV || "local" },
+      // The SDK's debug logging never ships, and its tracing code only when tracing is on.
+      compiler: {
+        ...config.compiler,
+        define: { ...config.compiler?.define, __SENTRY_DEBUG__: false, ...(tracing ? {} : { __SENTRY_TRACING__: false }) },
+      },
+    },
+    {
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      // Upload lines in Vercel's build log; nothing at all from a build that uploads nothing.
+      silent: !upload,
+      // Sentry's own build telemetry, off.
+      telemetry: false,
+      // Where the browser posts its reports, on lummy.id (app/sentry-tunnel/route.ts).
+      tunnelRoute: "/api/client-errors",
+      release: { name: process.env.VERCEL_GIT_COMMIT_SHA, create: upload, finalize: upload },
+      sourcemaps: upload ? { deleteSourcemapsAfterUpload: true } : { disable: true },
+      widenClientFileUpload: upload,
+      // It rewrites server libraries for tracing; errors do not need it.
+      buildTimeInstrumentation: false,
+      // A Sentry outage must not stop a deploy: an upload that fails is a warning.
+      errorHandler: (error) => console.warn("[sentry] source map upload failed:", error.message),
+    },
+  );
+}
+
+export default withSentry(nextConfig);
