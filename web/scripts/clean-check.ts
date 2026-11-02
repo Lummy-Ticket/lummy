@@ -216,29 +216,31 @@ async function pdfChecks() {
   const pdf = await ticketPdf({
     codes: [{ text: GENUINE, format: "QRCode" }],
     producer: "Lummy test issuer PDF engine",
-    extra: ["Tanggal: 14 November 2026 19:00 WIB", "Harga: Rp 1.250.000", "Email: zahra@example.com", "No. HP: 0813 2222 3333", "Order ID: ORD-2026-TL77QX19", GENUINE],
+    extra: ["Tanggal: 14 November 2026 19:00 WIB", "Harga: Rp 1.250.000", "Email: maya@example.com", "No. HP: 0813 2222 3333", "Order ID: ORD-2026-TL77QX19", GENUINE],
   });
-  const r = await prepareForExtraction(pdf, ["Zahra Amelia"]);
+  const r = await prepareForExtraction(pdf, ["Maya Kusuma"]);
   const out = r.ok ? r.text : "";
   check("a real PDF: its ticket text goes, cleaned", r.ok && out.includes("5SOS: EVERYONE'S A STAR! JAKARTA") && out.includes("Indonesia Arena") && out.includes("6 Desember 2026") && out.includes("Rp 1.250.000"), JSON.stringify(r).slice(0, 300));
   check(
     "the code the decoder read is gone from the text, with the name, email, phone and order code",
-    r.ok && r.removed.payload >= 1 && !out.includes("8842-7731-2290") && !/zahra/i.test(out) && !out.includes("0813") && !out.includes("TL77QX19"),
+    r.ok && r.removed.payload >= 1 && !out.includes("8842-7731-2290") && !/maya|kusuma/i.test(out) && !out.includes("0813") && !out.includes("TL77QX19"),
     out
   );
-  // The fixture ticket prints "Name: Zahra Amelia"; the seller types the holder four ways.
+  // The fixture ticket prints "Name: Maya Kusuma" (scripts/ticket-fixtures.ts, a made-up seller
+  // since 29 Oct; this check still typed the old name and failed from then on); the seller types
+  // the holder four ways.
   const asTyped = (holder: string) => prepareForExtraction(pdf, [], { holder });
-  const [first, last, typo, other] = await Promise.all(["Zahra", "Amelia", "Zahra Amelya", "Budi Santoso"].map(asTyped));
-  check("a real PDF, holder typed in part: sent without any of the name", first.ok && last.ok && !/zahra|amelia/i.test(text(first) + text(last)), JSON.stringify([first, last]).slice(0, 300));
+  const [first, last, typo, other] = await Promise.all(["Maya", "Kusuma", "Maya Kusama", "Budi Santoso"].map(asTyped));
+  check("a real PDF, holder typed in part: sent without any of the name", first.ok && last.ok && !/maya|kusuma/i.test(text(first) + text(last)), JSON.stringify([first, last]).slice(0, 300));
   check("a real PDF, holder typed one letter off or as someone else: nothing sent", [typo, other].every((x) => !x.ok && x.reason === "holder_not_found"), JSON.stringify([typo, other]));
   // A PDF of four tickets: each page's barcode counts one, and the facts read say four, as the
   // listing will (the fake model, offline, reads one).
   const codes = [1, 2, 3, 4].map((n) => ({ text: `LMY|ev-5sos-jakarta|CAT3|C-${20 + n}|4444-5555-000${n}`, format: "QRCode" as const }));
   const fourPdf = await ticketPdf({ codes, producer: "Lummy test issuer PDF engine" });
-  const read = await prepareForExtraction(fourPdf, [], { holder: "Zahra Amelia" });
+  const read = await prepareForExtraction(fourPdf, [], { holder: "Maya Kusuma" });
   check("a PDF of four tickets: four barcodes, and all four pages go", read.ok && read.barcodes === 4 && read.pages.join() === "1,2,3,4", JSON.stringify(read).slice(0, 200));
   process.env.AI_PROVIDER = "fake";
-  const facts = await readTicketFacts(fourPdf, { holder: "Zahra Amelia", names: [] }, { tiers: [{ id: "t-5sos-cat3", name: "CAT 3" }] });
+  const facts = await readTicketFacts(fourPdf, { holder: "Maya Kusuma", names: [] }, { tiers: [{ id: "t-5sos-cat3", name: "CAT 3" }] });
   check("and the quantity read agrees with the barcodes", facts.ok && facts.facts.quantity === 4 && facts.facts.tierId === "t-5sos-cat3", JSON.stringify(facts));
   const blank = await PDFDocument.create();
   blank.addPage([420, 595]);
