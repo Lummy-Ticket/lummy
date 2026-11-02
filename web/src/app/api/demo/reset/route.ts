@@ -12,7 +12,7 @@ import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { chainError, chainTarget, operatorSetup, readListing, settle } from "@/lib/chain/server";
 import { demoKeyAllowed, demoMode } from "@/lib/demo-key";
-import { SEED_LISTINGS, seedEvents } from "@/lib/mock/seed";
+import { SEED_LISTINGS } from "@/lib/mock/seed";
 import { seedOrders } from "@/lib/mock/seed-orders";
 import { SAMPLE_SIGNALS, publicSellerName } from "@/lib/listings/rules";
 import { HELD, rowsFromOrder } from "@/lib/orders/map";
@@ -132,18 +132,13 @@ export async function POST(req: Request) {
     if (holdsError) return fail(500, holdsError.message);
 
     // Every seed listing on sale again, with the seats it started with and no clearance from a
-    // rehearsal, and every seed show that a rehearsal cancelled or moved is back on, on its date.
-    const restored = await Promise.all([
-      ...SEED_LISTINGS.map((l) => admin.from("listings").update({ quantity: l.quantity, status: l.status, cleared_at: null }).eq("id", l.id).select("id")),
-      ...seedEvents().map((e) =>
-        admin
-          .from("events")
-          .update({ status: "scheduled", starts_at: e.dateISO, rolling_hour: null })
-          .eq("id", e.id)
-          .neq("status", "scheduled")
-          .select("id")
-      ),
-    ]);
+    // rehearsal. Shows are left as they are: every seed show is a real one since 29 Oct 2026, so a
+    // show that is cancelled or moved was cancelled or moved by staff, and a reset putting it back
+    // on sale would undo that (production audit 2 Nov 2026, B1). A rehearsal of a cancellation
+    // makes a throwaway show of its own, as cancel:check does.
+    const restored = await Promise.all(
+      SEED_LISTINGS.map((l) => admin.from("listings").update({ quantity: l.quantity, status: l.status, cleared_at: null }).eq("id", l.id).select("id"))
+    );
     const restoreError = restored.find((r) => r.error)?.error;
     if (restoreError) return fail(500, restoreError.message);
 

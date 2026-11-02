@@ -30,6 +30,10 @@ export async function POST(req: Request) {
   const { persona } = (await req.json().catch(() => ({}))) as { persona?: string };
   if (!persona || !Object.hasOwn(DEMO_ACCOUNTS, persona)) return fail(400, "persona tidak dikenal");
   const account = DEMO_ACCOUNTS[persona as Role];
+  // A shared key must never open a staff account on lummy.id: staff read real sellers' ticket
+  // files and buyers' emails, and make rulings (production audit 2 Nov 2026, B1). A staff demo runs
+  // on a local server or a preview deployment; the sample admin persona needs no account at all.
+  if (account.staff && process.env.VERCEL_ENV === "production") return fail(403, "akun demo staf tidak dibuka di lummy.id");
 
   // Created on first use, so a fresh project needs no manual setup.
   const created = await admin.auth.admin.createUser({
