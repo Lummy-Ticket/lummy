@@ -49,6 +49,8 @@ type ScanRow = {
   orders: { tier_name: string; quantity: number } | null;
 };
 
+type GateLog = { scans: ScanRow[]; admitted: number; refused: number };
+
 const CREDENTIAL: Record<string, Words> = {
   pass: { en: "Lummy pass", id: "Pass Lummy" },
   barcode: { en: "ticket barcode", id: "barcode tiket" },
@@ -155,29 +157,36 @@ function GateDoor() {
   const catalogue = useCatalogue();
   const params = useSearchParams();
   const shows = useMemo(() => [...catalogue.events].sort((a, b) => a.dateISO.localeCompare(b.dateISO)), [catalogue.events]);
-  const [eventId, setEventId] = useState(params.get("event") ?? "");
+  // The show picked from the list or named in the link; until then the first show, worked out on
+  // render rather than copied into state by an effect (react-hooks/set-state-in-effect).
+  const [picked, setPicked] = useState(params.get("event") ?? "");
+  const eventId = picked || shows[0]?.id || "";
   const [gate, setGate] = useState("Gate 1");
   const [camera, setCamera] = useState(false);
   const [busy, setBusy] = useState(false);
   const [code, setCode] = useState("");
   const [copyOf, setCopyOf] = useState("");
   const [outcome, setOutcome] = useState<Outcome | null>(null);
-  const [log, setLog] = useState<{ scans: ScanRow[]; admitted: number; refused: number } | null>(null);
+  const [log, setLog] = useState<GateLog | null>(null);
   // The camera sees the same code many times a second: one read per code until the next one shows up.
   const lastRead = useRef({ code: "", at: 0 });
 
-  useEffect(() => {
-    if (!eventId && shows.length) setEventId(shows[0].id);
-  }, [eventId, shows]);
-
-  const loadLog = useCallback(async () => {
+  const loadLog = useCallback(async (): Promise<GateLog | null> => {
     // A sample persona has no session on the server, so asking would only earn a 401.
-    if (!eventId || !account) return;
+    if (!eventId || !account) return null;
     const r = await fetch(`/api/gate?event=${encodeURIComponent(eventId)}`, { cache: "no-store" }).catch(() => null);
-    if (r?.ok) setLog(await r.json());
+    return r?.ok ? ((await r.json()) as GateLog) : null;
   }, [eventId, account]);
+  // An answer for a show the door has since moved off is dropped, so a slow reply never shows one
+  // show's scans under another.
   useEffect(() => {
-    void loadLog();
+    let current = true;
+    void loadLog().then((l) => {
+      if (current && l) setLog(l);
+    });
+    return () => {
+      current = false;
+    };
   }, [loadLog]);
 
   const send = async (body: Record<string, unknown>) => {
@@ -191,7 +200,7 @@ function GateDoor() {
       navigator.vibrate?.(j.result === "admitted" ? 80 : j.result === "refused" ? [90, 60, 90, 60, 90] : 0);
       // The field is ready for the next person; the answer stays on screen.
       if (typeof body.code === "string") setCode("");
-      void loadLog();
+      void loadLog().then((l) => l && setLog(l));
     } catch (e) {
       toast.error(`${t("Not checked", "Gagal dicek")}: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
@@ -245,7 +254,7 @@ function GateDoor() {
       <div className="mt-5 grid grid-cols-1 sm:grid-cols-[1fr_9rem] gap-3">
         <label className="flex flex-col gap-1.5 text-xs text-neutral-gray">
           {t("Show", "Acara")}
-          <NativeSelect data-gate-show value={eventId} onChange={(e) => { setEventId(e.target.value); setOutcome(null); }}>
+          <NativeSelect data-gate-show value={eventId} onChange={(e) => { setPicked(e.target.value); setOutcome(null); }}>
             {shows.map((e) => (
               <option key={e.id} value={e.id}>
                 {e.title} · {formatEventDate(e.dateISO)}

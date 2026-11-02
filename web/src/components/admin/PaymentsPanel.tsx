@@ -81,7 +81,10 @@ function NeedsRefund({ p, onDone }: { p: StaffPayment; onDone: () => void }) {
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   // Xendit refunds a QRIS itself only within 7 days of the payment; after that it is a transfer.
-  const inWindow = !!p.refundBy && Date.now() < Date.parse(p.refundBy);
+  // The clock is read once, when the row appears: render stays pure (react-hooks/purity), and a
+  // window measured in days does not need a ticking one.
+  const [openedAt] = useState(Date.now);
+  const inWindow = !!p.refundBy && openedAt < Date.parse(p.refundBy);
   const copy = (value: string) => {
     navigator.clipboard?.writeText(value);
     toast.success(t("Copied", "Disalin"));
