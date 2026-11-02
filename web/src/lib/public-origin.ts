@@ -11,7 +11,19 @@ export function publicOrigin(req: NextRequest) {
   return host ? `${proto}://${host}` : req.nextUrl.origin;
 }
 
-/** Only same-site paths, so a sign-in link cannot be turned into a redirect to another site. */
+/**
+ * Only same-site paths, so a sign-in link cannot be turned into a redirect to another site. The
+ * path is resolved the way a browser resolves it, which drops tabs and newlines and reads a
+ * backslash as a slash: a prefix check alone let /%09/evil.example through as //evil.example
+ * (production audit, 2 Nov 2026). What comes back is the resolved path, never the raw string.
+ */
 export function safePath(path: string | null) {
-  return path && path.startsWith("/") && !path.startsWith("//") && !path.startsWith("/\\") ? path : "/";
+  if (!path?.startsWith("/")) return "/";
+  const base = "https://lummy.invalid";
+  try {
+    const url = new URL(path, base);
+    return url.origin === base ? url.pathname + url.search + url.hash : "/";
+  } catch {
+    return "/";
+  }
 }
