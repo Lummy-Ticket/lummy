@@ -14,6 +14,7 @@ import { isLateListing } from "@/lib/mock/escrow";
 import { resaleAllowed } from "@/lib/mock/transfer";
 import type { ListingAI } from "@/lib/mock/types";
 import { SAMPLE_SIGNALS, inPriceBand, isBlocked, isFlagged, isSampleTicket, publicSellerName } from "@/lib/listings/rules";
+import { RATE_REFUSED, takeAttempt } from "@/lib/rate";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { isDemoEmail } from "@/lib/supabase/demo";
 import { currentUser } from "@/lib/supabase/session";
@@ -89,6 +90,16 @@ export async function POST(req: Request) {
   const holder = typeof body.holder === "string" ? body.holder.trim().slice(0, 120) : "";
   if (file && aiProvider() && holder.length < MIN_HOLDER_CHARS) return fail(400, "isi nama pemesan asli seperti tercetak di tiket");
 
+  // The cap on open listings comes before the PDF is read, so an account at its cap cannot make the
+  // server parse file after file only to be refused (production audit 2 Nov 2026, B3).
+  if (!user.staff && !isDemoEmail(user.email)) {
+    const open = await admin.from("listings").select("id", { count: "exact", head: true }).eq("seller_id", user.id).in("status", ["active", "review"]);
+    if (open.error) return fail(500, open.error.message);
+    if ((open.count ?? 0) >= OPEN_LISTING_LIMIT) {
+      return fail(429, `satu akun paling banyak punya ${OPEN_LISTING_LIMIT} listing yang tayang atau direview`);
+    }
+  }
+
   // The ticket: a real PDF checked here, or a sample ticket with the server's own signals.
   let signals: ListingAI;
   let ticket: (Awaited<ReturnType<typeof checkTicket>> & { bytes: Uint8Array }) | null = null;
@@ -96,6 +107,8 @@ export async function POST(req: Request) {
     const pepper = ticketPepper();
     if (!pepper) return fail(503, "pemeriksaan tiket belum aktif di server ini");
     if (file.size > MAX_TICKET_BYTES) return fail(413, TICKET_ERRORS.too_big);
+    // Every read counts, the refused ones too: a duplicate or an edited file costs the same parse.
+    if (!(await takeAttempt(admin, user.id, "pdf_read"))) return fail(429, RATE_REFUSED.pdf_read);
     const bytes = new Uint8Array(await file.arrayBuffer());
     try {
       ticket = { ...(await checkTicket(admin, bytes, pepper)), bytes };
@@ -118,14 +131,6 @@ export async function POST(req: Request) {
   if (barcodes.length > MAX_QUANTITY) return fail(400, `satu listing paling banyak ${MAX_QUANTITY} tiket, pisahkan PDF-nya`);
   const quantity = barcodes.length || Number(body.quantity);
   if (!Number.isInteger(quantity) || quantity < 1 || quantity > MAX_QUANTITY) return fail(400, `jumlah tiket 1 sampai ${MAX_QUANTITY}`);
-
-  if (!user.staff && !isDemoEmail(user.email)) {
-    const open = await admin.from("listings").select("id", { count: "exact", head: true }).eq("seller_id", user.id).in("status", ["active", "review"]);
-    if (open.error) return fail(500, open.error.message);
-    if ((open.count ?? 0) >= OPEN_LISTING_LIMIT) {
-      return fail(429, `satu akun paling banyak punya ${OPEN_LISTING_LIMIT} listing yang tayang atau direview`);
-    }
-  }
 
   const [ev, tier] = await Promise.all([
     admin.from("catalogue_events").select("starts_at, status, transfer_policy, currency, title, venue, city").eq("id", eventId).maybeSingle(),

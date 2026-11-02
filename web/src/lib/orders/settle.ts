@@ -15,8 +15,11 @@ export type SweepReport = { due: number; released: number; left: number; failed:
 
 /**
  * The daily sweep: every order whose window has passed in silence is asked the same as the order
- * page asks, oldest first. Chain releases go one by one through the operator, so a run stops at its
- * budget and leaves the rest, still due, for the next.
+ * page asks. Chain releases go one by one through the operator, so a run stops at its budget and
+ * leaves the rest, still due, for the next. Orders go least recently tried first (never tried
+ * first, then oldest deadline), and each is marked as it is tried: a batch of orders that keep
+ * failing, or that the contract's clock keeps refusing, moves to the back instead of taking every
+ * run's whole batch (production audit 2 Nov 2026, M4).
  */
 export async function settleDue(admin: SupabaseClient<Database>, budgetMs: number, batch = 50): Promise<SweepReport> {
   const started = Date.now();
@@ -26,10 +29,13 @@ export async function settleDue(admin: SupabaseClient<Database>, budgetMs: numbe
     .in("escrow_status", HELD)
     .eq("disputed", false)
     .lte("dispute_deadline", new Date(started).toISOString())
+    .order("settle_tried_at", { ascending: true, nullsFirst: true })
     .order("dispute_deadline")
     .limit(batch);
   if (error) throw new Error(error.message);
   const due = (data ?? []) as unknown as OrderRow[];
+  // A full batch may mean more are waiting behind it; the next runs reach them, least tried first.
+  if (due.length === batch) console.warn(`[settle] a full batch of ${batch} orders was due; the rest wait for the next run`);
   const report: SweepReport = { due: due.length, released: 0, left: 0, failed: 0 };
   const failures: string[] = [];
   for (const row of due) {
@@ -37,6 +43,8 @@ export async function settleDue(admin: SupabaseClient<Database>, budgetMs: numbe
       report.left++;
       continue;
     }
+    const tried = await admin.from("orders").update({ settle_tried_at: new Date().toISOString() }).eq("id", row.id);
+    if (tried.error) console.error("[settle] could not mark an order as tried:", row.id, tried.error.message);
     const r = await settleOrder(admin, row, Date.now());
     if (r.ok) report.released += r.released ? 1 : 0;
     // "Not due yet" is the contract's clock running behind the database's; it is picked up next run.

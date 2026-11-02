@@ -650,6 +650,7 @@ export type Database = {
           rail: string | null
           seller_id: string | null
           seller_name: string
+          settle_tried_at: string | null
           ticket_file: boolean
           tier_name: string
           tx_create: string | null
@@ -701,6 +702,7 @@ export type Database = {
           rail?: string | null
           seller_id?: string | null
           seller_name: string
+          settle_tried_at?: string | null
           ticket_file?: boolean
           tier_name: string
           tx_create?: string | null
@@ -752,6 +754,7 @@ export type Database = {
           rail?: string | null
           seller_id?: string | null
           seller_name?: string
+          settle_tried_at?: string | null
           ticket_file?: boolean
           tier_name?: string
           tx_create?: string | null
@@ -951,6 +954,27 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_attempts: {
+        Row: {
+          account_id: string
+          at: string
+          id: number
+          kind: string
+        }
+        Insert: {
+          account_id: string
+          at?: string
+          id?: never
+          kind: string
+        }
+        Update: {
+          account_id?: string
+          at?: string
+          id?: never
+          kind?: string
+        }
+        Relationships: []
+      }
       tiers: {
         Row: {
           event_id: string
@@ -1065,6 +1089,10 @@ export type Database = {
       release_listing: {
         Args: { p_listing_id: string; p_quantity: number }
         Returns: undefined
+      }
+      take_attempt: {
+        Args: { p_account: string; p_kind: string; p_limit: number; p_window_seconds: number }
+        Returns: boolean
       }
     }
     Enums: {

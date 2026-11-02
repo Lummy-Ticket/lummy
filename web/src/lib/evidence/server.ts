@@ -27,6 +27,36 @@ export function newEvidencePath(orderId: string, side: Side, type: string) {
 export const ownsEvidencePath = (path: string, orderId: string, side: Side) =>
   path.startsWith(`${orderId}/${side}-`) && /^[\w-]+\/(buyer|seller)-[0-9a-f-]{36}\.(jpg|png|webp)$/.test(path);
 
+/** How many photos one side may have uploaded to an order without attaching them yet. */
+export const MAX_UNATTACHED = 3;
+
+/**
+ * Before a new upload link: deletes this side's oldest photos on this order that are on neither the
+ * claim nor an answer, keeping the newest MAX_UNATTACHED - 1, so the new one makes at most
+ * MAX_UNATTACHED. Asking for links over and over cannot fill the bucket that way (production audit
+ * 2 Nov 2026, B3). Attached photos are never touched, and the daily purge still takes any loose one
+ * after ORPHAN_UPLOAD_DAYS. Says how many went.
+ */
+export async function pruneUnattached(admin: SupabaseClient<Database>, orderId: string, side: Side): Promise<number> {
+  const [listed, claim] = await Promise.all([
+    admin.storage.from("evidence").list(orderId, { limit: 100, search: `${side}-`, sortBy: { column: "created_at", order: "desc" } }),
+    admin.from("disputes").select("evidence, dispute_replies(evidence)").eq("order_id", orderId).maybeSingle(),
+  ]);
+  if (listed.error) throw new Error(listed.error.message);
+  if (claim.error) throw new Error(claim.error.message);
+  const pathOf = (v: unknown) => (v && typeof v === "object" && !Array.isArray(v) ? (v as DisputeEvidence).upload?.path : undefined);
+  const attached = new Set([pathOf(claim.data?.evidence), ...(claim.data?.dispute_replies ?? []).map((r) => pathOf(r.evidence))]);
+  const loose = (listed.data ?? [])
+    .filter((f) => f.id && f.name.startsWith(`${side}-`))
+    .map((f) => `${orderId}/${f.name}`)
+    .filter((path) => !attached.has(path));
+  const extra = loose.slice(MAX_UNATTACHED - 1);
+  if (!extra.length) return 0;
+  const removed = await admin.storage.from("evidence").remove(extra);
+  if (removed.error) throw new Error(removed.error.message);
+  return extra.length;
+}
+
 export async function evidenceFromUpload(
   admin: SupabaseClient<Database>,
   order: { listing_id: string | null; event_id: string | null },

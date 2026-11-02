@@ -14,6 +14,11 @@ export const runtime = "nodejs";
 
 const noStore = { "Cache-Control": "private, no-store" };
 const fail = (status: number, error: string) => NextResponse.json({ error }, { status, headers: noStore });
+/**
+ * Requests one account may file in a day, decided ones included: the cap on waiting ones alone let a
+ * rejected seller file again at once (production audit 2 Nov 2026). The table itself is the count.
+ */
+const MAX_REQUESTS_PER_DAY = 5;
 
 export async function GET(req: Request) {
   const admin = supabaseAdmin();
@@ -52,6 +57,13 @@ export async function POST(req: Request) {
   const waiting = await admin.from("event_requests").select("id, title, starts_at").eq("submitted_by", user.id).eq("status", "pending");
   if (waiting.error) return fail(500, waiting.error.message);
   if (waiting.data.length >= MAX_PENDING_PER_SELLER) return fail(429, `kamu sudah punya ${MAX_PENDING_PER_SELLER} pengajuan yang menunggu; tunggu staf memutusnya dulu`);
+  const today = await admin
+    .from("event_requests")
+    .select("id", { count: "exact", head: true })
+    .eq("submitted_by", user.id)
+    .gte("created_at", new Date(Date.now() - 86_400_000).toISOString());
+  if (today.error) return fail(500, today.error.message);
+  if ((today.count ?? 0) >= MAX_REQUESTS_PER_DAY) return fail(429, `paling banyak ${MAX_REQUESTS_PER_DAY} pengajuan dalam sehari; coba lagi besok`);
   const day = input.startsAt.slice(0, 10);
   if (waiting.data.some((r) => r.title.toLowerCase() === input.title.toLowerCase() && r.starts_at.slice(0, 10) === day)) {
     return fail(409, "acara ini sudah kamu ajukan dan masih menunggu");

@@ -96,6 +96,11 @@ const sections: LegalSection[] = [
         id: "Kalau kamu membayar acara luar negeri dengan USDC: alamat wallet yang kamu pakai untuk membayar. Kami menyimpannya bersama pembayaran dan pesanannya untuk mengecek bahwa pembayaran ditandatangani wallet itu, mengembalikan refund ke wallet itu, dan membatasi jumlah pesanan terbuka per wallet. Yang dipakai adalah USDC uji di jaringan uji Arbitrum Sepolia, yang tidak bernilai uang. Kamu menandatangani pembayarannya di aplikasi wallet-mu sendiri, yang bukan layanan kami; Lummy yang mengirim transaksinya dan membayar biaya jaringannya.",
       },
       {
+        // lib/rate.ts and the rate_attempts table: kind and time only, deleted within a day.
+        en: "When you check a ticket, list one, have the form filled in from it, or ask to upload a claim photo: the time, counted against your account, so that one account cannot repeat these without end. Nothing else about the attempt is kept.",
+        id: "Saat kamu mengecek tiket, memasang listing, mengisi form dari tiket, atau meminta upload foto klaim: waktunya, dihitung untuk akunmu, supaya satu akun tidak bisa mengulangnya tanpa batas. Tidak ada hal lain soal percobaan itu yang disimpan.",
+      },
+      {
         en: "We do not accept photos of ID cards yet, and we run no analytics or advertising trackers. The site keeps a sign-in cookie, and your language and sample data in your browser.",
         id: "Kami belum menerima foto KTP, dan tidak memakai analytics atau pelacak iklan. Situs menyimpan cookie masuk, serta pilihan bahasa dan data contoh di browsermu.",
       },
@@ -109,6 +114,7 @@ const sections: LegalSection[] = [
       { en: "To fill in the sell form from your ticket, and to check that the category and date you picked are the ones printed on it.", id: "Mengisi form jual dari tiketmu, dan mengecek bahwa kategori dan tanggal yang kamu pilih memang yang tercetak di tiket." },
       { en: "To let each ticket through the door once, and to refund you on the spot when someone used it before you.", id: "Membiarkan tiap tiket masuk sekali saja, dan mengembalikan uangmu saat itu juga kalau ada yang memakainya lebih dulu." },
       { en: "To decide claims on evidence from both sides.", id: "Memutus klaim berdasarkan bukti dari kedua pihak." },
+      { en: "To stop one account from tying up the ticket checks, the AI or our storage by repeating them.", id: "Mencegah satu akun membebani pengecekan tiket, AI, atau penyimpanan kami dengan mengulangnya terus." },
     ],
   },
   {
@@ -157,7 +163,11 @@ const sections: LegalSection[] = [
     list: [
       { en: "Ticket PDFs: deleted 30 days after the show, but never while an order on them still holds money or a claim is open.", id: "PDF tiket: dihapus 30 hari setelah acara, tapi tidak selama pesanan di atasnya masih menahan dana atau klaimnya masih terbuka." },
       { en: "Claim photos: deleted 30 days after the claim is decided, and where they were taken is removed from the claim record with them. What the checks concluded and the decision stay.", id: "Foto klaim: dihapus 30 hari setelah klaim diputus, dan lokasi pengambilannya ikut dihapus dari catatan klaim. Hasil cek dan putusannya tetap tersimpan." },
-      { en: "Photos uploaded but never attached to a claim: deleted after 7 days.", id: "Foto yang di-upload tapi tidak pernah dilampirkan: dihapus setelah 7 hari." },
+      {
+        en: "Photos uploaded but never attached to a claim: deleted after 7 days, and sooner once you have three such photos on one order, when a new upload replaces the oldest.",
+        id: "Foto yang di-upload tapi tidak pernah dilampirkan: dihapus setelah 7 hari, dan lebih cepat kalau sudah ada tiga foto seperti itu di satu pesanan, saat upload baru menggantikan yang paling lama.",
+      },
+      { en: "The count of your attempts above: deleted within a day.", id: "Hitungan percobaanmu di atas: dihapus dalam satu hari." },
       { en: "Your account, orders, payments and claims: while your account exists, then as long as needed to settle anything still open. Records on the public ledger cannot be deleted by anyone.", id: "Akun, pesanan, pembayaran, dan klaim: selama akunmu ada, lalu selama dibutuhkan untuk menyelesaikan yang masih berjalan. Catatan di buku besar publik tidak bisa dihapus siapa pun." },
       {
         en: "Backups: every night an encrypted copy of the database (accounts, orders, payments and claims, but not ticket PDFs or photos) is stored with GitHub, which cannot read it, and each copy is deleted after 14 days, so anything deleted from the database is gone from the copies within 14 days.",
@@ -208,7 +218,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage
       title={{ en: "Privacy policy", id: "Kebijakan privasi" }}
-      effective={{ en: "2 Nov 2026", id: "2 Nov 2026" }}
+      effective={{ en: "3 Nov 2026", id: "3 Nov 2026" }}
       intro={{
         en: "What Lummy Ticket keeps about you, why, who can see it, and when it is deleted. Written to match what the app actually does.",
         id: "Apa yang disimpan Lummy Ticket tentang kamu, untuk apa, siapa yang bisa melihatnya, dan kapan dihapus. Ditulis sesuai yang benar-benar dilakukan aplikasinya.",

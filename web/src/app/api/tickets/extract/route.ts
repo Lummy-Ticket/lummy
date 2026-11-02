@@ -5,6 +5,8 @@
 import { NextResponse } from "next/server";
 import { isEventOver } from "@/lib/mock/seed";
 import { resaleAllowed } from "@/lib/mock/transfer";
+import { RATE_REFUSED, takeAttempt } from "@/lib/rate";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { loadCatalogue } from "@/lib/supabase/catalogue";
 import { currentUser } from "@/lib/supabase/session";
 import { aiProvider } from "@/lib/tickets/ai";
@@ -40,8 +42,12 @@ export async function POST(req: Request) {
   const typed = typeof holder === "string" ? holder.trim() : "";
   if (typed.length < MIN_HOLDER_CHARS) return fail(400, "ketik dulu nama pemesan asli, supaya ikut dibuang sebelum tiketnya dibaca", "need_holder");
   const names = namesToTakeOut(user, typed);
-  // Counted only once the request could go to the model.
-  if (!fillAllowed(user.id)) return fail(429, "terlalu sering, coba lagi beberapa menit lagi");
+  // Counted only once the request could go to the model: in the database, so every instance sees
+  // the same count (lib/rate.ts), and in this instance's memory too, which is the whole brake on a
+  // server without a database and the fallback if the database count fails.
+  const admin = supabaseAdmin();
+  const allowed = (admin ? await takeAttempt(admin, user.id, "ai_fill") : true) && fillAllowed(user.id);
+  if (!allowed) return fail(429, RATE_REFUSED.ai_fill);
 
   const events = ((await loadCatalogue())?.events ?? []).filter((e) => !isEventOver(e) && resaleAllowed(e.transferPolicy));
   if (!events.length) return NextResponse.json({ outcome: "no_shows" }, { headers: noStore });

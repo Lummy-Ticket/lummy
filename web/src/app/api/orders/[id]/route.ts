@@ -17,7 +17,8 @@ import { HELD, ORDER_SELECT, orderFromRow, type OrderRow } from "@/lib/orders/ma
 import { queueLedgerSync } from "@/lib/orders/ledger";
 import { settleOrder } from "@/lib/orders/settle";
 import { EVIDENCE_TYPES, EvidenceError, MAX_EVIDENCE_BYTES } from "@/lib/evidence/read";
-import { EVIDENCE_KINDS, evidenceFromUpload, newEvidencePath, ownsEvidencePath, type Side } from "@/lib/evidence/server";
+import { EVIDENCE_KINDS, evidenceFromUpload, newEvidencePath, ownsEvidencePath, pruneUnattached, type Side } from "@/lib/evidence/server";
+import { RATE_REFUSED, takeAttempt } from "@/lib/rate";
 import type { DisputeEvidence, EvidenceKind } from "@/lib/mock/types";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { isDemoEmail } from "@/lib/supabase/demo";
@@ -111,6 +112,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const size = Number(body.size);
       if (!EVIDENCE_TYPES[type]) return fail(400, "kirim foto JPEG, PNG, atau WebP");
       if (!Number.isFinite(size) || size <= 0 || size > MAX_EVIDENCE_BYTES) return fail(413, "foto lebih dari 10 MB");
+      // A link a day's worth at a time, and at most MAX_UNATTACHED loose photos per side of an order,
+      // so asking again and again cannot fill the bucket (production audit 2 Nov 2026, B3).
+      if (!(await takeAttempt(admin, user.id, "evidence_url"))) return fail(429, RATE_REFUSED.evidence_url);
+      await pruneUnattached(admin, id, side).catch((e) => console.error("[evidence] could not clear loose photos:", id, (e as Error).message));
       const path = newEvidencePath(id, side, type);
       const signed = await admin.storage.from("evidence").createSignedUploadUrl(path);
       if (signed.error || !signed.data) return fail(500, signed.error?.message ?? "link upload gagal dibuat");

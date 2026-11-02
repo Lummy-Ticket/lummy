@@ -70,8 +70,19 @@ export async function GET(req: Request) {
     ledger = { error: (e as Error).message };
   }
   if (purge.errors.length) console.error("[cron/daily] files that could not be deleted:", purge.errors);
+  // Attempt counts (lib/rate.ts) only ever matter for their last day; an account that comes back
+  // clears its own, this takes the rest, as the privacy page promises.
+  const attempts = await admin.from("rate_attempts").delete().lt("at", new Date(Date.now() - 86_400_000).toISOString());
+  if (attempts.error) console.error("[cron/daily] old attempt counts not deleted:", attempts.error.message);
   return NextResponse.json(
-    { settle, holdsReleased, usdcReconciled, ledger, purge: { ticketFiles: purge.ticketFiles, evidenceFiles: purge.evidenceFiles, orphanUploads: purge.orphanUploads, errors: purge.errors.length, unfinished: purge.unfinished } },
+    {
+      settle,
+      holdsReleased,
+      usdcReconciled,
+      ledger,
+      purge: { ticketFiles: purge.ticketFiles, evidenceFiles: purge.evidenceFiles, orphanUploads: purge.orphanUploads, errors: purge.errors.length, unfinished: purge.unfinished },
+      attempts: attempts.error ? "failed" : "cleared",
+    },
     { headers: noStore }
   );
 }

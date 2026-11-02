@@ -1,7 +1,9 @@
 // Checks a ticket PDF for the sell page before anything is stored (docs/09 §5.2, §5.3): reads
 // every barcode, compares each against the barcodes live listings hold, and inspects how the file
-// was made. Nothing is saved; publishing runs the same check again on the same file.
+// was made. Nothing about the file is saved; publishing runs the same check again on the same file.
+// Each call counts against the account's PDF reads (lib/rate.ts), since each one parses the file.
 import { NextResponse } from "next/server";
+import { RATE_REFUSED, takeAttempt } from "@/lib/rate";
 import { MAX_TICKET_BYTES, TicketError } from "@/lib/tickets/analyze";
 import { TICKET_ERRORS, checkTicket, readerWorks, ticketPepper } from "@/lib/tickets/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -26,6 +28,7 @@ export async function POST(req: Request) {
   if (!admin || !pepper) return fail(503, "pemeriksaan tiket belum aktif di server ini");
   const user = await currentUser();
   if (!user) return fail(401, "masuk dulu untuk memeriksa tiket");
+  if (!(await takeAttempt(admin, user.id, "pdf_read"))) return fail(429, RATE_REFUSED.pdf_read, "rate_limited");
 
   const form = await req.formData().catch(() => null);
   const file = form?.get("ticket");
