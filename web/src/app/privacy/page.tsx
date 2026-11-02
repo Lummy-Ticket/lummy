@@ -139,6 +139,8 @@ const sections: LegalSection[] = [
       { en: "Supabase: the database and private file storage, in Singapore.", id: "Supabase: database dan penyimpanan file privat, di Singapura." },
       { en: "Vercel: the servers that run the site, in Singapore.", id: "Vercel: server yang menjalankan situs, di Singapura." },
       ...sentryLine,
+      // .github/workflows/backup.yml: the nightly copy described under "How long we keep it".
+      { en: "GitHub: holds the nightly encrypted copies of the database, which it cannot read (see \"How long we keep it\").", id: "GitHub: menyimpan salinan database terenkripsi setiap malam, yang tidak bisa dibacanya (lihat \"Berapa lama kami menyimpannya\")." },
       emailLines.mailspace,
       { en: "Arbitrum (a public blockchain): the escrow ledger described above.", id: "Arbitrum (blockchain publik): buku besar escrow seperti di atas." },
       { en: "Xendit: takes QRIS payments. For now it runs in test mode, so no real money moves, and it receives only the amount and a payment number, never your name or email.", id: "Xendit: menerima pembayaran QRIS. Untuk sekarang berjalan di mode uji, jadi tidak ada uang sungguhan yang berpindah, dan Xendit hanya menerima nominal dan nomor pembayaran, tidak pernah nama atau emailmu." },
@@ -157,6 +159,10 @@ const sections: LegalSection[] = [
       { en: "Claim photos: deleted 30 days after the claim is decided, and where they were taken is removed from the claim record with them. What the checks concluded and the decision stay.", id: "Foto klaim: dihapus 30 hari setelah klaim diputus, dan lokasi pengambilannya ikut dihapus dari catatan klaim. Hasil cek dan putusannya tetap tersimpan." },
       { en: "Photos uploaded but never attached to a claim: deleted after 7 days.", id: "Foto yang di-upload tapi tidak pernah dilampirkan: dihapus setelah 7 hari." },
       { en: "Your account, orders, payments and claims: while your account exists, then as long as needed to settle anything still open. Records on the public ledger cannot be deleted by anyone.", id: "Akun, pesanan, pembayaran, dan klaim: selama akunmu ada, lalu selama dibutuhkan untuk menyelesaikan yang masih berjalan. Catatan di buku besar publik tidak bisa dihapus siapa pun." },
+      {
+        en: "Backups: every night an encrypted copy of the database (accounts, orders, payments and claims, but not ticket PDFs or photos) is stored with GitHub, which cannot read it, and each copy is deleted after 14 days, so anything deleted from the database is gone from the copies within 14 days.",
+        id: "Cadangan: setiap malam salinan database yang terenkripsi (akun, pesanan, pembayaran, dan klaim, tapi bukan PDF tiket atau foto) disimpan di GitHub, yang tidak bisa membacanya, dan tiap salinan dihapus setelah 14 hari, jadi data yang dihapus dari database ikut hilang dari salinannya paling lambat 14 hari kemudian.",
+      },
       { en: "The wallet address you paid from: kept with its payment and order, for as long as they are. The payment itself stays on the public chain for good, and nobody, Lummy included, can delete it.", id: "Alamat wallet yang kamu pakai untuk membayar: disimpan bersama pembayaran dan pesanannya, selama keduanya disimpan. Pembayarannya sendiri tetap di chain publik selamanya, dan tidak ada yang bisa menghapusnya, termasuk Lummy." },
     ],
   },
@@ -202,7 +208,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage
       title={{ en: "Privacy policy", id: "Kebijakan privasi" }}
-      effective={{ en: "29 Oct 2026", id: "29 Okt 2026" }}
+      effective={{ en: "2 Nov 2026", id: "2 Nov 2026" }}
       intro={{
         en: "What Lummy Ticket keeps about you, why, who can see it, and when it is deleted. Written to match what the app actually does.",
         id: "Apa yang disimpan Lummy Ticket tentang kamu, untuk apa, siapa yang bisa melihatnya, dan kapan dihapus. Ditulis sesuai yang benar-benar dilakukan aplikasinya.",
