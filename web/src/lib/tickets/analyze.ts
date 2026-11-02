@@ -109,6 +109,8 @@ export async function openPdf(
     iccUrl: `${root}/iccs/`,
     useSystemFonts: false,
     enableXfa: false,
+    // No isEvalSupported here: pdf.js 6 dropped the option along with the eval path it guarded (its
+    // worker has no `new Function`, checked 3 Nov 2026 on 6.4.299), so nothing compiles code from a file.
     maxImageSize,
     verbosity: 0,
   });
