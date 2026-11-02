@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
 # Uji mode chain dari ujung ke ujung: Anvil lokal, deploy, `next dev` dengan kunci akun bawaan Anvil,
-# lalu tiap route /api/chain dipanggil lewat HTTP dan alur UI dijalankan di Chrome. Kalau web/.env.local
-# punya Supabase, pesanan akun demo dengan escrow on-chain ikut diuji (orders-check, CHAIN=1). Pakai
-# dari web/:
+# lalu tiap route /api/chain dipanggil lewat HTTP dan alur UI dijalankan di Chrome. Kalau ada Supabase
+# (~/.lummy/staging.env atau web/.env.local), pesanan akun demo dengan escrow on-chain ikut diuji
+# (orders-check, CHAIN=1). Pakai dari web/:
 #   npm run chain:e2e
 set -euo pipefail
 cd "$(dirname "$0")/.."
 WEB=$PWD
+# The server here and the account checks below use the same database, chosen as start-local.sh
+# chooses it (docs/config/05-staging.md); a staging dev server compiles into .next-staging.
+. scripts/lib/target-env.sh
+lummy_target_choose
+lummy_target_export
+lummy_target_banner
 CONTRACTS=$WEB/../contracts
 RPC=http://127.0.0.1:8545
 PORT=3107
@@ -64,11 +70,12 @@ fi
 # Pesanan akun: akun demo membeli lewat checkout, klaim dan putusannya dijalankan kontrak di Anvil, dan
 # database mencatat semuanya. Lalu acara diundur: kontrak memundurkan jadwalnya, dan refund pembeli
 # datang dari kontrak. Listing, pesanan, acara, dan akun uji dihapus lagi di akhir.
-if [ -x "${CHROME:-/opt/google/chrome/chrome}" ] && grep -q "^SUPABASE_SECRET_KEY=." .env.local 2>/dev/null; then
+if [ -x "${CHROME:-/opt/google/chrome/chrome}" ] &&
+  { [ -n "${SUPABASE_SECRET_KEY:-}" ] || grep -q "^SUPABASE_SECRET_KEY=." .env.local 2>/dev/null; }; then
   echo ""
-  BASE=http://127.0.0.1:$PORT DEMO_KEY=uji-lokal CHAIN=1 node --env-file-if-exists=.env.local scripts/orders-check.mjs
+  BASE=http://127.0.0.1:$PORT DEMO_KEY=uji-lokal CHAIN=1 node scripts/orders-check.mjs
   echo ""
   BASE=http://127.0.0.1:$PORT RPC=$RPC DEMO_KEY=uji-lokal CHAIN=1 npx tsx scripts/postpone-check.ts
 else
-  echo "Supabase (SUPABASE_SECRET_KEY di web/.env.local) atau Chrome tidak ada, uji pesanan akun dilewati."
+  echo "Supabase (SUPABASE_SECRET_KEY di ~/.lummy/staging.env atau web/.env.local) atau Chrome tidak ada, uji pesanan akun dilewati."
 fi

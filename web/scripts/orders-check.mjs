@@ -12,7 +12,9 @@
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { chromium } from "playwright-core";
+import { loadTarget } from "./lib/target-env.mjs";
 
+loadTarget();
 const BASE = process.env.BASE ?? "http://127.0.0.1:3000";
 const DEMO_KEY = process.env.DEMO_KEY ?? "";
 const CHAIN = process.env.CHAIN === "1";
@@ -28,7 +30,7 @@ function check(name, ok, detail = "") {
 }
 
 if (!SB_URL || !SB_KEY || !SB_SECRET) {
-  console.log("GAGAL  orders: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY dan SUPABASE_SECRET_KEY wajib ada (web/.env.local)");
+  console.log("GAGAL  orders: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY dan SUPABASE_SECRET_KEY wajib ada (~/.lummy/staging.env atau web/.env.local)");
   process.exit(1);
 }
 const ref = new URL(SB_URL).hostname.split(".")[0];

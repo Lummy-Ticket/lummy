@@ -21,12 +21,9 @@ import { chromium, type Page } from "playwright-core";
 import { FEATURES } from "../src/lib/features";
 import type { Database } from "../src/lib/supabase/types";
 import { GENUINE, genuineTicket, initWriter, latin1, photo, rewrite, ticketPdf, withExif } from "./ticket-fixtures";
+import { loadTarget } from "./lib/target-env.mjs";
 
-try {
-  process.loadEnvFile(".env.local");
-} catch {
-  // the server's env is enough without WRITE=1
-}
+loadTarget();
 const BASE = process.env.BASE ?? "http://localhost:3000";
 const DEMO_KEY = process.env.DEMO_KEY ?? "";
 const WRITE = process.env.WRITE === "1";

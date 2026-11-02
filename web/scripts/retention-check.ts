@@ -18,12 +18,9 @@ import type { Database, Json } from "../src/lib/supabase/types";
 import { DEMO_ACCOUNTS } from "../src/lib/supabase/demo";
 import { FEATURES } from "../src/lib/features";
 import { purgeExpired } from "../src/lib/retention-purge";
+import { loadTarget } from "./lib/target-env.mjs";
 
-try {
-  process.loadEnvFile(".env.local");
-} catch {
-  // checked below
-}
+loadTarget();
 const BASE = process.env.BASE ?? "http://localhost:3000";
 const DEMO_KEY = process.env.DEMO_KEY ?? "";
 const EXEC = process.env.CHROME ?? "/opt/google/chrome/chrome";
@@ -71,7 +68,7 @@ const evidence = (path: string, gps: boolean): Json => ({
 async function main() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SECRET_KEY;
-  if (!url || !key) throw new Error("needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY (web/.env.local)");
+  if (!url || !key) throw new Error("needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY (~/.lummy/staging.env or web/.env.local)");
   const admin = createClient<Database>(url, key, { auth: { persistSession: false } });
 
   const users = (await admin.auth.admin.listUsers({ page: 1, perPage: 200 })).data?.users ?? [];

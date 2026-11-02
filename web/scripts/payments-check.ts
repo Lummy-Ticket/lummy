@@ -36,12 +36,9 @@ import { arbitrumSepolia } from "viem/chains";
 import { ledgerAbi } from "../src/lib/chain/abi";
 import { MATERAI } from "../src/lib/mock/util";
 import type { Database } from "../src/lib/supabase/types";
+import { loadTarget } from "./lib/target-env.mjs";
 
-try {
-  process.loadEnvFile(".env.local");
-} catch {
-  // checked below
-}
+loadTarget();
 const BASE = process.env.BASE ?? "http://localhost:3000";
 const EXEC = process.env.CHROME ?? "/opt/google/chrome/chrome";
 const XENDIT_KEY = process.env.XENDIT_SECRET_KEY ?? "";
@@ -124,7 +121,7 @@ async function payAtXendit(prId: string, amount: number) {
 async function main() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SECRET_KEY;
-  if (!url || !key) throw new Error("needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY (web/.env.local)");
+  if (!url || !key) throw new Error("needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY (~/.lummy/staging.env or web/.env.local)");
   if (!XENDIT_KEY.startsWith("xnd_development_")) throw new Error("needs XENDIT_SECRET_KEY, a test key (xnd_development_...)");
   if (!TOKEN) throw new Error("needs XENDIT_WEBHOOK_TOKEN, the same one the server has");
   const admin = createClient<Database>(url, key, { auth: { persistSession: false } });

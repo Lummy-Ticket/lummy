@@ -34,12 +34,9 @@ import { createClient } from "@supabase/supabase-js";
 import { chromium, type Browser, type BrowserContext } from "playwright-core";
 import { deliverable } from "../src/lib/email/send";
 import type { Database } from "../src/lib/supabase/types";
+import { loadTarget } from "./lib/target-env.mjs";
 
-try {
-  process.loadEnvFile(".env.local");
-} catch {
-  // checked below
-}
+loadTarget();
 const BASE = process.env.BASE ?? "http://127.0.0.1:3001";
 const EXEC = process.env.CHROME ?? "/opt/google/chrome/chrome";
 const DIR = process.env.EMAIL_DIR ?? "";
@@ -118,7 +115,7 @@ const linked = (m: Mail | undefined, href: string) => !!m && m.text.includes(hre
 async function main() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SECRET_KEY;
-  if (!url || !key) throw new Error("needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY (web/.env.local)");
+  if (!url || !key) throw new Error("needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY (~/.lummy/staging.env or web/.env.local)");
   if (!DIR) throw new Error("needs EMAIL_DIR, the folder the server writes its emails to (EMAIL_TRANSPORT=file)");
   const admin = createClient<Database>(url, key, { auth: { persistSession: false } });
 

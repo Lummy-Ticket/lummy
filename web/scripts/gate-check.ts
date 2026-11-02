@@ -19,12 +19,9 @@ import { createClient } from "@supabase/supabase-js";
 import { chromium, type Browser, type BrowserContext } from "playwright-core";
 import { keccak256, toHex } from "viem";
 import type { Database } from "../src/lib/supabase/types";
+import { loadTarget } from "./lib/target-env.mjs";
 
-try {
-  process.loadEnvFile(".env.local");
-} catch {
-  // checked below
-}
+loadTarget();
 const BASE = process.env.BASE ?? "http://localhost:3000";
 const EXEC = process.env.CHROME ?? "/opt/google/chrome/chrome";
 const RUN = Date.now().toString(36);
@@ -69,7 +66,7 @@ async function api(ctx: BrowserContext, method: "GET" | "POST", path: string, bo
 async function main() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SECRET_KEY;
-  if (!url || !key) throw new Error("needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY (web/.env.local)");
+  if (!url || !key) throw new Error("needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY (~/.lummy/staging.env or web/.env.local)");
   const admin = createClient<Database>(url, key, { auth: { persistSession: false } });
   const order = async (id: string) => (await admin.from("orders").select("escrow_status, disputed").eq("id", id).single()).data;
   const dispute = async (id: string) => (await admin.from("disputes").select("*").eq("order_id", id).maybeSingle()).data;

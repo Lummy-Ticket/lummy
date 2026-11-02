@@ -22,6 +22,9 @@ const TICKET_READER_FILES = [
 const PHOTO_READER_FILES = ["./node_modules/zxing-wasm/dist/reader/zxing_reader.wasm", "./node_modules/@napi-rs/canvas-linux-x64-gnu/**"];
 
 const nextConfig: NextConfig = {
+  // A staging build inlines staging's NEXT_PUBLIC_ values, so it gets a folder of its own
+  // (scripts/start-local.sh) and never replaces the production build in .next.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   devIndicators: false,
   // Dev only: the chain e2e opens `next dev` at 127.0.0.1, which Next 16.1+ treats as another
   // origin and refuses its scripts, so the page never hydrates.

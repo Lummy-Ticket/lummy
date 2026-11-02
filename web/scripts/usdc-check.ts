@@ -26,7 +26,7 @@
  * The accounts are signed in with an admin link, so no email is sent; everything the run made is
  * deleted at the end. It writes to the database the server uses and spends the operator's testnet
  * gas, so run it only where that is fine, against a server started with the testnet keys
- * (/tmp/lummy-start.sh chain).
+ * (bash scripts/start-local.sh chain).
  *
  *   BASE=http://127.0.0.1:3000 npm run usdc:check
  */
@@ -43,12 +43,9 @@ import { reviveTyped } from "../src/lib/chain/typed";
 import type { TypedMessage, UsdcStart } from "../src/lib/payments/types";
 import type { Database } from "../src/lib/supabase/types";
 import { initWriter, photo } from "./ticket-fixtures";
+import { loadTarget } from "./lib/target-env.mjs";
 
-try {
-  process.loadEnvFile(".env.local");
-} catch {
-  // checked below
-}
+loadTarget();
 const BASE = process.env.BASE ?? "http://localhost:3000";
 const EXEC = process.env.CHROME ?? "/opt/google/chrome/chrome";
 const RPC = process.env.LUMMY_RPC_URL ?? "https://sepolia-rollup.arbitrum.io/rpc";
@@ -127,7 +124,7 @@ async function signBoth(key: Hex, s: UsdcStart) {
 async function main() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SECRET_KEY;
-  if (!url || !key) throw new Error("needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY (web/.env.local)");
+  if (!url || !key) throw new Error("needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY (~/.lummy/staging.env or web/.env.local)");
   const admin = createClient<Database>(url, key, { auth: { persistSession: false } });
   const walletPk = walletKey();
   const wallet = privateKeyToAccount(walletPk).address;
@@ -333,7 +330,7 @@ async function main() {
     // ruling has the contract split the money, and the operator sends each share on.
     await initWriter();
     const publishable = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-    if (!publishable) throw new Error("needs NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (web/.env.local)");
+    if (!publishable) throw new Error("needs NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (~/.lummy/staging.env or web/.env.local)");
     const bucket = createClient<Database>(url, publishable, { auth: { persistSession: false } }).storage.from("evidence");
     // A reply lost after the contract acted (a dropped connection, a function cut off): the operator's
     // transaction is sent from here, so the server only finds out when it asks the chain again.
