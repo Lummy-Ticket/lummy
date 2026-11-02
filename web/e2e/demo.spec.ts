@@ -49,12 +49,14 @@ test.describe("demo script", { tag: "@smoke" }, () => {
   });
 
   test("0:50 a last-minute listing goes to review", async ({ page }) => {
-    // Every show is real, so the browser's clock is set to the day before one rather than keeping a
-    // made-up show that is always tomorrow.
-    await page.clock.setFixedTime(new Date(Date.parse(LATE_SHOW.dateISO) - 24 * 3_600_000));
     await persona(page, "seller");
     await page.goto("/sell");
     await page.getByRole("button", { name: "No file handy? Use a sample" }).click();
+    // Every show is real, so the browser's clock moves to the day before one, rather than keeping a
+    // made-up show that is always tomorrow. It moves only once the page has loaded: set before, the
+    // server renders with the real time and the browser with the moved one, and the two pages
+    // differ (React error #418 on 1 Nov 2026). The rule reads the clock on every render.
+    await page.clock.setFixedTime(new Date(Date.parse(LATE_SHOW.dateISO) - 24 * 3_600_000));
     await page.getByRole("button", { name: "Check the ticket" }).click();
     await expect(page.getByRole("heading", { name: "Ticket check" })).toBeVisible();
     await page.getByRole("combobox").first().selectOption(LATE_SHOW.id);
