@@ -137,9 +137,19 @@ async function fillNumber(admin: Admin, id: string, number: string | null) {
  * Brings a hold up to date with Xendit, and writes the order once the money is in. Holds still
  * open are read at most every RECHECK_MS unless `force` (the webhook, the simulator). Closed holds
  * are read again only when forced, for money that arrives late. `named` is the payment number a
- * webhook carried; it is only kept after Xendit confirms it.
+ * webhook carried; it is only kept after Xendit confirms it. `mustRead` (the webhook) turns a
+ * failed read into an error instead of the row as it was: the webhook then answers 500 and Xendit
+ * sends it again, where a 200 would have been the last word on money that may have arrived
+ * (production audit 2 Nov 2026, M1). Other callers keep going and read again later.
  */
-export async function syncPayment(admin: Admin, cfg: XenditConfig, row: PaymentRow, force = false, named: string | null = null): Promise<PaymentRow> {
+export async function syncPayment(
+  admin: Admin,
+  cfg: XenditConfig,
+  row: PaymentRow,
+  force = false,
+  named: string | null = null,
+  mustRead = false
+): Promise<PaymentRow> {
   if (row.status === "paid") {
     // Paid before Xendit had named the payment: fill its number in from a webhook or a later read.
     if (!row.provider_payment_id && row.provider_ref && (force || stale(row))) {
@@ -165,6 +175,7 @@ export async function syncPayment(admin: Admin, cfg: XenditConfig, row: PaymentR
     qris = await readQris(cfg, row.provider_ref);
   } catch (e) {
     console.error("[payments] could not read Xendit for", row.id, (e as Error).message);
+    if (mustRead) throw e;
     return row;
   }
   await admin.from("payments").update({ checked_at: new Date().toISOString() }).eq("id", row.id);

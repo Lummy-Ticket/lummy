@@ -2,7 +2,8 @@
 // https://lummy.id/api/payments/xendit/webhook. It must carry the dashboard's verification token
 // in x-callback-token. Even then it is only a nudge: the hold is read back from Xendit with our
 // own key before anything is written, so a forged or replayed call cannot make an order.
-// Answers 2xx once handled (Xendit retries anything else, up to six times over a day).
+// Answers 2xx once handled (Xendit retries anything else, up to six times over a day). When the
+// read-back itself fails, the answer is 500, so Xendit asks again instead of the call being lost.
 import { NextResponse } from "next/server";
 import { PAYMENT_ID, syncPayment } from "@/lib/payments/checkout";
 import { callbackTokenMatches, PAYMENT_REQUEST_ID, xenditConfig } from "@/lib/payments/xendit";
@@ -47,7 +48,7 @@ export async function POST(req: Request) {
   if (!found) return NextResponse.json({ ignored: true }, { headers: noStore });
 
   try {
-    const fresh = await syncPayment(admin, cfg, found, true, named);
+    const fresh = await syncPayment(admin, cfg, found, true, named, true);
     return NextResponse.json({ status: fresh.status }, { headers: noStore });
   } catch (e) {
     console.error("[payments] webhook:", found.id, (e as Error).message);

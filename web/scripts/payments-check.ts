@@ -320,6 +320,16 @@ async function main() {
     check("cancelling closes the hold", cancelled.status === 200 && cancelled.body.status === "canceled", JSON.stringify(cancelled));
     const afterCancel = await listing(L1);
     check("and the seat is back on sale", afterCancel?.status === "active" && afterCancel.quantity === 1, JSON.stringify(afterCancel));
+    // A webhook for one of our holds whose read-back fails must not be the last word: answered 500,
+    // Xendit sends it again, where a 200 would have dropped money that may have arrived (audit
+    // 2 Nov 2026, M1). For a moment the closed hold names a request Xendit has never seen.
+    const realRef = (await payment(p2))?.provider_ref ?? null;
+    const unknownRef = "pr-11111111-2222-4333-8444-555555555555";
+    await admin.from("payments").update({ provider_ref: unknownRef }).eq("id", p2);
+    const unreadable = await webhook(TOKEN, { payment_request_id: unknownRef, reference_id: p2, status: "SUCCEEDED" });
+    await admin.from("payments").update({ provider_ref: realRef }).eq("id", p2);
+    check("a webhook whose read-back fails answers 500, so Xendit sends it again", unreadable.status === 500, JSON.stringify(unreadable));
+    check("and the hold is as it was", (await payment(p2))?.status === "canceled" && (await ordersOf(p2)).length === 0);
 
     // --- A hold past its time, still open at Xendit: the page reading it shuts it and gives the seat back.
     const third = await api(buyerCtx, "POST", "/api/payments", { listingId: L1, quantity: 1 });
