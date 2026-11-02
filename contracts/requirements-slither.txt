@@ -1,13 +1,13 @@
 # Slither (Trail of Bits) for .github/workflows/slither.yml, every package pinned. Resolved on 23 Oct 2026
 # from packages uploaded before 1 Oct 2026: pip install --uploaded-prior-to 2026-10-01 slither-analyzer==0.11.6
 aiohappyeyeballs==2.7.1
-aiohttp==3.14.3
+aiohttp==3.14.4
 aiosignal==1.4.0
 annotated-types==0.8.0
 attrs==26.1.0
 bitarray==3.11.0
 cbor2==6.1.4
-certifi==2026.7.22
+certifi==2026.10.18
 charset-normalizer==3.5.2
 ckzg==2.1.8
 crytic-compile==0.4.2
