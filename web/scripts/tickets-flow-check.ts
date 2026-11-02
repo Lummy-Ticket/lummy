@@ -266,16 +266,16 @@ async function main() {
     // read (production audit 2 Nov 2026, B3). The listing is asked only once the check was refused,
     // and one that got through anyway is removed at the end like any other.
     await setReads(sellerId, RATE.pdf_read.limit);
+    // No named function inside: tsx keeps function names with a helper the browser does not have.
     const limited = await page.evaluate(async (pdf) => {
-      const form = () => {
-        const f = new FormData();
-        f.append("ticket", new File([new Uint8Array(pdf)], "genuine.pdf", { type: "application/pdf" }));
-        return f;
-      };
-      const checkRes = await fetch("/api/tickets/check", { method: "POST", body: form() });
+      const file = new File([new Uint8Array(pdf)], "genuine.pdf", { type: "application/pdf" });
+      const checkForm = new FormData();
+      checkForm.append("ticket", file);
+      const checkRes = await fetch("/api/tickets/check", { method: "POST", body: checkForm });
       const check = { status: checkRes.status, body: (await checkRes.json().catch(() => ({}))) as Record<string, unknown> };
       if (check.status !== 429) return { check, list: null };
-      const listing = form();
+      const listing = new FormData();
+      listing.append("ticket", file);
       listing.append("eventId", "ev-5sos-jakarta");
       listing.append("tierId", "t-5sos-cat3");
       listing.append("askPrice", "1250000");
