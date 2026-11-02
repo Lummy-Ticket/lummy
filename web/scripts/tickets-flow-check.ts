@@ -1,7 +1,8 @@
 /**
  * The ticket check through the app, the way a seller meets it: signs in to the demo seller account
  * from the Dev Panel, uploads PDFs made on the spot on /sell and reads what the page says. Nothing
- * is published by default.
+ * is published by default; the only rows a default run writes are the demo seller's attempt counts
+ * (lib/rate.ts), spent on purpose to see the limit refuse, and cleared again.
  *
  * WRITE=1 goes on to the whole life of a real ticket with the demo accounts: publish one and see
  * the same barcode refused in another file; publish an edited one, clear it as staff, buy it as the
@@ -19,6 +20,8 @@ import { createHash } from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { chromium, type Page } from "playwright-core";
 import { FEATURES } from "../src/lib/features";
+import { RATE } from "../src/lib/rate";
+import { DEMO_ACCOUNTS } from "../src/lib/supabase/demo";
 import type { Database } from "../src/lib/supabase/types";
 import { GENUINE, genuineTicket, initWriter, latin1, photo, rewrite, ticketPdf, withExif } from "./ticket-fixtures";
 import { loadTarget } from "./lib/target-env.mjs";
@@ -93,8 +96,27 @@ const barcodesField = (page: Page) => page.locator("input[readonly]").first().in
 function adminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SECRET_KEY;
-  if (!url || !key) throw new Error("WRITE=1 needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY");
+  if (!url || !key) throw new Error("needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY");
   return createClient<Database>(url, key, { auth: { persistSession: false } });
+}
+
+/** The demo seller's account, whose PDF reads count against a limit (lib/rate.ts). */
+async function demoSellerId() {
+  const { data, error } = await adminClient().auth.admin.listUsers({ page: 1, perPage: 200 });
+  if (error) throw new Error(error.message);
+  const seller = data.users.find((u) => u.email === DEMO_ACCOUNTS.SELLER.email);
+  if (!seller) throw new Error(`no account ${DEMO_ACCOUNTS.SELLER.email} on this database`);
+  return seller.id;
+}
+
+/** Leaves the account with exactly n PDF reads spent in the current window. */
+async function setReads(accountId: string, n: number) {
+  const admin = adminClient();
+  const cleared = await admin.from("rate_attempts").delete().eq("account_id", accountId).eq("kind", "pdf_read");
+  if (cleared.error) throw new Error(cleared.error.message);
+  if (!n) return;
+  const spent = await admin.from("rate_attempts").insert(Array.from({ length: n }, () => ({ account_id: accountId, kind: "pdf_read" })));
+  if (spent.error) throw new Error(spent.error.message);
 }
 
 async function main() {
@@ -121,6 +143,7 @@ async function main() {
   page.on("pageerror", (e) => pageErrors.push(e.message.slice(0, 90)));
   const created: string[] = [];
   const orders: string[] = [];
+  let sellerId = "";
 
   try {
     const reader = (await (await fetch(`${BASE}/api/tickets/check`)).json()) as { available?: boolean };
@@ -137,6 +160,10 @@ async function main() {
     }, DEMO_KEY);
     await page.reload({ waitUntil: "networkidle" });
     await persona(page, "Seller", "/seller");
+    // A run reads a dozen PDFs against the seller's limit (lib/rate.ts), so it starts from none
+    // spent and leaves none spent; the only rows it touches are that account's attempt counts.
+    sellerId = await demoSellerId();
+    await setReads(sellerId, 0);
 
     let text = await checked(page, "genuine.pdf", files.genuine);
     check("genuine: one barcode read, none listed before", text.includes("1 read, none listed before"), text.slice(0, 200));
@@ -234,6 +261,32 @@ async function main() {
 
     await upload(page, "photo.pdf", latin1("this is not a pdf at all"));
     check("not a PDF: refused with the reason", await page.getByText("file ini bukan PDF").first().waitFor({ timeout: 30000 }).then(() => true, () => false));
+
+    // --- With the account's PDF reads spent, a check and a listing are refused before the file is
+    // read (production audit 2 Nov 2026, B3). The listing is asked only once the check was refused,
+    // and one that got through anyway is removed at the end like any other.
+    await setReads(sellerId, RATE.pdf_read.limit);
+    const limited = await page.evaluate(async (pdf) => {
+      const form = () => {
+        const f = new FormData();
+        f.append("ticket", new File([new Uint8Array(pdf)], "genuine.pdf", { type: "application/pdf" }));
+        return f;
+      };
+      const checkRes = await fetch("/api/tickets/check", { method: "POST", body: form() });
+      const check = { status: checkRes.status, body: (await checkRes.json().catch(() => ({}))) as Record<string, unknown> };
+      if (check.status !== 429) return { check, list: null };
+      const listing = form();
+      listing.append("eventId", "ev-5sos-jakarta");
+      listing.append("tierId", "t-5sos-cat3");
+      listing.append("askPrice", "1250000");
+      listing.append("holder", "Maya Kusuma");
+      const listRes = await fetch("/api/listings", { method: "POST", body: listing });
+      return { check, list: { status: listRes.status, body: (await listRes.json().catch(() => ({}))) as Record<string, unknown> } };
+    }, [...files.genuine]);
+    if (typeof limited.list?.body.id === "string") created.push(limited.list.body.id);
+    check("reads spent: a check is refused before the file is read", limited.check.status === 429 && limited.check.body.code === "rate_limited", JSON.stringify(limited.check));
+    check("reads spent: so is a listing", limited.list?.status === 429 && String(limited.list.body.error ?? "").includes("pemeriksaan tiket"), JSON.stringify(limited.list));
+    await setReads(sellerId, 0);
 
     if (WRITE) {
       const admin = adminClient();
@@ -444,6 +497,7 @@ async function main() {
   } catch (e) {
     check("flow ran to the end", false, (e as Error).message.split("\n")[0].slice(0, 200));
   } finally {
+    if (sellerId) await setReads(sellerId, 0).catch((e) => check("cleanup: the seller's attempt counts cleared", false, (e as Error).message));
     if (created.length || orders.length) {
       const admin = adminClient();
       // Claims point at their order, and orders at their listing, so they go first; then the photos.

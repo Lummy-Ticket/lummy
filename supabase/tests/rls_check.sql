@@ -123,6 +123,29 @@ select pg_temp.probe('authenticated', '44444444-4444-4444-4444-444444444444', 'a
 select pg_temp.probe('authenticated', '22222222-2222-2222-2222-222222222222', 'seller: file an event request directly', $q$insert into public.event_requests (submitter_name, title, starts_at, venue, city, category, pdf_tier) values ('x','x',now(),'x','x','Music','x') returning id$q$, 'DENIED');
 select pg_temp.probe('authenticated', '44444444-4444-4444-4444-444444444444', 'admin: approve an event request directly', $q$update public.event_requests set status = 'approved' where id = 'req-test' returning id$q$, 'DENIED');
 
+-- Ticket files, ID cards and claim photos open only through the server's signed links: no policy
+-- on storage.objects lets a browser role list them, staff included (production audit 2 Nov 2026).
+-- Meaningful only while the buckets hold files; production's tickets and evidence buckets do.
+select pg_temp.probe('anon', null, 'anon: list files in tickets, ktp, evidence', $q$select count(*)::text from storage.objects where bucket_id in ('tickets', 'ktp', 'evidence')$q$, '0');
+select pg_temp.probe('authenticated', '22222222-2222-2222-2222-222222222222', 'seller: list files in tickets, ktp, evidence', $q$select count(*)::text from storage.objects where bucket_id in ('tickets', 'ktp', 'evidence')$q$, '0');
+select pg_temp.probe('authenticated', '44444444-4444-4444-4444-444444444444', 'admin: list files in tickets, ktp, evidence', $q$select count(*)::text from storage.objects where bucket_id in ('tickets', 'ktp', 'evidence')$q$, '0');
+
+-- Attempt counts (lib/rate.ts) belong to the server: no browser role reads them, adds one, or calls
+-- the function that spends them, so nobody can use up another account's allowance.
+select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: read rate_attempts', 'select count(*)::text from public.rate_attempts', 'DENIED');
+select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: add an attempt directly', $q$insert into public.rate_attempts (account_id, kind) values ('11111111-1111-1111-1111-111111111111', 'pdf_read') returning id::text$q$, 'DENIED');
+select pg_temp.probe('anon', null, 'anon: spend an account''s attempts', $q$select public.take_attempt('11111111-1111-1111-1111-111111111111', 'pdf_read', 99, 600)::text$q$, 'DENIED');
+select pg_temp.probe('authenticated', '33333333-3333-3333-3333-333333333333', 'stranger: spend another account''s attempts', $q$select public.take_attempt('11111111-1111-1111-1111-111111111111', 'ai_fill', 99, 600)::text$q$, 'DENIED');
+-- And as the server: with a limit of two, two attempts get through and the third does not.
+do $$
+declare a boolean; b boolean; c boolean;
+begin
+  a := public.take_attempt('11111111-1111-1111-1111-111111111111', 'pdf_read', 2, 600);
+  b := public.take_attempt('11111111-1111-1111-1111-111111111111', 'pdf_read', 2, 600);
+  c := public.take_attempt('11111111-1111-1111-1111-111111111111', 'pdf_read', 2, 600);
+  insert into t_out(line) values ((case when a and b and not c then 'ok    ' else 'FAIL  ' end) || 'server: take_attempt lets 2 of 3 through a limit of 2 -> ' || a || ',' || b || ',' || c);
+end $$;
+
 insert into t_out(line)
   select (case when role = 'member' then 'ok    ' else 'FAIL  ' end) || 'signup metadata cannot set role -> ' || role::text
   from public.profiles where id = '22222222-2222-2222-2222-222222222222';
