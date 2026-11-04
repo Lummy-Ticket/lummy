@@ -6,7 +6,9 @@
 //   3. Brings the public ledger up to date for QRIS orders whose last step did not reach the chain
 //      (lib/orders/ledger.ts).
 //   4. Reads QRIS holds closed in the last two days once more at Xendit, so money no webhook
-//      reported still becomes its order or a refund (lib/payments/checkout.ts, recheckClosedHolds).
+//      reported still becomes its order or a refund, and gives paid holds the order a failed write
+//      left them without (lib/payments/checkout.ts, recheckClosedHolds).
+// The steps run money first (4, then 1 and 3, then 2) under one deadline (RUN_MS).
 // It can only do what the escrow rules and the retention rules already say, the same as the pages
 // asking, and what it finishes is not due the next time. Still, a stranger calling it over and over
 // would load the database, so only a call carrying CRON_SECRET (Vercel sends it as a bearer token
@@ -35,19 +37,24 @@ function fromCron(req: Request, secret: string) {
   return sent.length === expected.length && timingSafeEqual(sent, expected);
 }
 
+/**
+ * New work starts only this long into the run, out of the function's sixty seconds: the rest covers
+ * one slow call finishing past its step's share (a Xendit read can take twenty, two tries of ten)
+ * and the answer. Each step gets at most its own cap of what is left, so one slow step cannot leave
+ * the function killed before the ones after it ran (review, 4 Nov 2026).
+ */
+const RUN_MS = 40_000;
+
 export async function GET(req: Request) {
+  const started = Date.now();
+  const left = (cap: number) => Math.max(0, Math.min(cap, started + RUN_MS - Date.now()));
   const secret = process.env.CRON_SECRET?.trim();
   if (!secret) return NextResponse.json({ error: "CRON_SECRET belum di-set di server ini" }, { status: 503, headers: noStore });
   if (!fromCron(req, secret)) return NextResponse.json({ error: "cuma Vercel Cron" }, { status: 401, headers: noStore });
   const admin = supabaseAdmin();
   if (!admin) return NextResponse.json({ error: "database belum tersambung di server ini" }, { status: 503, headers: noStore });
-  let settle: Awaited<ReturnType<typeof settleDue>> | { error: string };
-  try {
-    settle = await settleDue(admin, 30_000);
-  } catch (e) {
-    settle = { error: (e as Error).message };
-  }
-  const purge = await purgeExpired(admin, Date.now(), 15_000);
+  // Money first: holds and money Xendit reported, then payouts and the ledger, then files, which
+  // can wait a day when a run is short of time.
   // QRIS holds nobody paid: the catalogue releases them too, this catches the quiet days.
   let holdsReleased: number | { error: string };
   try {
@@ -55,34 +62,48 @@ export async function GET(req: Request) {
   } catch (e) {
     holdsReleased = { error: (e as Error).message };
   }
-  // Closed holds read once more at Xendit. Five seconds at most: a hold not reached is still in the
-  // two-day window tomorrow, and the function as a whole has sixty.
+  // Closed holds read once more at Xendit, and paid holds given the order they lack. A hold not
+  // reached is still in the two-day window tomorrow; one about to leave it is logged by id.
   let holdsRechecked: RecheckReport | { error: string } | null = null;
   const qris = xenditConfig();
   if (qris) {
     try {
-      holdsRechecked = await recheckClosedHolds(admin, qris, 5_000);
+      holdsRechecked = await recheckClosedHolds(admin, qris, left(15_000));
     } catch (e) {
       holdsRechecked = { error: (e as Error).message };
     }
+    if (holdsRechecked && !("error" in holdsRechecked) && (holdsRechecked.left || holdsRechecked.failed || holdsRechecked.unscanned)) {
+      console.error("[cron/daily] the QRIS recheck did not finish:", JSON.stringify(holdsRechecked));
+    }
+  }
+  let settle: Awaited<ReturnType<typeof settleDue>> | { error: string };
+  try {
+    settle = await settleDue(admin, left(20_000));
+  } catch (e) {
+    settle = { error: (e as Error).message };
   }
   // USDC submits cut off half way: money in the escrow without an order goes back to its wallet.
-  let usdcReconciled: number | { error: string } | null = null;
+  // Each takes chain calls of a few seconds, so it waits for a day with time to spare.
+  let usdcReconciled: number | { error: string } | "later" | null = null;
   const op = usdcRail();
   if (op) {
-    try {
-      usdcReconciled = await reconcileUsdcHolds(admin, op, 10);
-    } catch (e) {
-      usdcReconciled = { error: (e as Error).message };
+    if (left(Infinity) < 15_000) usdcReconciled = "later";
+    else {
+      try {
+        usdcReconciled = await reconcileUsdcHolds(admin, op, 10);
+      } catch (e) {
+        usdcReconciled = { error: (e as Error).message };
+      }
     }
   }
   // After the payouts above, so a release made just now reaches the chain in the same run.
   let ledger: Awaited<ReturnType<typeof syncLedgerDue>> | { error: string };
   try {
-    ledger = await syncLedgerDue(admin, 10_000);
+    ledger = await syncLedgerDue(admin, left(10_000));
   } catch (e) {
     ledger = { error: (e as Error).message };
   }
+  const purge = await purgeExpired(admin, Date.now(), left(15_000));
   if (purge.errors.length) console.error("[cron/daily] files that could not be deleted:", purge.errors);
   // Attempt counts (lib/rate.ts) only ever matter for their last day; an account that comes back
   // clears its own, this takes the rest, as the privacy page promises.
