@@ -7,6 +7,7 @@ import { escrowAbi, ledgerAbi } from "./abi";
 import { DEPLOYMENTS } from "./deployments";
 import { publicClient } from "./escrow";
 import { ledgerTarget, readRecord, REFUND_REASONS, type LedgerRecord, type LedgerTarget, type RefundReason } from "./ledger";
+import { pickRecord, type Read } from "./pick";
 import { chainTarget, readListing, type ChainTarget, type OnchainListing } from "./server";
 
 if (typeof window !== "undefined") throw new Error("lib/chain/history hanya boleh dipakai di server");
@@ -365,10 +366,12 @@ const found = (h: EscrowHistory) => h.live.status !== "None" || h.events.length 
 
 /**
  * Riwayat untuk satu id: dari escrow, dari buku besar, atau dari keduanya sekaligus kalau sumbernya tidak
- * disebut (halaman bukti publik). Id keduanya hash dengan awalan berbeda (`lummy:listing:` dan
- * `lummy:order:`), jadi tidak pernah bertabrakan. Keduanya dibaca bersamaan, dan yang satu gagal tidak
- * menjatuhkan yang lain: catatan QRIS tetap terbaca walau RPC escrow sedang menolak. Null kalau tidak ada
- * di mana pun; galat cuma kalau tidak ketemu dan ada yang gagal dibaca.
+ * disebut (halaman bukti publik). Id buatan Lummy memakai awalan berbeda (`lummy:listing:` dan
+ * `lummy:order:`), tapi siapa pun bisa membuat listing escrow dengan id apa saja, termasuk id catatan
+ * buku besar yang terbaca di event-nya. Jadi buku besar, yang cuma ditulis operator, menang, dan jawaban
+ * escrow dipakai hanya kalau buku besar terbaca dan kosong untuk id itu (pick.ts, audit kontrak 4 Nov
+ * 2026). Keduanya dibaca bersamaan: catatan QRIS tetap terbaca walau RPC escrow sedang menolak. Null
+ * kalau tidak ada di mana pun.
  */
 export async function readAnyHistory(id: Hex, source?: HistorySource): Promise<EscrowHistory | null> {
   const escrow = source === "ledger" ? null : chainTarget();
@@ -377,8 +380,6 @@ export async function readAnyHistory(id: Hex, source?: HistorySource): Promise<E
     escrow ? readHistoryCached(escrow, id) : Promise.resolve(null),
     ledger ? cached(`${ledger.chain.id}:${ledger.ledger}:${id}`.toLowerCase(), () => readLedgerHistory(ledger, id)) : Promise.resolve(null),
   ]);
-  for (const r of reads) if (r.status === "fulfilled" && r.value && found(r.value)) return r.value;
-  const failed = reads.find((r): r is PromiseRejectedResult => r.status === "rejected");
-  if (failed) throw failed.reason;
-  return null;
+  const [fromEscrow, fromLedger] = reads.map((r): Read<EscrowHistory> => (r.status === "fulfilled" ? { ok: true, value: r.value } : { ok: false, error: r.reason }));
+  return pickRecord(fromEscrow, fromLedger, !!ledger, found);
 }
