@@ -1,5 +1,6 @@
 // Who is calling a route: the session cookie, checked with Supabase rather than trusted as sent,
 // and the staff flag from the database, the same source the pages use.
+import { staffByRole } from "./demo";
 import { supabaseServer } from "./server";
 
 if (typeof window !== "undefined") throw new Error("lib/supabase/session hanya boleh dipakai di server");
@@ -15,5 +16,5 @@ export async function currentUser(): Promise<SessionUser | null> {
   const { data: profile } = await sb.from("profiles").select("full_name, role").eq("id", data.user.id).maybeSingle();
   const email = data.user.email ?? "";
   const fullName = profile?.full_name?.trim() ?? "";
-  return { id: data.user.id, email, name: fullName || email.split("@")[0] || "Lummy", fullName, staff: profile?.role === "admin" };
+  return { id: data.user.id, email, name: fullName || email.split("@")[0] || "Lummy", fullName, staff: staffByRole(profile?.role, email, process.env.VERCEL_ENV === "production") };
 }

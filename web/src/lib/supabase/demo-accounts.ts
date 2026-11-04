@@ -1,5 +1,6 @@
 // The demo accounts on the server: created on first use, with the name and staff flag set from
-// DEMO_ACCOUNTS every time, so the database cannot drift from the list.
+// DEMO_ACCOUNTS every time, so the database cannot drift from the list (on lummy.id the admin one
+// is never staff).
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Role } from "@/lib/mock/types";
 import { DEMO_ACCOUNTS } from "./demo";
@@ -30,9 +31,12 @@ export async function ensureDemoAccount(admin: Admin, persona: Role): Promise<st
   });
   if (created.error && created.error.code !== "email_exists") throw new Error(created.error.message);
   const id = created.data.user?.id ?? (await findUserId(admin, account.email));
+  // On lummy.id the demo admin stays a member, so neither the pages nor the database's own staff
+  // rule (private.is_admin) treat it as staff; a reset there demotes it (lib/supabase/demo.ts).
+  const staff = account.staff && process.env.VERCEL_ENV !== "production";
   const profile = await admin
     .from("profiles")
-    .update({ full_name: account.name, role: account.staff ? "admin" : "member" })
+    .update({ full_name: account.name, role: staff ? "admin" : "member" })
     .eq("id", id);
   if (profile.error) throw new Error(profile.error.message);
   return id;
