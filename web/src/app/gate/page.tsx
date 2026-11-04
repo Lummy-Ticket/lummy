@@ -170,6 +170,11 @@ function GateDoor() {
   const [log, setLog] = useState<GateLog | null>(null);
   // The camera sees the same code many times a second: one read per code until the next one shows up.
   const lastRead = useRef({ code: "", at: 0 });
+  // The show the door is on now, for answers that arrive after it has moved to another one.
+  const showNow = useRef(eventId);
+  useEffect(() => {
+    showNow.current = eventId;
+  }, [eventId]);
 
   const loadLog = useCallback(async (): Promise<GateLog | null> => {
     // A sample persona has no session on the server, so asking would only earn a 401.
@@ -200,7 +205,11 @@ function GateDoor() {
       navigator.vibrate?.(j.result === "admitted" ? 80 : j.result === "refused" ? [90, 60, 90, 60, 90] : 0);
       // The field is ready for the next person; the answer stays on screen.
       if (typeof body.code === "string") setCode("");
-      void loadLog().then((l) => l && setLog(l));
+      // The log of the show this scan was for, dropped if the door has moved to another show since.
+      const sentFor = eventId;
+      void loadLog().then((l) => {
+        if (l && showNow.current === sentFor) setLog(l);
+      });
     } catch (e) {
       toast.error(`${t("Not checked", "Gagal dicek")}: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
