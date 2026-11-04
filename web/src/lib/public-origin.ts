@@ -16,13 +16,17 @@ export function publicOrigin(req: NextRequest) {
  * path is resolved the way a browser resolves it, which drops tabs and newlines and reads a
  * backslash as a slash: a prefix check alone let /%09/evil.example through as //evil.example
  * (production audit, 2 Nov 2026). What comes back is the resolved path, never the raw string.
+ * A resolved path that starts with two slashes is refused too: /.//evil.example resolves to
+ * //evil.example, which a browser and the router read as another site (review, 4 Nov 2026).
+ * Checked offline by `npm run access:check`.
  */
 export function safePath(path: string | null) {
   if (!path?.startsWith("/")) return "/";
   const base = "https://lummy.invalid";
   try {
     const url = new URL(path, base);
-    return url.origin === base ? url.pathname + url.search + url.hash : "/";
+    if (url.origin !== base || url.pathname.startsWith("//")) return "/";
+    return url.pathname + url.search + url.hash;
   } catch {
     return "/";
   }

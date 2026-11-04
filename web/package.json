@@ -35,6 +35,7 @@
     "ai:eval": "tsx scripts/ai-eval.ts",
     "location:check": "tsx scripts/location-check.ts",
     "live:check": "tsx scripts/live-check.ts",
+    "access:check": "tsx scripts/access-check.ts",
     "tickets:flow": "tsx scripts/tickets-flow-check.ts",
     "cancel:check": "tsx scripts/cancel-check.ts",
     "evidence:check": "tsx scripts/evidence-check.ts",
