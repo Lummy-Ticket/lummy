@@ -67,30 +67,46 @@ export function banner(target, host, url = "") {
 
 /**
  * A check and the server it drives must use the same database. start-local.sh leaves a note of the
- * host its server uses in /tmp/lummy-next-PORT.target, so a run that disagrees stops before writing
- * anything. Only for an explicit local BASE, and only while the noted server is still running.
+ * host its server uses in /tmp/lummy-next-PORT.target, so a run that disagrees with a noted local
+ * server stops before writing anything. BASE unset means the check's own default, a local server on
+ * `defaultBase`, and is looked at too. Where nothing says which database the server uses (a remote
+ * BASE, or a local server not started by start-local.sh), a run that picked staging only because
+ * ~/.lummy/staging.env exists stops as well: it could write to staging while the server reads
+ * production, or the other way round. LUMMY_ENV said outright is trusted there (review, 4 Nov 2026).
  */
-function serverDisagrees(host) {
+export function serverDisagrees(host, target, env = process.env, defaultBase = "http://localhost:3000") {
   let base;
   try {
-    base = new URL(process.env.BASE ?? "");
+    base = new URL(env.BASE || defaultBase);
   } catch {
     return null;
   }
-  if (!["127.0.0.1", "localhost"].includes(base.hostname)) return null;
-  const note = `/tmp/lummy-next-${base.port || "80"}.target`;
+  const noted = ["127.0.0.1", "localhost"].includes(base.hostname) ? serverNote(base) : null;
+  if (noted) return noted.host === host ? null : `the server at ${base.origin} uses ${noted.target} (${noted.host}), this run would use ${host}`;
+  if (target === "staging" && !env.LUMMY_ENV) {
+    return `nothing says which database the server at ${base.origin} uses, and this run picked staging only because ~/.lummy/staging.env exists`;
+  }
+  return null;
+}
+
+/** What start-local.sh noted about the server on this port, while that server still runs. */
+function serverNote(base) {
+  const note = `/tmp/lummy-next-${base.port || (base.protocol === "https:" ? "443" : "80")}.target`;
   if (!existsSync(note)) return null;
-  const [serverTarget, serverHost, pid] = readFileSync(note, "utf8").trim().split(/\s+/);
+  const [target, host, pid] = readFileSync(note, "utf8").trim().split(/\s+/);
   try {
     if (!readFileSync(`/proc/${Number(pid)}/cmdline`, "utf8").includes("next")) return null;
   } catch {
     return null;
   }
-  return serverHost === host ? null : `the server at ${base.origin} uses ${serverTarget} (${serverHost}), this run would use ${host}`;
+  return { target, host };
 }
 
-/** Loads the target's env into process.env and prints the banner; exits when it cannot be used. */
-export function loadTarget() {
+/**
+ * Loads the target's env into process.env and prints the banner; exits when it cannot be used.
+ * `defaultBase` is the server the check talks to when BASE is unset.
+ */
+export function loadTarget(defaultBase = "http://localhost:3000") {
   let target;
   try {
     target = chooseTarget();
@@ -111,7 +127,7 @@ export function loadTarget() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   const host = hostOf(url);
   console.error(banner(target, host, url));
-  const disagreement = serverDisagrees(host);
+  const disagreement = serverDisagrees(host, target, process.env, defaultBase);
   if (disagreement) {
     console.error(`DB target: refused, ${disagreement}. Restart it with web/scripts/start-local.sh, or set LUMMY_ENV to match.`);
     process.exit(1);

@@ -27,7 +27,7 @@
  *
  *
  *   BASE=http://localhost:3000 npm run payments:check
- *   BASE=https://lummy.id WEBHOOK_LIVE=1 npm run payments:check
+ *   LUMMY_ENV=production BASE=https://lummy.id WEBHOOK_LIVE=1 npm run payments:check
  */
 import { createClient } from "@supabase/supabase-js";
 import { chromium, type Browser, type BrowserContext } from "playwright-core";

@@ -13,6 +13,15 @@ WEB=$PWD
 lummy_target_choose
 lummy_target_export
 lummy_target_banner
+# The checks below drive this script's own dev server, which leaves no note of its database as
+# start-local.sh does, so they are told the target outright instead of choosing it again.
+export LUMMY_ENV=$LUMMY_TARGET
+# A dev server on another build folder points next-env.d.ts at it; the repo's type check keeps .next.
+ENVDTS=""
+if [ "$NEXT_DIST_DIR" != .next ] && [ -f next-env.d.ts ]; then
+  ENVDTS=$(mktemp)
+  cp next-env.d.ts "$ENVDTS"
+fi
 CONTRACTS=$WEB/../contracts
 RPC=http://127.0.0.1:8545
 PORT=3107
@@ -24,6 +33,12 @@ cleanup() {
   pkill -f "next dev -p $PORT" 2>/dev/null || true
   if [ -n "$ANVIL_PID" ]; then kill "$ANVIL_PID" 2>/dev/null || true; fi
   rm -f "$LOG"
+  if [ -n "$ENVDTS" ]; then
+    cat "$ENVDTS" > next-env.d.ts
+    rm -f "$ENVDTS"
+  elif [ "$NEXT_DIST_DIR" != .next ]; then
+    rm -f next-env.d.ts
+  fi
 }
 trap cleanup EXIT
 

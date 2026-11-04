@@ -36,7 +36,7 @@ import { deliverable } from "../src/lib/email/send";
 import type { Database } from "../src/lib/supabase/types";
 import { loadTarget } from "./lib/target-env.mjs";
 
-loadTarget();
+loadTarget("http://127.0.0.1:3001");
 const BASE = process.env.BASE ?? "http://127.0.0.1:3001";
 const EXEC = process.env.CHROME ?? "/opt/google/chrome/chrome";
 const DIR = process.env.EMAIL_DIR ?? "";

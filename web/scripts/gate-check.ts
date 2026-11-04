@@ -13,7 +13,7 @@
  * only where that is fine. The server needs TICKET_BARCODE_PEPPER (passes are signed with it).
  *
  *   BASE=http://localhost:3000 npm run gate:check
- *   BASE=https://lummy.id npm run gate:check
+ *   LUMMY_ENV=production BASE=https://lummy.id npm run gate:check
  */
 import { createClient } from "@supabase/supabase-js";
 import { chromium, type Browser, type BrowserContext } from "playwright-core";
