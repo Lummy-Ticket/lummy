@@ -2,7 +2,8 @@
 // listing, each a full parse), the paid AI fill, and claim-photo upload links (production audit
 // 2 Nov 2026, B3). Counted in the database (public.take_attempt), so every server instance sees the
 // same count, and taken before the work, so a refused or failed try counts too. The counts are
-// personal data: the privacy page names them, and they are gone within a day.
+// personal data: the privacy page names them, and they are gone within two days (the daily cron
+// deletes those older than a day, so one made just after a run waits for the run after next).
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/types";
 import { FILL_WINDOW_MS, FILLS_PER_WINDOW } from "@/lib/tickets/fill";

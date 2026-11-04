@@ -106,7 +106,7 @@ export async function GET(req: Request) {
   const purge = await purgeExpired(admin, Date.now(), left(15_000));
   if (purge.errors.length) console.error("[cron/daily] files that could not be deleted:", purge.errors);
   // Attempt counts (lib/rate.ts) only ever matter for their last day; an account that comes back
-  // clears its own, this takes the rest, as the privacy page promises.
+  // clears its own, this takes the rest, so none lasts past two days, as the privacy page says.
   const attempts = await admin.from("rate_attempts").delete().lt("at", new Date(Date.now() - 86_400_000).toISOString());
   if (attempts.error) console.error("[cron/daily] old attempt counts not deleted:", attempts.error.message);
   return NextResponse.json(
