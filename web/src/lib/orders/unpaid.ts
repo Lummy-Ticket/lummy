@@ -22,3 +22,12 @@ export const moneyNow = (): Money => ({ payouts: FEATURES.payouts, xenditLive: x
 export function unpaidOrderAllowed(listingId: string, money: Money) {
   return !moneyIsReal(money) || SEED_IDS.has(listingId);
 }
+
+/**
+ * Whether a listing may be paid for with real money (a live Xendit key). A seed listing, or one with
+ * no seller, is a sample: nobody would hand over a ticket or receive the payout, so real rupiah for
+ * it would only wait for a refund (money audit, 4 Nov 2026). In test mode every listing may be paid.
+ */
+export function paidListingAllowed(listingId: string, sellerId: string | null, testMode: boolean) {
+  return testMode || (!SEED_IDS.has(listingId) && !!sellerId);
+}

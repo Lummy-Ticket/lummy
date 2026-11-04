@@ -11,6 +11,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { notifyOrderPaid } from "@/lib/email/notify";
 import { checkPurchase, loadPurchase, orderInsert, priceOf } from "@/lib/orders/create";
 import { queueLedgerSync } from "@/lib/orders/ledger";
+import { paidListingAllowed } from "@/lib/orders/unpaid";
 import type { Database } from "@/lib/supabase/types";
 import { GRACE_SECONDS, HOLD_MINUTES } from "./hold";
 import type { PaymentStatus, PaymentView } from "./types";
@@ -246,6 +247,26 @@ async function ensureOrder(admin: Admin, row: PaymentRow): Promise<string | null
   if (!p || p.listing.status === "cancelled" || p.listing.status === "rejected" || p.event.status === "cancelled") {
     await admin.from("payments").update({ status: "unfulfilled", updated_at: new Date().toISOString() }).eq("id", row.id).eq("status", "paid");
     console.error("[payments] paid, but the listing or show is gone; refund it:", row.id);
+    return null;
+  }
+  // Money that reaches Lummy only after the show is over (a webhook retried for a day, the cron's
+  // second look) buys nothing any more: the buyer never had the ticket at the door, and the claim
+  // window would close within hours. It waits for a refund, and the seats it held go back (money
+  // audit, 4 Nov 2026).
+  if (Date.now() > p.scheduledEnd) {
+    const late = await admin
+      .from("payments")
+      .update({ status: "unfulfilled", updated_at: new Date().toISOString() })
+      .eq("id", row.id)
+      .eq("status", "paid")
+      .select("id");
+    if (late.error) throw new Error(late.error.message);
+    if (late.data.length) {
+      const back = await admin.rpc("release_listing", { p_listing_id: row.listing_id, p_quantity: row.quantity });
+      if (back.error) console.error("[payments] seats of a hold paid after its show not given back:", row.id, back.error.message);
+      else seatsChanged();
+    }
+    console.error("[payments] paid after the show was over; refund it:", row.id);
     return null;
   }
   // The amounts the buyer paid, kept on the hold, not the listing's price today.
@@ -492,6 +513,9 @@ export async function startCheckout(
   const check = await checkPurchase(admin, buyerId, listingId);
   if (!check.ok) return check;
   if (check.purchase.event.currency !== "IDR") return fail(400, "acara ini dibayar dengan USDC dari wallet, bukan QRIS");
+  if (!paidListingAllowed(listingId, check.purchase.listing.seller_id, cfg.testMode)) {
+    return fail(409, "listing contoh tidak dijual dengan uang sungguhan");
+  }
   const price = priceOf(check.purchase.listing.ask_price, quantity);
   if (price.total > QRIS_MAX) {
     return fail(400, `QRIS paling banyak ${rupiah(QRIS_MAX)} per pembayaran, sedangkan totalnya ${rupiah(price.total)}. Kurangi jumlah tiketnya.`);

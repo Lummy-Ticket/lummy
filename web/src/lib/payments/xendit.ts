@@ -20,12 +20,17 @@ export const XENDIT_PAYMENT_ID = /^py-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-
 export type XenditConfig = { key: string; token: string; testMode: boolean };
 
 /**
- * Whether this server holds a live Xendit key, read from the key alone. Money is real from then on,
- * even while xenditConfig() is still null for want of the webhook token: reading it from the whole
- * config let a live key without its token pass for simulated money, which opened the straight order
- * path to everyone (review, 4 Nov 2026). live:check covers it.
+ * Whether money may be real on this server, read from the key alone: any key that is set and is
+ * not a test key counts, a live one or a wrong one pasted in its place (a public key, a typo), so a
+ * half-set server fails closed. Money is real from then on even while xenditConfig() is still null
+ * for want of the webhook token: reading it from the whole config let a live key without its token
+ * pass for simulated money, which opened the straight order path to everyone (review, 4 Nov 2026).
+ * live:check covers it.
  */
-export const xenditKeyIsLive = (key = process.env.XENDIT_SECRET_KEY) => !!key?.trim().startsWith("xnd_production_");
+export const xenditKeyIsLive = (key = process.env.XENDIT_SECRET_KEY) => {
+  const k = key?.trim();
+  return !!k && !k.startsWith("xnd_development_");
+};
 
 /** Null until both the key and the webhook token are set. A test key starts xnd_development_. */
 export function xenditConfig(): XenditConfig | null {

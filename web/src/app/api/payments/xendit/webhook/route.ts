@@ -35,12 +35,13 @@ export async function POST(req: Request) {
 
   let found = null;
   if (PAYMENT_REQUEST_ID.test(prId)) {
-    const r = await admin.from("payments").select("*").eq("provider_ref", prId).maybeSingle();
+    const r = await admin.from("payments").select("*").eq("provider", "xendit").eq("provider_ref", prId).maybeSingle();
     if (r.error) return NextResponse.json({ error: "database" }, { status: 500, headers: noStore });
     found = r.data;
   }
   if (!found && PAYMENT_ID.test(reference)) {
-    const r = await admin.from("payments").select("*").eq("id", reference).maybeSingle();
+    // USDC holds carry pay- ids too; a webhook only ever speaks for a QRIS one.
+    const r = await admin.from("payments").select("*").eq("provider", "xendit").eq("id", reference).maybeSingle();
     if (r.error) return NextResponse.json({ error: "database" }, { status: 500, headers: noStore });
     found = r.data;
   }

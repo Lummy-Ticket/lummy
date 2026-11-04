@@ -7,7 +7,7 @@
  *   npm run live:check
  */
 import { SEED_LISTINGS } from "../src/lib/mock/seed";
-import { moneyIsReal, moneyNow, unpaidOrderAllowed } from "../src/lib/orders/unpaid";
+import { moneyIsReal, moneyNow, paidListingAllowed, unpaidOrderAllowed } from "../src/lib/orders/unpaid";
 import { xenditConfig, xenditKeyIsLive } from "../src/lib/payments/xendit";
 
 const results: { name: string; ok: boolean; note?: string }[] = [];
@@ -55,6 +55,18 @@ check(
 check("live key, webhook token missing: the same", withEnv(liveKey, undefined, () => xenditConfig() === null && !unpaidOrderAllowed(real, moneyNow())));
 check("live key with spaces around it is still live", withEnv(`  ${liveKey}\n`, "", () => xenditKeyIsLive()));
 check("a test key is never live, token or not", withEnv(testKey, "", () => !xenditKeyIsLive()) && !xenditKeyIsLive(testKey));
+check(
+  "a wrong key pasted in (a public key, a typo) counts as real money, so the straight path stays shut",
+  withEnv("xnd_public_madeup0123", "", () => xenditConfig() === null && xenditKeyIsLive() && !unpaidOrderAllowed(real, moneyNow())) && xenditKeyIsLive("xnd_prod_typo")
+);
+check("an empty or blank key is not live", !xenditKeyIsLive("") && !xenditKeyIsLive("   ") && !xenditKeyIsLive(undefined));
+
+// Paying real rupiah (a live key) for a sample: a seed listing, or one without a seller, has nobody
+// to hand over a ticket or take the payout (money audit, 4 Nov 2026).
+check("live key: a seed listing cannot be paid for", !paidListingAllowed(seed, "11111111-1111-1111-1111-111111111111", false));
+check("live key: a listing without a seller cannot be paid for", !paidListingAllowed(real, null, false));
+check("live key: a real seller's listing can", paidListingAllowed(real, "11111111-1111-1111-1111-111111111111", false));
+check("test key: any listing can, seed and sellerless included", paidListingAllowed(seed, null, true) && paidListingAllowed(real, null, true));
 
 for (const r of results) console.log(`${r.ok ? "PASS" : "FAIL"}  ${r.name}${r.note ? `  (${r.note})` : ""}`);
 const failed = results.filter((r) => !r.ok).length;
