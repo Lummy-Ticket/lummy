@@ -12,7 +12,7 @@ import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { chainError, chainTarget, operatorSetup, readListing, settle } from "@/lib/chain/server";
 import { demoKeyAllowed, demoMode } from "@/lib/demo-key";
-import { SEED_LISTINGS } from "@/lib/mock/seed";
+import { SEED_LISTINGS, seedEvents } from "@/lib/mock/seed";
 import { seedOrders } from "@/lib/mock/seed-orders";
 import { SAMPLE_SIGNALS, publicSellerName } from "@/lib/listings/rules";
 import { HELD, rowsFromOrder } from "@/lib/orders/map";
@@ -134,10 +134,18 @@ export async function POST(req: Request) {
     // Every seed listing on sale again, with the seats it started with and no clearance from a
     // rehearsal. Shows are left as they are: every seed show is a real one since 29 Oct 2026, so a
     // show that is cancelled or moved was cancelled or moved by staff, and a reset putting it back
-    // on sale would undo that (production audit 2 Nov 2026, B1). A rehearsal of a cancellation
-    // makes a throwaway show of its own, as cancel:check does.
+    // on sale would undo that (production audit 2 Nov 2026, B1). So are their listings, and no demo
+    // order goes on such a show, since its dates come from the seed (review, 4 Nov 2026): only a
+    // show still scheduled at its seed time is restored. A rehearsal of a cancellation makes a
+    // throwaway show of its own, as cancel:check does.
+    const seededAt = new Map(seedEvents().map((e) => [e.id, Date.parse(e.dateISO)]));
+    const shows = await admin.from("events").select("id, status, starts_at").in("id", [...seededAt.keys()]);
+    if (shows.error) return fail(500, shows.error.message);
+    const asSeeded = new Set(shows.data.filter((e) => e.status === "scheduled" && Date.parse(e.starts_at) === seededAt.get(e.id)).map((e) => e.id));
     const restored = await Promise.all(
-      SEED_LISTINGS.map((l) => admin.from("listings").update({ quantity: l.quantity, status: l.status, cleared_at: null }).eq("id", l.id).select("id"))
+      SEED_LISTINGS.filter((l) => asSeeded.has(l.eventId)).map((l) =>
+        admin.from("listings").update({ quantity: l.quantity, status: l.status, cleared_at: null }).eq("id", l.id).select("id")
+      )
     );
     const restoreError = restored.find((r) => r.error)?.error;
     if (restoreError) return fail(500, restoreError.message);
@@ -172,9 +180,11 @@ export async function POST(req: Request) {
     const linked = await admin.from("listings").update({ seller_id: seller }).in("id", seedIds).eq("seller_name", sellerName);
     if (linked.error) return fail(500, linked.error.message);
     const flagged = SAMPLE_SIGNALS.edited;
-    const heldListing = await admin.from("listings").upsert({
+    const HELD_EVENT_ID = "ev-5sos-jakarta";
+    // On a show staff have changed, the flagged listing is not put back in the queue.
+    const heldListing = !asSeeded.has(HELD_EVENT_ID) ? { error: null } : await admin.from("listings").upsert({
       id: HELD_LISTING_ID,
-      event_id: "ev-5sos-jakarta",
+      event_id: HELD_EVENT_ID,
       tier_id: "t-5sos-cat3",
       seller_id: seller,
       seller_name: sellerName,
@@ -202,7 +212,7 @@ export async function POST(req: Request) {
     if (events.error || listings.error) return fail(500, (events.error ?? listings.error)!.message);
     const eventIds = new Set(events.data.map((e) => e.id));
     const listingIds = new Set(listings.data.map((l) => l.id));
-    const rows = seedOrders().map((o) =>
+    const rows = seedOrders().filter((o) => asSeeded.has(o.eventId)).map((o) =>
       rowsFromOrder(
         { ...o, id: demoOrderId(o.id) },
         { buyerId: buyer, sellerId: o.sellerName === sellerName ? seller : null, decidedBy: staff, eventIds, listingIds }
