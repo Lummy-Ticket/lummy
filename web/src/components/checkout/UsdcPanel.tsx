@@ -10,13 +10,11 @@ import { Check, Loader2, Wallet } from "lucide-react";
 import type { Address } from "viem";
 import { Button } from "@/components/ui/button";
 import { useHydrated } from "@/lib/access";
+import { USDC_FAUCET } from "@/lib/chain/format";
 import { connectWallet, ensureChain, injectedWallet, shortAddress, signTyped, walletRefused } from "@/lib/chain/wallet";
 import { useFormatters, useT } from "@/lib/i18n";
 import { OrderError } from "@/lib/orders/client";
 import { paymentAction, startUsdcPayment, submitUsdcPayment, type UsdcStart } from "@/lib/payments/client";
-
-/** Circle's faucet hands out testnet USDC, Arbitrum Sepolia included. */
-export const USDC_FAUCET = "https://faucet.circle.com";
 
 type Step = "idle" | "connecting" | "holding" | "auth" | "fund" | "locking";
 const ORDER: Step[] = ["auth", "fund", "locking"];

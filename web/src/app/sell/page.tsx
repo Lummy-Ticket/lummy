@@ -4,6 +4,7 @@ import { Suspense, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
+import { MAX_TICKET_BYTES } from "@/lib/tickets/limits";
 import {
   UploadCloud, FileText, ScanLine, CheckCircle2, AlertTriangle, Loader2, ArrowRight, ArrowLeft, ShieldCheck, Minus, Plus, IdCard, Lock, Info,
 } from "lucide-react";
@@ -150,6 +151,8 @@ function SellForm() {
   const [barcode, setBarcode] = useState("");
   const [ai, setAi] = useState<ListingAI | null>(null);
   const [price, setPrice] = useState<number>(0);
+  // What the seller is typing in the price field, kept apart until it is checked against the band.
+  const [typedPrice, setTypedPrice] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
   // Venues that still check ID want the seller's KTP next to the letter of authorisation.
   // It is staged now so nobody scrambles for it on the day (docs/02, gate KTP).
@@ -197,6 +200,12 @@ function SellForm() {
   /** A file chosen from disk, for an account whose server checks real PDFs. */
   const pickTicket = (f: File | null | undefined) => {
     if (!f) return;
+    // Checked here too, so a big file is not sent over mobile data only to be refused (and above
+    // Vercel's own 4.5 MB the refusal would not even be readable).
+    if (f.size > MAX_TICKET_BYTES) {
+      toast.error(t(`That file is over ${MAX_TICKET_BYTES / 1024 / 1024} MB. Upload the ticket PDF as the organiser sent it.`, `File itu lebih dari ${MAX_TICKET_BYTES / 1024 / 1024} MB. Upload PDF tiket persis seperti yang dikirim penyelenggara.`));
+      return;
+    }
     setTicketFile(f);
     setFileName(f.name);
     setCheck(null);
@@ -767,7 +776,38 @@ function SellForm() {
               <span className="text-xs text-neutral-gray">{t("Your asking price, per ticket", "Harga jual kamu, per tiket")}</span>
               <span className="tabular-nums font-bold text-xl text-lummy-500">{formatIDR(price)}</span>
             </div>
-            <input type="range" min={floor} max={cap} step={10000} value={price} onChange={(e) => setPrice(Number(e.target.value))} className="w-full accent-primary-navy cursor-pointer" />
+            <input
+              type="range"
+              min={floor}
+              max={cap}
+              step={10000}
+              value={price}
+              onChange={(e) => setPrice(Number(e.target.value))}
+              aria-label={t("Asking price per ticket", "Harga jual per tiket")}
+              aria-valuetext={formatIDR(price)}
+              className="w-full accent-primary-navy cursor-pointer"
+            />
+            {/* A slider of 10,000 steps is fiddly on a phone (about 2 px a step), so the price can
+                be typed as well; it is held to the 50 to 150% band when the field is left. */}
+            <label className="mt-3 flex items-center gap-3 text-xs text-neutral-gray">
+              <span className="shrink-0">{t("Or type it", "Atau ketik")}</span>
+              <span className="flex flex-1 items-center gap-1 rounded-xl border border-neutral-light-gray-1 px-3 py-2 text-sm text-neutral-black focus-within:border-primary-navy">
+                <span className="text-neutral-gray">Rp</span>
+                <input
+                  inputMode="numeric"
+                  value={typedPrice ?? String(price)}
+                  onChange={(e) => setTypedPrice(e.target.value.replace(/\D/g, "").slice(0, 9))}
+                  onBlur={() => {
+                    if (typedPrice === null) return;
+                    const n = Number(typedPrice);
+                    if (n > 0) setPrice(Math.min(cap, Math.max(floor, n)));
+                    setTypedPrice(null);
+                  }}
+                  aria-label={t("Asking price per ticket, in rupiah", "Harga jual per tiket, dalam rupiah")}
+                  className="w-full bg-transparent tabular-nums outline-none"
+                />
+              </span>
+            </label>
             <div className="flex justify-between items-center text-xs text-neutral-gray mt-2">
               <span className="flex flex-col"><span>{formatIDR(floor)}</span><span className="text-[10px]">{t("min 50%", "min 50%")}</span></span>
               <span className={`font-medium ${markup >= 0 ? "text-secondary-green-dark" : "text-secondary-orange-dark"}`}>{markup >= 0 ? `+${markup}%` : `${markup}%`} {t("vs face value", "dari harga asli")}</span>

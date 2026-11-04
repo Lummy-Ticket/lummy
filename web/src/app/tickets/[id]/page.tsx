@@ -27,7 +27,7 @@ import {useOrders, useUser, explorerTx, explorerAddr, shortHash, phaseOf, msUnti
 } from "@/lib/mock";
 import { chainAction, chainWritable, useChainHistory, useChainInfo, useChainListing, usdcText } from "@/lib/chain/client";
 import { DEPLOYMENTS, LEDGERS } from "@/lib/chain/deployments";
-import { shortAddress } from "@/lib/chain/wallet";
+import { shortAddress } from "@/lib/chain/format";
 import { OrderError, orderAction, uploadEvidence, useAccountOrders } from "@/lib/orders/client";
 import { useCatalogue } from "@/lib/catalogue";
 import { FEATURES } from "@/lib/features";
@@ -1362,7 +1362,7 @@ export default function OrderDetailPage() {
         </div>
       </Modal>
 
-      <Modal open={acting} onClose={() => {}}>
+      <Modal open={acting} onClose={() => {}} label={t("Working on your order", "Memproses pesananmu")}>
         <div className="flex flex-col items-center gap-3 py-4">
           <Loader2 className="w-8 h-8 text-lummy-500 animate-spin" />
           <p className="font-semibold text-neutral-black">

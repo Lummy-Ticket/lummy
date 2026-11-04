@@ -22,11 +22,16 @@ import { DEPLOYMENTS } from "@/lib/chain/deployments";
 import { OrderError, placeOrder } from "@/lib/orders/client";
 import { startPayment, usePaymentsConfig, type PaymentView } from "@/lib/payments/client";
 import { QrisPanel, SampleQrisPanel } from "@/components/checkout/QrisPanel";
-import { USDC_FAUCET, UsdcPanel } from "@/components/checkout/UsdcPanel";
+import dynamic from "next/dynamic";
+import { USDC_FAUCET } from "@/lib/chain/format";
 import { useAccessGuard } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters } from "@/lib/i18n";
 import { TEST_MODE } from "@/components/layout/TestModeNotice";
+
+// The wallet panel brings the chain client (viem) with it, which only a USDC show needs: QRIS
+// buyers no longer download it (UX audit, 4 Nov 2026).
+const UsdcPanel = dynamic(() => import("@/components/checkout/UsdcPanel").then((m) => m.UsdcPanel), { ssr: false });
 
 /**
  * Unix seconds when the show ends, which is when the contract starts the dispute window. The demo
@@ -355,7 +360,7 @@ function CheckoutInner() {
         </div>
       </div>
 
-      <Modal open={processing} onClose={() => {}}>
+      <Modal open={processing} onClose={() => {}} label={t("Placing your order", "Memproses pesanan")}>
         <div className="flex flex-col items-center gap-3 py-4">
           <Loader2 className="w-8 h-8 text-lummy-500 animate-spin" />
           <p className="font-semibold text-neutral-black">{t("Processing payment...", "Memproses pembayaran...")}</p>
@@ -373,7 +378,7 @@ function CheckoutInner() {
 
       {/* Paying in USDC: the wallet signs, the server locks the money. Like QRIS, only its own
           buttons close it, since the seats may be held. */}
-      <Modal open={usdcOpen} onClose={() => {}} className="max-w-md">
+      <Modal open={usdcOpen} onClose={() => {}} className="max-w-md" label={t("Pay with USDC", "Bayar dengan USDC")}>
         {usdcOpen && (
           <UsdcPanel
             listingId={listing.id}
@@ -392,7 +397,7 @@ function CheckoutInner() {
         )}
       </Modal>
 
-      <Modal open={samplePay} onClose={() => {}} className="max-w-md">
+      <Modal open={samplePay} onClose={() => {}} className="max-w-md" label={t("Pay with QRIS", "Bayar dengan QRIS")}>
         {samplePay && (
           <SampleQrisPanel
             amount={total}
@@ -410,7 +415,7 @@ function CheckoutInner() {
       </Modal>
 
       {/* Closing it by accident would leave the seats held, so only its own buttons close it. */}
-      <Modal open={!!payment} onClose={() => {}} className="max-w-md">
+      <Modal open={!!payment} onClose={() => {}} className="max-w-md" label={t("Pay with QRIS", "Bayar dengan QRIS")}>
         {payment && (
           <QrisPanel
             initial={payment}

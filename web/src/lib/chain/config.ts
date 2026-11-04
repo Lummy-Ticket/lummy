@@ -17,15 +17,8 @@ export const RPC_URLS: Record<number, string> = {
   [foundry.id]: "http://127.0.0.1:8545",
 };
 
-const EXPLORERS: Record<number, string> = {
-  [arbitrumSepolia.id]: "https://sepolia.arbiscan.io",
-};
-
-export const explorerTx = (chainId: number, hash: string) =>
-  EXPLORERS[chainId] ? `${EXPLORERS[chainId]}/tx/${hash}` : null;
-
-export const explorerAddress = (chainId: number, address: string) =>
-  EXPLORERS[chainId] ? `${EXPLORERS[chainId]}/address/${address}` : null;
+// Explorer links live in ./format, which pages can import without viem.
+export { explorerAddress, explorerTx } from "./format";
 
 /** USDC Circle dan MockUSDC sama-sama 6 desimal. */
 export const USDC_DECIMALS = 6;

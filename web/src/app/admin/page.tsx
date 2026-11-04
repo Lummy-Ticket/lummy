@@ -877,7 +877,7 @@ export default function AdminPage() {
         )}
       </Modal>
 
-      <Modal open={!!sending} onClose={() => {}}>
+      <Modal open={!!sending} onClose={() => {}} label={t("Sending", "Mengirim")}>
         <div className="flex flex-col items-center gap-3 py-4">
           <Loader2 className="w-8 h-8 text-lummy-500 animate-spin" />
           <p className="font-semibold text-neutral-black">

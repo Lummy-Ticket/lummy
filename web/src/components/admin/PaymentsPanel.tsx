@@ -8,7 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { AlertTriangle, CheckCircle2, Copy, ExternalLink, Fuel, Loader2, Mail, RotateCcw, ShieldCheck, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { explorerAddress } from "@/lib/chain/config";
+import { explorerAddress } from "@/lib/chain/format";
 import { useFormatters, useT } from "@/lib/i18n";
 import { shortHash } from "@/lib/mock";
 import type { PaymentsOverview, StaffPayment, StuckRecord } from "@/lib/payments/types";

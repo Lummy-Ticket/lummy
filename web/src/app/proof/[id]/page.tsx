@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { EscrowTimeline } from "@/components/common/EscrowTimeline";
 import { useT } from "@/lib/i18n";
-import { explorerAddress } from "@/lib/chain/config";
+import { explorerAddress } from "@/lib/chain/format";
 import { useChainHistory, type ChainHistory } from "@/lib/chain/client";
 import { shortHash } from "@/lib/mock";
 

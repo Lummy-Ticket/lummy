@@ -67,4 +67,4 @@ function codeOf(e: unknown): number | undefined {
 export const walletRefused = (e: unknown) => codeOf(e) === 4001;
 
 /** 0xaD1d…AD91 */
-export const shortAddress = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
+export { shortAddress } from "./format";

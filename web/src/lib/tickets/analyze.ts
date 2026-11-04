@@ -8,11 +8,12 @@ import { createCanvas } from "@napi-rs/canvas";
 import type { PDFDocumentLoadingTask, PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import { barcodeKey, decodeImage, packageFile, payloadTail } from "./barcode";
 import { judge, scanStructure, type Forensics, type TextRun } from "./forensics";
+import { MAX_TICKET_BYTES } from "./limits";
+
+export { MAX_TICKET_BYTES };
 
 if (typeof window !== "undefined") throw new Error("lib/tickets/analyze is server-only");
 
-/** Vercel refuses request bodies over 4.5 MB, and e-tickets are far smaller. */
-export const MAX_TICKET_BYTES = 4 * 1024 * 1024;
 /**
  * One PDF often carries a whole order: a real one tried here holds four tickets, each followed by
  * seven pages of terms. Pages of only text are skipped cheaply, so the limit can be generous.

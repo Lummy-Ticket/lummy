@@ -8,7 +8,7 @@
 // never claim the second holds money.
 import { ExternalLink, ShieldCheck } from "lucide-react";
 import { useFormatters, useT } from "@/lib/i18n";
-import { explorerTx } from "@/lib/chain/config";
+import { explorerTx } from "@/lib/chain/format";
 import { chainSettled, usdcText, type ChainHistory, type ChainHistoryEvent, type ChainListing } from "@/lib/chain/client";
 
 type Copy = { en: string; id: string };
