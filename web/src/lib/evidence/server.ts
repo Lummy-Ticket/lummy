@@ -6,6 +6,7 @@ import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DisputeEvidence, EvidenceKind } from "@/lib/mock/types";
 import type { Database } from "@/lib/supabase/types";
+import { attachedEvidencePaths } from "./attached";
 import { ticketPepper } from "@/lib/tickets/server";
 import { EVIDENCE_TYPES, EvidenceError, distanceMetres, readEvidence } from "./read";
 
@@ -44,8 +45,7 @@ export async function pruneUnattached(admin: SupabaseClient<Database>, orderId: 
   ]);
   if (listed.error) throw new Error(listed.error.message);
   if (claim.error) throw new Error(claim.error.message);
-  const pathOf = (v: unknown) => (v && typeof v === "object" && !Array.isArray(v) ? (v as DisputeEvidence).upload?.path : undefined);
-  const attached = new Set([pathOf(claim.data?.evidence), ...(claim.data?.dispute_replies ?? []).map((r) => pathOf(r.evidence))]);
+  const attached = attachedEvidencePaths(claim.data);
   const loose = (listed.data ?? [])
     .filter((f) => f.id && f.name.startsWith(`${side}-`))
     .map((f) => `${orderId}/${f.name}`)

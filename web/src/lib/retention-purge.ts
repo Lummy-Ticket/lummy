@@ -6,6 +6,7 @@ import { EVENT_DURATION_H } from "@/lib/mock/escrow";
 import type { DisputeEvidence } from "@/lib/mock/types";
 import { HELD } from "@/lib/orders/map";
 import type { Database, Json } from "@/lib/supabase/types";
+import { attachedEvidencePaths } from "./evidence/attached";
 import { ORPHAN_UPLOAD_DAYS, evidenceGoneAt, isGone, ticketFileGoneAt } from "./retention";
 
 if (typeof window !== "undefined") throw new Error("lib/retention-purge is server-only");
@@ -140,7 +141,7 @@ async function purgeEvidence(admin: Admin, now: number, deadline: number, report
         report.evidenceFiles += files.length;
         continue;
       }
-      const used = new Set([uploadOf(claim?.evidence ?? null)?.path, ...(claim?.dispute_replies ?? []).map((r) => uploadOf(r.evidence)?.path)]);
+      const used = attachedEvidencePaths(claim);
       const stray = files.filter((f) => !used.has(f.path) && f.at < now - ORPHAN_UPLOAD_DAYS * DAY);
       if (!stray.length) continue;
       const removed = await admin.storage.from("evidence").remove(stray.map((f) => f.path));
