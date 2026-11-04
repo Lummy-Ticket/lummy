@@ -77,6 +77,8 @@ export async function expireHolds(admin: Admin) {
 const RECHECK_AFTER_MS = (GRACE_SECONDS + 60) * 1000;
 /** How far back closed holds are looked at; a hold read in that time is not read again. */
 const RECHECK_WINDOW_MS = 48 * 3_600_000;
+/** Closed holds fetched per page while looking for the ones not yet read. */
+const RECHECK_PAGE = 500;
 
 export type RecheckReport = { due: number; read: number; recovered: number; left: number };
 
@@ -90,19 +92,28 @@ export type RecheckReport = { due: number; read: number; recovered: number; left
  */
 export async function recheckClosedHolds(admin: Admin, cfg: XenditConfig, budgetMs: number, scope?: { ids: string[] }): Promise<RecheckReport> {
   const started = Date.now();
-  let query = admin
-    .from("payments")
-    .select("*")
-    .in("status", ["expired", "canceled"])
-    .not("provider_ref", "is", null)
-    .gte("expires_at", new Date(started - RECHECK_WINDOW_MS).toISOString())
-    .lte("expires_at", new Date(started - RECHECK_AFTER_MS).toISOString())
-    .order("expires_at")
-    .limit(100);
-  if (scope) query = query.in("id", scope.ids);
-  const { data, error } = await query;
-  if (error) throw new Error(error.message);
-  const due = (data ?? []).filter((r) => !r.checked_at || Date.parse(r.checked_at) < Date.parse(r.expires_at) + RECHECK_AFTER_MS);
+  // Whether a hold was read after its QRIS closed compares two of its columns, which a filter here
+  // cannot, so the whole window is paged through and the read ones dropped after. A plain limit
+  // would fill with holds already read and never reach the newer ones.
+  const due: PaymentRow[] = [];
+  for (let from = 0; ; from += RECHECK_PAGE) {
+    let query = admin
+      .from("payments")
+      .select("*")
+      .in("status", ["expired", "canceled"])
+      .not("provider_ref", "is", null)
+      .gte("expires_at", new Date(started - RECHECK_WINDOW_MS).toISOString())
+      .lte("expires_at", new Date(started - RECHECK_AFTER_MS).toISOString())
+      .order("expires_at")
+      .order("id")
+      .range(from, from + RECHECK_PAGE - 1);
+    if (scope) query = query.in("id", scope.ids);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    const page = data ?? [];
+    due.push(...page.filter((r) => !r.checked_at || Date.parse(r.checked_at) < Date.parse(r.expires_at) + RECHECK_AFTER_MS));
+    if (page.length < RECHECK_PAGE) break;
+  }
   const report: RecheckReport = { due: due.length, read: 0, recovered: 0, left: 0 };
   for (const row of due) {
     if (Date.now() - started > budgetMs) {
