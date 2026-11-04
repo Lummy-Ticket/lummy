@@ -73,6 +73,52 @@ export async function expireHolds(admin: Admin) {
   return data?.length ?? 0;
 }
 
+/** A closed hold is read again once its QRIS can no longer take money: past its time and the grace. */
+const RECHECK_AFTER_MS = (GRACE_SECONDS + 60) * 1000;
+/** How far back closed holds are looked at; a hold read in that time is not read again. */
+const RECHECK_WINDOW_MS = 48 * 3_600_000;
+
+export type RecheckReport = { due: number; read: number; recovered: number; left: number };
+
+/**
+ * The safety net under the webhook (production audit 2 Nov 2026, M1): a hold closed without a word
+ * from Xendit since (expired here by the clock, or cancelled) is read once more after its QRIS has
+ * stopped taking money. Money that came anyway becomes its order, or waits for a refund where staff
+ * see it when its seats went to someone else, as a late webhook would have done. syncPayment stamps
+ * checked_at on every read, so a hold read after its QRIS closed drops out; one whose read fails is
+ * asked again on the next run, while it is in the window. `scope.ids` keeps a check run to its own.
+ */
+export async function recheckClosedHolds(admin: Admin, cfg: XenditConfig, budgetMs: number, scope?: { ids: string[] }): Promise<RecheckReport> {
+  const started = Date.now();
+  let query = admin
+    .from("payments")
+    .select("*")
+    .in("status", ["expired", "canceled"])
+    .not("provider_ref", "is", null)
+    .gte("expires_at", new Date(started - RECHECK_WINDOW_MS).toISOString())
+    .lte("expires_at", new Date(started - RECHECK_AFTER_MS).toISOString())
+    .order("expires_at")
+    .limit(100);
+  if (scope) query = query.in("id", scope.ids);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  const due = (data ?? []).filter((r) => !r.checked_at || Date.parse(r.checked_at) < Date.parse(r.expires_at) + RECHECK_AFTER_MS);
+  const report: RecheckReport = { due: due.length, read: 0, recovered: 0, left: 0 };
+  for (const row of due) {
+    if (Date.now() - started > budgetMs) {
+      report.left++;
+      continue;
+    }
+    const fresh = await syncPayment(admin, cfg, row, true);
+    if (fresh.checked_at !== row.checked_at) report.read++;
+    if (fresh.status === "paid" || fresh.status === "unfulfilled") {
+      report.recovered++;
+      console.error("[payments] a closed hold had money at Xendit; it is now", fresh.status, row.id);
+    }
+  }
+  return report;
+}
+
 /** Closes an open hold and gives its seats back; unfulfilled means money came that cannot be honoured. */
 async function close(admin: Admin, id: string, status: "expired" | "canceled" | "failed" | "unfulfilled") {
   const { data, error } = await admin.rpc("close_payment", { p_id: id, p_status: status });

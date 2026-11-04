@@ -5,6 +5,8 @@
 //      after the decision, uploads never attached after a week (lib/retention.ts).
 //   3. Brings the public ledger up to date for QRIS orders whose last step did not reach the chain
 //      (lib/orders/ledger.ts).
+//   4. Reads QRIS holds closed in the last two days once more at Xendit, so money no webhook
+//      reported still becomes its order or a refund (lib/payments/checkout.ts, recheckClosedHolds).
 // It can only do what the escrow rules and the retention rules already say, the same as the pages
 // asking, and what it finishes is not due the next time. Still, a stranger calling it over and over
 // would load the database, so only a call carrying CRON_SECRET (Vercel sends it as a bearer token
@@ -14,8 +16,9 @@ import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { syncLedgerDue } from "@/lib/orders/ledger";
 import { settleDue } from "@/lib/orders/settle";
-import { expireHolds } from "@/lib/payments/checkout";
+import { expireHolds, recheckClosedHolds, type RecheckReport } from "@/lib/payments/checkout";
 import { reconcileUsdcHolds, usdcRail } from "@/lib/payments/usdc";
+import { xenditConfig } from "@/lib/payments/xendit";
 import { purgeExpired } from "@/lib/retention-purge";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
@@ -52,6 +55,17 @@ export async function GET(req: Request) {
   } catch (e) {
     holdsReleased = { error: (e as Error).message };
   }
+  // Closed holds read once more at Xendit. Five seconds at most: a hold not reached is still in the
+  // two-day window tomorrow, and the function as a whole has sixty.
+  let holdsRechecked: RecheckReport | { error: string } | null = null;
+  const qris = xenditConfig();
+  if (qris) {
+    try {
+      holdsRechecked = await recheckClosedHolds(admin, qris, 5_000);
+    } catch (e) {
+      holdsRechecked = { error: (e as Error).message };
+    }
+  }
   // USDC submits cut off half way: money in the escrow without an order goes back to its wallet.
   let usdcReconciled: number | { error: string } | null = null;
   const op = usdcRail();
@@ -78,6 +92,7 @@ export async function GET(req: Request) {
     {
       settle,
       holdsReleased,
+      holdsRechecked,
       usdcReconciled,
       ledger,
       purge: { ticketFiles: purge.ticketFiles, evidenceFiles: purge.evidenceFiles, orphanUploads: purge.orphanUploads, errors: purge.errors.length, unfinished: purge.unfinished },

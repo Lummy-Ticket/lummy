@@ -35,6 +35,8 @@ import { createPublicClient, http, keccak256, toHex, zeroAddress, type Address }
 import { arbitrumSepolia } from "viem/chains";
 import { ledgerAbi } from "../src/lib/chain/abi";
 import { MATERAI } from "../src/lib/mock/util";
+import { recheckClosedHolds } from "../src/lib/payments/checkout";
+import { xenditConfig } from "../src/lib/payments/xendit";
 import type { Database } from "../src/lib/supabase/types";
 import { loadTarget } from "./lib/target-env.mjs";
 
@@ -392,6 +394,21 @@ async function main() {
     check("no order for it", (await ordersOf(p5)).length === 0);
     const cancel6 = await api(buyerCtx, "POST", `/api/payments/${p6}`, { action: "cancel" });
     check("the open hold cancels, its seat back", cancel6.body.status === "canceled" && (await listing(L2))?.status === "active", JSON.stringify(cancel6));
+
+    // --- The cron's second look (audit 2 Nov 2026, M1): holds closed without a word from Xendit
+    // since are read once more, once their QRIS can no longer take money, and then not again. Here
+    // two of this run's own, a cancelled one and an expired one, made to look unread for an hour.
+    // Money found that way takes the same path as the late money above, which a webhook reported;
+    // in test mode Xendit's own webhook reaches lummy.id on the same database first, so that half
+    // cannot be raced here.
+    await admin.from("payments").update({ expires_at: new Date(Date.now() - 60 * 60_000).toISOString(), checked_at: null }).in("id", [p2, p3]);
+    const qris = xenditConfig();
+    if (!qris) throw new Error("needs the Xendit test key, the same one the server has");
+    const firstLook = await recheckClosedHolds(admin, qris, 30_000, { ids: [p2, p3] });
+    check("closed holds unread since closing are read once more", firstLook.due === 2 && firstLook.read === 2 && firstLook.recovered === 0, JSON.stringify(firstLook));
+    check("and stay closed, as Xendit took no money for them", (await payment(p2))?.status === "canceled" && (await payment(p3))?.status === "expired");
+    const secondLook = await recheckClosedHolds(admin, qris, 30_000, { ids: [p2, p3] });
+    check("the next run reads neither again", secondLook.due === 0, JSON.stringify(secondLook));
 
     // --- Someone else cannot read or touch the buyer's hold.
     const peek = await api(sellerCtx, "GET", `/api/payments/${p1}`);
