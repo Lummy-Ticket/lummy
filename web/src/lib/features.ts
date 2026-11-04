@@ -38,4 +38,10 @@ export const FEATURES = {
    * so, and WhatsApp and Telegram are not offered.
    */
   emails: false,
+  /**
+   * Nightly encrypted database backups kept with GitHub for 14 days (docs/ops/backups.md). Built,
+   * but not running yet: the SUPABASE_DB_URL secret is not in GitHub, so every night's run skips.
+   * Turn it on once a production run has uploaded its copy; the privacy page follows it.
+   */
+  backups: false,
 } as const;

@@ -17,8 +17,8 @@ const sections: LegalSection[] = [
     body: [
       CONTROLLER,
       {
-        en: "Lummy stands between buyer and seller and holds the money until the show is over. The ticket is sold by the seller, not by Lummy, and Lummy is not the organiser.",
-        id: "Lummy berdiri di antara pembeli dan penjual dan menahan uangnya sampai acara selesai. Tiketnya dijual penjual, bukan Lummy, dan Lummy bukan penyelenggara acara.",
+        en: "Lummy stands between buyer and seller. The money is held until the show is over, by our licensed payment provider for QRIS or by the escrow contract for USDC, and released as these terms say. The ticket is sold by the seller, not by Lummy, and Lummy is not the organiser.",
+        id: "Lummy berdiri di antara pembeli dan penjual. Uangnya ditahan sampai acara selesai, oleh penyedia pembayaran berlisensi kami untuk QRIS atau oleh kontrak escrow untuk USDC, lalu dicairkan sesuai ketentuan ini. Tiketnya dijual penjual, bukan Lummy, dan Lummy bukan penyelenggara acara.",
       },
     ],
   },
@@ -76,6 +76,11 @@ const sections: LegalSection[] = [
         id: `Diam berarti beres: ${DISPUTE_WINDOW_H} jam setelah acara tanpa klaim, penjual dibayar otomatis. Pesanan yang dibayar lewat escrow di jaringan uji cuma dapat ${TESTNET_WINDOW_MIN} menit, supaya demonya bisa diikuti sampai selesai; di produksi tetap ${DISPUTE_WINDOW_H} jam.`,
       },
       { en: "A claim needs evidence recorded at the time, such as a photo of the gate scanner, filed within the window. The seller may answer before staff decide.", id: "Klaim butuh bukti yang direkam saat kejadian, misalnya foto layar scanner gate, diajukan dalam masa klaim. Penjual boleh menjawab sebelum staf memutus." },
+      // lib/gate/server.ts (refundAtGate): the gate's own record decides, at once.
+      {
+        en: "At a door where Lummy's own scanner checks passes, a buyer's pass refused because the ticket already went in on another copy is proof in itself: the order is refunded in full on the spot and the seller is charged the penalty, with no claim for the seller to answer.",
+        id: "Di pintu yang memakai pemindai Lummy sendiri, pass pembeli yang ditolak karena tiketnya sudah masuk lewat salinan lain sudah menjadi bukti: pesanan langsung direfund penuh dan penjual dikenai penalti, tanpa klaim yang perlu dijawab penjual.",
+      },
       { en: "Not going is not a refund case: resell the ticket before the show instead.", id: "Tidak jadi datang bukan alasan refund: jual lagi tiketnya sebelum acara." },
       { en: "A cancelled show is refunded in full, fee included, without anyone filing. A postponed show: keep the ticket for the new date, or take the money back, fee included, until the new show starts.", id: "Acara batal direfund penuh, termasuk biaya layanan, tanpa perlu mengajukan apa pun. Acara diundur: pakai tiketnya di tanggal baru, atau ambil uangmu kembali, termasuk biaya layanan, selama acara barunya belum mulai." },
       // lib/mock/escrow.ts (penaltyFor, availableReasons): any ruling for the buyer costs the seller the
@@ -119,7 +124,7 @@ export default function TermsPage() {
   return (
     <LegalPage
       title={{ en: "Terms of use", id: "Syarat dan ketentuan" }}
-      effective={{ en: "29 Oct 2026", id: "29 Okt 2026" }}
+      effective={{ en: "4 Nov 2026", id: "4 Nov 2026" }}
       intro={{
         en: "The rules of buying and selling on Lummy Ticket. They are the same rules the app enforces.",
         id: "Aturan jual beli di Lummy Ticket. Isinya sama dengan aturan yang dijalankan aplikasinya.",

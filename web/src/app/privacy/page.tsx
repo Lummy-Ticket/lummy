@@ -79,6 +79,11 @@ const sections: LegalSection[] = [
         en: "Your account: your email address, and the name, WhatsApp number and payout account if you fill them in on your profile. Sign-in is by an email link, so we never hold a password.",
         id: "Akunmu: alamat email, serta nama, nomor WhatsApp, dan rekening pencairan kalau kamu mengisinya di profil. Masuk lewat link di email, jadi kami tidak pernah menyimpan password.",
       },
+      // auth.sessions (Supabase Auth) keeps ip and user_agent per session; nothing here purges it.
+      {
+        en: "Each time you sign in: the IP address and the browser of that session, kept by our database's sign-in service while the session lasts (signing out ends it). Our hosting and database also log the IP address of each request for a short time.",
+        id: "Setiap kali kamu masuk: alamat IP dan browser sesi itu, disimpan layanan login database kami selama sesinya berjalan (keluar akan mengakhirinya). Hosting dan database kami juga mencatat alamat IP tiap permintaan untuk waktu singkat.",
+      },
       {
         en: "A ticket PDF you upload to sell. It usually carries the orderer's name and may carry an ID number, email or phone. We keep the file and its fingerprint (sha256). Barcodes read from it are kept only as a keyed hash: the code itself is never stored, and you see its last four characters. When you publish it, we also keep what the AI read from it (see below): the show, date, venue, category, seat, printed price and how many people it admits.",
         id: "PDF tiket yang kamu upload untuk dijual. Biasanya memuat nama pemesan, dan bisa memuat NIK, email, atau nomor HP. Kami menyimpan file dan sidik jarinya (sha256). Barcode yang terbaca hanya disimpan sebagai hash berkunci: kodenya sendiri tidak pernah disimpan, dan kamu cuma melihat empat karakter terakhirnya. Saat kamu mem-publish-nya, kami juga menyimpan yang dibaca AI darinya (lihat di bawah): acara, tanggal, venue, kategori, kursi, harga tercetak, dan untuk berapa orang.",
@@ -129,7 +134,7 @@ const sections: LegalSection[] = [
       // api/orders/[id]/ticket: the stand-in while payments are simulated.
       FEATURES.payouts
         ? { en: "The buyer of your ticket: the whole PDF you uploaded, since that is the ticket.", id: "Pembeli tiketmu: seluruh PDF yang kamu upload, karena itulah tiketnya." }
-        : { en: "The buyer of your ticket: during the beta, only a stand-in with the order's details (show, category, number of tickets), never your PDF, since payments are simulated. Lummy staff open your PDF only to rule on a claim.", id: "Pembeli tiketmu: selama beta, hanya file pengganti berisi data pesanan (acara, kategori, jumlah tiket), tidak pernah PDF-mu, karena pembayarannya masih simulasi. Staf Lummy membuka PDF-mu hanya untuk memutus klaim." },
+        : { en: "The buyer of your ticket: during the beta, only a stand-in with the order's details (show, category, number of tickets), never your PDF, since payments are simulated. Lummy staff open your PDF to review a listing the checks held back, and to rule on a claim.", id: "Pembeli tiketmu: selama beta, hanya file pengganti berisi data pesanan (acara, kategori, jumlah tiket), tidak pernah PDF-mu, karena pembayarannya masih simulasi. Staf Lummy membuka PDF-mu untuk meninjau listing yang ditahan pemeriksaan, dan untuk memutus klaim." },
       { en: "The other side of a claim, and Lummy staff: the photos and notes in that claim.", id: "Pihak lawan dalam klaim, dan staf Lummy: foto dan catatan di klaim itu." },
       // components/common/EvidencePhoto: shown on the order page, the seller's dashboard and the admin queue.
       {
@@ -146,8 +151,11 @@ const sections: LegalSection[] = [
       { en: "Supabase: the database and private file storage, in Singapore.", id: "Supabase: database dan penyimpanan file privat, di Singapura." },
       { en: "Vercel: the servers that run the site, in Singapore.", id: "Vercel: server yang menjalankan situs, di Singapura." },
       ...sentryLine,
-      // .github/workflows/backup.yml: the nightly copy described under "How long we keep it".
-      { en: "GitHub: holds the nightly encrypted copies of the database, which it cannot read (see \"How long we keep it\").", id: "GitHub: menyimpan salinan database terenkripsi setiap malam, yang tidak bisa dibacanya (lihat \"Berapa lama kami menyimpannya\")." },
+      // .github/workflows/backup.yml: the nightly copy described under "How long we keep it", once
+      // it runs (FEATURES.backups).
+      ...(FEATURES.backups
+        ? [{ en: "GitHub: holds the nightly encrypted copies of the database, which it cannot read (see \"How long we keep it\").", id: "GitHub: menyimpan salinan database terenkripsi setiap malam, yang tidak bisa dibacanya (lihat \"Berapa lama kami menyimpannya\")." }]
+        : []),
       emailLines.mailspace,
       { en: "Arbitrum (a public blockchain): the escrow ledger described above.", id: "Arbitrum (blockchain publik): buku besar escrow seperti di atas." },
       { en: "Xendit: takes QRIS payments. For now it runs in test mode, so no real money moves, and it receives only the amount and a payment number, never your name or email.", id: "Xendit: menerima pembayaran QRIS. Untuk sekarang berjalan di mode uji, jadi tidak ada uang sungguhan yang berpindah, dan Xendit hanya menerima nominal dan nomor pembayaran, tidak pernah nama atau emailmu." },
@@ -170,10 +178,20 @@ const sections: LegalSection[] = [
       },
       { en: "The count of your attempts above: deleted within two days.", id: "Hitungan percobaanmu di atas: dihapus paling lambat dua hari kemudian." },
       { en: "Your account, orders, payments and claims: while your account exists, then as long as needed to settle anything still open. Records on the public ledger cannot be deleted by anyone.", id: "Akun, pesanan, pembayaran, dan klaim: selama akunmu ada, lalu selama dibutuhkan untuk menyelesaikan yang masih berjalan. Catatan di buku besar publik tidak bisa dihapus siapa pun." },
-      {
-        en: "Backups: every night an encrypted copy of the database (accounts, orders, payments and claims, but not ticket PDFs or photos) is stored with GitHub, which cannot read it, and each copy is deleted after 14 days, so anything deleted from the database is gone from the copies within 14 days.",
-        id: "Cadangan: setiap malam salinan database yang terenkripsi (akun, pesanan, pembayaran, dan klaim, tapi bukan PDF tiket atau foto) disimpan di GitHub, yang tidak bisa membacanya, dan tiap salinan dihapus setelah 14 hari, jadi data yang dihapus dari database ikut hilang dari salinannya paling lambat 14 hari kemudian.",
-      },
+      // .github/workflows/backup.yml, once it runs (FEATURES.backups). Until then there are none.
+      ...(FEATURES.backups
+        ? [
+          {
+            en: "Backups: every night an encrypted copy of the database (accounts, orders, payments and claims, but not ticket PDFs or photos) is stored with GitHub, which cannot read it, and each copy is deleted after 14 days, so anything deleted from the database is gone from the copies within 14 days.",
+            id: "Cadangan: setiap malam salinan database yang terenkripsi (akun, pesanan, pembayaran, dan klaim, tapi bukan PDF tiket atau foto) disimpan di GitHub, yang tidak bisa membacanya, dan tiap salinan dihapus setelah 14 hari, jadi data yang dihapus dari database ikut hilang dari salinannya paling lambat 14 hari kemudian.",
+          },
+          ]
+        : [
+            {
+              en: "Backups: none yet. Nightly encrypted copies are built but not switched on; this page will say when they are, and how long each is kept.",
+              id: "Cadangan: belum ada. Salinan terenkripsi setiap malam sudah dibuat tapi belum dinyalakan; halaman ini akan menyebutnya saat sudah, beserta berapa lama tiap salinan disimpan.",
+            },
+          ]),
       { en: "The wallet address you paid from: kept with its payment and order, for as long as they are. The payment itself stays on the public chain for good, and nobody, Lummy included, can delete it.", id: "Alamat wallet yang kamu pakai untuk membayar: disimpan bersama pembayaran dan pesanannya, selama keduanya disimpan. Pembayarannya sendiri tetap di chain publik selamanya, dan tidak ada yang bisa menghapusnya, termasuk Lummy." },
     ],
   },
