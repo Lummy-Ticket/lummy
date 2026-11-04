@@ -21,6 +21,7 @@ import { EVIDENCE_KINDS, evidenceFromUpload, newEvidencePath, ownsEvidencePath, 
 import { RATE_REFUSED, takeAttempt } from "@/lib/rate";
 import type { DisputeEvidence, EvidenceKind } from "@/lib/mock/types";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { moneyIsReal, moneyNow } from "@/lib/orders/unpaid";
 import { isDemoEmail } from "@/lib/supabase/demo";
 import { currentUser } from "@/lib/supabase/session";
 import type { Json } from "@/lib/supabase/types";
@@ -87,9 +88,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const body = ((await req.json().catch(() => null)) ?? {}) as Body;
 
   const side: Side | null = buyer ? "buyer" : seller ? "seller" : null;
-  // The sample files are for the demo accounts that rehearse with them. Everyone else attaches a
-  // photo of their own, which the server reads itself.
-  const sampleFiles = isDemoEmail(user.email);
+  // The sample files are for the demo accounts that rehearse with them, against each other or a seed
+  // listing nobody sells: never against a real person's order, whom a strong-looking sample could
+  // cost a penalty or a payout, and never once money is real (authorization audit, 4 Nov 2026).
+  // Everyone else attaches a photo of their own, which the server reads itself.
+  const otherSide = buyer ? row.seller_id : row.buyer_id;
+  const otherIsDemo = async () => {
+    if (!otherSide) return true;
+    const other = await admin.auth.admin.getUserById(otherSide);
+    return !other.error && isDemoEmail(other.data.user?.email ?? "");
+  };
+  const sampleFiles = isDemoEmail(user.email) && !moneyIsReal(moneyNow()) && (await otherIsDemo());
   const kindOf = (fallback: EvidenceKind) => ((EVIDENCE_KINDS as unknown[]).includes(body.kind) ? (body.kind as EvidenceKind) : fallback);
   /** The photo this side uploaded for this order, as read by the server; nothing else is accepted. */
   const uploaded = (kind: EvidenceKind) => {
