@@ -16,6 +16,7 @@ import type { ListingAI } from "@/lib/mock/types";
 import { SAMPLE_SIGNALS, inPriceBand, isBlocked, isFlagged, isSampleTicket, publicSellerName } from "@/lib/listings/rules";
 import { RATE_REFUSED, takeAttempt } from "@/lib/rate";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { moneyIsReal, moneyNow } from "@/lib/orders/unpaid";
 import { isDemoEmail } from "@/lib/supabase/demo";
 import { currentUser } from "@/lib/supabase/session";
 import type { Json } from "@/lib/supabase/types";
@@ -120,6 +121,9 @@ export async function POST(req: Request) {
     if (isDuplicate(ticket.check)) return fail(409, DUPLICATE);
     signals = { autofilled: false, forgeryScore: ticket.check.score, barcodeDuplicate: false, pdfSuspicious: ticket.check.suspicious };
   } else {
+    // Once money is real a listing is a ticket someone has, never a sample, whoever posts it: a
+    // sample has no file to hand over (authorization audit, 4 Nov 2026).
+    if (moneyIsReal(moneyNow())) return fail(400, "upload PDF tiketnya; tiket contoh tidak dipakai lagi");
     if (!isSampleTicket(body.sample)) return fail(400, "pilih salah satu tiket contoh");
     signals = SAMPLE_SIGNALS[body.sample];
     if (isBlocked(signals)) return fail(409, DUPLICATE);

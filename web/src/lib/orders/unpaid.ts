@@ -24,10 +24,11 @@ export function unpaidOrderAllowed(listingId: string, money: Money) {
 }
 
 /**
- * Whether a listing may be paid for with real money (a live Xendit key). A seed listing, or one with
- * no seller, is a sample: nobody would hand over a ticket or receive the payout, so real rupiah for
- * it would only wait for a refund (money audit, 4 Nov 2026). In test mode every listing may be paid.
+ * Whether a listing may be paid for with real money (a live Xendit key): only a real seller's
+ * listing with the ticket file it was checked from. A seed listing, one with no seller, or a sample
+ * listing (no file, whoever posted it) has no ticket to hand over, so real rupiah for it would only
+ * wait for a refund (money and authorization audits, 4 Nov 2026). In test mode every listing may be.
  */
-export function paidListingAllowed(listingId: string, sellerId: string | null, testMode: boolean) {
-  return testMode || (!SEED_IDS.has(listingId) && !!sellerId);
+export function paidListingAllowed(listing: { id: string; seller_id: string | null; ticket_path: string | null }, testMode: boolean) {
+  return testMode || (!SEED_IDS.has(listing.id) && !!listing.seller_id && !!listing.ticket_path);
 }

@@ -513,7 +513,7 @@ export async function startCheckout(
   const check = await checkPurchase(admin, buyerId, listingId);
   if (!check.ok) return check;
   if (check.purchase.event.currency !== "IDR") return fail(400, "acara ini dibayar dengan USDC dari wallet, bukan QRIS");
-  if (!paidListingAllowed(listingId, check.purchase.listing.seller_id, cfg.testMode)) {
+  if (!paidListingAllowed(check.purchase.listing, cfg.testMode)) {
     return fail(409, "listing contoh tidak dijual dengan uang sungguhan");
   }
   const price = priceOf(check.purchase.listing.ask_price, quantity);

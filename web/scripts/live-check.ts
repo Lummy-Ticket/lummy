@@ -61,12 +61,15 @@ check(
 );
 check("an empty or blank key is not live", !xenditKeyIsLive("") && !xenditKeyIsLive("   ") && !xenditKeyIsLive(undefined));
 
-// Paying real rupiah (a live key) for a sample: a seed listing, or one without a seller, has nobody
-// to hand over a ticket or take the payout (money audit, 4 Nov 2026).
-check("live key: a seed listing cannot be paid for", !paidListingAllowed(seed, "11111111-1111-1111-1111-111111111111", false));
-check("live key: a listing without a seller cannot be paid for", !paidListingAllowed(real, null, false));
-check("live key: a real seller's listing can", paidListingAllowed(real, "11111111-1111-1111-1111-111111111111", false));
-check("test key: any listing can, seed and sellerless included", paidListingAllowed(seed, null, true) && paidListingAllowed(real, null, true));
+// Paying real rupiah (a live key) for a sample: a seed listing, one without a seller, or one without
+// the ticket file it was checked from has no ticket to hand over (money and authorization audits).
+const someone = "11111111-1111-1111-1111-111111111111";
+const file = "ls-0123456789ab/ticket.pdf";
+check("live key: a seed listing cannot be paid for", !paidListingAllowed({ id: seed, seller_id: someone, ticket_path: file }, false));
+check("live key: a listing without a seller cannot be paid for", !paidListingAllowed({ id: real, seller_id: null, ticket_path: file }, false));
+check("live key: a sample listing (no ticket file) cannot be paid for, whoever posted it", !paidListingAllowed({ id: real, seller_id: someone, ticket_path: null }, false));
+check("live key: a real seller's listing with its file can", paidListingAllowed({ id: real, seller_id: someone, ticket_path: file }, false));
+check("test key: any listing can, seed, sample and sellerless included", paidListingAllowed({ id: seed, seller_id: null, ticket_path: null }, true) && paidListingAllowed({ id: real, seller_id: null, ticket_path: null }, true));
 
 for (const r of results) console.log(`${r.ok ? "PASS" : "FAIL"}  ${r.name}${r.note ? `  (${r.note})` : ""}`);
 const failed = results.filter((r) => !r.ok).length;
