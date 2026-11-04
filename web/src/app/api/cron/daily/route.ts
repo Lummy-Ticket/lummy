@@ -109,6 +109,17 @@ export async function GET(req: Request) {
   // clears its own, this takes the rest, so none lasts past two days, as the privacy page says.
   const attempts = await admin.from("rate_attempts").delete().lt("at", new Date(Date.now() - 86_400_000).toISOString());
   if (attempts.error) console.error("[cron/daily] old attempt counts not deleted:", attempts.error.message);
+  // Something here needs a person: a step that threw, payouts that failed or are held for a show
+  // that changed, holds the recheck could not read or that leave its window unread, files not
+  // deleted. The answer is then 500, so Vercel's cron page shows the run as failed instead of
+  // green with the trouble only in the body (money audit, 4 Nov 2026). Counts only, as before.
+  const failedStep = (v: unknown) => !!v && typeof v === "object" && "error" in v;
+  const attention =
+    [settle, holdsReleased, holdsRechecked, usdcReconciled, ledger].some(failedStep) ||
+    (!failedStep(settle) && (settle as Awaited<ReturnType<typeof settleDue>>).failed > 0) ||
+    (!!holdsRechecked && !failedStep(holdsRechecked) && ((holdsRechecked as RecheckReport).failed > 0 || (holdsRechecked as RecheckReport).lastChance > 0)) ||
+    purge.errors.length > 0;
+  if (attention) console.error("[cron/daily] a step needs a look; the run answers 500");
   return NextResponse.json(
     {
       settle,
@@ -119,6 +130,6 @@ export async function GET(req: Request) {
       purge: { ticketFiles: purge.ticketFiles, evidenceFiles: purge.evidenceFiles, orphanUploads: purge.orphanUploads, errors: purge.errors.length, unfinished: purge.unfinished },
       attempts: attempts.error ? "failed" : "cleared",
     },
-    { headers: noStore }
+    { status: attention ? 500 : 200, headers: noStore }
   );
 }
