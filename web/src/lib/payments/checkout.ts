@@ -80,7 +80,7 @@ const RECHECK_WINDOW_MS = 48 * 3_600_000;
 /** Closed holds fetched per page while looking for the ones not yet read. */
 const RECHECK_PAGE = 500;
 
-export type RecheckReport = { due: number; read: number; recovered: number; left: number };
+export type RecheckReport = { due: number; read: number; recovered: number; left: number; unscanned: boolean };
 
 /**
  * The safety net under the webhook (production audit 2 Nov 2026, M1): a hold closed without a word
@@ -94,9 +94,17 @@ export async function recheckClosedHolds(admin: Admin, cfg: XenditConfig, budget
   const started = Date.now();
   // Whether a hold was read after its QRIS closed compares two of its columns, which a filter here
   // cannot, so the whole window is paged through and the read ones dropped after. A plain limit
-  // would fill with holds already read and never reach the newer ones.
+  // would fill with holds already read and never reach the newer ones. Paging stops at the budget, or
+  // once it holds more than one run can read, so a crowded window cannot stall the rest of the cron;
+  // `unscanned` says it stopped early. Filtering in SQL instead needs a migration (stage 3b).
   const due: PaymentRow[] = [];
+  let unscanned = false;
   for (let from = 0; ; from += RECHECK_PAGE) {
+    if (Date.now() - started > budgetMs || due.length >= RECHECK_PAGE) {
+      unscanned = true;
+      console.error("[payments] the recheck stopped before the end of its window, at row", from);
+      break;
+    }
     let query = admin
       .from("payments")
       .select("*")
@@ -114,7 +122,7 @@ export async function recheckClosedHolds(admin: Admin, cfg: XenditConfig, budget
     due.push(...page.filter((r) => !r.checked_at || Date.parse(r.checked_at) < Date.parse(r.expires_at) + RECHECK_AFTER_MS));
     if (page.length < RECHECK_PAGE) break;
   }
-  const report: RecheckReport = { due: due.length, read: 0, recovered: 0, left: 0 };
+  const report: RecheckReport = { due: due.length, read: 0, recovered: 0, left: 0, unscanned };
   for (const row of due) {
     if (Date.now() - started > budgetMs) {
       report.left++;

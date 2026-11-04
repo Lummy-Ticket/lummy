@@ -405,10 +405,12 @@ async function main() {
     const qris = xenditConfig();
     if (!qris) throw new Error("needs the Xendit test key, the same one the server has");
     const firstLook = await recheckClosedHolds(admin, qris, 30_000, { ids: [p2, p3] });
-    check("closed holds unread since closing are read once more", firstLook.due === 2 && firstLook.read === 2 && firstLook.recovered === 0, JSON.stringify(firstLook));
+    check("closed holds unread since closing are read once more", firstLook.due === 2 && firstLook.read === 2 && firstLook.recovered === 0 && !firstLook.unscanned, JSON.stringify(firstLook));
     check("and stay closed, as Xendit took no money for them", (await payment(p2))?.status === "canceled" && (await payment(p3))?.status === "expired");
     const secondLook = await recheckClosedHolds(admin, qris, 30_000, { ids: [p2, p3] });
     check("the next run reads neither again", secondLook.due === 0, JSON.stringify(secondLook));
+    const noTime = await recheckClosedHolds(admin, qris, -1, { ids: [p2, p3] });
+    check("with no time left it reads nothing and says it stopped early", noTime.due === 0 && noTime.unscanned, JSON.stringify(noTime));
 
     // --- Someone else cannot read or touch the buyer's hold.
     const peek = await api(sellerCtx, "GET", `/api/payments/${p1}`);
