@@ -62,6 +62,17 @@ export type SettleOutcome =
 export async function settleOrder(admin: SupabaseClient<Database>, row: OrderRow, now: number): Promise<SettleOutcome> {
   const order = orderFromRow(row);
   if (order.escrowStatus !== "LOCKED") return { ok: false, status: 409, error: "pesanan ini sudah selesai atau sedang disengketakan" };
+  // The show is read here, not taken from the order: an order a cancellation or a postponement
+  // missed (its run out of time, a write that failed) must not be paid out on the old schedule. It
+  // waits, logged on every daily run, for staff to refund it or move its dates (money audit, 4 Nov
+  // 2026). A postponement that reached the order set its event_date to the new start.
+  if (row.event_id) {
+    const show = await admin.from("events").select("status, starts_at").eq("id", row.event_id).maybeSingle();
+    if (show.error) return { ok: false, status: 500, error: show.error.message };
+    if (show.data && (show.data.status === "cancelled" || Date.parse(show.data.starts_at) > Date.parse(row.event_date) + 60_000)) {
+      return { ok: false, status: 423, error: `${row.id}: acaranya dibatalkan atau diundur setelah pesanan ini, jadi tidak dicairkan; refund atau sesuaikan jadwalnya` };
+    }
+  }
 
   if (!order.chain) {
     if (phaseOf(order, now) !== "WINDOW_CLOSED") return { ok: false, status: 409, error: "masa sengketa belum lewat" };
