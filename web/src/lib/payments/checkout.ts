@@ -80,18 +80,37 @@ const RECHECK_WINDOW_MS = 48 * 3_600_000;
 /** Closed holds fetched per page while looking for the ones not yet read. */
 const RECHECK_PAGE = 500;
 
-export type RecheckReport = { due: number; read: number; recovered: number; left: number; unscanned: boolean };
+export type RecheckReport = {
+  due: number;
+  read: number;
+  recovered: number;
+  left: number;
+  unscanned: boolean;
+  /** Holds whose read or write threw; each is asked again on the next run, while in the window. */
+  failed: number;
+  /** Of those left unread, the ones whose last run in the window this was. */
+  lastChance: number;
+  /** Paid holds found without their order, and how many of those got it now. */
+  paidWithoutOrder: number;
+  ordersWritten: number;
+};
 
 /**
  * The safety net under the webhook (production audit 2 Nov 2026, M1): a hold closed without a word
  * from Xendit since (expired here by the clock, or cancelled) is read once more after its QRIS has
  * stopped taking money. Money that came anyway becomes its order, or waits for a refund where staff
  * see it when its seats went to someone else, as a late webhook would have done. syncPayment stamps
- * checked_at on every read, so a hold read after its QRIS closed drops out; one whose read fails is
- * asked again on the next run, while it is in the window. `scope.ids` keeps a check run to its own.
+ * checked_at on a closed hold only once Xendit's answer is final and acted on, so a hold drops out
+ * once it has been read for good; one whose read or write fails, or whose QRIS was still open, is
+ * asked again on the next run while it is in the window. Only holds made with this key's mode are
+ * read: a live key cannot read test-mode requests (review, 4 Nov 2026). Then paid holds that never
+ * got their order (the write after the money failed) get it, which nothing else would retry unless
+ * the buyer opened the page. `scope.ids` keeps a check run to its own.
  */
 export async function recheckClosedHolds(admin: Admin, cfg: XenditConfig, budgetMs: number, scope?: { ids: string[] }): Promise<RecheckReport> {
   const started = Date.now();
+  const windowStart = started - RECHECK_WINDOW_MS;
+  const over = () => Date.now() - started > budgetMs;
   // Whether a hold was read after its QRIS closed compares two of its columns, which a filter here
   // cannot, so the whole window is paged through and the read ones dropped after. A plain limit
   // would fill with holds already read and never reach the newer ones. Paging stops at the budget, or
@@ -100,7 +119,7 @@ export async function recheckClosedHolds(admin: Admin, cfg: XenditConfig, budget
   const due: PaymentRow[] = [];
   let unscanned = false;
   for (let from = 0; ; from += RECHECK_PAGE) {
-    if (Date.now() - started > budgetMs || due.length >= RECHECK_PAGE) {
+    if (over() || due.length >= RECHECK_PAGE) {
       unscanned = true;
       console.error("[payments] the recheck stopped before the end of its window, at row", from);
       break;
@@ -108,9 +127,11 @@ export async function recheckClosedHolds(admin: Admin, cfg: XenditConfig, budget
     let query = admin
       .from("payments")
       .select("*")
+      .eq("provider", "xendit")
+      .eq("test_mode", cfg.testMode)
       .in("status", ["expired", "canceled"])
       .not("provider_ref", "is", null)
-      .gte("expires_at", new Date(started - RECHECK_WINDOW_MS).toISOString())
+      .gte("expires_at", new Date(windowStart).toISOString())
       .lte("expires_at", new Date(started - RECHECK_AFTER_MS).toISOString())
       .order("expires_at")
       .order("id")
@@ -122,20 +143,86 @@ export async function recheckClosedHolds(admin: Admin, cfg: XenditConfig, budget
     due.push(...page.filter((r) => !r.checked_at || Date.parse(r.checked_at) < Date.parse(r.expires_at) + RECHECK_AFTER_MS));
     if (page.length < RECHECK_PAGE) break;
   }
-  const report: RecheckReport = { due: due.length, read: 0, recovered: 0, left: 0, unscanned };
+  const report: RecheckReport = { due: due.length, read: 0, recovered: 0, left: 0, unscanned, failed: 0, lastChance: 0, paidWithoutOrder: 0, ordersWritten: 0 };
+  // A hold the next daily run would find outside the window: say so where staff look, by id only.
+  const leavesWindow = (row: PaymentRow) => Date.parse(row.expires_at) < windowStart + 86_400_000;
   for (const row of due) {
-    if (Date.now() - started > budgetMs) {
+    if (over()) {
       report.left++;
+      if (leavesWindow(row)) {
+        report.lastChance++;
+        console.error("[payments] a closed hold leaves the recheck window unread; read it at Xendit by hand:", row.id);
+      }
       continue;
     }
-    const fresh = await syncPayment(admin, cfg, row, true);
-    if (fresh.checked_at !== row.checked_at) report.read++;
-    if (fresh.status === "paid" || fresh.status === "unfulfilled") {
-      report.recovered++;
-      console.error("[payments] a closed hold had money at Xendit; it is now", fresh.status, row.id);
+    try {
+      const fresh = await syncPayment(admin, cfg, row, true);
+      if (fresh.checked_at !== row.checked_at) report.read++;
+      if (fresh.status === "paid" || fresh.status === "unfulfilled") {
+        report.recovered++;
+        console.error("[payments] a closed hold had money at Xendit; it is now", fresh.status, row.id);
+      }
+    } catch (e) {
+      // One hold that fails must not stop the others; it stays due and is asked again tomorrow.
+      report.failed++;
+      console.error("[payments] the recheck of a closed hold failed:", row.id, (e as Error).message);
     }
   }
+  await orderPaidHolds(admin, cfg, windowStart, over, report, scope);
   return report;
+}
+
+/** How many ids go in one `in` filter, well inside a URL's length. */
+const ID_CHUNK = 100;
+
+/**
+ * Paid holds in the window that have no order: the order write after Xendit reported the money
+ * failed (the database, the listing read), and only the buyer's own page would have tried again.
+ * ensureOrder writes it now, or leaves the money waiting for a refund when the listing or show is
+ * gone. Adds to `report`; a failure is counted and logged, and the hold is tried again next run.
+ */
+async function orderPaidHolds(admin: Admin, cfg: XenditConfig, windowStart: number, over: () => boolean, report: RecheckReport, scope?: { ids: string[] }) {
+  for (let from = 0; !over(); from += RECHECK_PAGE) {
+    let query = admin
+      .from("payments")
+      .select("*")
+      .eq("provider", "xendit")
+      .eq("test_mode", cfg.testMode)
+      .eq("status", "paid")
+      .gte("expires_at", new Date(windowStart).toISOString())
+      .order("expires_at")
+      .order("id")
+      .range(from, from + RECHECK_PAGE - 1);
+    if (scope) query = query.in("id", scope.ids);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    const page = data ?? [];
+    const withOrder = new Set<string>();
+    for (let i = 0; i < page.length; i += ID_CHUNK) {
+      const ids = page.slice(i, i + ID_CHUNK).map((r) => r.id);
+      const orders = await admin.from("orders").select("payment_id").in("payment_id", ids);
+      if (orders.error) throw new Error(orders.error.message);
+      for (const o of orders.data) if (o.payment_id) withOrder.add(o.payment_id);
+    }
+    for (const row of page.filter((r) => !withOrder.has(r.id))) {
+      report.paidWithoutOrder++;
+      if (over()) {
+        report.left++;
+        continue;
+      }
+      try {
+        if (await ensureOrder(admin, row)) {
+          report.ordersWritten++;
+          console.error("[payments] a paid hold had no order; it has one now:", row.id);
+        }
+      } catch (e) {
+        report.failed++;
+        console.error("[payments] a paid hold still has no order:", row.id, (e as Error).message);
+      }
+    }
+    if (page.length < RECHECK_PAGE) return;
+  }
+  report.unscanned = true;
 }
 
 /** Closes an open hold and gives its seats back; unfulfilled means money came that cannot be honoured. */
@@ -243,7 +330,15 @@ export async function syncPayment(
     if (mustRead) throw e;
     return row;
   }
-  await admin.from("payments").update({ checked_at: new Date().toISOString() }).eq("id", row.id);
+  // An open hold is stamped on every read: that is what spaces out a page asking every few seconds.
+  // A closed one only once Xendit's answer is final and what it calls for is written, since its stamp
+  // is what takes it off the cron's recheck: a write that fails after Xendit reported the money, or a
+  // QRIS still open, leaves it to be read again (review, 4 Nov 2026).
+  const stamp = async () => {
+    await admin.from("payments").update({ checked_at: new Date().toISOString() }).eq("id", row.id);
+  };
+  const closed = row.status !== "pending";
+  if (!closed) await stamp();
 
   if (qris.status === "SUCCEEDED") {
     if (qris.referenceId !== row.id || qris.amount !== Number(row.total)) {
@@ -252,11 +347,13 @@ export async function syncPayment(
       console.error("[payments] Xendit reports a payment that does not match its hold; refund it:", row.id, qris.id);
       if (row.status === "pending") await close(admin, row.id, "unfulfilled");
       else {
-        await admin
+        const marked = await admin
           .from("payments")
           .update({ status: "unfulfilled", updated_at: new Date().toISOString() })
           .eq("id", row.id)
           .in("status", ["expired", "canceled", "failed"]);
+        if (marked.error) throw new Error(marked.error.message);
+        await stamp();
       }
       return reread(admin, row.id);
     }
@@ -272,10 +369,27 @@ export async function syncPayment(
     if (marked.error) throw new Error(marked.error.message);
     // Another reader may have marked it first, without the number: record it now.
     await fillNumber(admin, row.id, number);
+    // Paid or owed back now. Should the order write below fail, the hold is paid without an order,
+    // which the cron's recheck looks for on its own (orderPaidHolds).
+    if (closed) await stamp();
     if (row.status !== "pending") seatsChanged();
     if (marked.data === "paid") await ensureOrder(admin, await reread(admin, row.id));
     if (marked.data === "unfulfilled") console.error("[payments] paid after its seats went back; refund it:", row.id);
     return reread(admin, row.id);
+  }
+
+  if (closed) {
+    if (qris.status === "EXPIRED" || qris.status === "CANCELED" || qris.status === "FAILED") await stamp();
+    else if (qris.status === "ACCEPTING_PAYMENTS" || qris.status === "REQUIRES_ACTION") {
+      // Closed here, seats given back, yet Xendit would still take money for it: shut it there. Not
+      // stamped either way, so the next read sees what Xendit made of it (paid in between, the cancel
+      // fails and that read finds the money).
+      try {
+        await cancelQris(cfg, row.provider_ref);
+      } catch (e) {
+        console.error("[payments] could not cancel the QRIS of a closed hold:", row.id, (e as Error).message);
+      }
+    }
   }
 
   if (row.status === "pending") {
