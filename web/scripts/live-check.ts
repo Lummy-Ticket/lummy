@@ -1,12 +1,14 @@
 /**
  * What changes once money is real (a live Xendit key, or payouts turned on), checked without either:
  * the straight order path that chain mode, presenters and staff take stays open only for the seed
- * listings (lib/orders/unpaid.ts, production audit 2 Nov 2026, M2). Offline, run in CI.
+ * listings (lib/orders/unpaid.ts, production audit 2 Nov 2026, M2), and the switches are read from
+ * the server's env the way api/orders reads them (moneyNow). Offline, run in CI.
  *
  *   npm run live:check
  */
 import { SEED_LISTINGS } from "../src/lib/mock/seed";
-import { moneyIsReal, unpaidOrderAllowed } from "../src/lib/orders/unpaid";
+import { moneyIsReal, moneyNow, unpaidOrderAllowed } from "../src/lib/orders/unpaid";
+import { xenditConfig, xenditKeyIsLive } from "../src/lib/payments/xendit";
 
 const results: { name: string; ok: boolean; note?: string }[] = [];
 const check = (name: string, ok: boolean, note?: string) => results.push({ name, ok, note: ok ? undefined : note });
@@ -25,6 +27,34 @@ check("payouts on: a real seller's listing is refused", !unpaidOrderAllowed(real
 check("payouts on and a live key: still only the seed", !unpaidOrderAllowed(real, { payouts: true, xenditLive: true }) && unpaidOrderAllowed(seed, { payouts: true, xenditLive: true }));
 check("a made-up id is not a seed listing", !unpaidOrderAllowed("ls-not-in-the-seed", live));
 check("money is real with either switch, not without", moneyIsReal(live) && moneyIsReal(paying) && !moneyIsReal(simulated));
+
+// The switches as api/orders reads them from the server's env (moneyNow), made-up keys only. A live
+// key counts on its own: without its webhook token QRIS is off (xenditConfig null), but the money
+// is still real, so the straight path must not open for a real seller's listing (review, 4 Nov 2026).
+const withEnv = <T>(key: string | undefined, token: string | undefined, f: () => T): T => {
+  const before = { key: process.env.XENDIT_SECRET_KEY, token: process.env.XENDIT_WEBHOOK_TOKEN };
+  const set = (name: string, v: string | undefined) => (v === undefined ? delete process.env[name] : (process.env[name] = v));
+  set("XENDIT_SECRET_KEY", key);
+  set("XENDIT_WEBHOOK_TOKEN", token);
+  try {
+    return f();
+  } finally {
+    set("XENDIT_SECRET_KEY", before.key);
+    set("XENDIT_WEBHOOK_TOKEN", before.token);
+  }
+};
+const liveKey = "xnd_production_madeup0123456789";
+const testKey = "xnd_development_madeup0123456789";
+check("no key: simulated, a real listing may be bought unpaid", withEnv(undefined, undefined, () => !moneyIsReal(moneyNow()) && unpaidOrderAllowed(real, moneyNow())));
+check("test key and token: simulated", withEnv(testKey, "tok", () => !moneyIsReal(moneyNow())));
+check("live key and token: real, a real listing is refused", withEnv(liveKey, "tok", () => moneyIsReal(moneyNow()) && !unpaidOrderAllowed(real, moneyNow())));
+check(
+  "live key, webhook token empty: QRIS is off but money is still real, a real listing is refused",
+  withEnv(liveKey, "", () => xenditConfig() === null && xenditKeyIsLive() && !unpaidOrderAllowed(real, moneyNow()))
+);
+check("live key, webhook token missing: the same", withEnv(liveKey, undefined, () => xenditConfig() === null && !unpaidOrderAllowed(real, moneyNow())));
+check("live key with spaces around it is still live", withEnv(`  ${liveKey}\n`, "", () => xenditKeyIsLive()));
+check("a test key is never live, token or not", withEnv(testKey, "", () => !xenditKeyIsLive()) && !xenditKeyIsLive(testKey));
 
 for (const r of results) console.log(`${r.ok ? "PASS" : "FAIL"}  ${r.name}${r.note ? `  (${r.note})` : ""}`);
 const failed = results.filter((r) => !r.ok).length;
