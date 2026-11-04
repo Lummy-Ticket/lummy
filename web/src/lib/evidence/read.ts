@@ -18,6 +18,12 @@ export const EVIDENCE_TYPES: Record<string, string> = { "image/jpeg": "jpg", "im
 /** The private bucket's own limit. */
 export const MAX_EVIDENCE_BYTES = 10 * 1024 * 1024;
 const MAX_SIDE_PX = 3000;
+/**
+ * The most pixels a photo may have before it is decoded: a 200 MP phone camera, with room. Decoding
+ * takes four bytes a pixel whatever the file size, so a small PNG of 23000 x 23000 took 2.4 GB of
+ * memory (authorization audit, 4 Nov 2026); the size is read from the file's header first.
+ */
+export const MAX_EVIDENCE_PIXELS = 210_000_000;
 /** Indonesia's western time, for a camera that recorded the hour but not its zone. */
 const DEFAULT_OFFSET = "+07:00";
 
@@ -62,6 +68,54 @@ export function sniffImage(bytes: Uint8Array): string | null {
   return null;
 }
 
+/**
+ * Width and height from a JPEG, PNG or WebP header, without decoding it; null when the header
+ * cannot be read, which the reader treats as not a photo it can take.
+ */
+export function imageSize(bytes: Uint8Array): { width: number; height: number } | null {
+  const at = (i: number) => bytes[i] ?? 0;
+  const be16 = (i: number) => (at(i) << 8) | at(i + 1);
+  const be32 = (i: number) => ((at(i) << 24) | (at(i + 1) << 16) | (at(i + 2) << 8) | at(i + 3)) >>> 0;
+  const le16 = (i: number) => at(i) | (at(i + 1) << 8);
+  const le24 = (i: number) => at(i) | (at(i + 1) << 8) | (at(i + 2) << 16);
+  const ascii = (from: number, to: number) => String.fromCharCode(...bytes.subarray(from, to));
+  const type = sniffImage(bytes);
+  if (type === "image/png") return ascii(12, 16) === "IHDR" ? { width: be32(16), height: be32(20) } : null;
+  if (type === "image/webp") {
+    const chunk = ascii(12, 16);
+    if (chunk === "VP8X") return { width: le24(24) + 1, height: le24(27) + 1 };
+    if (chunk === "VP8 ") return { width: le16(26) & 0x3fff, height: le16(28) & 0x3fff };
+    if (chunk === "VP8L" && at(20) === 0x2f) {
+      // Two 14-bit fields, little-endian, after the signature byte.
+      const bits = (at(21) | (at(22) << 8) | (at(23) << 16) | (at(24) << 24)) >>> 0;
+      return { width: (bits & 0x3fff) + 1, height: ((bits >>> 14) & 0x3fff) + 1 };
+    }
+    return null;
+  }
+  if (type === "image/jpeg") {
+    // Walk the segments to the first start-of-frame; every other segment carries its own length.
+    let i = 2;
+    while (i + 9 < bytes.length) {
+      if (at(i) !== 0xff) return null;
+      const marker = at(i + 1);
+      if (marker === 0xff) {
+        i++;
+        continue;
+      }
+      if (marker === 0xd8 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+        i += 2;
+        continue;
+      }
+      if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+        return { width: be16(i + 7), height: be16(i + 5) };
+      }
+      if (marker === 0xd9 || marker === 0xda) return null;
+      i += 2 + be16(i + 2);
+    }
+  }
+  return null;
+}
+
 /** "2026:10:01 19:23:11" with "+07:00" (or the default zone) as an ISO instant. */
 export function exifTime(value: unknown, offset: unknown): string | null {
   const m = typeof value === "string" ? value.match(/^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/) : null;
@@ -99,6 +153,9 @@ export async function readEvidence(bytes: Uint8Array, pepper: string): Promise<E
   if (bytes.length > MAX_EVIDENCE_BYTES) throw new EvidenceError("file lebih dari 10 MB");
   const type = sniffImage(bytes);
   if (!type) throw new EvidenceError("file ini bukan foto JPEG, PNG, atau WebP");
+  const size = imageSize(bytes);
+  if (!size || !size.width || !size.height) throw new EvidenceError("foto ini tidak terbaca, kirim foto JPEG, PNG, atau WebP biasa");
+  if (size.width * size.height > MAX_EVIDENCE_PIXELS) throw new EvidenceError("resolusi foto terlalu besar, kirim foto biasa dari kamera HP");
   const buffer = Buffer.from(bytes);
 
   // Metadata is optional and often missing (screenshots, apps that strip it): its absence is not an error.
