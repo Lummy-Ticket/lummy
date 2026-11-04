@@ -11,7 +11,9 @@ import { demoKeyAllowed, demoMode } from "@/lib/demo-key";
 import { notifyOrderPaid } from "@/lib/email/notify";
 import { DISPUTE_WINDOW_H } from "@/lib/mock/escrow";
 import { checkPurchase, orderInsert, type ChainFields } from "@/lib/orders/create";
+import { FEATURES } from "@/lib/features";
 import { HELD } from "@/lib/orders/map";
+import { unpaidOrderAllowed } from "@/lib/orders/unpaid";
 import { xenditConfig } from "@/lib/payments/xendit";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { isDemoEmail } from "@/lib/supabase/demo";
@@ -53,8 +55,12 @@ export async function POST(req: Request) {
 
   const ordinary = !user.staff && !isDemoEmail(user.email);
   // With QRIS on, the money has to come through it; this straight path stays for chain mode,
-  // presenters and staff.
-  if (!op && ordinary && xenditConfig()) return fail(409, "pembayaran sekarang lewat QRIS: muat ulang halaman checkout");
+  // presenters and staff, and once money is real, for the seed listings only (lib/orders/unpaid).
+  const qris = xenditConfig();
+  if (!op && ordinary && qris) return fail(409, "pembayaran sekarang lewat QRIS: muat ulang halaman checkout");
+  if (!unpaidOrderAllowed(listingId, { payouts: FEATURES.payouts, xenditLive: !!qris && !qris.testMode })) {
+    return fail(409, "beli tanpa bayar sudah ditutup karena pembayaran sungguhan: bayar lewat QRIS");
+  }
   if (ordinary) {
     const open = await admin.from("orders").select("id", { count: "exact", head: true }).eq("buyer_id", user.id).in("escrow_status", HELD);
     if (open.error) return fail(500, open.error.message);
