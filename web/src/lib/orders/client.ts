@@ -53,6 +53,48 @@ export function useAccountOrders(scope: OrderScope | null) {
   return { orders: key && loaded?.key === key ? loaded.orders : null, error, refresh };
 }
 
+type ClaimFlags = { disputes: { dispute_replies: { from_seller: boolean }[] | null } | { dispute_replies: { from_seller: boolean }[] | null }[] | null };
+
+/**
+ * How many claims against this seller still wait for their answer, for the account menu's badge:
+ * the same count as before (a held order under a claim with no reply from the seller), but read as
+ * the claimed orders and their reply flags only. The menu used to download every order the seller
+ * ever had, with its claim and replies, on every page and every window focus (UX audit, 4 Nov 2026).
+ */
+export function useClaimsAwaitingSeller(sellerId: string | null): number | null {
+  const [counted, setCounted] = useState<{ id: string; n: number } | null>(null);
+  const [nonce, setNonce] = useState(0);
+  useEffect(() => {
+    const sb = supabaseBrowser();
+    if (!sellerId || !sb) return;
+    let alive = true;
+    void sb
+      .from("orders")
+      .select("id, disputes(dispute_replies(from_seller))")
+      .eq("seller_id", sellerId)
+      .eq("disputed", true)
+      .in("escrow_status", HELD)
+      .then(({ data, error }) => {
+        if (!alive || error) return;
+        const waiting = ((data ?? []) as unknown as ClaimFlags[]).filter((r) => {
+          const claim = Array.isArray(r.disputes) ? r.disputes[0] : r.disputes;
+          return !(claim?.dispute_replies ?? []).some((reply) => reply.from_seller);
+        });
+        setCounted({ id: sellerId, n: waiting.length });
+      });
+    return () => {
+      alive = false;
+    };
+  }, [sellerId, nonce]);
+  useEffect(() => {
+    if (!sellerId) return;
+    const again = () => setNonce((n) => n + 1);
+    window.addEventListener("focus", again);
+    return () => window.removeEventListener("focus", again);
+  }, [sellerId]);
+  return sellerId && counted?.id === sellerId ? counted.n : null;
+}
+
 /** An error from the order routes, with the HTTP status so callers can tell "not yet" from "broken". */
 export class OrderError extends Error {
   constructor(message: string, readonly status: number) {
