@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/types";
 import { MAX_TICKET_BYTES, analyzeTicket, type TicketAnalysis, type TicketErrorCode } from "./analyze";
 import type { TicketCheck } from "./checks";
+import { assertInflatesWithin } from "./inflate-guard";
 
 if (typeof window !== "undefined") throw new Error("lib/tickets/server is server-only");
 
@@ -28,6 +29,8 @@ export async function checkTicket(
   bytes: Uint8Array,
   pepper: string
 ): Promise<{ analysis: TicketAnalysis; check: TicketCheck }> {
+  // A small file that inflates to gigabytes is refused before pdf.js opens it (inflate-guard.ts).
+  assertInflatesWithin(bytes);
   const analysis = await analyzeTicket(bytes, pepper);
   const keys = analysis.barcodes.map((b) => b.key);
   const [held, sameFile] = await Promise.all([
