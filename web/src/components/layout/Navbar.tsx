@@ -12,7 +12,7 @@ import { Logo } from "./Logo";
 import { Button } from "@/components/ui/button";
 import { useOrders, useUser, type User } from "@/lib/mock";
 import { isStaff, useHydrated } from "@/lib/access";
-import { useAccountOrders } from "@/lib/orders/client";
+import { useClaimsAwaitingSeller } from "@/lib/orders/client";
 import { useDocumentLang, useFormatters, useT } from "@/lib/i18n";
 import { useEventSuggestions } from "@/lib/useEventSuggestions";
 import { LangToggle } from "./LangToggle";
@@ -73,10 +73,10 @@ function useDismiss(ref: RefObject<HTMLElement | null>, open: boolean, close: ()
  */
 function useClaimsToAnswer(me: User | null) {
   const sample = useOrders((s) => s.orders);
-  const { orders } = useAccountOrders(me?.account ? { seller: me.id } : null);
+  const forAccount = useClaimsAwaitingSeller(me?.account ? me.id : null);
   if (!me) return 0;
-  const mine = me.account ? (orders ?? []) : sample.filter((o) => o.sellerName === me.name);
-  return mine.filter((o) => o.escrowStatus === "DISPUTED" && !(o.dispute?.replies ?? []).some((r) => r.fromSeller)).length;
+  if (me.account) return forAccount ?? 0;
+  return sample.filter((o) => o.sellerName === me.name && o.escrowStatus === "DISPUTED" && !(o.dispute?.replies ?? []).some((r) => r.fromSeller)).length;
 }
 
 /** A text link whose underline draws in on hover and stays drawn on the current page. */
