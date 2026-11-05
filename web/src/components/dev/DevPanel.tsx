@@ -81,7 +81,7 @@ function Panel({ onClose, accounts }: { onClose: () => void; accounts: DemoAccou
   };
 
   const reset = async () => {
-    await supabaseBrowser()?.auth.signOut().catch(() => undefined);
+    await (await supabaseBrowser())?.auth.signOut().catch(() => undefined);
     localStorage.clear();
     window.location.reload();
   };

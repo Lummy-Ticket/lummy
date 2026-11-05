@@ -62,15 +62,16 @@ export function useAccountListings(scope: ListingScope | null) {
   const refresh = useCallback(() => setNonce((n) => n + 1), []);
 
   useEffect(() => {
-    const sb = supabaseBrowser();
-    if (!key || !sb) return;
+    if (!key) return;
     const s = JSON.parse(key) as ListingScope;
     let alive = true;
-    const q =
-      "seller" in s
-        ? sb.from("listings").select(COLUMNS).eq("seller_id", s.seller).neq("status", "cancelled").order("created_at", { ascending: false })
-        : sb.from("listings").select(COLUMNS).eq("status", "review").order("created_at");
-    void q.then(({ data, error: e }) => {
+    void supabaseBrowser().then(async (sb) => {
+      if (!alive || !sb) return;
+      const q =
+        "seller" in s
+          ? sb.from("listings").select(COLUMNS).eq("seller_id", s.seller).neq("status", "cancelled").order("created_at", { ascending: false })
+          : sb.from("listings").select(COLUMNS).eq("status", "review").order("created_at");
+      const { data, error: e } = await q;
       if (!alive) return;
       setError(e?.message ?? null);
       if (!e) setLoaded({ key, listings: ((data ?? []) as unknown as Row[]).map(fromRow) });

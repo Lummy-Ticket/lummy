@@ -80,9 +80,12 @@ function LoginInner() {
       setError(t("Demo accounts open from the demo button below, not by email.", "Akun demo dibuka lewat tombol akun demo di bawah, bukan lewat email."));
       return;
     }
-    const sb = supabaseBrowser();
-    if (!sb) return;
     setSending(true);
+    const sb = await supabaseBrowser();
+    if (!sb) {
+      setSending(false);
+      return;
+    }
     const next = safePath(params.get("next"));
     const { error: sendError } = await sb.auth.signInWithOtp({
       email: address,

@@ -25,16 +25,17 @@ export function useAccountOrders(scope: OrderScope | null) {
   const refresh = useCallback(() => setNonce((n) => n + 1), []);
 
   useEffect(() => {
-    const sb = supabaseBrowser();
-    if (!key || !sb) return;
+    if (!key) return;
     const s = JSON.parse(key) as OrderScope;
     let alive = true;
-    let q = sb.from("orders").select(ORDER_SELECT).order("created_at", { ascending: false });
-    if ("buyer" in s) q = q.eq("buyer_id", s.buyer);
-    else if ("seller" in s) q = q.eq("seller_id", s.seller);
-    else if ("id" in s) q = q.eq("id", s.id);
-    else q = q.eq("disputed", true).in("escrow_status", HELD);
-    void q.then(({ data, error: e }) => {
+    void supabaseBrowser().then(async (sb) => {
+      if (!alive || !sb) return;
+      let q = sb.from("orders").select(ORDER_SELECT).order("created_at", { ascending: false });
+      if ("buyer" in s) q = q.eq("buyer_id", s.buyer);
+      else if ("seller" in s) q = q.eq("seller_id", s.seller);
+      else if ("id" in s) q = q.eq("id", s.id);
+      else q = q.eq("disputed", true).in("escrow_status", HELD);
+      const { data, error: e } = await q;
       if (!alive) return;
       setError(e?.message ?? null);
       if (!e) setLoaded({ key, orders: ((data ?? []) as unknown as OrderRow[]).map(orderFromRow) });
@@ -65,23 +66,23 @@ export function useClaimsAwaitingSeller(sellerId: string | null): number | null 
   const [counted, setCounted] = useState<{ id: string; n: number } | null>(null);
   const [nonce, setNonce] = useState(0);
   useEffect(() => {
-    const sb = supabaseBrowser();
-    if (!sellerId || !sb) return;
+    if (!sellerId) return;
     let alive = true;
-    void sb
-      .from("orders")
-      .select("id, disputes(dispute_replies(from_seller))")
-      .eq("seller_id", sellerId)
-      .eq("disputed", true)
-      .in("escrow_status", HELD)
-      .then(({ data, error }) => {
-        if (!alive || error) return;
-        const waiting = ((data ?? []) as unknown as ClaimFlags[]).filter((r) => {
-          const claim = Array.isArray(r.disputes) ? r.disputes[0] : r.disputes;
-          return !(claim?.dispute_replies ?? []).some((reply) => reply.from_seller);
-        });
-        setCounted({ id: sellerId, n: waiting.length });
+    void supabaseBrowser().then(async (sb) => {
+      if (!alive || !sb) return;
+      const { data, error } = await sb
+        .from("orders")
+        .select("id, disputes(dispute_replies(from_seller))")
+        .eq("seller_id", sellerId)
+        .eq("disputed", true)
+        .in("escrow_status", HELD);
+      if (!alive || error) return;
+      const waiting = ((data ?? []) as unknown as ClaimFlags[]).filter((r) => {
+        const claim = Array.isArray(r.disputes) ? r.disputes[0] : r.disputes;
+        return !(claim?.dispute_replies ?? []).some((reply) => reply.from_seller);
       });
+      setCounted({ id: sellerId, n: waiting.length });
+    });
     return () => {
       alive = false;
     };
@@ -137,7 +138,7 @@ export const orderAction = (id: string, input: OrderAction) =>
 export async function uploadEvidence(orderId: string, file: File, kind?: EvidenceKind): Promise<DisputeEvidence> {
   const path = `/api/orders/${encodeURIComponent(orderId)}`;
   const intent = await send<{ path: string; token: string }>(path, { action: "evidence-upload", type: file.type, size: file.size });
-  const sb = supabaseBrowser();
+  const sb = await supabaseBrowser();
   if (!sb) throw new OrderError("database belum tersambung", 503);
   const up = await sb.storage.from("evidence").uploadToSignedUrl(intent.path, intent.token, file, { contentType: file.type });
   if (up.error) throw new OrderError(up.error.message, 500);
