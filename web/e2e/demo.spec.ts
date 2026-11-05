@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { expect, isBuyable, listingWhere, persona, rupiah, showWhere, test } from "./support";
+import { DEMO_SIGN_IN, expect, isBuyable, listingWhere, persona, rupiah, showWhere, test } from "./support";
 
 // Shows and listings by what they are, not by id: every show is real and passes on its own date.
 const LATE_SHOW = showWhere("a rupiah show with listings", (e, ls) => rupiah(e) && ls.length > 0 && e.transferPolicy !== "no_resale");
@@ -175,7 +175,7 @@ test.describe("demo script", { tag: "@smoke" }, () => {
     await page.goto(`/checkout?listing=${USDC_DEAR.id}&qty=1`);
     await expect(page).toHaveURL(/\/login/);
     await expect(page.locator("[data-login-usdc]")).toContainText("paid in USDC");
-    await page.getByRole("button", { name: /^Continue with a (demo|sample) account$/ }).click();
+    await page.getByRole("button", { name: DEMO_SIGN_IN }).click();
     await expect(page).toHaveURL(new RegExp(`/checkout\\?listing=${USDC_DEAR.id}`));
     await expect(page.locator("[data-usdc-needs-account]")).toContainText("cannot pay in USDC");
     await expect(page.getByRole("button", { name: /^Pay / })).toBeDisabled();
