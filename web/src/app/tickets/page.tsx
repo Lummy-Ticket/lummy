@@ -88,7 +88,7 @@ export default function TicketsPage() {
             <Ticket className="w-8 h-8" />
           </span>
           <p className="text-neutral-gray">{t("No tickets yet. Browse events and buy one that escrow protects.", "Belum ada tiket. Jelajah event dan beli yang dijaga escrow.")}</p>
-          <Link href="/events"><Button.Primary>{t("Browse events", "Jelajah event")}</Button.Primary></Link>
+          <Button.PrimaryLink href="/events">{t("Browse events", "Jelajah event")}</Button.PrimaryLink>
         </div>
       ) : (
         <div data-reveal="stagger" className="grid sm:grid-cols-2 gap-4">

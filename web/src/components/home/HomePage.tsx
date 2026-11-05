@@ -231,11 +231,9 @@ export default function HomePage() {
                 {t("Upload the PDF, we check every barcode in it, and you get paid after the show.", "Upload PDF-nya, semua barcode-nya kami cek, dan kamu dibayar setelah acara.")}
               </p>
             </div>
-            <Link href="/sell">
-              <Button.Secondary className="flex items-center gap-2 text-nowrap">
-                {t("Sell a ticket", "Jual tiket")} <ArrowRight className="w-4 h-4" />
-              </Button.Secondary>
-            </Link>
+            <Button.SecondaryLink href="/sell" className="flex items-center gap-2 text-nowrap">
+              {t("Sell a ticket", "Jual tiket")} <ArrowRight className="w-4 h-4" />
+            </Button.SecondaryLink>
           </div>
         </TicketBand>
       </section>

@@ -227,6 +227,17 @@
   background-size: 100% 1.5px;
 }
 
+/* A small inline control (a seller's name, a waitlist link) gets a 28px tall tap area without moving
+   the text around it (WCAG 2.5.8 asks 24px). Rows of them sit 28px apart, so the areas never overlap. */
+.hit-area {
+  position: relative;
+}
+.hit-area::after {
+  content: "";
+  position: absolute;
+  inset: -6px -4px;
+}
+
 /* Reduced motion: entrances just appear, loops stand still. Spinners keep turning,
    they carry meaning. */
 @media (prefers-reduced-motion: reduce) {

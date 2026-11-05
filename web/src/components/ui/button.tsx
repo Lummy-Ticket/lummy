@@ -1,4 +1,5 @@
 import * as React from "react"
+import Link from "next/link"
 import { cn } from "@/lib/utils"
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement>
@@ -69,6 +70,45 @@ const Ghost = React.forwardRef<HTMLButtonElement, GhostProps>(({ className, chil
   </button>
 ));
 
+// The same buttons for a step that opens another page. A <button> inside a link is two controls in
+// one for a screen reader and for Tab, and the link's own target was the 4px strip under the face
+// (axe target-size, UX review 5 Nov 2026). Here the link is the raised shadow and the face rides on it.
+type LinkProps = React.ComponentProps<typeof Link> & {
+  /** Classes for the link itself: margins and placement. `className` styles the face, as on the buttons. */
+  wrapperClass?: string
+}
+
+const RAISED_FACE = "block rounded-2xl border-2 transition duration-200 -translate-y-1 -translate-x-1 group-hover:-translate-x-0.5 group-hover:-translate-y-0.5 group-active:translate-0 font-semibold border-lummy-500 px-6 py-3.5"
+
+const PrimaryLink = ({ className, children, wrapperClass, ...props }: LinkProps) => (
+  <Link {...props} className={cn("group relative mt-0.5 inline-block w-fit rounded-2xl bg-primary-navy-dark", wrapperClass)}>
+    <span className={cn(RAISED_FACE, "bg-primary-sky text-primary-navy-dark group-hover:bg-primary-navy group-hover:text-neutral-white group-hover:border-primary-navy-dark", className)}>
+      {children}
+    </span>
+  </Link>
+);
+
+const SecondaryLink = ({ className, children, wrapperClass, ...props }: LinkProps) => (
+  <Link {...props} className={cn("group relative mt-0.5 inline-block w-fit rounded-2xl bg-primary-navy-dark", wrapperClass)}>
+    <span className={cn(RAISED_FACE, "bg-neutral-white text-lummy-500 group-hover:bg-pastel-yellow", className)}>
+      {children}
+    </span>
+  </Link>
+);
+
+const GhostLink = ({ className, children, wrapperClass, ...props }: LinkProps) => (
+  <Link
+    {...props}
+    className={cn(
+      "inline-flex items-center justify-center gap-2 rounded-2xl border-2 bg-neutral-white px-5 py-3.5 font-semibold transition active:scale-[0.97] -translate-y-0.5 border-neutral-light-gray-1 text-neutral-gray hover:border-primary-navy hover:text-primary-navy",
+      wrapperClass,
+      className
+    )}
+  >
+    {children}
+  </Link>
+);
+
 Primary.displayName = "Button.Primary";
 Secondary.displayName = "Button.Secondary";
 Ghost.displayName = "Button.Ghost";
@@ -77,6 +117,9 @@ const Button = {
   Primary,
   Secondary,
   Ghost,
+  PrimaryLink,
+  SecondaryLink,
+  GhostLink,
 }
 
 export {Button}

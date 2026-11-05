@@ -105,7 +105,11 @@ export function NotifyCard({ event }: { event: EventItem }) {
             <div key={tier.id} className="flex items-center justify-between text-sm">
               <span className="text-neutral-black">{tier.name}</span>
               {sub ? (
-                <button onClick={() => unfollow(sub.id, t("Left the waitlist", "Keluar dari waitlist"))} className="text-xs text-secondary-green-dark flex items-center gap-1 cursor-pointer">
+                <button
+                  onClick={() => unfollow(sub.id, t("Left the waitlist", "Keluar dari waitlist"))}
+                  aria-label={t(`On the list for ${tier.name}: leave it`, `Di waitlist ${tier.name}: keluar`)}
+                  className="hit-area text-xs text-secondary-green-dark flex items-center gap-1 cursor-pointer"
+                >
                   <Check className="w-3 h-3" /> {t("On the list", "Di waitlist")}
                 </button>
               ) : (
@@ -118,7 +122,8 @@ export function NotifyCard({ event }: { event: EventItem }) {
                         : t(`On the ${tier.name} waitlist, saved in this browser. No email is sent yet.`, `Masuk waitlist ${tier.name}, tersimpan di browser ini. Belum ada email terkirim.`)
                     )
                   }
-                  className="text-xs text-primary-navy font-medium cursor-pointer"
+                  aria-label={t(`Join waitlist for ${tier.name}`, `Masuk waitlist ${tier.name}`)}
+                  className="hit-area text-xs text-primary-navy font-medium cursor-pointer"
                 >
                   {t("Join waitlist", "Masuk waitlist")}
                 </button>

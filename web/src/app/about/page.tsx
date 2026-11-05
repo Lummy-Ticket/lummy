@@ -1,7 +1,6 @@
 "use client";
 
 import type React from "react";
-import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, IdCard, MessagesSquare, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -74,8 +73,8 @@ export default function AboutPage() {
               )}
             </p>
             <div className="lm-in flex flex-wrap gap-3 mt-6" style={{ "--d": "320ms" } as React.CSSProperties}>
-              <Link href="/events"><Button.Primary className="flex items-center gap-2">{t("Browse events", "Jelajah event")} <ArrowRight className="w-4 h-4" /></Button.Primary></Link>
-              <Link href="/how-it-works"><Button.Secondary>{t("How it works", "Cara kerja")}</Button.Secondary></Link>
+              <Button.PrimaryLink href="/events" className="flex items-center gap-2">{t("Browse events", "Jelajah event")} <ArrowRight className="w-4 h-4" /></Button.PrimaryLink>
+              <Button.SecondaryLink href="/how-it-works">{t("How it works", "Cara kerja")}</Button.SecondaryLink>
             </div>
           </div>
           <div className="hidden lg:flex justify-center">
@@ -106,7 +105,7 @@ export default function AboutPage() {
         <div data-reveal="stagger" className="grid sm:grid-cols-2 gap-x-10 gap-y-6 mt-6">
           {principles.map((c, i) => (
             <div key={c.en} className="flex gap-4">
-              <span className="font-bold text-2xl text-primary-navy/30 leading-none w-8 shrink-0">{String(i + 1).padStart(2, "0")}</span>
+              <span className="font-bold text-2xl text-primary-navy/70 leading-none w-8 shrink-0">{String(i + 1).padStart(2, "0")}</span>
               <div>
                 <h3 className="font-semibold text-neutral-black">{t(c.en, c.id)}</h3>
                 <p className="text-sm text-neutral-gray mt-1.5 leading-relaxed">{t(c.bodyEn, c.bodyId)}</p>
@@ -121,7 +120,7 @@ export default function AboutPage() {
         <TicketBand>
           <div className="flex flex-col items-center text-center gap-4">
             <h2 className="text-2xl md:text-3xl font-bold">{t("Ready to find your ticket?", "Siap cari tiketmu?")}</h2>
-            <Link href="/events"><Button.Secondary className="flex items-center gap-2">{t("Browse events", "Jelajah event")} <ArrowRight className="w-4 h-4" /></Button.Secondary></Link>
+            <Button.SecondaryLink href="/events" className="flex items-center gap-2">{t("Browse events", "Jelajah event")} <ArrowRight className="w-4 h-4" /></Button.SecondaryLink>
           </div>
         </TicketBand>
       </div>

@@ -74,7 +74,7 @@ function ListingRow({ event, listing, qty, cheapest, index, sampleTag }: { event
             data-seller-info
             aria-expanded={aboutSeller}
             onClick={() => setAboutSeller((v) => !v)}
-            className="underline decoration-dotted underline-offset-2 hover:text-primary-navy transition cursor-pointer"
+            className="hit-area underline decoration-dotted underline-offset-2 hover:text-primary-navy transition cursor-pointer"
           >
             {listing.sellerName}
           </button>
@@ -116,9 +116,7 @@ function ListingRow({ event, listing, qty, cheapest, index, sampleTag }: { event
           {qty > 1 && <div className="text-xs text-neutral-gray text-nowrap">{t(`${qty} tickets · ${money(total)}`, `${qty} tiket · ${money(total)}`)}</div>}
         </div>
         {buyable ? (
-          <Link href={`/checkout?listing=${listing.id}&qty=${qty}`}>
-            <Button.Primary className="text-sm">{t("Buy", "Beli")}</Button.Primary>
-          </Link>
+          <Button.PrimaryLink href={`/checkout?listing=${listing.id}&qty=${qty}`} className="text-sm">{t("Buy", "Beli")}</Button.PrimaryLink>
         ) : (
           <Button.Primary className="text-sm" disabled>{dup ? t("Blocked", "Diblokir") : t("In review", "Direview")}</Button.Primary>
         )}
@@ -167,7 +165,7 @@ export default function EventDetailPage() {
       <div className="max-w-4xl mx-auto px-5 lg:px-10 pt-28 pb-16 text-center flex flex-col items-center gap-4">
         <Image src="/assets/brand/maskot-bingung.svg" alt="" width={152} height={130} />
         <p className="text-neutral-gray">{t("Event not found.", "Event tidak ditemukan.")}</p>
-        <Link href="/events"><Button.Secondary>{t("Back to browse", "Balik ke jelajah")}</Button.Secondary></Link>
+        <Button.SecondaryLink href="/events">{t("Back to browse", "Balik ke jelajah")}</Button.SecondaryLink>
       </div>
     );
   }
@@ -261,7 +259,7 @@ export default function EventDetailPage() {
                   ? t("Tickets for it are no longer on sale.", "Tiketnya sudah tidak dijual lagi.")
                   : t("Sales closed when the doors opened, since a ticket bought now could not be handed over in time.", "Penjualan ditutup saat pintu dibuka, karena tiket yang dibeli sekarang tidak sempat diserahkan.")}
               </p>
-              <Link href="/events" className="inline-block mt-4"><Button.Secondary className="text-sm">{t("See what is coming up", "Lihat acara berikutnya")}</Button.Secondary></Link>
+              <Button.SecondaryLink href="/events" wrapperClass="mt-4" className="text-sm">{t("See what is coming up", "Lihat acara berikutnya")}</Button.SecondaryLink>
             </div>
           ) : closed ? (
             <div className="mt-10 rounded-2xl bg-secondary-pink-soft p-6 text-center">

@@ -73,7 +73,7 @@ test.describe("user tasks", { tag: "@smoke" }, () => {
     await expect(counts).toHaveText(["1", "2", "3", "4", "5", "6", "7", "8"]);
     await expectFitsScreen(page);
     await page.getByRole("group", { name: "Jumlah tiket" }).getByRole("button", { name: "1", exact: true }).click();
-    await page.getByRole("button", { name: "Beli" }).first().click();
+    await page.getByRole("link", { name: "Beli", exact: true }).first().click();
     await expect(page).toHaveURL(/\/login/);
     await tapUntil(page, page.getByRole("button", { name: DEMO_SIGN_IN }), (u) => u.pathname === "/checkout");
     await expect(page.locator("[data-sample-payment]")).toBeVisible();

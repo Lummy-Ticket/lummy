@@ -23,14 +23,15 @@ test.describe("buyer", () => {
     await expect(closed).toContainText("Tiketnya sudah tidak dijual lagi.");
     await expect(closed.getByRole("link", { name: "Lihat acara berikutnya" })).toHaveAttribute("href", "/events");
     await expect(page.getByText("Acara ini sudah lewat, jadi tidak ada yang dijual.")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Beli", exact: true })).toHaveCount(0);
+    // Buy is a link to checkout (a button inside a link was two controls in one, UX review 5 Nov).
+    await expect(page.getByRole("link", { name: "Beli", exact: true })).toHaveCount(0);
     await expectFitsScreen(page);
   });
 
   test("a show's page left open as the doors open closes its sales at the next tap", { tag: "@smoke" }, async ({ page }) => {
     await page.goto(`/events/${SOON.id}`);
     const counts = page.getByRole("group", { name: "Jumlah tiket" });
-    await expect(page.getByRole("button", { name: "Beli", exact: true }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: "Beli", exact: true }).first()).toBeVisible();
     // The browser's clock moves to half an hour after the doors open, once the page has loaded: set
     // before, the server renders with the real time and the browser with the moved one, and the two
     // pages differ (React error #418 on 1 Nov 2026). The page reads the clock on every render, so the
@@ -45,7 +46,8 @@ test.describe("buyer", () => {
     await expect(closed).toContainText("Acara ini sudah dimulai");
     await expect(closed).toContainText("Penjualan ditutup saat pintu dibuka");
     await expect(page.getByText("Acara ini sudah dimulai, jadi penjualan ditutup.")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Beli", exact: true })).toHaveCount(0);
+    // Buy is a link to checkout (a button inside a link was two controls in one, UX review 5 Nov).
+    await expect(page.getByRole("link", { name: "Beli", exact: true })).toHaveCount(0);
     await expectFitsScreen(page);
   });
 
