@@ -125,7 +125,8 @@ async function main() {
     await page.goto(`${BASE}/events/${EVENT}`, { waitUntil: "networkidle" });
     const heading = (await page.getByRole("heading", { level: 1 }).first().innerText().catch(() => "")).trim();
     check("the cancelled show's page says it is not on Lummy", /^(This show is not on Lummy|Acara ini tidak ada di Lummy)$/.test(heading), heading);
-    const robots = await page.locator('meta[name="robots"]').getAttribute("content").catch(() => null);
+    // Next can write the tag twice once the page has loaded (the streamed copy and the hoisted one)
+    const robots = await page.locator('meta[name="robots"]').first().getAttribute("content").catch(() => null);
     check("the cancelled show's page is not indexed", robots === "noindex", String(robots));
   } catch (e) {
     check("check ran to the end", false, (e as Error).message.split("\n")[0].slice(0, 200));
