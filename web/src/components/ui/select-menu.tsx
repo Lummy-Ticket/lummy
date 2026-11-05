@@ -5,8 +5,9 @@ import { ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Tombol dan popup dipakai bersama PriceFilter, supaya kontrol di satu toolbar seragam.
+// Tighter on a phone, so "Semua kota" and "Semua harga" fit two to a row on a 360px screen.
 export const MENU_TRIGGER =
-  "w-full h-12 flex items-center gap-2 pl-4 pr-3 rounded-xl border border-lummy-500 bg-neutral-white text-sm text-neutral-black cursor-pointer hover:bg-secondary-blue-light transition";
+  "w-full h-12 flex items-center gap-1.5 pl-3 pr-2.5 sm:gap-2 sm:pl-4 sm:pr-3 rounded-xl border border-lummy-500 bg-neutral-white text-[13px] sm:text-sm text-neutral-black cursor-pointer hover:bg-secondary-blue-light transition";
 // Filter yang sedang dipakai memakai warna opsi terpilih di popup.
 export const MENU_TRIGGER_ACTIVE = "bg-secondary-blue-soft hover:bg-secondary-blue-soft text-lummy-500 font-medium";
 export const MENU_PANEL = "lm-pop absolute z-40 mt-2 rounded-xl border-2 border-lummy-500 bg-neutral-white shadow-lummy-lg";

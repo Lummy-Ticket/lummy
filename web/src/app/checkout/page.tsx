@@ -189,7 +189,7 @@ function CheckoutInner() {
               <Image src={event.image} alt={event.title} fill sizes="96px" className="object-cover" />
             </div>
             <div className="min-w-0">
-              <h3 className="font-semibold text-neutral-black truncate">{event.title}</h3>
+              <h3 className="font-semibold text-neutral-black line-clamp-2 break-words">{event.title}</h3>
               <p className="text-sm text-neutral-gray">{formatEventDate(event.dateISO)} · {event.city}</p>
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <Badge.Base className="bg-secondary-blue-soft text-lummy-500 text-xs">{tier.name}</Badge.Base>
