@@ -197,8 +197,13 @@ try {
     await openSignInLink(phone, `${BASE}/auth/confirm?token_hash=${link?.properties?.hashed_token}&type=email&redirect_to=${redirectTo}`);
     const freshSession = (await fresh.cookies()).some((c) => c.name.startsWith(`sb-${ref}-auth-token`));
     check("link token hash membuka sesi di browser lain", !error && freshSession && new URL(phone.url()).pathname === "/profile", error?.message ?? phone.url());
-    const reused = await openSignInLink(await fresh.newPage(), `${BASE}/auth/confirm?token_hash=${link?.properties?.hashed_token}&type=email`);
-    check("link yang sama tidak bisa dipakai dua kali", reused.url().endsWith("/login?error=link"), reused.url());
+    // Opened again in a browser with no session, as a mail scanner or someone else would: in the one
+    // just signed in, the login page sends a signed-in visitor on to the home page.
+    const stranger = await browser.newContext();
+    const reused = await openSignInLink(await stranger.newPage(), `${BASE}/auth/confirm?token_hash=${link?.properties?.hashed_token}&type=email`);
+    const reusedSession = (await stranger.cookies()).some((c) => c.name.startsWith(`sb-${ref}-auth-token`));
+    check("link yang sama tidak bisa dipakai dua kali", reused.url().endsWith("/login?error=link") && !reusedSession, reused.url());
+    await stranger.close();
     await fresh.close();
   }
 } catch (e) {
