@@ -8,7 +8,7 @@
  *   npm run tickets:check
  */
 import { analyzeTicket, TicketError, type TicketAnalysis } from "../src/lib/tickets/analyze";
-import { MAX_INFLATED_BYTES, assertInflatesWithin, inflatedSize } from "../src/lib/tickets/inflate-guard";
+import { MAX_INFLATED_BYTES, MAX_INFLATED_STREAMS, assertInflatesWithin, inflatedSize } from "../src/lib/tickets/inflate-guard";
 import { deflateSync } from "node:zlib";
 import { barcodeKey } from "../src/lib/tickets/barcode";
 import { judge, parsePdfDate, scanStructure, toolHits, voidMarker, type ForensicReason } from "../src/lib/tickets/forensics";
@@ -40,34 +40,48 @@ async function main() {
   await initWriter();
 
   // --- Decompression bombs (audit of 4 Nov 2026): a small file whose stream inflates past the
-  // budget is refused before pdf.js opens it, and quickly; a real ticket is far below it.
-  const flatePdf = (data: Uint8Array) =>
-    Uint8Array.from([
-      ...latin1(`%PDF-1.7\n1 0 obj\n<< /Length ${data.length} /Filter /FlateDecode >>\nstream\n`),
-      ...data,
-      ...latin1("\nendstream\nendobj\ntrailer\n<< >>\n%%EOF\n"),
-    ]);
-  const bomb = flatePdf(deflateSync(Buffer.alloc(MAX_INFLATED_BYTES + 8 * 1024 * 1024)));
-  const refusedAs = (bytes: Uint8Array) => {
+  // budget is refused before pdf.js opens it, and quickly; what a real ticket can hold is not.
+  const flatePdf = (data: Uint8Array, filter = "/FlateDecode", end = "\nendstream") =>
+    Buffer.concat([latin1(`%PDF-1.7\n1 0 obj\n<< /Length ${data.length} /Filter ${filter} >>\nstream\n`), data, latin1(`${end}\nendobj\ntrailer\n<< >>\n%%EOF\n`)]);
+  const refusedAs = async (bytes: Uint8Array) => {
     try {
-      assertInflatesWithin(bytes);
+      await assertInflatesWithin(bytes);
       return "accepted";
     } catch (e) {
       return e instanceof TicketError ? e.code : `other: ${(e as Error).message}`;
     }
   };
+  const bombData = deflateSync(Buffer.alloc(MAX_INFLATED_BYTES + 8 * 1024 * 1024));
+  const bomb = flatePdf(bombData);
   const bombStarted = Date.now();
-  const bombAnswer = refusedAs(bomb);
+  const bombAnswer = await refusedAs(bomb);
   check(
     `bomb: a ${Math.round(bomb.length / 1024)} KB file inflating past ${MAX_INFLATED_BYTES / 1024 / 1024} MB is refused before pdf.js, in under 2 s`,
     bombAnswer === "unreadable" && Date.now() - bombStarted < 2000,
     `${bombAnswer} in ${Date.now() - bombStarted} ms`
   );
-  check("bomb: a small Flate stream is counted, not refused", inflatedSize(flatePdf(deflateSync(Buffer.alloc(1000)))) === 1000 && refusedAs(flatePdf(deflateSync(Buffer.alloc(1000)))) === "accepted");
-  check("bomb: a Flate stream zlib cannot read is refused", refusedAs(flatePdf(latin1("not deflate data at all"))) === "unreadable");
+  check("bomb: another name for the filter hides nothing", (await refusedAs(flatePdf(bombData, "/Fl"))) === "unreadable");
+  check("bomb: an indirect filter hides nothing", (await refusedAs(flatePdf(bombData, "9 0 R"))) === "unreadable");
+  check("bomb: leaving out the end marker hides nothing", (await refusedAs(flatePdf(bombData, "/FlateDecode", ""))) === "unreadable");
+  const brokenBomb = Buffer.from(bombData);
+  brokenBomb[brokenBomb.length - 1] ^= 0xff;
+  check("bomb: breaking its tail hides nothing", (await refusedAs(flatePdf(brokenBomb))) === "unreadable");
+  const tiny = deflateSync(Buffer.alloc(1));
+  const swarm = Buffer.concat([latin1("%PDF-1.7\n"), ...Array.from({ length: MAX_INFLATED_STREAMS + 1 }, () => Buffer.concat([latin1("stream\n"), tiny, latin1("\nendstream\n")]))]);
+  const swarmStarted = Date.now();
+  const swarmAnswer = await refusedAs(swarm);
+  check(`bomb: over ${MAX_INFLATED_STREAMS} tiny streams are refused, in under 10 s`, swarmAnswer === "unreadable" && Date.now() - swarmStarted < 10_000, `${swarmAnswer} in ${Date.now() - swarmStarted} ms`);
+
+  check("bomb: a small stream is counted, not refused", (await inflatedSize(flatePdf(deflateSync(Buffer.alloc(1000))))) === 1000 && (await refusedAs(flatePdf(deflateSync(Buffer.alloc(1000))))) === "accepted");
+  // Both of these opened in pdf.js on real PDFs, and an earlier guard refused them (5 Nov 2026).
+  check("bomb: 200 MB of flat images in a real file's range is accepted", (await refusedAs(flatePdf(deflateSync(Buffer.alloc(200 * 1024 * 1024))))) === "accepted");
+  check("bomb: a stream under a second filter is not refused", (await refusedAs(flatePdf(latin1("Gas3<~not zlib as it stands~>"), "[/ASCII85Decode /FlateDecode]"))) === "accepted");
+  const brokenSmall = Buffer.from(deflateSync(Buffer.alloc(1000)));
+  brokenSmall[brokenSmall.length - 1] ^= 0xff;
+  check("bomb: a small stream with a bad checksum is left for pdf.js to judge", (await refusedAs(flatePdf(brokenSmall))) === "accepted");
   const realTicket = await genuineTicket();
-  const realSize = inflatedSize(realTicket);
-  check("bomb: a real ticket fixture inflates far below the budget", realSize > 0 && realSize < MAX_INFLATED_BYTES / 16 && refusedAs(realTicket) === "accepted", String(realSize));
+  const realSize = await inflatedSize(realTicket);
+  check("bomb: a real ticket fixture inflates far below the budget", realSize > 0 && realSize < MAX_INFLATED_BYTES / 16 && (await refusedAs(realTicket)) === "accepted", String(realSize));
 
   // --- Pure parts
   check("date: D:20260115093000+07'00' is 02:30 UTC", parsePdfDate("D:20260115093000+07'00'")?.toISOString() === "2026-01-15T02:30:00.000Z");

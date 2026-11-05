@@ -30,7 +30,7 @@ export async function checkTicket(
   pepper: string
 ): Promise<{ analysis: TicketAnalysis; check: TicketCheck }> {
   // A small file that inflates to gigabytes is refused before pdf.js opens it (inflate-guard.ts).
-  assertInflatesWithin(bytes);
+  await assertInflatesWithin(bytes);
   const analysis = await analyzeTicket(bytes, pepper);
   const keys = analysis.barcodes.map((b) => b.key);
   const [held, sameFile] = await Promise.all([
