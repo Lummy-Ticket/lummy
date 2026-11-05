@@ -5,6 +5,7 @@
 import type { PDFPageProxy } from "pdfjs-dist";
 import { MAX_TICKET_BYTES, mayHoldBarcode, openPdf, readPage, TicketError } from "./analyze";
 import { cleanTicketText, type CleanResult } from "./clean";
+import { assertInflatesWithin } from "./inflate-guard";
 
 if (typeof window !== "undefined") throw new Error("lib/tickets/extract is server-only");
 
@@ -53,6 +54,8 @@ export type TicketText = { pages: string[]; payloads: string[]; barcodePages: nu
 export async function readTicketText(bytes: Uint8Array): Promise<TicketText> {
   if (bytes.length > MAX_TICKET_BYTES) throw new TicketError("too_big", `file is over ${MAX_TICKET_BYTES / 1024 / 1024} MB`);
   if (!new TextDecoder("latin1").decode(bytes.subarray(0, 1024)).includes("%PDF-")) throw new TicketError("not_pdf", "not a PDF file");
+  // As for the checks: a small file that inflates to gigabytes never reaches pdf.js.
+  assertInflatesWithin(bytes);
   const deadline = Date.now() + TIME_BUDGET_MS;
   const { task, doc, OPS } = await openPdf(bytes, MAX_IMAGE);
   const pages: string[] = [];
