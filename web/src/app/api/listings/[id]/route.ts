@@ -38,6 +38,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   let to: ListingStatus;
   if (action === "approve" || action === "reject") {
     if (!user.staff) return fail(403, "cuma staf yang bisa meninjau listing");
+    // A held listing is cleared by someone other than its seller, staff included (review, 4 Nov 2026).
+    if (own) return fail(403, "staf tidak bisa meninjau listingnya sendiri");
     from = ["review"];
     to = action === "approve" ? "active" : "rejected";
   } else if (action === "withdraw") {

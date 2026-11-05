@@ -224,6 +224,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     case "verdict": {
       if (!user.staff) return fail(403, "cuma staf yang bisa memutus");
+      // Nobody rules on a claim they are a party to, staff included (review, 4 Nov 2026).
+      if (buyer || seller) return fail(403, "staf tidak bisa memutus klaim di pesanannya sendiri");
       const d = order.dispute;
       if (order.escrowStatus !== "DISPUTED" || !d || d.verdict) return fail(409, "tidak ada klaim terbuka di pesanan ini");
       const remedy = String(body.remedy) as Remedy;
