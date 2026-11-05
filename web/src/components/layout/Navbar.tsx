@@ -136,15 +136,19 @@ function NavSearch({ className, onDone }: { className?: string; onDone?: () => v
     <form
       ref={ref}
       role="search"
+      action="/events"
       onSubmit={(e) => {
         e.preventDefault();
-        go(q.trim() ? `/events?q=${encodeURIComponent(q.trim())}` : "/events");
+        // From the form, not the state: on a slow phone the words can be typed before React is ready.
+        const words = String(new FormData(e.currentTarget).get("q") ?? "").trim();
+        go(words ? `/events?q=${encodeURIComponent(words)}` : "/events");
       }}
       className={cn("relative", className)}
     >
       <label className="flex items-center gap-2 h-10 rounded-full border border-neutral-light-gray-1 bg-neutral-white/90 pl-3.5 pr-2 transition focus-within:border-primary-navy focus-within:shadow-[0_0_0_3px_rgba(177,231,255,0.8)] hover:border-lummy-500">
         <Search className="w-4 h-4 text-neutral-gray shrink-0" />
         <input
+          name="q"
           value={q}
           onChange={(e) => { setQ(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}

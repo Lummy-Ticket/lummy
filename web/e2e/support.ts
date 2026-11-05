@@ -3,10 +3,38 @@ import { SEED_LISTINGS, isBuyable, seedEvents, type SeedEvent } from "../src/lib
 import type { Listing } from "../src/lib/mock/types";
 
 /**
+ * Waits until React holds what a visitor can use on the page. A tap before that does nothing, as on a
+ * slow phone. Text used to double as this signal on the Indonesian phones, because it switched only
+ * after hydration, until the server rendered the visitor's language itself (5 Nov 2026). A page with
+ * no React on it, such as robots.txt, just runs out the wait.
+ */
+async function hydrated(page: Page) {
+  await page
+    .waitForFunction(
+      () => {
+        const controls = [...document.querySelectorAll("main a, main button, main input, nav a, nav button")];
+        return controls.length > 0 && controls.every((c) => Object.keys(c).some((k) => k.startsWith("__reactFiber$")));
+      },
+      undefined,
+      { timeout: 10_000 }
+    )
+    .catch(() => {});
+}
+
+/**
  * Every test also fails on an error the page throws or logs, not only on what it asserts: a crash,
  * a hydration mismatch, a file that is not there. A test passes only on a page with a clean console.
  */
 export const test = base.extend<{ cleanConsole: void }>({
+  page: async ({ page }, provide) => {
+    const goto = page.goto.bind(page);
+    page.goto = async (url, options) => {
+      const response = await goto(url, options);
+      await hydrated(page);
+      return response;
+    };
+    await provide(page);
+  },
   cleanConsole: [
     async ({ page }, use) => {
       const errors: string[] = [];

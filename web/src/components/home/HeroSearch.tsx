@@ -35,17 +35,21 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
     };
   }, []);
 
-  const submit = (e: React.FormEvent) => {
+  // Read from the form, not the state: on a slow phone the words can be typed before React is ready.
+  // Before it is, the form's own action and the field's name do the same search.
+  const submit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    router.push(q.trim() ? `/events?q=${encodeURIComponent(q.trim())}` : "/events");
+    const words = String(new FormData(e.currentTarget).get("q") ?? "").trim();
+    router.push(words ? `/events?q=${encodeURIComponent(words)}` : "/events");
   };
 
   return (
     <div ref={ref} data-hero-search className="w-full max-w-2xl flex flex-col gap-3">
       <div className="relative">
-        <form onSubmit={submit} className="flex items-center gap-2 bg-neutral-white rounded-2xl border-2 border-lummy-500 p-2 pl-4 shadow-lummy transition-shadow duration-300 focus-within:shadow-[0_0_0_4px_rgba(177,231,255,0.7)]">
+        <form action="/events" onSubmit={submit} className="flex items-center gap-2 bg-neutral-white rounded-2xl border-2 border-lummy-500 p-2 pl-4 shadow-lummy transition-shadow duration-300 focus-within:shadow-[0_0_0_4px_rgba(177,231,255,0.7)]">
           <Search className="w-5 h-5 text-neutral-gray shrink-0" />
           <input
+            name="q"
             value={q}
             onChange={(e) => { setQ(e.target.value); setOpen(true); }}
             onFocus={() => setOpen(true)}
