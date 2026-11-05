@@ -30,7 +30,8 @@ export function TestModeNotice() {
     <div data-test-mode className="fixed z-50 top-0 inset-x-0 h-6 bg-primary-navy-dark text-white text-[11px] font-medium flex items-center justify-center gap-3 px-4">
       {/* A span, not a p: the global p style would set its own colour and size. */}
       <span className="block truncate">
-        <span className="sm:hidden">{t("Beta: test payments, no real money.", "Beta: pembayaran uji, tanpa uang sungguhan.")}</span>
+        {/* Fits a 360px phone beside the link: the old line was 238px in a 238px space and lost its end */}
+        <span className="sm:hidden">{t("Beta: test payments, no real money.", "Beta: pembayaran uji, bukan uang asli.")}</span>
         <span className="hidden sm:inline">
           {t(
             "Beta: QRIS in Xendit's test mode and USDC on testnet, so no real money moves. Some listings are samples.",
@@ -42,7 +43,7 @@ export function TestModeNotice() {
         data-feedback
         href={feedbackHref()}
         onClick={(e) => { e.currentTarget.href = feedbackHref(window.location.href); }}
-        className="shrink-0 underline underline-offset-2 text-white hover:opacity-80"
+        className="shrink-0 self-stretch inline-flex items-center underline underline-offset-2 text-white hover:opacity-80"
       >
         {t("Feedback", "Kasih masukan")}
       </a>

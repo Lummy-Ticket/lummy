@@ -164,7 +164,7 @@ function ClaimsAgainstYou({
             <div key={o.id} data-claim={o.id} className="bg-neutral-white rounded-2xl border-2 border-secondary-orange-dark/40 p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h4 className="font-semibold text-neutral-black truncate">{o.eventTitle}</h4>
+                  <h4 className="font-semibold text-neutral-black line-clamp-2 break-words">{o.eventTitle}</h4>
                   <div className="text-xs text-secondary-orange-dark mt-1">
                     {t(reasonMeta(o.dispute!.reason).label.en, reasonMeta(o.dispute!.reason).label.id)}
                     <span className="text-neutral-gray"> · {formatDateTime(o.dispute!.openedAtISO)}</span>
@@ -263,6 +263,10 @@ export default function SellerPage() {
   const lang = useActiveLang();
   const ready = useAccessGuard("account");
   const { formatIDR, formatMoney, formatEventDate } = useFormatters();
+  const showDate = (eventId: string) => {
+    const iso = catalogue.eventById(eventId)?.dateISO;
+    return iso ? <span>{formatEventDate(iso)}</span> : null;
+  };
   const user = useUser((s) => s.user);
   const account = !!user?.account;
   const sampleOrders = useOrders((s) => s.orders);
@@ -447,8 +451,8 @@ export default function SellerPage() {
           {listings.map((l) => (
             <div key={l.id} data-listing={l.id} className="bg-neutral-white rounded-2xl border border-neutral-light-gray-1 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors duration-300 hover:border-lummy-500">
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h4 className="font-semibold text-neutral-black truncate">{l.eventTitle}</h4>
+                <div className="flex items-start gap-2">
+                  <h4 className="font-semibold text-neutral-black line-clamp-2 break-words">{l.eventTitle}</h4>
                   <Badge.Base className={`text-xs ${l.status === "active" ? "bg-secondary-green-soft text-secondary-green-dark" : l.status === "review" ? "bg-secondary-orange-soft text-secondary-orange-dark" : l.status === "rejected" ? "bg-secondary-pink-soft text-secondary-pink-dark" : "bg-neutral-light-gray-2 text-neutral-gray"}`}>
                     {l.status === "active"
                       ? t("Active", "Aktif")
@@ -460,6 +464,8 @@ export default function SellerPage() {
                   </Badge.Base>
                 </div>
                 <div className="text-xs text-neutral-gray mt-1 flex items-center gap-3 flex-wrap">
+                  {/* Two shows can share a name (5 Seconds of Summer plays Jakarta twice): the date tells them apart */}
+                  {showDate(l.eventId)}
                   <span>{l.tierName}{l.quantity > 1 ? t(` · ${l.quantity} tickets`, ` · ${l.quantity} tiket`) : ""}</span>
                   {!account && <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {l.views}</span>}
                   {FEATURES.sellerIdCard && l.gateKtp && <span>{t("ID card staged for the gate", "KTP siap untuk gate")}</span>}

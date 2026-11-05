@@ -11,7 +11,7 @@ import { useAccessGuard, useHydrated } from "@/lib/access";
 import { PageGate } from "@/components/layout/PageGate";
 import { useT, useFormatters } from "@/lib/i18n";
 import {
-  useOrders, useUser, phaseOf, msUntilRelease, type Order, type EscrowPhase,
+  useOrders, useUser, phaseOf, msUntilRelease, DISPUTE_WINDOW_H, type Order, type EscrowPhase,
 } from "@/lib/mock";
 import { useAccountOrders } from "@/lib/orders/client";
 
@@ -20,13 +20,17 @@ export default function TicketsPage() {
   const ready = useAccessGuard("account");
   const { formatMoney, formatEventDate, formatCountdown } = useFormatters();
 
-  // What this ticket's money is doing right now, in one line.
+  // What this ticket's money is doing right now, in one line, as the buyer meets it: "Cair" (paid out)
+  // is the seller's word, and to a buyer it read as their money leaving (UX review 5 Nov 2026).
   const stateLine = (o: Order, phase: EscrowPhase) => {
     switch (phase) {
       case "WINDOW_OPEN":
-        return { urgent: true, Icon: Timer, text: t("Releases in", "Cair dalam") };
+        return { urgent: true, Icon: Timer, text: t("Time left to report a problem", "Sisa waktu untuk melapor") };
       case "PRE_EVENT":
-        return { urgent: false, Icon: Lock, text: t("Releases 48h after the show", "Cair 48 jam setelah acara") };
+        return {
+          urgent: false, Icon: Lock,
+          text: t(`Held until ${DISPUTE_WINDOW_H}h after the show`, `Ditahan sampai ${DISPUTE_WINDOW_H} jam setelah acara`),
+        };
       case "IN_REVIEW":
         return { urgent: false, Icon: Scale, text: t("Waiting on a decision", "Menunggu putusan") };
       case "RELEASED":

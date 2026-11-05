@@ -404,9 +404,11 @@ function SellForm() {
             <UploadCloud className="w-10 h-10 text-lummy-500" />
             <span className="font-semibold text-neutral-black">{t("Upload your ticket PDF", "Upload PDF tiketmu")}</span>
             <span className="text-sm text-neutral-gray">
+              {/* Said for any device: no "click" on a phone, and dragging only where there is a mouse */}
               {realUpload
-                ? t("The PDF from the organiser, up to 4 MB. Drop it here or click to choose", "PDF dari penyelenggara, maksimal 4 MB. Tarik ke sini atau klik untuk pilih")
-                : t("Drop a file here or click to choose", "Tarik file ke sini atau klik untuk pilih")}
+                ? t("The PDF from the organiser, up to 4 MB. Choose a file", "PDF dari penyelenggara, maksimal 4 MB. Pilih file")
+                : t("Choose a file", "Pilih file")}
+              <span className="hidden [@media(pointer:fine)]:inline">{t(", or drop it here", ", atau tarik ke sini")}</span>
             </span>
           </button>
           {fileName ? (
