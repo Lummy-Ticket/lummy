@@ -47,12 +47,18 @@ export interface Bi {
 }
 
 /**
- * Said after a seller penalty while no real money moves (FEATURES.payouts): the rule is real and
- * the amount is recorded, but nothing is collected (terms: shown as it would apply, not charged).
+ * Said after a seller penalty while nothing collects it: the rule is real and the amount is
+ * recorded, but no money is taken (terms: shown as it would apply, not charged). It goes only once
+ * collection is built (FEATURES.sellerPenalty), not when real payouts start (FEATURES.payouts).
  */
-export const PENALTY_NOTE: Bi = FEATURES.payouts
-  ? { en: "", id: "" }
-  : { en: " (recorded, not charged in test mode)", id: " (dicatat, tidak ditagih di mode uji)" };
+export const penaltyNoteFor = (f: { payouts: boolean; sellerPenalty: boolean }): Bi =>
+  f.sellerPenalty
+    ? { en: "", id: "" }
+    : f.payouts
+      ? { en: " (recorded, not collected yet)", id: " (dicatat, belum ditagih)" }
+      : { en: " (recorded, not charged in test mode)", id: " (dicatat, tidak ditagih di mode uji)" };
+
+export const PENALTY_NOTE: Bi = penaltyNoteFor(FEATURES);
 
 /**
  * The note for one order. On chain (a USDC order, or chain mode) the escrow contract has no

@@ -445,15 +445,21 @@ export default function HowItWorks() {
     {
       Icon: ShieldAlert,
       q: t("What if a ticket I sold does not work?", "Kalau tiket yang kujual tidak berfungsi?"),
-      a: FEATURES.payouts
+      // Charged only once collection is built (FEATURES.sellerPenalty), not when real payouts start
+      a: FEATURES.sellerPenalty
         ? t(
             `You lose the sale and are charged ${SELLER_PENALTY_PCT}% of the price, so selling a ticket that does not work never pays.`,
             `Penjualan batal dan kamu dikenai ${SELLER_PENALTY_PCT}% dari harga, jadi menjual tiket yang tidak berfungsi tidak pernah untung.`
           )
-        : t(
-            `You lose the sale and owe a penalty of ${SELLER_PENALTY_PCT}% of the price, so selling a ticket that does not work never pays. While Lummy runs on test money, the penalty is shown, not charged.`,
-            `Penjualan batal dan kamu kena penalti ${SELLER_PENALTY_PCT}% dari harga, jadi menjual tiket yang tidak berfungsi tidak pernah untung. Selama Lummy memakai uang uji, penaltinya ditampilkan, tidak ditagih.`
-          ),
+        : FEATURES.payouts
+          ? t(
+              `You lose the sale and owe a penalty of ${SELLER_PENALTY_PCT}% of the price, so selling a ticket that does not work never pays. Lummy records the penalty on the claim but does not collect it yet.`,
+              `Penjualan batal dan kamu kena penalti ${SELLER_PENALTY_PCT}% dari harga, jadi menjual tiket yang tidak berfungsi tidak pernah untung. Lummy mencatat penaltinya di klaim, tapi belum menagihnya.`
+            )
+          : t(
+              `You lose the sale and owe a penalty of ${SELLER_PENALTY_PCT}% of the price, so selling a ticket that does not work never pays. While Lummy runs on test money, the penalty is shown, not charged.`,
+              `Penjualan batal dan kamu kena penalti ${SELLER_PENALTY_PCT}% dari harga, jadi menjual tiket yang tidak berfungsi tidak pernah untung. Selama Lummy memakai uang uji, penaltinya ditampilkan, tidak ditagih.`
+            ),
     },
   ];
 

@@ -95,6 +95,10 @@ export default function TicketsPage() {
           <Button.PrimaryLink href="/events">{t("Browse events", "Jelajah event")}</Button.PrimaryLink>
         </div>
       ) : (
+        <>
+        {/* Read by screen readers only: the cards are h3, and a page jumping from h1 to h3 reads as
+            missing content (UX review 5 Nov 2026, A5) */}
+        <h2 className="sr-only">{t("Your orders", "Daftar pesanan")}</h2>
         <div data-reveal="stagger" className="grid sm:grid-cols-2 gap-4">
           {orders.map((o) => {
             const phase = phaseOf(o, now);
@@ -142,6 +146,7 @@ export default function TicketsPage() {
             );
           })}
         </div>
+        </>
       )}
     </PageContainer>
   );

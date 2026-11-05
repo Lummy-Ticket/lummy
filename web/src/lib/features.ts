@@ -22,6 +22,14 @@ export const FEATURES = {
    */
   payouts: false,
   /**
+   * Collecting the seller penalty (SELLER_PENALTY_PCT of what a failed ticket refunds) for real:
+   * taken from the seller's next payouts, or invoiced. Not built: the amount is recorded on the
+   * claim, but no code takes it, and the escrow contract cannot (decision C keeps it outside).
+   * Apart from payouts on purpose, so real payouts alone never make a page say the penalty is
+   * charged (UX review 5 Nov 2026). Until this is on, every page says it is not collected.
+   */
+  sellerPenalty: false,
+  /**
    * Real sellers. The shows are real (tasks/real-events-2026.md), but every listing on them is a
    * sample until the beta with real accounts, so each show's page says so; a fan who finds one
    * through a search engine must not take them for tickets on sale. Turn it off when real sellers

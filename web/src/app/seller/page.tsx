@@ -147,10 +147,12 @@ function ClaimsAgainstYou({
 
   return (
     <div className="mb-8">
-      <h3 className="font-semibold text-neutral-black flex items-center gap-2 mb-1">
+      {/* The dashboard's sections are h2 and their rows h3, each drawn at the size it had one level
+          down: the page jumped from h1 to h3 (A5, UX review 5 Nov 2026) */}
+      <h2 className="text-lg md:text-xl leading-tight font-semibold text-neutral-black flex items-center gap-2 mb-1">
         <Scale className="w-4 h-4 text-secondary-orange-dark" /> {t("Claims against you", "Klaim terhadap kamu")}
         <span className="text-neutral-gray font-normal text-sm">({orders.length})</span>
-      </h3>
+      </h2>
       <p className="text-sm text-neutral-gray mb-3">
         {t(
           "Nothing has been decided yet. Answer while the money is still held, because staff reads both sides before ruling.",
@@ -164,7 +166,7 @@ function ClaimsAgainstYou({
             <div key={o.id} data-claim={o.id} className="bg-neutral-white rounded-2xl border-2 border-secondary-orange-dark/40 p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h4 className="font-semibold text-neutral-black line-clamp-2 break-words">{o.eventTitle}</h4>
+                  <h3 className="text-base md:text-lg leading-6 md:leading-7 font-semibold text-neutral-black line-clamp-2 break-words">{o.eventTitle}</h3>
                   <div className="text-xs text-secondary-orange-dark mt-1">
                     {t(reasonMeta(o.dispute!.reason).label.en, reasonMeta(o.dispute!.reason).label.id)}
                     <span className="text-neutral-gray"> · {formatDateTime(o.dispute!.openedAtISO)}</span>
@@ -407,9 +409,9 @@ export default function SellerPage() {
       {/* The whole model rests on cheating costing more than it earns. That is
           only credible if a seller can see the number before they list. */}
       <div className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-5 mb-8">
-        <h3 className="font-semibold text-neutral-black flex items-center gap-2">
+        <h2 className="text-lg md:text-xl leading-tight font-semibold text-neutral-black flex items-center gap-2">
           <ShieldCheck className="w-4 h-4 text-lummy-500" /> {t("Your standing", "Status kamu")}
-        </h3>
+        </h2>
         <div className="flex flex-wrap gap-x-8 gap-y-3 mt-3">
           <div>
             <div className="text-xs text-neutral-gray">{t("Claims upheld", "Klaim dikabulkan")}</div>
@@ -428,7 +430,7 @@ export default function SellerPage() {
         </p>
       </div>
 
-      <h3 className="font-semibold text-neutral-black mb-3">{t("Your listings", "Listing kamu")}</h3>
+      <h2 className="text-lg md:text-xl leading-tight font-semibold text-neutral-black mb-3">{t("Your listings", "Listing kamu")}</h2>
       {/* A sample persona's listings live in this browser, so they never reach the show's public page. */}
       {mounted && !account && listings.length > 0 && (
         <p data-demo-listings className="flex items-start gap-2 text-xs text-neutral-gray bg-secondary-blue-extra rounded-xl p-3 mb-3">
@@ -452,7 +454,7 @@ export default function SellerPage() {
             <div key={l.id} data-listing={l.id} className="bg-neutral-white rounded-2xl border border-neutral-light-gray-1 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors duration-300 hover:border-lummy-500">
               <div className="min-w-0">
                 <div className="flex items-start gap-2">
-                  <h4 className="font-semibold text-neutral-black line-clamp-2 break-words">{l.eventTitle}</h4>
+                  <h3 className="text-base md:text-lg leading-6 md:leading-7 font-semibold text-neutral-black line-clamp-2 break-words">{l.eventTitle}</h3>
                   <Badge.Base className={`text-xs ${l.status === "active" ? "bg-secondary-green-soft text-secondary-green-dark" : l.status === "review" ? "bg-secondary-orange-soft text-secondary-orange-dark" : l.status === "rejected" ? "bg-secondary-pink-soft text-secondary-pink-dark" : "bg-neutral-light-gray-2 text-neutral-gray"}`}>
                     {l.status === "active"
                       ? t("Active", "Aktif")

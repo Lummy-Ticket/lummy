@@ -181,6 +181,9 @@ function EventsInner() {
         </p>
       )}
 
+      {/* Read by screen readers only: the event cards are h3 (as on home, under a section h2), and a
+          page jumping from h1 to h3 reads as missing content (UX review 5 Nov 2026, A5) */}
+      <h2 className="sr-only">{t("Shows", "Daftar acara")}</h2>
       {filtered.length > 0 ? (
         // CSS entrance, not data-reveal: the first cards are rendered on the server and on screen
         // at load, so they must not wait for hydration (about 0.45s on a slow phone). Cards a

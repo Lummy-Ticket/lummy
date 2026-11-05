@@ -6,6 +6,8 @@
  *
  *   npm run live:check
  */
+import { FEATURES } from "../src/lib/features";
+import { PENALTY_NOTE, penaltyNoteFor } from "../src/lib/mock/escrow";
 import { SEED_LISTINGS } from "../src/lib/mock/seed";
 import { moneyIsReal, moneyNow, paidListingAllowed, unpaidOrderAllowed } from "../src/lib/orders/unpaid";
 import { xenditConfig, xenditKeyIsLive } from "../src/lib/payments/xendit";
@@ -70,6 +72,14 @@ check("live key: a listing without a seller cannot be paid for", !paidListingAll
 check("live key: a sample listing (no ticket file) cannot be paid for, whoever posted it", !paidListingAllowed({ id: real, seller_id: someone, ticket_path: null }, false));
 check("live key: a real seller's listing with its file can", paidListingAllowed({ id: real, seller_id: someone, ticket_path: file }, false));
 check("test key: any listing can, seed, sample and sellerless included", paidListingAllowed({ id: seed, seller_id: null, ticket_path: null }, true) && paidListingAllowed({ id: real, seller_id: null, ticket_path: null }, true));
+
+// The seller penalty reads as charged only once something collects it (FEATURES.sellerPenalty),
+// never because real payouts started: no code takes it yet (UX review 5 Nov 2026).
+const note = (payouts: boolean, sellerPenalty: boolean) => penaltyNoteFor({ payouts, sellerPenalty });
+check("test money: the penalty is recorded, not charged", /not charged/.test(note(false, false).en) && /tidak ditagih/.test(note(false, false).id));
+check("payouts on, collection not built: the penalty is not collected yet", /not collected yet/.test(note(true, false).en) && /belum ditagih/.test(note(true, false).id));
+check("collection built: the penalty needs no note", note(true, true).en === "" && note(true, true).id === "");
+check("the site today says the penalty is not charged", PENALTY_NOTE.en !== "" && FEATURES.sellerPenalty === false);
 
 for (const r of results) console.log(`${r.ok ? "PASS" : "FAIL"}  ${r.name}${r.note ? `  (${r.note})` : ""}`);
 const failed = results.filter((r) => !r.ok).length;
