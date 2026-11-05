@@ -237,7 +237,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage
       title={{ en: "Privacy policy", id: "Kebijakan privasi" }}
-      effective={{ en: "4 Nov 2026", id: "4 Nov 2026" }}
+      effective={{ en: "5 Nov 2026", id: "5 Nov 2026" }}
       intro={{
         en: "What Lummy Ticket keeps about you, why, who can see it, and when it is deleted. Written to match what the app actually does.",
         id: "Apa yang disimpan Lummy Ticket tentang kamu, untuk apa, siapa yang bisa melihatnya, dan kapan dihapus. Ditulis sesuai yang benar-benar dilakukan aplikasinya.",

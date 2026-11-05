@@ -124,7 +124,7 @@ export default function TermsPage() {
   return (
     <LegalPage
       title={{ en: "Terms of use", id: "Syarat dan ketentuan" }}
-      effective={{ en: "4 Nov 2026", id: "4 Nov 2026" }}
+      effective={{ en: "5 Nov 2026", id: "5 Nov 2026" }}
       intro={{
         en: "The rules of buying and selling on Lummy Ticket. They are the same rules the app enforces.",
         id: "Aturan jual beli di Lummy Ticket. Isinya sama dengan aturan yang dijalankan aplikasinya.",
