@@ -1,12 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
+import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
 
 /**
  * A show that is not on Lummy, or no longer: a wrong or old link, or a show the organiser cancelled,
- * which leaves the catalogue. Sent with HTTP 404 (events/[id]/layout.tsx).
+ * which leaves the catalogue. Sent by events/[id]/layout.tsx with a noindex; the status stays 200
+ * while the root loading.tsx streams the shell first.
  */
 export default function ShowNotFound() {
   const t = useT();
@@ -21,19 +22,9 @@ export default function ShowNotFound() {
         )}
       </p>
       <div className="mt-8 flex flex-wrap justify-center gap-3">
-        {/* Plain links, not buttons inside links (UX review 5 Nov 2026) */}
-        <Link
-          href="/events"
-          className="inline-flex items-center justify-center rounded-2xl border-2 border-lummy-500 bg-primary-sky px-6 py-3.5 font-semibold text-primary-navy-dark shadow-[4px_4px_0_#0D3B9A] transition hover:bg-primary-navy hover:text-neutral-white"
-        >
-          {t("Browse events", "Jelajah event")}
-        </Link>
-        <Link
-          href="/tickets"
-          className="inline-flex items-center justify-center rounded-2xl border-2 border-neutral-light-gray-1 bg-neutral-white px-5 py-3.5 font-semibold text-neutral-gray transition hover:border-primary-navy hover:text-primary-navy"
-        >
-          {t("My tickets", "Tiket saya")}
-        </Link>
+        {/* The same shapes as the site-wide not-found page, each drawn as one link */}
+        <Button.PrimaryLink href="/events">{t("Browse events", "Jelajah event")}</Button.PrimaryLink>
+        <Button.GhostLink href="/tickets">{t("My tickets", "Tiket saya")}</Button.GhostLink>
       </div>
     </div>
   );

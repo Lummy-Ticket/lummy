@@ -120,6 +120,13 @@ async function main() {
 
     const again = await cancelShow(page);
     check("pressing again changes nothing", again.status === 200 && again.body.refunded === 0 && again.body.listingsClosed === 0, JSON.stringify(again));
+
+    // --- Its page now says why it is gone, and tells search engines to drop the link.
+    await page.goto(`${BASE}/events/${EVENT}`, { waitUntil: "networkidle" });
+    const heading = (await page.getByRole("heading", { level: 1 }).first().innerText().catch(() => "")).trim();
+    check("the cancelled show's page says it is not on Lummy", /^(This show is not on Lummy|Acara ini tidak ada di Lummy)$/.test(heading), heading);
+    const robots = await page.locator('meta[name="robots"]').getAttribute("content").catch(() => null);
+    check("the cancelled show's page is not indexed", robots === "noindex", String(robots));
   } catch (e) {
     check("check ran to the end", false, (e as Error).message.split("\n")[0].slice(0, 200));
   } finally {

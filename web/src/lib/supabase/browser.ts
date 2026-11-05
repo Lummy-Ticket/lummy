@@ -19,7 +19,12 @@ export function supabaseBrowser(): Promise<BrowserClient | null> {
     if (!env) return null;
     const { createBrowserClient } = await import("@supabase/ssr");
     return createBrowserClient<Database>(env.url, env.key);
-  })();
+  })().catch(() => {
+    // The library could not be fetched: a flaky network, or a deploy since this page loaded (its
+    // chunk names changed). Null this time, and the next call tries again.
+    client = undefined;
+    return null;
+  });
   return client;
 }
 

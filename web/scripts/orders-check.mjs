@@ -235,14 +235,19 @@ try {
   await card.waitFor();
   check("klaim muncul di dasbor penjual", await card.isVisible());
   // The account menu counts the claims waiting for this seller, read from the claimed orders alone.
+  // The number is drawn beside Seller dashboard and said in words, there and on the menu's button.
   const claimsOnMenu = async () => {
     const page = await seller.page.context().newPage();
     await page.goto(BASE, { waitUntil: "networkidle" });
-    await page.getByRole("button", { name: "Account menu" }).first().click();
-    const count = page.getByLabel(/^\d+ claims? to answer$/).first();
-    const n = (await count.count()) ? Number(await count.innerText()) : 0;
+    const button = page.getByRole("button", { name: "Account menu" }).first();
+    const said = (text) => Number(String(text ?? "").match(/(\d+) claims? to answer/)?.[1] ?? 0);
+    const onButton = said(await button.textContent());
+    await button.click();
+    const item = page.getByRole("menuitem", { name: /Seller dashboard/ });
+    const inMenu = said(await item.textContent());
+    check("menu akun: tombol dan menunya menyebut jumlah klaim yang sama", inMenu === onButton, `${onButton} lalu ${inMenu}`);
     await page.close();
-    return n;
+    return inMenu;
   };
   const waitingBefore = await claimsOnMenu();
   check("menu akun menghitung klaim yang menunggu jawaban", waitingBefore >= 1, String(waitingBefore));

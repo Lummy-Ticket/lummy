@@ -57,6 +57,12 @@ function LoginInner() {
     if (user?.account) router.replace(safePath(params.get("next")));
   }, [user, router, params]);
 
+  // Fetch the Supabase library while the visitor types, not when they press send: other pages load
+  // it only with a session (lib/supabase/browser.ts), and a slow phone would wait for it on the tap.
+  useEffect(() => {
+    if (accounts) void supabaseBrowser();
+  }, [accounts]);
+
   const explain = (e: AuthError) => {
     const msg = `${e.code ?? ""} ${e.message}`.toLowerCase();
     if (msg.includes("not authorized"))
@@ -83,7 +89,9 @@ function LoginInner() {
     setSending(true);
     const sb = await supabaseBrowser();
     if (!sb) {
+      // The form only shows with accounts on, so no client here means its library did not load.
       setSending(false);
+      setError(t("We could not send the email. Try again.", "Email gagal dikirim. Coba lagi."));
       return;
     }
     const next = safePath(params.get("next"));

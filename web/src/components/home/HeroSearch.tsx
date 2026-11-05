@@ -53,7 +53,8 @@ export function HeroSearch({ quickCats }: { quickCats: string[] }) {
             value={q}
             onChange={(e) => { setQ(e.target.value); setOpen(true); }}
             onFocus={() => setOpen(true)}
-            placeholder={t("Artist, event or city", "Artis, event, atau kota")}
+            // "Artis, event, atau kota" lost its last letters beside the button on a 360px phone
+            placeholder={t("Artist, event or city", "Artis, event, kota")}
             aria-label={t("Search events", "Cari event")}
             className="flex-1 outline-none bg-transparent text-neutral-black placeholder:text-neutral-gray min-w-0"
           />
