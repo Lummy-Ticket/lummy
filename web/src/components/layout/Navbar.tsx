@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { useOrders, useUser, type User } from "@/lib/mock";
 import { isStaff, useHydrated } from "@/lib/access";
 import { useClaimsAwaitingSeller } from "@/lib/orders/client";
+import { publicSellerName } from "@/lib/listings/rules";
 import { useDocumentLang, useFormatters, useT } from "@/lib/i18n";
 import { useEventSuggestions } from "@/lib/useEventSuggestions";
 import { LangToggle } from "./LangToggle";
@@ -50,14 +51,18 @@ const firstName = (name: string) => name.trim().split(/\s+/)[0] || name;
 
 const isActive = (pathname: string, href: string) => pathname === href || pathname.startsWith(href + "/");
 
-/** Close on a click outside `ref` or on Escape. Outside click rather than hover, so a menu survives the trip to it. */
-function useDismiss(ref: RefObject<HTMLElement | null>, open: boolean, close: () => void) {
+/**
+ * Close on a click outside `ref` or on Escape. Outside click rather than hover, so a menu survives the
+ * trip to it. `close` hears which: Escape hands focus back to what opened the menu, a click leaves it
+ * where the click put it.
+ */
+function useDismiss(ref: RefObject<HTMLElement | null>, open: boolean, close: (how: "escape" | "outside") => void) {
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) close();
+      if (ref.current && !ref.current.contains(e.target as Node)) close("outside");
     };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close("escape");
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
     return () => {
@@ -76,7 +81,10 @@ function useClaimsToAnswer(me: User | null) {
   const forAccount = useClaimsAwaitingSeller(me?.account ? me.id : null);
   if (!me) return 0;
   if (me.account) return forAccount ?? 0;
-  return sample.filter((o) => o.sellerName === me.name && o.escrowStatus === "DISPUTED" && !(o.dispute?.replies ?? []).some((r) => r.fromSeller)).length;
+  // A sale shows the seller's public name ("Maya K."), as the seller dashboard matches it; the full
+  // name never matched, so a sample seller's menu never showed the claim the dashboard did.
+  const mine = publicSellerName(me.name);
+  return sample.filter((o) => o.sellerName === mine && o.escrowStatus === "DISPUTED" && !(o.dispute?.replies ?? []).some((r) => r.fromSeller)).length;
 }
 
 /** A text link whose underline draws in on hover and stays drawn on the current page. */
@@ -104,15 +112,25 @@ function BarLink({ item, active }: { item: NavItem; active: boolean }) {
   );
 }
 
-/** How many things wait on this person, next to where they are handled. */
+/**
+ * How many things wait on this person, next to where they are handled. The number is drawn, the words
+ * are read: a label on a plain span is not announced, so the link used to read "Seller dashboard 1".
+ */
 function Count({ n, label }: { n: number; label: string }) {
   if (!n) return null;
   return (
-    <span aria-label={label} className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-secondary-orange-dark text-white text-[11px] font-semibold grid place-items-center">
-      {n}
-    </span>
+    <>
+      <span aria-hidden className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-secondary-orange-dark text-white text-[11px] font-semibold grid place-items-center">
+        {n}
+      </span>
+      <span className="sr-only">, {label}</span>
+    </>
   );
 }
+
+/** What a claim count says to someone who cannot see the dot. */
+const claimWords = (t: (en: string, id: string) => string, n: number) =>
+  t(`${n} ${n === 1 ? "claim" : "claims"} to answer`, `${n} klaim perlu dijawab`);
 
 /** Compact search for pages without their own. Same suggestions as the hero search. */
 function NavSearch({ className, onDone }: { className?: string; onDone?: () => void }) {
@@ -124,6 +142,8 @@ function NavSearch({ className, onDone }: { className?: string; onDone?: () => v
   const ref = useRef<HTMLFormElement>(null);
   const { query, suggestions } = useEventSuggestions(q, 5);
   useDismiss(ref, open, () => setOpen(false));
+  // Trending shows open on a tap or a keystroke, not on focus: on focus, Tab walked through five
+  // suggestions on every page before reaching the page itself (UX review 5 Nov 2026).
 
   const go = (href: string) => {
     setOpen(false);
@@ -151,7 +171,8 @@ function NavSearch({ className, onDone }: { className?: string; onDone?: () => v
           name="q"
           value={q}
           onChange={(e) => { setQ(e.target.value); setOpen(true); }}
-          onFocus={() => setOpen(true)}
+          onPointerDown={() => setOpen(true)}
+          onKeyDown={(e) => { if (e.key === "ArrowDown") setOpen(true); }}
           placeholder={t("Search artist, event or city", "Cari artis, event, atau kota")}
           aria-label={t("Search events", "Cari event")}
           className="flex-1 min-w-0 bg-transparent outline-none text-sm text-neutral-black placeholder:text-neutral-gray"
@@ -198,31 +219,57 @@ function AccountMenu({
   const t = useT();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
   const close = () => setOpen(false);
-  useDismiss(ref, open, close);
+  useDismiss(ref, open, (how) => {
+    setOpen(false);
+    if (how === "escape") trigger.current?.focus();
+  });
+  // A menu button, as WAI-ARIA describes one: opening puts focus on the first item, the arrows move
+  // between items, Escape returns to the button and Tab leaves. Before, focus stayed on the button,
+  // the arrows did nothing, and Escape dropped focus on the page body.
+  useEffect(() => {
+    if (open) menu.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+  }, [open]);
+  const onMenuKey = (e: React.KeyboardEvent) => {
+    const items = [...(menu.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])];
+    const at = items.indexOf(document.activeElement as HTMLElement);
+    const go = (i: number) => { e.preventDefault(); items[(i + items.length) % items.length]?.focus(); };
+    if (e.key === "ArrowDown") go(at + 1);
+    else if (e.key === "ArrowUp") go(at - 1);
+    else if (e.key === "Home") go(0);
+    else if (e.key === "End") go(items.length - 1);
+    else if (e.key === "Tab") setOpen(false);
+  };
 
   return (
     <div ref={ref} className={cn("relative", className)}>
+      {/* Named by its own words: the visible first name is part of the name, as WCAG 2.5.3 asks, so
+          "Maya" said aloud by voice control finds it. A label in place of them broke that. */}
       <button
+        ref={trigger}
         onClick={() => setOpen((o) => !o)}
+        onKeyDown={(e) => { if ((e.key === "ArrowDown" || e.key === "ArrowUp") && !open) { e.preventDefault(); setOpen(true); } }}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={t("Account menu", "Menu akun")}
         className={cn(
           "flex items-center gap-2 h-11 pl-1 pr-3 rounded-full border transition cursor-pointer",
           open ? "border-lummy-500 bg-neutral-white" : "border-neutral-light-gray-1 bg-neutral-white/80 hover:border-lummy-500"
         )}
       >
-        <span className="relative w-9 h-9 rounded-full bg-secondary-blue-light text-lummy-500 text-sm font-semibold grid place-items-center border border-lummy-500">
+        <span className="sr-only">{t("Account menu", "Menu akun")} </span>
+        <span aria-hidden className="relative w-9 h-9 rounded-full bg-secondary-blue-light text-lummy-500 text-sm font-semibold grid place-items-center border border-lummy-500">
           {initials(me.name)}
-          {claims > 0 && <span aria-hidden className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-secondary-orange-dark border-2 border-neutral-white" />}
+          {claims > 0 && <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-secondary-orange-dark border-2 border-neutral-white" />}
         </span>
         <span className="hidden sm:inline text-sm font-medium text-neutral-black max-w-32 truncate">{firstName(me.name)}</span>
-        <ChevronDown className={cn("w-4 h-4 text-neutral-gray transition-transform duration-300", open && "rotate-180")} />
+        {claims > 0 && <span className="sr-only">, {claimWords(t, claims)}</span>}
+        <ChevronDown aria-hidden className={cn("w-4 h-4 text-neutral-gray transition-transform duration-300", open && "rotate-180")} />
       </button>
 
       {open && (
-        <div role="menu" className="lm-pop [--origin:top_right] absolute right-0 top-full mt-2 w-72 rounded-2xl border border-lummy-500 bg-neutral-white shadow-lummy-lg z-50 overflow-hidden">
+        <div ref={menu} role="menu" aria-label={t("Account menu", "Menu akun")} onKeyDown={onMenuKey} className="lm-pop [--origin:top_right] absolute right-0 top-full mt-2 w-72 rounded-2xl border border-lummy-500 bg-neutral-white shadow-lummy-lg z-50 overflow-hidden">
           <div className="flex items-center gap-3 px-4 pt-4 pb-3">
             <span className="w-10 h-10 rounded-full bg-secondary-blue-light text-lummy-500 font-semibold grid place-items-center border border-lummy-500 shrink-0">
               {initials(me.name)}
@@ -246,7 +293,7 @@ function AccountMenu({
               >
                 {l.Icon && <l.Icon className="w-4 h-4 text-neutral-gray group-hover:text-primary-navy transition-colors" />}
                 {t(l.en, l.id)}
-                {l.href === DASHBOARD.href && <Count n={claims} label={t(`${claims} ${claims === 1 ? "claim" : "claims"} to answer`, `${claims} klaim perlu dijawab`)} />}
+                {l.href === DASHBOARD.href && <Count n={claims} label={claimWords(t, claims)} />}
               </Link>
             ))}
           </div>
@@ -278,6 +325,7 @@ export function Navbar() {
   // On home the hero has its own search; the bar only offers one once that has scrolled away.
   const [heroSearchGone, setHeroSearchGone] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const sheetButton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const onScroll = () => {
@@ -290,15 +338,24 @@ export function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, [pathname]);
 
-  // The sheet covers the page, so the page behind it should not scroll.
+  // The sheet covers the page, so the page behind it neither scrolls nor takes focus: Tab stays in
+  // the bar and the sheet instead of wandering into the page under the backdrop. Escape closes it and
+  // gives focus back to the button that opened it (it fell to the page body before).
   useEffect(() => {
     if (!sheetOpen) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setSheetOpen(false);
+    const behind = [...document.querySelectorAll<HTMLElement>("main, footer")];
+    behind.forEach((el) => el.setAttribute("inert", ""));
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setSheetOpen(false);
+      sheetButton.current?.focus();
+    };
     document.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = prev;
+      behind.forEach((el) => el.removeAttribute("inert"));
       document.removeEventListener("keydown", onKey);
     };
   }, [sheetOpen]);
@@ -425,8 +482,9 @@ export function Navbar() {
 
             {/* Phones and tablets: everything moves into a sheet */}
             <button
+              ref={sheetButton}
               onClick={() => setSheetOpen((o) => !o)}
-              aria-label={sheetOpen ? t("Close menu", "Tutup menu") : t("Menu", "Menu")}
+              aria-label={sheetOpen ? t("Close menu", "Tutup menu") : claims > 0 ? `${t("Menu", "Menu")}, ${claimWords(t, claims)}` : t("Menu", "Menu")}
               aria-expanded={sheetOpen}
               aria-controls="nav-sheet"
               className="lg:hidden relative w-10 h-10 grid place-items-center rounded-full text-lummy-500 hover:bg-secondary-blue-light transition cursor-pointer"
@@ -495,7 +553,7 @@ export function Navbar() {
                       >
                         {l.Icon && <l.Icon className="w-4 h-4 text-neutral-gray" />}
                         {t(l.en, l.id)}
-                        {l.href === DASHBOARD.href && <Count n={claims} label={t(`${claims} ${claims === 1 ? "claim" : "claims"} to answer`, `${claims} klaim perlu dijawab`)} />}
+                        {l.href === DASHBOARD.href && <Count n={claims} label={claimWords(t, claims)} />}
                       </Link>
                     ))}
                     <button onClick={signOut} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-secondary-pink-dark cursor-pointer">
