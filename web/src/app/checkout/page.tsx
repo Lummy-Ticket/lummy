@@ -440,9 +440,8 @@ function CheckoutInner() {
 }
 
 export default function CheckoutPage() {
-  const t = useT();
   return (
-    <Suspense fallback={<div className="pt-28 pb-16 text-center text-neutral-gray">{t("Loading...", "Memuat...")}</div>}>
+    <Suspense fallback={<PageGate />}>
       <CheckoutInner />
     </Suspense>
   );

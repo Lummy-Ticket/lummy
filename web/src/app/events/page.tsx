@@ -2,6 +2,7 @@
 
 import type React from "react";
 import { Suspense, useMemo, useState } from "react";
+import { PageGate } from "@/components/layout/PageGate";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { Search, MapPin, X, RotateCcw } from "lucide-react";
@@ -215,9 +216,8 @@ function EventsInner() {
 }
 
 export default function EventsPage() {
-  const t = useT();
   return (
-    <Suspense fallback={<div className="pt-28 pb-16 text-center text-neutral-gray">{t("Loading...", "Memuat...")}</div>}>
+    <Suspense fallback={<PageGate />}>
       <EventsInner />
     </Suspense>
   );
