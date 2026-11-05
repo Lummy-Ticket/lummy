@@ -166,7 +166,8 @@ export default function EventDetailPage() {
     return (
       <div className="max-w-4xl mx-auto px-5 lg:px-10 pt-28 pb-16 text-center flex flex-col items-center gap-4">
         <Image src="/assets/brand/maskot-bingung.svg" alt="" width={152} height={130} />
-        <p className="text-neutral-gray">{t("Event not found.", "Event tidak ditemukan.")}</p>
+        {/* Rarely reached: the layout answers 404 for a show the catalogue does not have */}
+        <h1 className="text-lg font-normal text-neutral-gray">{t("Event not found.", "Event tidak ditemukan.")}</h1>
         <Link href="/events"><Button.Secondary>{t("Back to browse", "Balik ke jelajah")}</Button.Secondary></Link>
       </div>
     );

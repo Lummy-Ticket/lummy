@@ -27,6 +27,18 @@ test.describe("buyer", () => {
     await expectFitsScreen(page);
   });
 
+  test("a show that is not on Lummy says why, and tells search engines to drop the link", { tag: "@smoke" }, async ({ page, request }) => {
+    // A wrong or old link, or a cancelled show (it leaves the catalogue): the page says which it may
+    // be and where a refunded buyer looks. Streamed after the shell, so the status stays 200 and
+    // Next sends a noindex instead (events/[id]/layout.tsx).
+    await page.goto("/events/ev-not-a-show");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Acara ini tidak ada di Lummy");
+    await expect(page.getByText(/dibatalkan penyelenggara/)).toBeVisible();
+    await expect(page.getByRole("main").getByRole("link", { name: "Tiket saya" })).toHaveAttribute("href", "/tickets");
+    expect(await (await request.get("/events/ev-not-a-show")).text()).toContain('<meta name="robots" content="noindex"/>');
+    await expectFitsScreen(page);
+  });
+
   test("a show's page left open as the doors open closes its sales at the next tap", { tag: "@smoke" }, async ({ page }) => {
     await page.goto(`/events/${SOON.id}`);
     const counts = page.getByRole("group", { name: "Jumlah tiket" });
