@@ -382,9 +382,8 @@ function GateDoor() {
 }
 
 export default function GatePage() {
-  const t = useT();
   return (
-    <Suspense fallback={<div className="pt-28 pb-16 text-center text-neutral-gray">{t("Loading...", "Memuat...")}</div>}>
+    <Suspense fallback={<PageGate />}>
       <GateDoor />
     </Suspense>
   );

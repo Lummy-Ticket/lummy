@@ -140,7 +140,10 @@ export default function ProfilePage() {
     toast.success(t("Payout account saved", "Rekening disimpan"));
   };
 
-  if (!mounted) return <div className="pt-28 pb-16 text-center text-neutral-gray">{t("Loading...", "Memuat...")}</div>;
+  // A full screen tall until the browser has read who this is, like every guarded page: a short
+  // "Loading..." here painted the footer mid-screen, which jumped away when the form came (CLS 0.62
+  // on a throttled phone, UX review 5 Nov 2026).
+  if (!mounted) return <PageGate />;
 
   if (!ready) return <PageGate />;
 
