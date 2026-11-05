@@ -104,7 +104,10 @@ export async function GET() {
       refundNote: r.refund_note,
       eventTitle: r.listing?.events?.title ?? "",
       buyer: withBuyer ? { name: names.get(r.buyer_id) || "Lummy", email: mail.get(r.buyer_id) ?? null } : null,
-      refundBy: r.paid_at ? new Date(Date.parse(r.paid_at) + QRIS_REFUND_DAYS * 86_400_000).toISOString() : null,
+      // Counted from when the hold was opened, not paid_at: paid_at is when Lummy noticed the money,
+      // which for money the cron's second look found can be two days after it was paid, and the
+      // refund limit at Xendit runs from the payment (review, 4 Nov 2026).
+      refundBy: r.paid_at ? new Date(Date.parse(r.created_at) + QRIS_REFUND_DAYS * 86_400_000).toISOString() : null,
       orderId: order?.id ?? null,
       ledgerId: order?.ledger_id ?? null,
       ledgerStatus: order?.ledger_status ?? null,

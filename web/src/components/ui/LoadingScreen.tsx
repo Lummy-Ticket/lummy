@@ -7,7 +7,7 @@ import { useT } from "@/lib/i18n";
 export default function LoadingScreen() {
     const t = useT();
     return (
-        <div className="w-full min-h-[70vh] flex flex-col items-center justify-center gap-6 animate-fade-in">
+        <div className="w-full min-h-[100svh] flex flex-col items-center justify-center gap-6 animate-fade-in">
             <div className="w-14 h-14 rounded-full border-4 border-secondary-blue-light border-t-lummy-500 animate-spin" />
             <span className="text-neutral-gray text-sm xl:text-base animate-pulse">{t("Loading…", "Memuat…")}</span>
         </div>
