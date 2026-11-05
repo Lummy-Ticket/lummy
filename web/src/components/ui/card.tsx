@@ -12,7 +12,9 @@ import Link from "next/link";
 export type CategoryT =  "Music" | "Technology" | "Arts" | "Education" | "Sports" | "Food" | "Movies" | "Theater"
 
 // The card sits in a 1/2/3-column grid, so the browser only needs a card-sized file.
-const CARD_SIZES = "(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw";
+// On a phone a card is the screen less its 20 px gutters, not the whole width: with 100vw a phone
+// at 2.6x fetched a 1200 px image for a card about 370 px wide (UX audit, 4 Nov 2026).
+const CARD_SIZES = "(min-width: 1024px) 33vw, (min-width: 640px) 50vw, calc(100vw - 40px)";
 
 type CardEventProps = {
     className?: string,
