@@ -179,14 +179,16 @@ export default function HowItWorks() {
     },
     {
       Icon: QrCode,
-      title: t("Pay with QRIS or USDC", "Bayar pakai QRIS atau USDC"),
+      // The rupiah path only, as most buyers meet it; how a show abroad is paid in USDC is in the
+      // "Two ways to pay" cards right after the steps (decision 3, UX review 5 Nov 2026).
+      title: t("Pay with QRIS", "Bayar pakai QRIS"),
       body: t(
         FEATURES.eStamp
-          ? "QRIS in rupiah for a show in Indonesia, USDC from your own wallet for a show abroad. The ticket price is held until the show, by our payment provider (Xendit) for QRIS or in the escrow contract for USDC, and the seller is not paid yet. The service fee and the e-stamp are shown before you pay."
-          : "QRIS in rupiah for a show in Indonesia, USDC from your own wallet for a show abroad. The ticket price is held until the show, by our payment provider (Xendit) for QRIS or in the escrow contract for USDC, and the seller is not paid yet. The service fee is shown before you pay.",
+          ? "Pay in rupiah from any banking or e-wallet app. Xendit, our payment provider, holds the ticket price until the show, so the seller is not paid yet. The service fee and the e-stamp are shown before you pay. A show abroad is paid in USDC instead (below)."
+          : "Pay in rupiah from any banking or e-wallet app. Xendit, our payment provider, holds the ticket price until the show, so the seller is not paid yet. The service fee is shown before you pay. A show abroad is paid in USDC instead (below).",
         FEATURES.eStamp
-          ? "QRIS dalam rupiah untuk acara di Indonesia, USDC dari wallet-mu sendiri untuk acara di luar negeri. Harga tiketnya ditahan sampai acara, oleh penyedia pembayaran kami (Xendit) untuk QRIS atau di kontrak escrow untuk USDC, dan penjual belum dibayar. Biaya layanan dan e-meterai tampil sebelum kamu bayar."
-          : "QRIS dalam rupiah untuk acara di Indonesia, USDC dari wallet-mu sendiri untuk acara di luar negeri. Harga tiketnya ditahan sampai acara, oleh penyedia pembayaran kami (Xendit) untuk QRIS atau di kontrak escrow untuk USDC, dan penjual belum dibayar. Biaya layanan tampil sebelum kamu bayar."
+          ? "Bayar dalam rupiah dari aplikasi bank atau e-wallet apa pun. Xendit, penyedia pembayaran kami, menahan harga tiketnya sampai acara, jadi penjual belum dibayar. Biaya layanan dan e-meterai tampil sebelum kamu bayar. Acara di luar negeri dibayar dengan USDC (di bawah)."
+          : "Bayar dalam rupiah dari aplikasi bank atau e-wallet apa pun. Xendit, penyedia pembayaran kami, menahan harga tiketnya sampai acara, jadi penjual belum dibayar. Biaya layanan tampil sebelum kamu bayar. Acara di luar negeri dibayar dengan USDC (di bawah)."
       ),
       state: t("Held in escrow", "Ditahan escrow"),
       tone: "held",
@@ -224,8 +226,9 @@ export default function HowItWorks() {
             `${DISPUTE_WINDOW_H} jam setelah acara, kalau tidak ada masalah, escrow membayar penjual dengan sendirinya. Tidak perlu persetujuan siapa pun.`
           )
         : t(
-            `${DISPUTE_WINDOW_H} hours after the show, if nobody raised a problem, the money is released to the seller without anyone approving it. A USDC escrow pays out on chain, after ${TESTNET_WINDOW_MIN} minutes on this testnet demo; for QRIS, the release is recorded and bank payouts start with real money.`,
-            `${DISPUTE_WINDOW_H} jam setelah acara, kalau tidak ada masalah, dananya dilepas untuk penjual tanpa perlu persetujuan siapa pun. Escrow USDC mencairkannya di chain, setelah ${TESTNET_WINDOW_MIN} menit di demo testnet ini; untuk QRIS, pelepasannya dicatat dan pencairan ke rekening dimulai saat ada uang sungguhan.`
+            // The USDC payout on chain is told in the "Two ways to pay" card (decision 3, 5 Nov 2026)
+            `${DISPUTE_WINDOW_H} hours after the show, if nobody raised a problem, the money is released to the seller without anyone approving it. For now that release is recorded publicly, and bank payouts start with real money.`,
+            `${DISPUTE_WINDOW_H} jam setelah acara, kalau tidak ada masalah, dananya dilepas untuk penjual tanpa perlu persetujuan siapa pun. Untuk sekarang pelepasan itu dicatat publik, dan pencairan ke rekening dimulai saat ada uang sungguhan.`
           ),
       state: FEATURES.payouts ? t("Paid to the seller", "Cair ke penjual") : t("Released to the seller", "Dilepas untuk penjual"),
       tone: "done",
@@ -256,8 +259,8 @@ export default function HowItWorks() {
       Icon: Wallet,
       title: t("Shows abroad: USDC", "Acara di luar negeri: USDC"),
       body: t(
-        `Pay from your own wallet. You sign twice, Lummy pays the gas, and the USDC is locked in the escrow contract on Arbitrum. No service fee while it runs on testnet: test USDC on Arbitrum Sepolia, not real money. The claim window after the show is ${TESTNET_WINDOW_MIN} minutes on this testnet demo, ${DISPUTE_WINDOW_H} hours in production.`,
-        `Bayar dari wallet-mu sendiri. Kamu tanda tangan dua kali, gas dibayar Lummy, dan USDC-nya dikunci di kontrak escrow di Arbitrum. Tanpa biaya layanan selama di testnet: USDC uji di Arbitrum Sepolia, bukan uang sungguhan. Masa klaim setelah acara: ${TESTNET_WINDOW_MIN} menit di demo testnet ini, ${DISPUTE_WINDOW_H} jam di produksi.`
+        `Pay from your own wallet. You sign twice, Lummy pays the gas, and the USDC is locked in the escrow contract on Arbitrum, which releases it to the seller on chain once the claim window has passed. No service fee while it runs on testnet: test USDC on Arbitrum Sepolia, not real money. The claim window after the show is ${TESTNET_WINDOW_MIN} minutes on this testnet demo, ${DISPUTE_WINDOW_H} hours in production.`,
+        `Bayar dari wallet-mu sendiri. Kamu tanda tangan dua kali, gas dibayar Lummy, dan USDC-nya dikunci di kontrak escrow di Arbitrum, yang melepasnya untuk penjual di chain begitu masa klaim lewat. Tanpa biaya layanan selama di testnet: USDC uji di Arbitrum Sepolia, bukan uang sungguhan. Masa klaim setelah acara: ${TESTNET_WINDOW_MIN} menit di demo testnet ini, ${DISPUTE_WINDOW_H} jam di produksi.`
       ),
     },
   ];

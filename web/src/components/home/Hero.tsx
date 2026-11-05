@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, Wallet } from "lucide-react";
 import { HeroSearch } from "./HeroSearch";
-import { useT } from "@/lib/i18n";
+import { useActiveLang, useT } from "@/lib/i18n";
 import { Notch } from "@/components/ui/notch";
 import { CAP_PCT, useUser } from "@/lib/mock";
 import { useHydrated } from "@/lib/access";
@@ -20,6 +20,7 @@ const NOTCH = `w-9 h-9 border-2 border-primary-navy ${BG}`;
 // search; the stub carries the terms, the way a real ticket prints section, row and seat.
 export function Hero({ quickCats }: { quickCats: string[] }) {
   const t = useT();
+  const lang = useActiveLang();
   const user = useUser((s) => s.user);
   // The stored user only after hydration, so the server and the first client render agree.
   const me = useHydrated() ? user : null;
@@ -64,14 +65,20 @@ export function Hero({ quickCats }: { quickCats: string[] }) {
                   "Penjual baru dibayar setelah acara selesai. Ditolak di gate dengan bukti? Uangmu kembali."
                 )}
               </p>
-              {/* The second rail (tasks/founder-house-usdc.md), said where every visitor starts. */}
-              <p data-hero-usdc className="lm-in -mt-3 flex items-start gap-2 text-sm text-neutral-gray max-w-md" style={{ "--d": "300ms" } as React.CSSProperties}>
-                <Wallet aria-hidden className="w-4 h-4 text-primary-navy shrink-0 mt-0.5" />
-                {t(
-                  "Shows abroad: pay test USDC from your own wallet. Two signatures, no gas to pay.",
-                  "Acara di luar negeri: bayar USDC uji dari wallet-mu sendiri. Dua tanda tangan, tanpa bayar gas."
-                )}
-              </p>
+              {/* The second rail (tasks/founder-house-usdc.md), in the first screen for a visitor
+                  reading English, who is the likelier buyer for a show abroad. A visitor reading
+                  Indonesian meets it beside the shows abroad on this page instead: wallet, signatures
+                  and gas in the first screen read as crypto to a fan paying in rupiah (decision 2,
+                  UX review 5 Nov 2026). */}
+              {lang === "en" && (
+                <p data-hero-usdc className="lm-in -mt-3 flex items-start gap-2 text-sm text-neutral-gray max-w-md" style={{ "--d": "300ms" } as React.CSSProperties}>
+                  <Wallet aria-hidden className="w-4 h-4 text-primary-navy shrink-0 mt-0.5" />
+                  {t(
+                    "Shows abroad: pay test USDC from your own wallet. Two signatures, no gas to pay.",
+                    "Acara di luar negeri: bayar USDC uji dari wallet-mu sendiri. Dua tanda tangan, tanpa bayar gas."
+                  )}
+                </p>
+              )}
               <div className="lm-in" style={{ "--d": "340ms" } as React.CSSProperties}>
                 <HeroSearch quickCats={quickCats} />
               </div>

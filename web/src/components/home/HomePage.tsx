@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, ChevronRight, X, Check } from "lucide-react";
+import { ArrowRight, ChevronRight, X, Check, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Hero } from "@/components/home/Hero";
@@ -145,11 +145,20 @@ function Compare({ rows, dmTitle, luTitle, link }: { rows: CompareRow[]; dmTitle
 
 export default function HomePage() {
   const t = useT();
+  const lang = useActiveLang();
   const { formatEventDate } = useFormatters();
   const text = useEventText();
   const { events: all } = useCatalogue();
-  const featured = popularEvents(all);
-  const upcoming = all.filter((e) => !featured.includes(e)).sort(realShowsFirst);
+  // Rupiah first (decision 2, UX review 5 Nov 2026). Shows abroad are paid in USDC from a wallet,
+  // which reads as crypto to a fan paying with QRIS, so they get their own list below the shows in
+  // Indonesia, with the one line that explains how they are paid. A visitor reading Indonesian
+  // also gets rupiah shows only in the popular row; one reading English keeps the editors' picks.
+  const abroad = (e: EventItem) => e.currency === "USDC";
+  const home = all.filter((e) => !abroad(e));
+  const featured = popularEvents(lang === "id" && home.length ? home : all);
+  const rest = all.filter((e) => !featured.includes(e)).sort(realShowsFirst);
+  const upcoming = rest.filter((e) => !abroad(e));
+  const overseas = rest.filter(abroad);
   const quickCats = Array.from(new Set(all.map((e) => e.category)));
 
   return (
@@ -186,6 +195,20 @@ export default function HomePage() {
         <section className="max-w-7xl mx-auto px-5 lg:px-10 mt-16">
           <SectionHead title={t("Coming up", "Segera digelar")} />
           <ComingUp events={upcoming} />
+        </section>
+      )}
+
+      {overseas.length > 0 && (
+        <section data-home-abroad className="max-w-7xl mx-auto px-5 lg:px-10 mt-12">
+          <SectionHead title={t("Shows abroad", "Acara di luar negeri")} />
+          <p data-reveal className="-mt-3 mb-5 flex items-start gap-2 text-sm text-neutral-gray max-w-xl">
+            <Wallet aria-hidden className="w-4 h-4 text-primary-navy shrink-0 mt-0.5" />
+            {t(
+              "Paid in test USDC from your own wallet. Two signatures, no gas to pay.",
+              "Dibayar dengan USDC uji dari wallet-mu sendiri. Dua tanda tangan, tanpa bayar gas."
+            )}
+          </p>
+          <ComingUp events={overseas} />
         </section>
       )}
 
