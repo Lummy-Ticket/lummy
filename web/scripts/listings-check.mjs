@@ -9,6 +9,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { chromium } from "playwright-core";
 import { loadTarget } from "./lib/target-env.mjs";
+import { openSignInLink } from "./lib/confirm.mjs";
 
 loadTarget();
 const BASE = process.env.BASE ?? "http://127.0.0.1:3000";
@@ -188,7 +189,7 @@ try {
   const link = await admin.auth.admin.generateLink({ type: "magiclink", email: PLAIN_EMAIL });
   const plainContext = await browser.newContext();
   const plainPage = await plainContext.newPage();
-  await plainPage.goto(`${BASE}/auth/confirm?token_hash=${link.data.properties?.hashed_token}&type=email`, { waitUntil: "networkidle" });
+  await openSignInLink(plainPage, `${BASE}/auth/confirm?token_hash=${link.data.properties?.hashed_token}&type=email`);
   const plain = withApi(plainContext, plainPage, { id: plainUserId });
   const three = [];
   for (let i = 0; i < 3; i++) three.push((await plain.list({ ...FIVESOS_CAT3, askPrice: 1_200_000, quantity: 1, sample: "good" })).status());

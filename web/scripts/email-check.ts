@@ -35,6 +35,7 @@ import { chromium, type Browser, type BrowserContext } from "playwright-core";
 import { deliverable } from "../src/lib/email/send";
 import type { Database } from "../src/lib/supabase/types";
 import { loadTarget } from "./lib/target-env.mjs";
+import { openSignInLink } from "./lib/confirm.mjs";
 
 loadTarget("http://127.0.0.1:3001");
 const BASE = process.env.BASE ?? "http://127.0.0.1:3001";
@@ -74,7 +75,7 @@ async function signIn(admin: Admin, browser: Browser, email: string): Promise<Br
   if (!hashed) throw new Error(`no sign-in link for ${email}: ${link.error?.message ?? "?"}`);
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
-  await page.goto(`${BASE}/auth/confirm?token_hash=${hashed}&type=email`, { waitUntil: "networkidle" });
+  await openSignInLink(page, `${BASE}/auth/confirm?token_hash=${hashed}&type=email`);
   await page.close();
   return ctx;
 }

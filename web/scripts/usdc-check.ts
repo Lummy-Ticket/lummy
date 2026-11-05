@@ -44,6 +44,7 @@ import type { TypedMessage, UsdcStart } from "../src/lib/payments/types";
 import type { Database } from "../src/lib/supabase/types";
 import { initWriter, photo } from "./ticket-fixtures";
 import { loadTarget } from "./lib/target-env.mjs";
+import { openSignInLink } from "./lib/confirm.mjs";
 
 loadTarget();
 const BASE = process.env.BASE ?? "http://localhost:3000";
@@ -100,7 +101,7 @@ async function signIn(admin: Admin, browser: Browser, email: string): Promise<Br
   if (!hashed) throw new Error(`no sign-in link for ${email}: ${link.error?.message ?? "?"}`);
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
-  await page.goto(`${BASE}/auth/confirm?token_hash=${hashed}&type=email`, { waitUntil: "networkidle" });
+  await openSignInLink(page, `${BASE}/auth/confirm?token_hash=${hashed}&type=email`);
   await page.close();
   return ctx;
 }
