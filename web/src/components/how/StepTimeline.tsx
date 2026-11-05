@@ -77,14 +77,17 @@ export function StepTimeline({ steps, aside }: { steps: Step[]; aside: (active: 
             <li
               key={s.title}
               ref={(el) => { refs.current[i] = el; }}
-              className={cn("relative flex gap-5 pb-10 lg:pb-14 last:pb-0 transition-opacity duration-500", state === "next" && "lg:opacity-60")}
+              // Steps ahead are marked by their dashed circle only. Their text used to fade to 60%,
+              // which put the words of four steps out of five at 3.2:1 when the page opens (axe
+              // color-contrast, 24 nodes on the two tabs, UX review 5 Nov 2026).
+              className="relative flex gap-5 pb-10 lg:pb-14 last:pb-0"
             >
               <span
                 className={cn(
                   "relative z-10 w-12 h-12 shrink-0 rounded-full grid place-items-center border-2 transition-colors duration-300",
                   state === "done" && "bg-primary-navy border-primary-navy text-white",
                   state === "now" && "bg-primary-sky border-primary-navy text-primary-navy-dark shadow-[3px_3px_0_#0D3B9A]",
-                  state === "next" && "bg-neutral-white border-neutral-light-gray-1 text-neutral-gray"
+                  state === "next" && "bg-neutral-white border-dashed border-neutral-light-gray-1 text-neutral-gray"
                 )}
               >
                 {state === "done" ? <Check className="w-5 h-5" /> : <s.Icon className="w-5 h-5" />}
