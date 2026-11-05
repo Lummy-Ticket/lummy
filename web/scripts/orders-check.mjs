@@ -234,6 +234,18 @@ try {
   const card = seller.page.locator(`[data-claim="${orderId}"]`);
   await card.waitFor();
   check("klaim muncul di dasbor penjual", await card.isVisible());
+  // The account menu counts the claims waiting for this seller, read from the claimed orders alone.
+  const claimsOnMenu = async () => {
+    const page = await seller.page.context().newPage();
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await page.getByRole("button", { name: "Account menu" }).first().click();
+    const count = page.getByLabel(/^\d+ claims? to answer$/).first();
+    const n = (await count.count()) ? Number(await count.innerText()) : 0;
+    await page.close();
+    return n;
+  };
+  const waitingBefore = await claimsOnMenu();
+  check("menu akun menghitung klaim yang menunggu jawaban", waitingBefore >= 1, String(waitingBefore));
   // The seller signs the letter, so the draft is on their side too (a show that checks names).
   const [sellerDraft] = await Promise.all([seller.page.waitForEvent("download"), seller.page.locator(`[data-draft-letter="${orderId}"]`).click()]);
   const sellerHead = readFileSync(await sellerDraft.path()).subarray(0, 5).toString("latin1");
@@ -245,9 +257,16 @@ try {
   await card.getByText("Your answer is on file, waiting on staff").waitFor();
   const replies = claimOf((await orderOf(L1))[0])?.dispute_replies ?? [];
   check("jawaban penjual tersimpan dengan lampirannya", replies.length === 1 && replies[0].from_seller && replies[0].evidence?.fileName === "handover-chat.png");
+  const waitingAfter = await claimsOnMenu();
+  check("klaim yang sudah dijawab hilang dari hitungan menu", waitingAfter === waitingBefore - 1, `${waitingBefore} lalu ${waitingAfter}`);
   check("jawaban kedua ditolak 409", (await seller.act(orderId, { action: "reply", note: "lagi" })).status() === 409);
   check("penjual tidak bisa memutus", (await seller.act(orderId, { action: "verdict", remedy: "RELEASE_SELLER" })).status() === 403);
   check("pembeli tidak bisa memutus", (await buyer.act(orderId, { action: "verdict", remedy: "REFUND_FULL" })).status() === 403);
+  // Nobody rules on a claim they are a party to: the order is lent to the staff account for one call.
+  await admin.from("orders").update({ seller_id: staff.user.id }).eq("id", orderId);
+  const ownVerdict = (await staff.act(orderId, { action: "verdict", remedy: "RELEASE_SELLER" })).status();
+  await admin.from("orders").update({ seller_id: seller.user.id }).eq("id", orderId);
+  check("staf tidak bisa memutus klaim di pesanannya sendiri", ownVerdict === 403, String(ownVerdict));
 
   // --- Staff rules from the admin console
   await staff.page.goto(`${BASE}/admin`, { waitUntil: "networkidle" });

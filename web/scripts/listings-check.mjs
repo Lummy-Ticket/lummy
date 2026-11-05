@@ -145,6 +145,11 @@ try {
   check("pembeli lain tidak bisa melihat listing yang direview", !(await buyer.sees(held?.id)));
   check("penjual dan staf bisa melihatnya", (await seller.sees(held?.id)) && (await staff.sees(held?.id)));
   check("penjual tidak bisa meloloskan listingnya sendiri", (await seller.act(held?.id, "approve")).status() === 403);
+  // Staff neither: the listing is lent to the staff account for one call.
+  await admin.from("listings").update({ seller_id: staff.user.id }).eq("id", held?.id);
+  const ownApproval = (await staff.act(held?.id, "approve")).status();
+  await admin.from("listings").update({ seller_id: seller.user.id }).eq("id", held?.id);
+  check("staf tidak bisa meloloskan listingnya sendiri", ownApproval === 403, String(ownApproval));
   // A held listing is not a silence with no end: the seller sees the target, staff see the wait.
   await seller.page.goto(`${BASE}/seller`, { waitUntil: "networkidle" });
   const reviewNote = seller.page.locator(`[data-listing="${held?.id}"] [data-review-note]`);

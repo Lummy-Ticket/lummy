@@ -18,6 +18,9 @@ const sample = (page) => page.evaluate(() => {
   document.querySelectorAll("[data-reveal]").forEach((el) => {
     const targets = el.getAttribute("data-reveal") === "stagger" ? Array.from(el.children) : [el];
     const r = el.getBoundingClientRect();
+    // The observer's margin holds back the bottom 8% of the window, so what starts there may or may
+    // not have risen yet, depending on the moment: neither on screen nor below it for this count.
+    if (r.top >= innerHeight * 0.92 && r.top < innerHeight) return;
     const visible = r.bottom > 0 && r.top < innerHeight && r.width > 0;
     targets.forEach((t) => (visible ? out.on : out.off).push(parseFloat(getComputedStyle(t).opacity)));
   });
