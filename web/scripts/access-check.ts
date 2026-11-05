@@ -10,7 +10,7 @@
  *
  *   npm run access:check
  */
-import { safePath } from "../src/lib/public-origin";
+import { postedFromThisSite, safePath } from "../src/lib/public-origin";
 import { pickRecord, type Read } from "../src/lib/chain/pick";
 import { DEMO_ACCOUNTS, staffByRole } from "../src/lib/supabase/demo";
 
@@ -44,6 +44,20 @@ for (const p of offSite) {
   check(`stays on lummy.id: ${JSON.stringify(p)}`, got.startsWith("/") && !got.startsWith("//") && lands(got) === "lummy.id", `got ${JSON.stringify(got)}`);
 }
 check("null comes back as /", safePath(null) === "/");
+
+// What the sign-in button's post may look like. "null" is what Chromium and WebKit really send from
+// a page with Referrer-Policy: no-referrer (same-origin) and from a sandboxed frame (cross-site).
+const SITE = "https://lummy.id";
+const posted = (h: Record<string, string>) => postedFromThisSite(new Headers(h), SITE);
+check("form post: this site's Origin passes", posted({ origin: SITE, "sec-fetch-site": "same-origin" }));
+check("form post: another site's Origin is refused", !posted({ origin: "https://evil.example", "sec-fetch-site": "cross-site" }));
+check("form post: another site's Origin is refused whatever else it sends", !posted({ origin: "https://evil.example", "sec-fetch-site": "same-origin" }));
+check("form post: a subdomain's Origin is refused", !posted({ origin: "https://evil.lummy.id", "sec-fetch-site": "same-site" }));
+check("form post: Origin null from this site's own page passes", posted({ origin: "null", "sec-fetch-site": "same-origin" }));
+check("form post: Origin null from a sandboxed frame is refused", !posted({ origin: "null", "sec-fetch-site": "cross-site" }));
+check("form post: Origin null with nothing else is refused", !posted({ origin: "null" }));
+check("form post: no Origin from this site passes", posted({ "sec-fetch-site": "same-origin" }));
+check("form post: no Origin and nothing else is refused", !posted({}));
 
 const kept: [string, string][] = [
   ["/", "/"],

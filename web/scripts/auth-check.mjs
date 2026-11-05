@@ -186,6 +186,14 @@ try {
     const fresh = await browser.newContext();
     const phone = await fresh.newPage();
     const redirectTo = encodeURIComponent(`${BASE}/auth/callback?next=${encodeURIComponent("/profile")}`);
+    // Another site's form cannot use the link, and trying does not spend it: the next step still signs in.
+    const foreign = await fetch(`${BASE}/auth/confirm`, {
+      method: "POST",
+      redirect: "manual",
+      headers: { origin: "https://evil.example", "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ token_hash: link?.properties?.hashed_token ?? "", type: "email" }),
+    });
+    check("form dari situs lain ditolak", foreign.status === 303 && (foreign.headers.get("location") ?? "").endsWith("/login?error=link"), `${foreign.status} ${foreign.headers.get("location")}`);
     await openSignInLink(phone, `${BASE}/auth/confirm?token_hash=${link?.properties?.hashed_token}&type=email&redirect_to=${redirectTo}`);
     const freshSession = (await fresh.cookies()).some((c) => c.name.startsWith(`sb-${ref}-auth-token`));
     check("link token hash membuka sesi di browser lain", !error && freshSession && new URL(phone.url()).pathname === "/profile", error?.message ?? phone.url());

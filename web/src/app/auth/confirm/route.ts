@@ -9,7 +9,7 @@
 // that opens links spend the one-time token first. The POST is taken only from this site's own page.
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
-import { publicOrigin, safePath } from "@/lib/public-origin";
+import { postedFromThisSite, publicOrigin, safePath } from "@/lib/public-origin";
 import { supabaseServer } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -83,24 +83,18 @@ export async function GET(req: NextRequest) {
       // Not inside another site's frame, so nobody can lay a decoy over the button.
       "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
       "X-Frame-Options": "DENY",
-      "Referrer-Policy": "no-referrer",
+      // The address holds the token, so it goes to no other site. Not no-referrer: a page with that
+      // policy posts its form with Origin: null. On Vercel this header wins over next.config's, while
+      // under `next start` next.config's wins, so a local server never shows the difference.
+      "Referrer-Policy": "same-origin",
     },
   });
 }
 
-/**
- * Only this site's own page may post here: a form on another site would sign the visitor in
- * with whatever token that site holds. Browsers send Origin with every form post.
- */
-function fromThisSite(req: NextRequest, origin: string) {
-  const sent = req.headers.get("origin");
-  if (sent) return sent === origin;
-  return req.headers.get("sec-fetch-site") === "same-origin";
-}
-
 export async function POST(req: NextRequest) {
   const origin = publicOrigin(req);
-  if (!fromThisSite(req, origin)) return failed(origin);
+  // A form on another site would sign the visitor in with whatever token that site holds.
+  if (!postedFromThisSite(req.headers, origin)) return failed(origin);
   const form = await req.formData().catch(() => null);
   const tokenHash = String(form?.get("token_hash") ?? "");
   const type = String(form?.get("type") ?? "") as EmailOtpType;
