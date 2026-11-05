@@ -2,7 +2,6 @@
 
 import type React from "react";
 import { useEffect, useRef, useSyncExternalStore } from "react";
-import Link from "next/link";
 import Image from "next/image";
 import {
   ArrowRight, Banknote, CalendarClock, CalendarX, ExternalLink, Eye, FileText, FileUp, Flag, Landmark, Lock, PackageX, QrCode, Repeat,
@@ -693,11 +692,9 @@ export default function HowItWorks() {
                   : t("Upload the PDF and it is live in minutes.", "Upload PDF-nya dan tayang dalam hitungan menit.")}
               </p>
             </div>
-            <Link href={side === "buying" ? "/events" : "/sell"}>
-              <Button.Secondary className="flex items-center gap-2 text-nowrap">
-                {side === "buying" ? t("Browse events", "Jelajah event") : t("Sell a ticket", "Jual tiket")} <ArrowRight className="w-4 h-4" />
-              </Button.Secondary>
-            </Link>
+            <Button.SecondaryLink href={side === "buying" ? "/events" : "/sell"} className="flex items-center gap-2 text-nowrap">
+              {side === "buying" ? t("Browse events", "Jelajah event") : t("Sell a ticket", "Jual tiket")} <ArrowRight className="w-4 h-4" />
+            </Button.SecondaryLink>
           </div>
         </TicketBand>
       </section>

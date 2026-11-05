@@ -40,6 +40,7 @@ export function SelectMenu({
   icon,
   label = (v) => v,
   active = false,
+  name,
   className,
 }: {
   value: string;
@@ -50,6 +51,8 @@ export function SelectMenu({
   label?: (v: string) => string;
   // Tandai tombol saat filter ini sedang dipakai.
   active?: boolean;
+  /** What is being picked ("City"): names the list, and the button as "City: Jakarta" for a screen reader. */
+  name?: string;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -75,6 +78,7 @@ export function SelectMenu({
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-label={name ? `${name}: ${label(value)}` : undefined}
         className={cn(MENU_TRIGGER, active && MENU_TRIGGER_ACTIVE)}
       >
         {icon}
@@ -82,7 +86,7 @@ export function SelectMenu({
         <ChevronDown className={cn("w-4 h-4 text-neutral-gray shrink-0 transition-transform duration-300", open && "rotate-180")} />
       </button>
       {open && (
-        <div role="listbox" className={cn(MENU_PANEL, "min-w-full w-max max-w-[240px] overflow-hidden py-1 [--origin:top_left]")}>
+        <div role="listbox" aria-label={name} className={cn(MENU_PANEL, "min-w-full w-max max-w-[240px] overflow-hidden py-1 [--origin:top_left]")}>
           {options.map((opt) => {
             const active = opt === value;
             return (

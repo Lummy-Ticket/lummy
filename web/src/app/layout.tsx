@@ -9,6 +9,7 @@ import { CatalogueProvider } from "@/lib/catalogue";
 import { AuthSync } from "@/components/auth/AuthSync";
 import { DemoBar } from "@/components/auth/DemoBar";
 import { TestModeNotice } from "@/components/layout/TestModeNotice";
+import { SkipLink } from "@/components/layout/SkipLink";
 import { loadCatalogue } from "@/lib/supabase/catalogue";
 import { MotionObserver } from "@/components/motion/MotionObserver";
 import { cookies, headers } from "next/headers";
@@ -51,9 +52,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           <CatalogueProvider data={catalogue}>
             <AuthSync />
             <MotionObserver />
+            <SkipLink />
             <TestModeNotice />
             <Navbar />
-            <main className="flex-1">{children}</main>
+            {/* The skip link lands here; focusable from script only, so it is not a stop for Tab */}
+            <main id="main" tabIndex={-1} className="flex-1 outline-none">{children}</main>
             <Footer />
             <DemoBar />
             <Toaster position="top-center" />

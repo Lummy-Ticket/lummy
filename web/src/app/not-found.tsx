@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
@@ -15,8 +14,8 @@ export default function NotFound() {
         {t("The link may be old, or the show may have ended.", "Mungkin link-nya sudah lama, atau acaranya sudah lewat.")}
       </p>
       <div className="mt-8 flex flex-wrap justify-center gap-3">
-        <Link href="/events"><Button.Primary>{t("Browse events", "Jelajah event")}</Button.Primary></Link>
-        <Link href="/"><Button.Ghost>{t("Go home", "Ke beranda")}</Button.Ghost></Link>
+        <Button.PrimaryLink href="/events">{t("Browse events", "Jelajah event")}</Button.PrimaryLink>
+        <Button.GhostLink href="/">{t("Go home", "Ke beranda")}</Button.GhostLink>
       </div>
     </div>
   );

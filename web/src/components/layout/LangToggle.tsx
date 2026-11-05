@@ -35,7 +35,8 @@ export function LangToggle({ className }: { className?: string }) {
           onClick={() => setLang(o.id)}
           aria-pressed={lang === o.id}
           className={cn(
-            "px-2.5 py-1 rounded-full text-xs font-semibold transition cursor-pointer",
+            // 32px tall: the old 24px pill sat right on the minimum for a thumb
+            "h-8 min-w-9 px-2.5 rounded-full text-xs font-semibold transition cursor-pointer",
             lang === o.id ? "bg-primary-navy text-white" : "text-neutral-gray hover:text-primary-navy"
           )}
         >

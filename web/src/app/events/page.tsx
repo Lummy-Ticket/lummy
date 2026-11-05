@@ -123,6 +123,7 @@ function EventsInner() {
           options={cities}
           onChange={setCity}
           label={(c) => (c === ALL_CITIES ? t("All cities", "Semua kota") : c)}
+          name={t("City", "Kota")}
           active={city !== ALL_CITIES}
           icon={<MapPin className="w-4 h-4 text-neutral-gray shrink-0" />}
           className="md:w-52"
@@ -161,7 +162,7 @@ function EventsInner() {
         <div className="flex items-center justify-between gap-4 text-sm md:justify-end">
           <span className="text-neutral-gray" aria-live="polite">{summary}</span>
           {filtering && (
-            <button type="button" onClick={clearAll} className="flex items-center gap-1.5 font-medium text-lummy-500 hover:underline cursor-pointer">
+            <button type="button" onClick={clearAll} className="hit-area flex items-center gap-1.5 font-medium text-lummy-500 hover:underline cursor-pointer">
               <RotateCcw className="w-3.5 h-3.5" /> {t("Clear filters", "Hapus filter")}
             </button>
           )}

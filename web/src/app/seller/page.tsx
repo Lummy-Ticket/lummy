@@ -379,7 +379,7 @@ export default function SellerPage() {
     <PageContainer width="app">
       <div className="flex items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl md:text-3xl font-bold text-neutral-black">{t("Seller dashboard", "Dasbor penjual")}</h1>
-        <Link href="/sell" className="shrink-0"><Button.Primary className="flex items-center gap-2 text-sm whitespace-nowrap"><Plus className="w-4 h-4" /> {t("Sell a ticket", "Jual tiket")}</Button.Primary></Link>
+        <Button.PrimaryLink href="/sell" wrapperClass="shrink-0" className="flex items-center gap-2 text-sm whitespace-nowrap"><Plus className="w-4 h-4" /> {t("Sell a ticket", "Jual tiket")}</Button.PrimaryLink>
       </div>
 
       <div data-reveal="stagger" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
