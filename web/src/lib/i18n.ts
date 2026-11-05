@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Currency } from "@/lib/mock/types";
 import { USDC_UNIT } from "@/lib/mock/util";
+import { LANG_COOKIE, pickLang, type Lang } from "@/lib/lang";
 
-export type Lang = "en" | "id";
+export type { Lang };
 
 interface LangState {
   lang: Lang;
@@ -15,14 +16,20 @@ interface LangState {
 }
 
 /**
- * A first visit follows the browser: Indonesian when it is the browser's first language (some
- * Android builds still report the old code "in"), English otherwise. The server always renders
- * English, and a choice made with the switch is stored and wins from then on.
+ * A first visit follows the browser: Indonesian when it is the browser's first language, English
+ * otherwise (lib/lang.ts, pickLang). The language cookie, when there is one, wins, as it does on the
+ * server, and a choice made with the switch is stored and written to it.
  */
 function firstLang(): Lang {
   if (typeof window === "undefined") return "en";
-  const first = navigator.languages?.[0] ?? navigator.language ?? "";
-  return /^(id|in)\b/i.test(first) ? "id" : "en";
+  const cookie = document.cookie.match(new RegExp(`(?:^|; )${LANG_COOKIE}=(en|id)`))?.[1];
+  return pickLang(cookie, navigator.languages?.[0] ?? navigator.language ?? "");
+}
+
+/** What the server renders with on the next request, a year at a time. */
+function writeLangCookie(lang: Lang) {
+  if (typeof document === "undefined") return;
+  document.cookie = `${LANG_COOKIE}=${lang}; path=/; max-age=31536000; samesite=lax`;
 }
 
 export const useLang = create<LangState>()(
@@ -32,22 +39,35 @@ export const useLang = create<LangState>()(
       setLang: (lang) => set({ lang }),
       toggle: () => set({ lang: get().lang === "en" ? "id" : "en" }),
     }),
-    { name: "lummy:lang" }
+    {
+      name: "lummy:lang",
+      // A choice stored before the cookie existed reaches the server from the next page on.
+      onRehydrateStorage: () => (state) => {
+        if (state) writeLangCookie(state.lang);
+      },
+    }
   )
 );
+if (typeof window !== "undefined") useLang.subscribe((s) => writeLangCookie(s.lang));
+
+/** The language the server rendered this page in (components/layout/LangProvider.tsx). */
+export const ServerLang = createContext<Lang>("en");
 
 /**
  * Current language, hydration-safe.
  *
  * React calls the server snapshot while hydrating, so the first client render
- * matches the HTML that was sent (always English) and only then swaps to the
- * stored choice. That avoids a hydration mismatch without an effect.
+ * matches the HTML that was sent. The server rendered in the language the cookie
+ * or the browser asked for (app/layout.tsx), so after hydration the stored choice
+ * is the same language and nothing swaps; it only differs for a choice stored
+ * before the cookie existed, and then only once.
  */
 export function useActiveLang(): Lang {
+  const server = useContext(ServerLang);
   return useSyncExternalStore(
     useLang.subscribe,
     () => useLang.getState().lang,
-    () => "en" as Lang
+    () => server
   );
 }
 

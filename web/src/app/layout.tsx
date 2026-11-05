@@ -11,6 +11,9 @@ import { DemoBar } from "@/components/auth/DemoBar";
 import { TestModeNotice } from "@/components/layout/TestModeNotice";
 import { loadCatalogue } from "@/lib/supabase/catalogue";
 import { MotionObserver } from "@/components/motion/MotionObserver";
+import { cookies, headers } from "next/headers";
+import { LangProvider } from "@/components/layout/LangProvider";
+import { LANG_COOKIE, pickLang } from "@/lib/lang";
 
 // Self-hosted at build time: no request to Google on page load, no flash of the
 // fallback font, and nothing to break on venue Wi-Fi. Since the brand guideline 1.0
@@ -38,21 +41,25 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const catalogue = await loadCatalogue();
+  const [catalogue, jar, head] = await Promise.all([loadCatalogue(), cookies(), headers()]);
+  // The page opens in the visitor's language: the switch's cookie, else the browser's first one.
+  const lang = pickLang(jar.get(LANG_COOKIE)?.value, head.get("accept-language"));
   return (
-    <html lang="en" className={`${fredoka.variable} ${jakarta.variable} motion-safe:scroll-smooth`}>
+    <html lang={lang} className={`${fredoka.variable} ${jakarta.variable} motion-safe:scroll-smooth`}>
       <body className="antialiased min-h-screen flex flex-col relative w-full overflow-x-clip">
-        <CatalogueProvider data={catalogue}>
-          <AuthSync />
-          <MotionObserver />
-          <TestModeNotice />
-          <Navbar />
-          <main className="flex-1">{children}</main>
-          <Footer />
-          <DemoBar />
-          <Toaster position="top-center" />
-          <DevPanel />
-        </CatalogueProvider>
+        <LangProvider lang={lang}>
+          <CatalogueProvider data={catalogue}>
+            <AuthSync />
+            <MotionObserver />
+            <TestModeNotice />
+            <Navbar />
+            <main className="flex-1">{children}</main>
+            <Footer />
+            <DemoBar />
+            <Toaster position="top-center" />
+            <DevPanel />
+          </CatalogueProvider>
+        </LangProvider>
       </body>
     </html>
   );
