@@ -25,18 +25,23 @@ export function EntryPass({ orderId, onChange }: { orderId: string; onChange?: (
   });
 
   useEffect(() => {
-    let alive = true;
+    // Aborted when the card goes away, or is mounted twice in development: an answer nobody reads
+    // keeps its request open, which also stops a test from ever seeing the page idle (5 Nov 2026).
+    const ctrl = new AbortController();
     let done = false;
     let last = "";
     const load = async () => {
-      const r = await fetch(`/api/orders/${encodeURIComponent(orderId)}/pass`, { cache: "no-store" }).catch(() => null);
-      if (!alive || !r) return;
+      const r = await fetch(`/api/orders/${encodeURIComponent(orderId)}/pass`, { cache: "no-store", signal: ctrl.signal }).catch(() => null);
+      if (ctrl.signal.aborted || !r) return;
       if (!r.ok) {
+        // A refusal has nothing to read; cancelling its body closes the request.
+        void r.body?.cancel().catch(() => {});
         setHidden(true);
         done = true;
         return;
       }
-      const j = (await r.json()) as PassState;
+      const j = (await r.json().catch(() => null)) as PassState | null;
+      if (ctrl.signal.aborted || !j) return;
       // In, or no pass any more (refunded at the gate): the order itself changed, so the page reloads it.
       const key = `${!!j.pass}:${j.admitted?.at ?? ""}`;
       if (last && key !== last) changed.current?.();
@@ -51,7 +56,7 @@ export function EntryPass({ orderId, onChange }: { orderId: string; onChange?: (
       else void load();
     }, 5000);
     return () => {
-      alive = false;
+      ctrl.abort();
       stop();
     };
   }, [orderId]);

@@ -52,6 +52,14 @@ async function checkout() {
   await page.waitForLoadState("networkidle");
 }
 
+// Panel on-chain terbuka sendiri di pesanan yang bukan milik akun, seperti pesanan lokal mode chain
+// ini (halaman tiket sejak 25 Okt 2026); di pesanan akun perlu diklik. Jadi diklik hanya kalau tertutup.
+async function openProof() {
+  const closed = page.getByText("Verify it yourself on-chain");
+  await closed.or(page.getByText("Hide technical details")).first().waitFor();
+  if (await closed.isVisible()) await closed.click();
+}
+
 try {
   await page.goto(BASE, { waitUntil: "networkidle", timeout: 90000 });
   await page.evaluate((key) => {
@@ -65,7 +73,9 @@ try {
   await checkout();
   const orderUrl = page.url();
   check("checkout mode chain membuat pesanan", orderUrl.includes("/tickets/or-"));
-  await page.getByText("Verify it yourself on-chain").click();
+  // Nama acara dibaca dari halaman, bukan ditulis di sini: katalog contoh sudah berganti (23 Okt 2026).
+  const show = (await page.locator("h1").first().innerText()).trim();
+  await openProof();
   await page.getByText("Handover proof tx").waitFor();
   await page.getByText("DisputeWindow").first().waitFor();
   check("panel membaca status dari kontrak", true);
@@ -84,12 +94,12 @@ try {
   const proofText = await page.locator("main").innerText();
   check(
     "halaman bukti publik tampil tanpa data pribadi",
-    !proofText.includes(USERS.buyer.name) && !proofText.includes(USERS.buyer.email) && !proofText.includes("Coldplay"),
+    !proofText.includes(USERS.buyer.name) && !proofText.includes(USERS.buyer.email) && !proofText.includes(show),
     proofText.slice(0, 120),
   );
-  // Balik ke tiket: panel teknis tertutup lagi setelah halaman dimuat ulang, jadi dibuka lagi.
+  // Balik ke tiket: panel teknis dibuka lagi kalau tertutup setelah halaman dimuat ulang.
   await page.goto(orderUrl, { waitUntil: "networkidle" });
-  await page.getByText("Verify it yourself on-chain").click();
+  await openProof();
   await page.getByText("Handover proof tx").waitFor();
 
   // Sengketa masuk ke kontrak
@@ -104,18 +114,20 @@ try {
   // Putusan admin dijalankan kontrak: refund penuh
   await as("admin");
   await page.goto(`${BASE}/admin`, { waitUntil: "networkidle" });
-  const card = page.locator("div.rounded-3xl", { has: page.locator("h3", { hasText: "Coldplay" }) }).first();
+  // Kartu klaim pesanan ini sendiri: data contoh punya klaim lain untuk acara yang sama.
+  const card = page.locator(`[data-claim="${orderUrl.split("/tickets/")[1]}"]`);
   await card.getByRole("button", { name: /Full refund/ }).click();
   await page.getByRole("button", { name: "Yes, record it" }).click();
   await page.getByText("Upheld: full refund").waitFor({ timeout: 90000 });
   check("putusan admin terkirim ke kontrak", true);
   await as("buyer");
   await page.goto(orderUrl, { waitUntil: "networkidle" });
-  await page.getByText("Verify it yourself on-chain").click();
+  await openProof();
   await page.getByText("Refunded").first().waitFor();
   const refunded = (await page.getByText("Refund tx").isVisible()) && (await page.getByText("Payout tx").first().isVisible());
   check("pesanan Refunded menurut kontrak, dengan tx refund dan tx kirim dana", refunded);
-  await page.getByText("Claim decided").waitFor({ timeout: 60000 });
+  // "Claim decided" juga tampil di langkah escrow di atas; yang dicari baris riwayat dari event kontrak.
+  await page.locator("li", { hasText: "Claim decided" }).filter({ hasText: "Recorded on the blockchain" }).first().waitFor({ timeout: 60000 });
   check("putusan tercatat di riwayat escrow", true);
 
   // Diam berarti beres: window lewat di jam chain, halaman memicu pencairan. Di Anvil waktunya
@@ -127,7 +139,7 @@ try {
   } else {
     console.log("       menunggu window 10 menit di Arbitrum Sepolia...");
   }
-  await page.getByText("Verify it yourself on-chain").click();
+  await openProof();
   await page.getByText("Release tx").waitFor({ timeout: LIVE ? 15 * 60_000 : 90000 });
   check("window lewat: kontrak membayar penjual, tx pencairan tampil", true);
   const second = await txLinks();
