@@ -56,7 +56,7 @@ export function SampleQrisPanel({
           </div>
           <div>
             <div className="tabular-nums font-bold text-xl text-neutral-black">{formatIDR(amount)}</div>
-            <div className="text-xs text-neutral-gray mt-0.5">{t(`Valid for ${clock}`, `Berlaku ${clock}`)}</div>
+            <div className="text-xs text-neutral-gray mt-0.5">{t(`Time left ${clock}`, `Sisa waktu ${clock}`)}</div>
           </div>
           <div className="w-full rounded-2xl bg-secondary-orange-soft p-3 text-xs text-secondary-orange-dark text-left">
             {t(
@@ -190,7 +190,7 @@ export function QrisPanel({
           <div>
             <div className="tabular-nums font-bold text-xl text-neutral-black">{formatIDR(p.amount)}</div>
             <div className="text-xs text-neutral-gray mt-0.5">
-              {left > 0 ? t(`Valid for ${clock}`, `Berlaku ${clock}`) : t("Time is up. Checking with Xendit...", "Waktu habis. Mengecek ke Xendit...")}
+              {left > 0 ? t(`Time left ${clock}`, `Sisa waktu ${clock}`) : t("Time is up. Checking with Xendit...", "Waktu habis. Mengecek ke Xendit...")}
             </div>
           </div>
           <p className="flex items-center gap-2 text-sm text-neutral-gray">
