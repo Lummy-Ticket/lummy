@@ -13,6 +13,7 @@ import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { chromium } from "playwright-core";
 import { loadTarget } from "./lib/target-env.mjs";
+import { openSignInLink } from "./lib/confirm.mjs";
 
 loadTarget();
 const BASE = process.env.BASE ?? "http://127.0.0.1:3000";
@@ -289,7 +290,7 @@ try {
   plainUserId = created.data.user?.id ?? null;
   const link = await admin.auth.admin.generateLink({ type: "magiclink", email: PLAIN_EMAIL });
   const plain = await browser.newContext();
-  await (await plain.newPage()).goto(`${BASE}/auth/confirm?token_hash=${link.data.properties?.hashed_token}&type=email`, { waitUntil: "networkidle" });
+  await openSignInLink(await plain.newPage(), `${BASE}/auth/confirm?token_hash=${link.data.properties?.hashed_token}&type=email`);
   // With QRIS on, an ordinary account must pay through it (the straight path answers 409), and
   // Xendit's test simulator stands in for the buyer's app; the cap holds there too.
   const qrisOn = (await (await fetch(`${BASE}/api/payments`)).json().catch(() => ({}))).enabled === true;

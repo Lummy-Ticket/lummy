@@ -6,6 +6,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { chromium } from "playwright-core";
 import { loadTarget } from "./lib/target-env.mjs";
+import { openSignInLink } from "./lib/confirm.mjs";
 
 loadTarget();
 const BASE = process.env.BASE ?? "http://127.0.0.1:3000";
@@ -185,10 +186,10 @@ try {
     const fresh = await browser.newContext();
     const phone = await fresh.newPage();
     const redirectTo = encodeURIComponent(`${BASE}/auth/callback?next=${encodeURIComponent("/profile")}`);
-    await phone.goto(`${BASE}/auth/confirm?token_hash=${link?.properties?.hashed_token}&type=email&redirect_to=${redirectTo}`, { waitUntil: "networkidle" });
+    await openSignInLink(phone, `${BASE}/auth/confirm?token_hash=${link?.properties?.hashed_token}&type=email&redirect_to=${redirectTo}`);
     const freshSession = (await fresh.cookies()).some((c) => c.name.startsWith(`sb-${ref}-auth-token`));
     check("link token hash membuka sesi di browser lain", !error && freshSession && new URL(phone.url()).pathname === "/profile", error?.message ?? phone.url());
-    const reused = await (await fresh.newPage()).goto(`${BASE}/auth/confirm?token_hash=${link?.properties?.hashed_token}&type=email`);
+    const reused = await openSignInLink(await fresh.newPage(), `${BASE}/auth/confirm?token_hash=${link?.properties?.hashed_token}&type=email`);
     check("link yang sama tidak bisa dipakai dua kali", reused.url().endsWith("/login?error=link"), reused.url());
     await fresh.close();
   }
