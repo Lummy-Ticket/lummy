@@ -62,8 +62,12 @@ export { expect };
 /** Whether the tests run against this machine, where the dev panel always shows. */
 export const isLocal = (baseURL: string | undefined) => /\/\/(localhost|127\.0\.0\.1)\b/.test(baseURL ?? "");
 
-/** The login page's button for a sample persona, which it calls a demo account (a sample account before 24 Oct 2026). */
-export const DEMO_SIGN_IN = /^(Lanjut dengan akun (demo|contoh)|Continue with a (demo|sample) account)$/;
+/**
+ * The login page's button for a sample persona, which it calls a demo account (a sample account before
+ * 24 Oct 2026). On a server without Supabase (next start with no env, as in a cloud sandbox) the page
+ * has no email form and the persona button is the page's only "Sign in".
+ */
+export const DEMO_SIGN_IN = /^(Lanjut dengan akun (demo|contoh)|Continue with a (demo|sample) account|Masuk|Sign in)$/;
 
 /**
  * Signs in with a sample account from the login page and lands on `next`, the way a tester sent to
