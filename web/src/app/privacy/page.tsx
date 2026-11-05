@@ -107,8 +107,8 @@ const sections: LegalSection[] = [
         id: "Saat kamu mengecek tiket, memasang listing, mengisi form dari tiket, atau meminta upload foto klaim: waktunya, dihitung untuk akunmu, supaya satu akun tidak bisa mengulangnya tanpa batas. Tidak ada hal lain soal percobaan itu yang disimpan.",
       },
       {
-        en: "We do not accept photos of ID cards yet, and we run no analytics or advertising trackers. The site keeps a sign-in cookie, and your language and sample data in your browser.",
-        id: "Kami belum menerima foto KTP, dan tidak memakai analytics atau pelacak iklan. Situs menyimpan cookie masuk, serta pilihan bahasa dan data contoh di browsermu.",
+        en: "We do not accept photos of ID cards yet, and we run no analytics or advertising trackers. The site keeps a sign-in cookie, a language cookie (\"en\" or \"id\", so pages open in your language), and sample data in your browser.",
+        id: "Kami belum menerima foto KTP, dan tidak memakai analytics atau pelacak iklan. Situs menyimpan cookie masuk, cookie bahasa (\"en\" atau \"id\", supaya halaman langsung terbuka dalam bahasamu), dan data contoh di browsermu.",
       },
     ],
   },
