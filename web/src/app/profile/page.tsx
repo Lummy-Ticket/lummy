@@ -64,14 +64,11 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!accountId) return;
     let alive = true;
-    void supabaseBrowser()
-      ?.from("profiles")
-      .select(PROFILE_COLUMNS)
-      .eq("id", accountId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (alive && data) setDb(data);
-      });
+    void supabaseBrowser().then(async (sb) => {
+      if (!sb) return;
+      const { data } = await sb.from("profiles").select(PROFILE_COLUMNS).eq("id", accountId).maybeSingle();
+      if (alive && data) setDb(data);
+    });
     return () => {
       alive = false;
     };
@@ -94,7 +91,7 @@ export default function ProfilePage() {
   const acct = acctDraft ?? savedNumber;
 
   const saveRow = async (patch: Partial<DbProfile>) => {
-    const { data, error } = await supabaseBrowser()!
+    const { data, error } = await (await supabaseBrowser())!
       .from("profiles")
       .update(patch)
       .eq("id", account!.id)

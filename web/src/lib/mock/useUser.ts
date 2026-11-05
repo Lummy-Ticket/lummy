@@ -15,7 +15,7 @@ interface UserState {
 }
 
 const endSession = (user: User | null) => {
-  if (user?.account) void supabaseBrowser()?.auth.signOut();
+  if (user?.account) void supabaseBrowser().then((sb) => sb?.auth.signOut());
 };
 
 export const useUser = create<UserState>()(
