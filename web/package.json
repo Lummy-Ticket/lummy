@@ -53,7 +53,7 @@
     "staging:rls": "node scripts/staging-db.mjs rls"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.135.0",
+    "@anthropic-ai/sdk": "^1.3.0",
     "@napi-rs/canvas": "^1.1.0",
     "@sentry/nextjs": "11.10.0",
     "@supabase/ssr": "0.12.7",
