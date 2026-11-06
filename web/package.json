@@ -92,5 +92,11 @@
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",
     "typescript": "^5"
+  },
+  "overrides": {
+    "glob@^13": "14.0.3",
+    "minimatch@^10": "11.0.3",
+    "minimatch@^11": "11.0.3",
+    "@isaacs/nonrecursive-glob-match": "1.0.3"
   }
 }
