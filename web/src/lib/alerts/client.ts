@@ -6,6 +6,7 @@
 // browser before the flag are not carried over: they were chosen under "nothing is sent yet", so an
 // account starts empty and follows again, rather than getting email it never asked for.
 import { useCallback, useEffect, useState } from "react";
+import { getJson } from "@/lib/fetch-json";
 import type { AlertSub } from "@/lib/mock/useAlerts";
 
 async function post<T>(body: unknown): Promise<T> {
@@ -22,25 +23,15 @@ export function useAccountAlerts(on: boolean) {
 
   useEffect(() => {
     if (!on) return;
-    let alive = true;
-    void fetch("/api/alerts", { cache: "no-store" })
-      .then(async (r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return (await r.json()) as { alerts: AlertSub[] };
-      })
-      .then(
-        (json) => {
-          if (!alive) return;
-          setSubs(json.alerts);
-          setFailed(false);
-        },
-        () => {
-          if (alive) setFailed(true);
-        }
-      );
-    return () => {
-      alive = false;
-    };
+    const ctrl = new AbortController();
+    void getJson<{ alerts: AlertSub[] }>("/api/alerts", ctrl.signal, { cache: "no-store" }).then((json) => {
+      if (ctrl.signal.aborted) return;
+      if (json?.alerts) {
+        setSubs(json.alerts);
+        setFailed(false);
+      } else setFailed(true);
+    });
+    return () => ctrl.abort();
   }, [on]);
 
   const subscribe = useCallback(async (input: { eventId: string; tierId?: string }) => {

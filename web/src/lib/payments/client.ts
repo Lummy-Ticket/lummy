@@ -4,6 +4,7 @@
 // cancel it or (in test mode) pay it through Xendit's simulator. Every answer comes from the
 // server, which checks the buyer each time.
 import { useEffect, useState } from "react";
+import { getJson } from "@/lib/fetch-json";
 import { OrderError } from "@/lib/orders/client";
 import type { PaymentView, PaymentsConfig, UsdcStart } from "./types";
 
@@ -16,14 +17,11 @@ export function usePaymentsConfig(active: boolean): PaymentsConfig | null {
   const [config, setConfig] = useState<PaymentsConfig | null>(null);
   useEffect(() => {
     if (!active) return;
-    let alive = true;
-    fetch("/api/payments", { cache: "no-store" })
-      .then((r) => (r.ok ? (r.json() as Promise<PaymentsConfig>) : OFF))
-      .then((c) => alive && setConfig(c))
-      .catch(() => alive && setConfig(OFF));
-    return () => {
-      alive = false;
-    };
+    const ctrl = new AbortController();
+    void getJson<PaymentsConfig>("/api/payments", ctrl.signal, { cache: "no-store" }).then((c) => {
+      if (!ctrl.signal.aborted) setConfig(c ?? OFF);
+    });
+    return () => ctrl.abort();
   }, [active]);
   return active ? config : null;
 }

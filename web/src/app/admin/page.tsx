@@ -22,6 +22,7 @@ import {
   type ChainSettlement, type Order, type Remedy, type SellerListing,
 } from "@/lib/mock";
 import { chainAction } from "@/lib/chain/client";
+import { getJson } from "@/lib/fetch-json";
 import { useCatalogue } from "@/lib/catalogue";
 import { orderAction, useAccountOrders } from "@/lib/orders/client";
 import { listingAction, useAccountListings } from "@/lib/listings/client";
@@ -241,18 +242,11 @@ function ShowsPanel() {
   // Venue points, for the location check on claim photos. The public catalogue does not carry them.
   const [locations, setLocations] = useState<Record<string, LatLng> | null>(null);
   useEffect(() => {
-    let alive = true;
-    fetch("/api/events/locations", { cache: "no-store" })
-      .then((r) => (r.ok ? (r.json() as Promise<{ locations: Record<string, LatLng> }>) : null))
-      .then((j) => {
-        if (alive) setLocations(j?.locations ?? {});
-      })
-      .catch(() => {
-        if (alive) setLocations({});
-      });
-    return () => {
-      alive = false;
-    };
+    const ctrl = new AbortController();
+    void getJson<{ locations: Record<string, LatLng> }>("/api/events/locations", ctrl.signal, { cache: "no-store" }).then((j) => {
+      if (!ctrl.signal.aborted) setLocations(j?.locations ?? {});
+    });
+    return () => ctrl.abort();
   }, []);
 
   const place = async (id: string, location: string | null): Promise<boolean> => {

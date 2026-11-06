@@ -4,6 +4,7 @@
 // seller sees their own listings in every state, staff see the review queue. Writes go through
 // /api/listings, which decides status, price band and trust signals on the server.
 import { useCallback, useEffect, useState } from "react";
+import { getJson } from "@/lib/fetch-json";
 import type { SellerListing } from "@/lib/mock/useSellerListings";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import type { Provider } from "@/lib/tickets/ai";
@@ -158,14 +159,11 @@ export function useTicketFill(ask: boolean) {
   const [by, setBy] = useState<Provider | false | null>(null);
   useEffect(() => {
     if (!ask) return;
-    let alive = true;
-    void fetch("/api/tickets/extract")
-      .then((r) => (r.ok ? (r.json() as Promise<{ by?: string | null }>) : {}))
-      .catch(() => ({}))
-      .then((j: { by?: string | null }) => alive && setBy(j.by && j.by in FILL_BY ? (j.by as Provider) : false));
-    return () => {
-      alive = false;
-    };
+    const ctrl = new AbortController();
+    void getJson<{ by?: string | null }>("/api/tickets/extract", ctrl.signal).then((j) => {
+      if (!ctrl.signal.aborted) setBy(j?.by && j.by in FILL_BY ? (j.by as Provider) : false);
+    });
+    return () => ctrl.abort();
   }, [ask]);
   return ask ? by : false;
 }
@@ -175,14 +173,11 @@ export function useTicketReader(ask: boolean) {
   const [available, setAvailable] = useState<boolean | null>(null);
   useEffect(() => {
     if (!ask) return;
-    let alive = true;
-    void fetch("/api/tickets/check")
-      .then((r) => (r.ok ? (r.json() as Promise<{ available?: boolean }>) : { available: false }))
-      .catch(() => ({ available: false }))
-      .then((j) => alive && setAvailable(!!j.available));
-    return () => {
-      alive = false;
-    };
+    const ctrl = new AbortController();
+    void getJson<{ available?: boolean }>("/api/tickets/check", ctrl.signal).then((j) => {
+      if (!ctrl.signal.aborted) setAvailable(!!j?.available);
+    });
+    return () => ctrl.abort();
   }, [ask]);
   return ask ? available : false;
 }

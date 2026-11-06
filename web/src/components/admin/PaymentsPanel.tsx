@@ -40,22 +40,21 @@ export function usePaymentsOverview(active: boolean) {
   const [nonce, setNonce] = useState(0);
   useEffect(() => {
     if (!active) return;
-    let alive = true;
-    fetch("/api/admin/payments", { cache: "no-store" })
+    // Cancelled with the effect (lib/fetch-json); the body is read either way, for its error.
+    const ctrl = new AbortController();
+    fetch("/api/admin/payments", { cache: "no-store", signal: ctrl.signal })
       .then(async (r) => {
         const j = (await r.json().catch(() => ({}))) as PaymentsOverview & { error?: string };
-        if (!alive) return;
+        if (ctrl.signal.aborted) return;
         if (r.ok) {
           setData(j);
           setError(null);
         } else setError(j.error ?? `HTTP ${r.status}`);
       })
       .catch((e) => {
-        if (alive) setError(e instanceof Error ? e.message : String(e));
+        if (!ctrl.signal.aborted) setError(e instanceof Error ? e.message : String(e));
       });
-    return () => {
-      alive = false;
-    };
+    return () => ctrl.abort();
   }, [active, nonce]);
   const refresh = useCallback(() => setNonce((n) => n + 1), []);
   return { data, error, refresh };

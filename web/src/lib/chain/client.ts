@@ -4,6 +4,7 @@
 // Tidak ada kunci di sini. Checkout baru jadi transaksi sungguhan kalau server sanggup menulis DAN
 // perangkat ini memilih mode chain di panel dev, jadi pengunjung biasa dan demo-check tetap di data contoh.
 import { useCallback, useEffect, useState } from "react";
+import { getJson } from "@/lib/fetch-json";
 import { pollWhileVisible } from "@/lib/poll";
 
 export type WriteMode = "off" | "open" | "key";
@@ -130,18 +131,15 @@ export function useChainListing(listingId: string | undefined, intervalMs = 5000
   const [nonce, setNonce] = useState(0);
   useEffect(() => {
     if (!listingId) return;
-    let alive = true;
+    const ctrl = new AbortController();
     const load = () =>
-      fetch(`/api/chain/listing/${listingId}`)
-        .then((r) => (r.ok ? (r.json() as Promise<ChainListing>) : null))
-        .then((j) => {
-          if (alive && j) setData(j);
-        })
-        .catch(() => undefined);
-    load();
+      getJson<ChainListing>(`/api/chain/listing/${listingId}`, ctrl.signal).then((j) => {
+        if (!ctrl.signal.aborted && j) setData(j);
+      });
+    void load();
     const stop = pollWhileVisible(load, intervalMs);
     return () => {
-      alive = false;
+      ctrl.abort();
       stop();
     };
   }, [listingId, intervalMs, nonce]);
@@ -199,32 +197,35 @@ export function useChainHistory(listingId: string | undefined, intervalMs = 1500
   const settled = chainSettled(data?.live.status) && !data?.incomplete;
   useEffect(() => {
     if (!listingId) return;
-    let alive = true;
+    // Cancelled with the effect, and a refusal's body let go rather than left unread (lib/fetch-json).
+    const ctrl = new AbortController();
     const url = `/api/chain/history/${listingId}${source ? `?source=${source}` : ""}`;
-    const load = () =>
-      fetch(url)
-        .then(async (r) => {
-          if (r.ok) {
-            const j = (await r.json()) as ChainHistory;
-            if (!alive) return;
-            setData(j);
-            setState("ok");
-          } else if (alive) {
-            setState((s) => (s === "ok" ? s : r.status === 404 || r.status === 400 ? "missing" : "failed"));
-          }
-        })
-        .catch(() => {
-          if (alive) setState((s) => (s === "ok" ? s : "failed"));
-        });
-    load();
-    if (settled) {
-      return () => {
-        alive = false;
-      };
-    }
+    const load = async () => {
+      const r = await fetch(url, { signal: ctrl.signal }).catch(() => null);
+      if (ctrl.signal.aborted) return;
+      if (!r) {
+        setState((s) => (s === "ok" ? s : "failed"));
+        return;
+      }
+      if (!r.ok) {
+        void r.body?.cancel().catch(() => {});
+        setState((s) => (s === "ok" ? s : r.status === 404 || r.status === 400 ? "missing" : "failed"));
+        return;
+      }
+      const j = (await r.json().catch(() => null)) as ChainHistory | null;
+      if (ctrl.signal.aborted) return;
+      if (!j) {
+        setState((s) => (s === "ok" ? s : "failed"));
+        return;
+      }
+      setData(j);
+      setState("ok");
+    };
+    void load();
+    if (settled) return () => ctrl.abort();
     const stop = pollWhileVisible(load, intervalMs);
     return () => {
-      alive = false;
+      ctrl.abort();
       stop();
     };
   }, [listingId, intervalMs, nonce, settled, source]);

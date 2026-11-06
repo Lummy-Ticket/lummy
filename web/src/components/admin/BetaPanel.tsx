@@ -21,17 +21,19 @@ export function BetaPanel() {
   const [data, setData] = useState<BetaMetrics | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    let alive = true;
-    fetch("/api/admin/metrics")
+    // Cancelled with the effect (lib/fetch-json); the body is read either way, for its error.
+    const ctrl = new AbortController();
+    fetch("/api/admin/metrics", { signal: ctrl.signal })
       .then(async (r) => {
         const body = await r.json();
         if (!r.ok) throw new Error(body.error ?? `HTTP ${r.status}`);
         return body as BetaMetrics;
       })
-      .then((d) => alive && setData(d), (e) => alive && setError(e instanceof Error ? e.message : String(e)));
-    return () => {
-      alive = false;
-    };
+      .then(
+        (d) => !ctrl.signal.aborted && setData(d),
+        (e) => !ctrl.signal.aborted && setError(e instanceof Error ? e.message : String(e))
+      );
+    return () => ctrl.abort();
   }, []);
 
   if (error) return <p className="text-sm text-secondary-pink-dark">{error}</p>;
