@@ -44,7 +44,7 @@ const sections: LegalSection[] = [
     title: { en: "Selling", id: "Menjual" },
     list: [
       { en: "Only sell a ticket that is yours to sell. Each show page says what its organiser allows; shows that forbid resale cannot be listed.", id: "Jual hanya tiket yang memang berhak kamu jual. Halaman tiap acara menyebut aturan penyelenggaranya; acara yang melarang dijual ulang tidak bisa dipasang." },
-      { en: "The price must be between 50% and 150% of face value.", id: "Harga harus 50% sampai 150% dari harga asli." },
+      { en: "The price must be between 50% and 150% of face value, or under the lower ceiling a show's page states where its organiser's terms set one.", id: "Harga harus 50% sampai 150% dari harga asli, atau di bawah batas yang lebih rendah yang disebut halaman acara kalau aturan penyelenggaranya menetapkan begitu." },
       { en: "We read every barcode in the PDF. A barcode already held by another listing is refused, and an edited-looking file or a listing close to the show waits for a person to look at it.", id: "Kami membaca setiap barcode di PDF. Barcode yang sudah dipegang listing lain ditolak, dan file yang tampak diedit atau listing yang dekat dengan acara menunggu dicek manusia." },
       { en: "The buyer receives the whole file you upload. Selling the same ticket elsewhere as well is fraud.", id: "Pembeli menerima seluruh file yang kamu upload. Menjual tiket yang sama di tempat lain juga adalah penipuan." },
       { en: "You are paid after the show, once the claim window has passed without a claim, or as a decision says.", id: "Kamu dibayar setelah acara, begitu masa klaim lewat tanpa klaim, atau sesuai putusan." },
@@ -124,7 +124,7 @@ export default function TermsPage() {
   return (
     <LegalPage
       title={{ en: "Terms of use", id: "Syarat dan ketentuan" }}
-      effective={{ en: "5 Nov 2026", id: "5 Nov 2026" }}
+      effective={{ en: "7 Nov 2026", id: "7 Nov 2026" }}
       intro={{
         en: "The rules of buying and selling on Lummy Ticket. They are the same rules the app enforces.",
         id: "Aturan jual beli di Lummy Ticket. Isinya sama dengan aturan yang dijalankan aplikasinya.",

@@ -20,14 +20,18 @@ export const isBlocked = (ai: ListingAI) => ai.barcodeDuplicate;
 /** Tampering or a high score does not go live on its own: a person looks first. */
 export const isFlagged = (ai: ListingAI) => !ai.barcodeDuplicate && (ai.pdfSuspicious || ai.forgeryScore >= 60);
 
-/** Asking price per ticket: between FLOOR_PCT and CAP_PCT of face value (FR6, also a DB constraint). */
-export const priceBand = (faceValue: number) => ({
+/**
+ * Asking price per ticket: between FLOOR_PCT and the show's ceiling, CAP_PCT of face value unless the
+ * organiser's terms allow less (FR6; the database holds both, listings_price_band and
+ * listings_within_event_cap).
+ */
+export const priceBand = (faceValue: number, capPct: number = CAP_PCT) => ({
   floor: Math.round((faceValue * FLOOR_PCT) / 100),
-  cap: Math.round((faceValue * CAP_PCT) / 100),
+  cap: Math.round((faceValue * Math.min(capPct, CAP_PCT)) / 100),
 });
 
-export const inPriceBand = (askPrice: number, faceValue: number) =>
-  askPrice * 100 >= faceValue * FLOOR_PCT && askPrice * 100 <= faceValue * CAP_PCT;
+export const inPriceBand = (askPrice: number, faceValue: number, capPct: number = CAP_PCT) =>
+  askPrice * 100 >= faceValue * FLOOR_PCT && askPrice * 100 <= faceValue * Math.min(capPct, CAP_PCT);
 
 /** What buyers see as the seller: a first name and an initial, never the full name. */
 export function publicSellerName(fullName: string) {

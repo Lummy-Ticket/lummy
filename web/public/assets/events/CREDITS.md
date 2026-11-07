@@ -86,3 +86,35 @@ The licences cover the photographs only. Some Commons pages (for example the Sim
 - Licence: CC BY-SA 4.0 (Creative Commons Attribution-ShareAlike 4.0 International), https://creativecommons.org/licenses/by-sa/4.0/
 - Source: https://commons.wikimedia.org/wiki/File:Singapore_(SG),_Marina_Bay,_Night_View_--_2019_--_4682.jpg
 - Changes: cropped to 16:9 and resized
+
+## ev-nflying-jakarta.jpg
+
+- Photo: 180112 엔플라잉 (N.Flying on their way to KBS Music Bank, 12 January 2018; a still from a video the author published under CC BY)
+- Author: 뉴스인스타 (NewsInStar)
+- Licence: CC BY 3.0 (Creative Commons Attribution 3.0 Unported), https://creativecommons.org/licenses/by/3.0/
+- Source: https://commons.wikimedia.org/wiki/File:180112_%EC%97%94%ED%94%8C%EB%9D%BC%EC%9E%89.jpg
+- Changes: none (already 1600x900), re-encoded
+
+## ev-lalala-jakarta.jpg
+
+- Photo: Olivia Dean - 4476 (Olivia Dean at the New Pop Festival 2023), for LaLaLa Festival 2027, which she headlines
+- Author: Harald Krichel
+- Licence: CC BY-SA 4.0 (Creative Commons Attribution-ShareAlike 4.0 International), https://creativecommons.org/licenses/by-sa/4.0/
+- Source: https://commons.wikimedia.org/wiki/File:Olivia_Dean_-_4476.jpg
+- Changes: cropped to 16:9 and resized
+
+## ev-westlife-jakarta.jpg
+
+- Photo: Westlife2007 (Westlife, The Love Tour, Wembley, 2007)
+- Author: Siztrust
+- Licence: CC BY-SA 3.0 (Creative Commons Attribution-ShareAlike 3.0 Unported), https://creativecommons.org/licenses/by-sa/3.0/
+- Source: https://commons.wikimedia.org/wiki/File:Westlife2007.JPG
+- Changes: cropped to 16:9 and resized
+
+## ev-nancy-ajram.jpg
+
+- Photo: Istora Gelora Bung Karno, 3 March 2024 (the venue, not the show; no landscape photo of Nancy Ajram on Commons crops to 16:9 at this size)
+- Author: RasyaAbhirama13
+- Licence: CC BY-SA 4.0 (Creative Commons Attribution-ShareAlike 4.0 International), https://creativecommons.org/licenses/by-sa/4.0/
+- Source: https://commons.wikimedia.org/wiki/File:Istora_Gelora_Bung_Karno,_3_March_2024.jpg
+- Changes: cropped to 16:9 and resized

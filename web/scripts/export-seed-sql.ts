@@ -50,6 +50,7 @@ const sql = [
       transfer_policy: e.transferPolicy ?? null,
       country: e.country ?? "ID",
       currency: e.currency ?? "IDR",
+      cap_pct: e.capPct ?? 150,
     }))
   ),
   upsert(

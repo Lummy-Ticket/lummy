@@ -32,9 +32,9 @@ const DEMO_KEY = process.env.DEMO_KEY ?? "";
 const WRITE = process.env.WRITE === "1";
 const EXEC = process.env.CHROME ?? "/opt/google/chrome/chrome";
 /** A second ticket, so the edited one is not a duplicate of the first. */
-const SECOND = "LMY|ev-5sos-jakarta|CAT3|C-14|5555-6666-7777";
+const SECOND = "LMY|ev-westlife-jakarta|CAT3|C-14|5555-6666-7777";
 /** A third, a CAT 3 ticket the seller lists as CAT 4, for the AI cross-check. */
-const THIRD = "LMY|ev-5sos-jakarta|CAT3|C-15|8888-9999-0000";
+const THIRD = "LMY|ev-westlife-jakarta|CAT3|C-15|8888-9999-0000";
 
 const results: { name: string; ok: boolean; note?: string }[] = [];
 const check = (name: string, ok: boolean, note?: string) => results.push({ name, ok, note: ok ? undefined : note });
@@ -127,7 +127,7 @@ async function main() {
     ilovepdf: await rewrite(genuine, "iLovePDF"),
     none: await ticketPdf({ codes: [], producer: "Lummy test issuer PDF engine" }),
     two: await ticketPdf({
-      codes: [{ text: "LMY|ev-5sos-jakarta|CAT3|C-13|1111-2222-3333", format: "QRCode" }, { text: "TIX88427731", format: "Code128", vector: true }],
+      codes: [{ text: "LMY|ev-westlife-jakarta|CAT3|C-13|1111-2222-3333", format: "QRCode" }, { text: "TIX88427731", format: "Code128", vector: true }],
       producer: "Lummy test issuer PDF engine",
     }),
     // The genuine ticket's barcode, redrawn in another file under another name.
@@ -173,7 +173,7 @@ async function main() {
     check("genuine: the seller sees the last characters, never the payload", field === "QR ...2290" && !text.includes(GENUINE), field);
     check("genuine: no claim that AI read the file", !text.includes("AI fills in") && !text.includes("AI check"), text.slice(0, 160));
 
-    // --- The AI step fills the form in, when this server has one. The fixture prints 5 Seconds of Summer CAT 3.
+    // --- The AI step fills the form in, when this server has one. The fixture prints Westlife CAT 3.
     const info = (await (await fetch(`${BASE}/api/tickets/extract`)).json()) as { available?: boolean; by?: string | null };
     const fillOn = info.available === true;
     if (fillOn) {
@@ -203,7 +203,7 @@ async function main() {
       await result.waitFor({ timeout: 60000 });
       const outcome = await result.getAttribute("data-fill-result");
       const picked = `${await selects.nth(0).inputValue()} ${await selects.nth(1).inputValue()}`;
-      check("fill: the ticket picks its show and category", outcome === "filled" && picked === "ev-5sos-jakarta t-5sos-cat3", `${outcome} ${picked}`);
+      check("fill: the ticket picks its show and category", outcome === "filled" && picked === "ev-westlife-jakarta t-wl-cat3", `${outcome} ${picked}`);
       const shown = await result.innerText();
       check("fill: what was read is shown, with no name in it", shown.includes("CAT 3") && !/maya|kusuma/i.test(shown), shown);
 
@@ -235,7 +235,7 @@ async function main() {
       const left = `${await selects.nth(0).inputValue()}|${await selects.nth(1).inputValue()}`;
       check("fill: no show found, so no show or category stays picked, and going on waits for the seller's pick", left === "|" && (await goOn.isDisabled()), left);
       await page.unroute("**/api/tickets/extract");
-      await stub({ json: { outcome: "filled", facts: { ...read, date: "2025-01-01", tierId: "t-5sos-cat3", showId: "ev-5sos-jakarta" }, eventId: "ev-5sos-jakarta" } });
+      await stub({ json: { outcome: "filled", facts: { ...read, date: "2025-01-01", tierId: "t-wl-cat3", showId: "ev-westlife-jakarta" }, eventId: "ev-westlife-jakarta" } });
       await page.getByRole("button", { name: "Fill in again" }).click();
       const past = await page.locator("[data-fill-past]").innerText({ timeout: 15000 }).catch(() => "");
       check("fill: a ticket for a day already gone says so, and the listing stops there", past.includes("has passed") && (await goOn.isDisabled()), past);
@@ -276,8 +276,8 @@ async function main() {
       if (check.status !== 429) return { check, list: null };
       const listing = new FormData();
       listing.append("ticket", file);
-      listing.append("eventId", "ev-5sos-jakarta");
-      listing.append("tierId", "t-5sos-cat3");
+      listing.append("eventId", "ev-westlife-jakarta");
+      listing.append("tierId", "t-wl-cat3");
       listing.append("askPrice", "1250000");
       listing.append("holder", "Maya Kusuma");
       const listRes = await fetch("/api/listings", { method: "POST", body: listing });
@@ -306,13 +306,13 @@ async function main() {
         const ai = (first.data?.checks as { ai?: { model?: string; facts?: { tierId?: string | null }; differs?: string[] } } | null)?.ai;
         check(
           "publish: the server read the ticket again, and it agrees, so it is live",
-          !!ai?.model && ai.facts?.tierId === "t-5sos-cat3" && ai.differs?.length === 0 && first.data?.status === "active",
+          !!ai?.model && ai.facts?.tierId === "t-wl-cat3" && ai.differs?.length === 0 && first.data?.status === "active",
           JSON.stringify({ ai, status: first.data?.status })
         );
 
         // The seat the ticket prints reaches the buyer's listing (16 Oct feedback: "where would I sit?").
         const seat = (ai?.facts as { seat?: string | null } | undefined)?.seat;
-        await page.goto(`${BASE}/events/ev-5sos-jakarta`, { waitUntil: "networkidle" });
+        await page.goto(`${BASE}/events/ev-westlife-jakarta`, { waitUntil: "networkidle" });
         await page.getByRole("group", { name: "Number of tickets" }).getByRole("button", { name: "1", exact: true }).click();
         const shown = await page.locator(`[data-listing="${first.data?.id}"] [data-listing-seat]`).innerText({ timeout: 15000 }).catch(() => "");
         check("publish: the printed seat is on the buyer's listing", !!seat && shown.includes(seat), `${seat} | ${shown}`);
@@ -321,7 +321,7 @@ async function main() {
         const unnamed = await page.evaluate(async (pdf) => {
           const form = new FormData();
           form.append("ticket", new File([new Uint8Array(pdf)], "third.pdf", { type: "application/pdf" }));
-          for (const [k, v] of Object.entries({ eventId: "ev-5sos-jakarta", tierId: "t-5sos-cat3", askPrice: "1200000", quantity: "1" })) form.append(k, v);
+          for (const [k, v] of Object.entries({ eventId: "ev-westlife-jakarta", tierId: "t-wl-cat3", askPrice: "1200000", quantity: "1" })) form.append(k, v);
           const res = await fetch("/api/listings", { method: "POST", body: form });
           return { status: res.status, body: await res.json() };
         }, [...files.third]);
@@ -330,7 +330,7 @@ async function main() {
 
         // A CAT 3 ticket listed as CAT 4: a cheaper category would lower the cap, a dearer one raise it.
         await checked(page, "third.pdf", files.third);
-        await page.locator("select").nth(1).selectOption("t-5sos-cat4");
+        await page.locator("select").nth(1).selectOption("t-wl-cat4");
         await typeHolder(page);
         await page.getByRole("button", { name: "Continue to price" }).click();
         await page.locator("[data-consent]").check();
@@ -354,7 +354,7 @@ async function main() {
       check("same barcode: publish button says blocked", await page.getByRole("button", { name: "Blocked (duplicate)" }).isDisabled());
       const direct = await page.evaluate(async (bytes) => {
         const form = new FormData();
-        for (const [k, v] of Object.entries({ eventId: "ev-5sos-jakarta", tierId: "t-5sos-cat3", askPrice: "1500000", quantity: "1", splittable: "true", gateKtp: "false", holder: "Budi Santoso" })) form.append(k, v);
+        for (const [k, v] of Object.entries({ eventId: "ev-westlife-jakarta", tierId: "t-wl-cat3", askPrice: "1500000", quantity: "1", splittable: "true", gateKtp: "false", holder: "Budi Santoso" })) form.append(k, v);
         form.append("ticket", new Blob([new Uint8Array(bytes)], { type: "application/pdf" }), "redrawn.pdf");
         const r = await fetch("/api/listings", { method: "POST", body: form });
         return { status: r.status, body: await r.text() };
@@ -394,7 +394,7 @@ async function main() {
       await page.goto(`${BASE}/checkout?listing=${secondId}&qty=1`, { waitUntil: "networkidle" });
       // With QRIS on, Xendit's simulator pays the code (test mode, docs/09 §6).
       const qris = await page.locator("[data-qris-note]").isVisible();
-      // 5 Seconds of Summer matches the name to an ID at the gate, so the buyer says they know first.
+      // Westlife's tickets are bought in the name on an ID (id_match), so the buyer says they know first.
       const nameRisk = page.getByText(/my ID card matches the name/);
       if (await nameRisk.isVisible()) await nameRisk.click();
       await page.getByRole("button", { name: /^Pay / }).click();

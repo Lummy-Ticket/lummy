@@ -285,6 +285,7 @@ export type Database = {
       }
       events: {
         Row: {
+          cap_pct: number
           category: string
           city: string
           country: string
@@ -304,6 +305,7 @@ export type Database = {
           venue_lng: number | null
         }
         Insert: {
+          cap_pct?: number
           category: string
           city: string
           country?: string
@@ -325,6 +327,7 @@ export type Database = {
           venue_lng?: number | null
         }
         Update: {
+          cap_pct?: number
           category?: string
           city?: string
           country?: string
@@ -1018,6 +1021,7 @@ export type Database = {
     Views: {
       catalogue_events: {
         Row: {
+          cap_pct: number | null
           category: string | null
           city: string | null
           country: string | null

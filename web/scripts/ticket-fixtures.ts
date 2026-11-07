@@ -12,7 +12,7 @@ import { prepareZXingModule, writeBarcode } from "zxing-wasm/writer";
 import { packageFile } from "../src/lib/tickets/barcode";
 
 export const ISSUED = new Date("2026-09-01T10:00:00+07:00");
-export const GENUINE = "LMY|ev-5sos-jakarta|CAT3|C-12|8842-7731-2290";
+export const GENUINE = "LMY|ev-westlife-jakarta|CAT3|C-12|8842-7731-2290";
 
 export const latin1 = (s: string) => Uint8Array.from(s, (c) => c.charCodeAt(0) & 0xff);
 const asText = (b: Uint8Array) => new TextDecoder("latin1").decode(b);
@@ -67,13 +67,13 @@ export async function ticketPdf(o: {
   const font = await doc.embedFont(StandardFonts.Helvetica);
   for (const code of o.codes.length ? o.codes : [null]) {
     const page = doc.addPage([420, 595]);
-    // The catalogue's 5 Seconds of Summer second show (lib/mock/seed.ts): its day, name and venue, so
-    // a model that checks them against the show finds it, as it should not for the first night or
-    // the same tour elsewhere.
-    page.drawText("5SOS: EVERYONE'S A STAR! JAKARTA", { x: 36, y: 540, size: 16, font });
-    page.drawText("Minggu, 6 Desember 2026 - 18:00 WIB - Second Show", { x: 36, y: 524, size: 10, font });
+    // The catalogue's Westlife show in Jakarta (lib/mock/seed.ts): its day, name and venue, so a model
+    // that checks them against the show finds it, as it should not for the same tour elsewhere. (Until
+    // 7 Nov 2026 the fixture was 5 Seconds of Summer's second show, which is over on 6 Dec.)
+    page.drawText("WESTLIFE 25: THE ANNIVERSARY WORLD TOUR", { x: 36, y: 540, size: 13, font });
+    page.drawText("Sabtu, 23 Januari 2027 - 19:00 WIB - Live in Jakarta", { x: 36, y: 524, size: 10, font });
     page.drawText(`Name: ${o.name ?? "Maya Kusuma"}`, { x: 36, y: 506, size: 12, font });
-    page.drawText("CAT 3 - Row C - Seat 12 - Indonesia Arena", { x: 36, y: 490, size: 12, font });
+    page.drawText("CAT 3 - Row C - Seat 12 - Stadion Utama GBK", { x: 36, y: 490, size: 12, font });
     (o.extra ?? []).forEach((line, i) => page.drawText(line, { x: 36, y: 470 - i * 16, size: 10, font }));
     if (o.stamp) page.drawText(o.stamp, { x: 60, y: 360, size: 40, font, rotate: degrees(20), color: rgb(0.85, 0, 0), opacity: 0.4 });
     if (code) await drawCode(doc, page, code);

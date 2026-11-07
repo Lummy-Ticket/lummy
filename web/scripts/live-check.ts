@@ -8,7 +8,8 @@
  */
 import { FEATURES } from "../src/lib/features";
 import { PENALTY_NOTE, penaltyNoteFor } from "../src/lib/mock/escrow";
-import { SEED_LISTINGS } from "../src/lib/mock/seed";
+import { CAP_PCT, SEED_LISTINGS, capOf, seedEvents } from "../src/lib/mock/seed";
+import { inPriceBand, priceBand } from "../src/lib/listings/rules";
 import { moneyIsReal, moneyNow, paidListingAllowed, unpaidOrderAllowed } from "../src/lib/orders/unpaid";
 import { xenditConfig, xenditKeyIsLive } from "../src/lib/payments/xendit";
 
@@ -80,6 +81,19 @@ check("test money: the penalty is recorded, not charged", /not charged/.test(not
 check("payouts on, collection not built: the penalty is not collected yet", /not collected yet/.test(note(true, false).en) && /belum ditagih/.test(note(true, false).id));
 check("collection built: the penalty needs no note", note(true, true).en === "" && note(true, true).id === "");
 check("the site today says the penalty is not charged", PENALTY_NOTE.en !== "" && FEATURES.sellerPenalty === false);
+
+// A show's own price ceiling (events.cap_pct): 150% unless the organiser's terms allow less, as
+// N.Flying's forbid resale above the official price. A real show takes resale money once payments
+// are live, so a price its organiser forbids must never reach the catalogue (tasks 12.7).
+check("no ceiling set: 150% of face value, as before", capOf(null) === CAP_PCT && capOf({}) === CAP_PCT && priceBand(1_000_000).cap === 1_500_000 && inPriceBand(1_500_000, 1_000_000) && !inPriceBand(1_500_001, 1_000_000));
+check("a show at face value: the ceiling is the face value", priceBand(1_400_000, 100).cap === 1_400_000 && inPriceBand(1_400_000, 1_400_000, 100) && !inPriceBand(1_400_001, 1_400_000, 100));
+check("a show's ceiling never raises the 150% one", capOf({ capPct: 200 }) === CAP_PCT && priceBand(1_000_000, 200).cap === 1_500_000 && !inPriceBand(1_600_000, 1_000_000, 200));
+check("the floor stays 50% under any ceiling", priceBand(1_000_000, 100).floor === 500_000 && !inPriceBand(499_999, 1_000_000, 100));
+const shows = seedEvents();
+const nflying = shows.find((e) => e.id === "ev-nflying-jakarta");
+check("N.Flying's Jakarta show is held at face value, as Karalas Live's terms say", capOf(nflying) === 100, String(nflying?.capPct));
+const over = SEED_LISTINGS.filter((l) => !inPriceBand(l.askPrice, l.faceValue, capOf(shows.find((e) => e.id === l.eventId))));
+check("no seed listing sits outside its show's band", over.length === 0, over.map((l) => l.id).join(", "));
 
 for (const r of results) console.log(`${r.ok ? "PASS" : "FAIL"}  ${r.name}${r.note ? `  (${r.note})` : ""}`);
 const failed = results.filter((r) => !r.ok).length;

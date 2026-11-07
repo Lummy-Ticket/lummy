@@ -59,6 +59,11 @@ export interface EventItem {
   featured?: boolean;
   soldOut?: boolean;
   transferPolicy?: TransferPolicy | null;
+  /**
+   * Highest asking price, as a percentage of face value (events.cap_pct). Absent means CAP_PCT; lower
+   * where the organiser's terms allow less, as N.Flying's forbid reselling above the official price.
+   */
+  capPct?: number;
   /** Where the show is (ISO 3166 country code). Absent means Indonesia. */
   country?: string;
   /** Absent means IDR. */

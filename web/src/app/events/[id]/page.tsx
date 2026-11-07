@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { NotifyCard } from "@/components/events/NotifyCard";
 import { TransferPolicyNote } from "@/components/common/TransferPolicyNote";
 import {
-  getTier, isBuyable, clearedByStaff, isEventOver, isSaleClosed, resaleAllowed, CAP_PCT, SELLER_PENALTY_PCT, PENALTY_NOTE, type Listing, type EventItem,
+  getTier, isBuyable, clearedByStaff, isEventOver, isSaleClosed, resaleAllowed, capOf, SELLER_PENALTY_PCT, PENALTY_NOTE, type Listing, type EventItem,
 } from "@/lib/mock";
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 import { useCatalogue, useEventText } from "@/lib/catalogue";
@@ -352,7 +352,9 @@ export default function EventDetailPage() {
               <ul className="mt-4 flex flex-col gap-2.5 text-sm text-neutral-gray">
                 <li className="flex gap-2"><CheckCircle2 className="w-4 h-4 text-secondary-green-dark shrink-0 mt-0.5" /> {t("The seller is paid after the show, not before", "Penjual dibayar setelah acara, bukan sebelumnya")}</li>
                 <li className="flex gap-2"><CheckCircle2 className="w-4 h-4 text-secondary-green-dark shrink-0 mt-0.5" /> {t("Turned away with proof? Your money comes back", "Ditolak dengan bukti? Uangmu kembali")}</li>
-                <li className="flex gap-2"><CheckCircle2 className="w-4 h-4 text-secondary-green-dark shrink-0 mt-0.5" /> {t(`Every price is at most ${CAP_PCT}% of face value`, `Semua harga maksimal ${CAP_PCT}% dari harga asli`)}</li>
+                <li className="flex gap-2"><CheckCircle2 className="w-4 h-4 text-secondary-green-dark shrink-0 mt-0.5" /> {capOf(event) === 100
+                  ? t("No price above face value, as the organiser asks", "Tidak ada harga di atas harga resmi, sesuai aturan penyelenggara")
+                  : t(`Every price is at most ${capOf(event)}% of face value`, `Semua harga maksimal ${capOf(event)}% dari harga asli`)}</li>
               </ul>
               <Link href="/how-it-works" className="group mt-4 inline-flex items-center gap-1 text-xs font-medium text-primary-navy">
                 <span className="lm-underline">{t("How this works", "Cara kerjanya")}</span> <ArrowRight className="w-3.5 h-3.5 transition group-hover:translate-x-0.5" />

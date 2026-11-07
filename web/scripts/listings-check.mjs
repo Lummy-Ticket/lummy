@@ -37,8 +37,9 @@ const PLAIN_EMAIL = `listings-check-${run}@example.com`;
 let plainUserId = null;
 const pageErrors = [];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-// 5 Seconds of Summer CAT 3: face value 1,320,000, so the band is 660,000 to 1,980,000 per ticket.
-const FIVESOS_CAT3 = { eventId: "ev-5sos-jakarta", tierId: "t-5sos-cat3" };
+// Westlife CAT 3: face value 1,850,000, so the band is 925,000 to 2,775,000 per ticket. The sell
+// form starts on it (until 7 Nov 2026 on 5 Seconds of Summer's second show, over on 6 Dec).
+const WESTLIFE_CAT3 = { eventId: "ev-westlife-jakarta", tierId: "t-wl-cat3" };
 
 const browser = await chromium.launch({ executablePath: EXEC, args: ["--no-sandbox"] });
 
@@ -79,7 +80,7 @@ function withApi(context, page, user) {
 }
 
 const listingOf = async (id) => (await admin.from("listings").select("*").eq("id", id).maybeSingle()).data;
-const inCatalogue = async (id) => (await (await fetch(`${BASE}/events/ev-5sos-jakarta`)).text()).includes(id);
+const inCatalogue = async (id) => (await (await fetch(`${BASE}/events/ev-westlife-jakarta`)).text()).includes(id);
 /** The seller's newest listing made during this run. */
 const newestOf = async (sellerId) =>
   (await admin.from("listings").select("*").eq("seller_id", sellerId).gte("created_at", startedAt).order("created_at", { ascending: false }).limit(1)).data?.[0];
@@ -110,13 +111,13 @@ try {
   const staff = await signIn("ADMIN");
 
   // --- What the server refuses
-  const anon = await fetch(`${BASE}/api/listings`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...FIVESOS_CAT3, askPrice: 1_300_000, quantity: 1, sample: "good" }) });
+  const anon = await fetch(`${BASE}/api/listings`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...WESTLIFE_CAT3, askPrice: 1_300_000, quantity: 1, sample: "good" }) });
   check("jual tanpa masuk ditolak 401", anon.status === 401, String(anon.status));
-  check("harga di bawah 50% harga asli ditolak", (await seller.list({ ...FIVESOS_CAT3, askPrice: 500_000, quantity: 1, sample: "good" })).status() === 400);
-  check("harga di atas 150% harga asli ditolak", (await seller.list({ ...FIVESOS_CAT3, askPrice: 2_000_000, quantity: 1, sample: "good" })).status() === 400);
-  check("kategori dari acara lain ditolak", (await seller.list({ eventId: "ev-5sos-jakarta", tierId: "t-gnr-trib-b", askPrice: 2_300_000, quantity: 1, sample: "good" })).status() === 400);
-  check("file di luar tiket contoh ditolak", (await seller.list({ ...FIVESOS_CAT3, askPrice: 1_300_000, quantity: 1, sample: "real.pdf" })).status() === 400);
-  check("barcode duplikat diblokir 409", (await seller.list({ ...FIVESOS_CAT3, askPrice: 1_300_000, quantity: 1, sample: "dup" })).status() === 409);
+  check("harga di bawah 50% harga asli ditolak", (await seller.list({ ...WESTLIFE_CAT3, askPrice: 500_000, quantity: 1, sample: "good" })).status() === 400);
+  check("harga di atas 150% harga asli ditolak", (await seller.list({ ...WESTLIFE_CAT3, askPrice: 2_800_000, quantity: 1, sample: "good" })).status() === 400);
+  check("kategori dari acara lain ditolak", (await seller.list({ eventId: "ev-westlife-jakarta", tierId: "t-gnr-trib-b", askPrice: 2_300_000, quantity: 1, sample: "good" })).status() === 400);
+  check("file di luar tiket contoh ditolak", (await seller.list({ ...WESTLIFE_CAT3, askPrice: 1_300_000, quantity: 1, sample: "real.pdf" })).status() === 400);
+  check("barcode duplikat diblokir 409", (await seller.list({ ...WESTLIFE_CAT3, askPrice: 1_300_000, quantity: 1, sample: "dup" })).status() === 409);
 
   // --- A clean sample goes live straight away
   await seller.page.goto(`${BASE}/sell`, { waitUntil: "networkidle" });
@@ -129,7 +130,7 @@ try {
   await listFromPage(seller, "Genuine ticket", "Publish listing");
   const live = await newestOf(seller.user.id);
   check("listing tersimpan atas nama penjual, dengan nama publik yang disingkat", live?.status === "active" && live.seller_name === "Maya K.", `${live?.status} ${live?.seller_name}`);
-  check("harga asli diambil server dari kategori", live?.face_value === 1_320_000 && live.ask_price === 1_518_000, `${live?.face_value} ${live?.ask_price}`);
+  check("harga asli diambil server dari kategori", live?.face_value === 1_850_000 && live.ask_price === 2_127_500, `${live?.face_value} ${live?.ask_price}`);
   check("sinyal AI dari tabel server", live?.forgery_score === 9 && !live.pdf_suspicious && live.extraction?.sample === "good");
   // The dashboard reads the account's listings after it loads, so give the read a moment.
   check(
@@ -176,7 +177,7 @@ try {
   check("dasbor penjual menandai yang terjual", (await seller.page.locator(`[data-listing="${live?.id}"]`).innerText()).includes("Sold"));
 
   // --- The seller withdraws one; nobody else can
-  const extra = await seller.list({ ...FIVESOS_CAT3, askPrice: 1_250_000, quantity: 2, sample: "good" });
+  const extra = await seller.list({ ...WESTLIFE_CAT3, askPrice: 1_250_000, quantity: 2, sample: "good" });
   const extraId = extra.ok() ? (await extra.json()).id : null;
   check("pembeli tidak bisa menarik listing orang lain", (await buyer.act(extraId, "withdraw")).status() === 403);
   await seller.page.goto(`${BASE}/seller`, { waitUntil: "networkidle" });
@@ -197,10 +198,10 @@ try {
   await openSignInLink(plainPage, `${BASE}/auth/confirm?token_hash=${link.data.properties?.hashed_token}&type=email`);
   const plain = withApi(plainContext, plainPage, { id: plainUserId });
   const three = [];
-  for (let i = 0; i < 3; i++) three.push((await plain.list({ ...FIVESOS_CAT3, askPrice: 1_200_000, quantity: 1, sample: "good" })).status());
+  for (let i = 0; i < 3; i++) three.push((await plain.list({ ...WESTLIFE_CAT3, askPrice: 1_200_000, quantity: 1, sample: "good" })).status());
   check("akun biasa: tiga listing boleh", three.every((c) => c === 200), three.join(","));
-  check("akun biasa: listing keempat ditolak 429", (await plain.list({ ...FIVESOS_CAT3, askPrice: 1_200_000, quantity: 1, sample: "good" })).status() === 429);
-  check("akun demo tidak kena batas itu", (await seller.list({ ...FIVESOS_CAT3, askPrice: 1_200_000, quantity: 1, sample: "good" })).ok());
+  check("akun biasa: listing keempat ditolak 429", (await plain.list({ ...WESTLIFE_CAT3, askPrice: 1_200_000, quantity: 1, sample: "good" })).status() === 429);
+  check("akun demo tidak kena batas itu", (await seller.list({ ...WESTLIFE_CAT3, askPrice: 1_200_000, quantity: 1, sample: "good" })).ok());
   await plainContext.close();
 } catch (e) {
   check("alur listing selesai tanpa macet", false, e.message.split("\n")[0].slice(0, 200));

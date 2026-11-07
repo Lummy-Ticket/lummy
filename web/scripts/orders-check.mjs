@@ -42,8 +42,8 @@ const run = Date.now().toString(36);
 const L1 = `ls-check-${run}-a`;
 const L2 = `ls-check-${run}-b`;
 const L3 = `ls-check-${run}-c`;
-// A seed listing the reset must put back on sale (quantity 2, active in the seed).
-const SEED_TOUCHED = "ls-12";
+// A seed listing the reset must put back on sale (quantity 2, active in the seed), on Westlife.
+const SEED_TOUCHED = "ls-34";
 // An ordinary account for that limit. Created without sending any email and deleted at the end.
 const PLAIN_EMAIL = `orders-check-${run}@example.com`;
 let plainUserId = null;
@@ -104,7 +104,7 @@ try {
   const seller = await signIn("SELLER");
   const staff = await signIn("ADMIN");
 
-  const base = { event_id: "ev-5sos-jakarta", tier_id: "t-5sos-cat4", ask_price: 1000000, face_value: 910000, status: "active", gate_ktp: true };
+  const base = { event_id: "ev-westlife-jakarta", tier_id: "t-wl-cat6", ask_price: 1000000, face_value: 850000, status: "active", gate_ktp: true };
   const made = await admin.from("listings").insert([
     { ...base, id: L1, seller_id: seller.user.id, seller_name: seller.user.name, quantity: 2, splittable: true },
     { ...base, id: L2, seller_id: null, seller_name: "Lummy test", quantity: 1, splittable: false },
@@ -142,8 +142,8 @@ try {
   if (CHAIN) check("checkout: mode chain aktif", await buyer.page.getByText("Chain mode: a real escrow", { exact: false }).isVisible());
   else if (qris) check("checkout: bayar lewat QRIS mode test", true);
   else check("checkout: bilang pembayarannya simulasi", await buyer.page.locator("[data-simulated-payment]").isVisible());
-  // Where the gate matches the ID to the name (events.transfer_policy id_match, as for 5 Seconds of
-  // Summer on SODTix's terms), Pay waits until the buyer says they understand that risk.
+  // Where the gate matches the ID to the name (events.transfer_policy id_match, as for Westlife on
+  // Sound Rhythm's terms), Pay waits until the buyer says they understand that risk.
   const pay = buyer.page.getByRole("button", { name: /^Pay Rp/ });
   const nameRisk = buyer.page.getByRole("checkbox", { name: /my ID card matches the name on the ticket/ });
   const { data: show } = await admin.from("events").select("transfer_policy").eq("id", base.event_id).single();
@@ -157,7 +157,7 @@ try {
   if (qris) await buyer.page.locator("[data-qris-simulate]").click();
   await buyer.page.waitForURL(/\/tickets\/or-/, { timeout: CHAIN ? 120000 : 30000 });
   const orderId = new URL(buyer.page.url()).pathname.split("/").pop();
-  await buyer.page.getByRole("heading", { name: "5 Seconds of Summer: Everyone's a Star! Jakarta" }).waitFor();
+  await buyer.page.getByRole("heading", { name: "Westlife 25: The Anniversary World Tour, Jakarta" }).waitFor();
   check("checkout mendarat di tiket yang baru dibeli", orderId.startsWith("or-"), orderId);
   check("tiket akun tanpa kontrol prototipe", !(await buyer.page.getByText("Prototype controls").isVisible()));
 
@@ -169,13 +169,13 @@ try {
   if (CHAIN) {
     check("escrow on-chain tercatat", /^0x[0-9a-f]{64}$/.test(o1?.onchain_listing_id ?? "") && !!o1.tx_fund && o1.escrow_status === "DisputeWindow", o1?.escrow_status);
   } else {
-    check("jadwal acara jadi awal masa sengketa", endsAt === new Date("2026-12-06T18:00:00+07:00").getTime() + 4 * 3_600_000, o1?.event_ends_at);
+    check("jadwal acara jadi awal masa sengketa", endsAt === new Date("2027-01-23T19:00:00+07:00").getTime() + 4 * 3_600_000, o1?.event_ends_at);
     check("pembayaran simulasi: tanpa escrow on-chain", !o1?.onchain_listing_id && o1?.escrow_status === "Funded");
   }
   check("sebagian set dibeli: sisa 1 tetap dijual", JSON.stringify(await listingOf(L1)) === JSON.stringify({ quantity: 1, status: "active" }));
 
   // The catalogue is in every page: the sold listing is gone, the one with a seat left is not.
-  const html = await (await fetch(`${BASE}/events/ev-5sos-jakarta`)).text();
+  const html = await (await fetch(`${BASE}/events/ev-westlife-jakarta`)).text();
   check("katalog langsung diperbarui", html.includes(L1) && !html.includes(L2));
 
   // --- Who can read which order, through the database API with each account's own token
@@ -356,7 +356,7 @@ try {
     heldEscrow = held?.onchain_listing_id ?? null;
     check("pesanan chain yang masih menahan dana dibuat", !!heldEscrow);
   }
-  check("sebelum reset: listing seed yang habis hilang dari katalog", extra.ok() && !(await (await fetch(`${BASE}/events/ev-5sos-jakarta`)).text()).includes(SEED_TOUCHED));
+  check("sebelum reset: listing seed yang habis hilang dari katalog", extra.ok() && !(await (await fetch(`${BASE}/events/ev-westlife-jakarta`)).text()).includes(SEED_TOUCHED));
 
   // From the Dev Panel, as a presenter would: two clicks, then the page loads again.
   await buyer.page.evaluate((key) => {
@@ -392,7 +392,7 @@ try {
     check("reset: masa sengketa satu pesanan sedang berjalan", windowLeft > 0 && windowLeft < 48 * 3_600_000, String(windowLeft));
   }
   check("reset: listing seed yang habis dijual lagi", JSON.stringify(await listingOf(SEED_TOUCHED)) === JSON.stringify({ quantity: 2, status: "active" }));
-  check("reset: katalog langsung ikut", (await (await fetch(`${BASE}/events/ev-5sos-jakarta`)).text()).includes(SEED_TOUCHED));
+  check("reset: katalog langsung ikut", (await (await fetch(`${BASE}/events/ev-westlife-jakarta`)).text()).includes(SEED_TOUCHED));
   if (CHAIN) {
     const live = await (await fetch(`${BASE}/api/chain/listing/${heldEscrow}`)).json();
     check("reset: escrow yang masih terkunci dikembalikan ke pembeli di kontrak", live.status === "Refunded", live.status ?? live.error);

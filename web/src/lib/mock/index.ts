@@ -3,6 +3,7 @@ export { useSessionChecked, useUser } from "./useUser";
 export {
   CAP_PCT,
   FLOOR_PCT,
+  capOf,
   DEMO_USERS,
   SEED_LISTINGS,
   getEvents,

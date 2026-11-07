@@ -180,16 +180,16 @@ export async function POST(req: Request) {
     const linked = await admin.from("listings").update({ seller_id: seller }).in("id", seedIds).eq("seller_name", sellerName);
     if (linked.error) return fail(500, linked.error.message);
     const flagged = SAMPLE_SIGNALS.edited;
-    const HELD_EVENT_ID = "ev-5sos-jakarta";
+    const HELD_EVENT_ID = "ev-westlife-jakarta";
     // On a show staff have changed, the flagged listing is not put back in the queue.
     const heldListing = !asSeeded.has(HELD_EVENT_ID) ? { error: null } : await admin.from("listings").upsert({
       id: HELD_LISTING_ID,
       event_id: HELD_EVENT_ID,
-      tier_id: "t-5sos-cat3",
+      tier_id: "t-wl-cat3",
       seller_id: seller,
       seller_name: sellerName,
-      ask_price: 1_450_000,
-      face_value: 1_320_000,
+      ask_price: 2_000_000,
+      face_value: 1_850_000,
       quantity: 1,
       splittable: false,
       gate_ktp: false,

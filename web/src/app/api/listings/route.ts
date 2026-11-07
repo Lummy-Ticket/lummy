@@ -1,5 +1,6 @@
 // A listing from an account. The server decides everything that matters: the face value comes
-// from the tier, the price must sit in the 50-150% band, a listing flagged by the checks or posted
+// from the tier, the price must sit in the show's band (50-150%, lower where the organiser's terms
+// say so: events.cap_pct), a listing flagged by the checks or posted
 // close to doors waits for a person, and a barcode already sold is refused. The ticket is either
 // a real PDF, checked here (lib/tickets) and kept in the private bucket, or one of the sample
 // tickets, whose signals come from the server's own table (lib/listings/rules.ts). With an AI
@@ -11,6 +12,7 @@ import { notifyListingLive } from "@/lib/email/notify";
 import { emailDeadline } from "@/lib/email/send";
 import { FEATURES } from "@/lib/features";
 import { isLateListing } from "@/lib/mock/escrow";
+import { capOf } from "@/lib/mock/seed";
 import { resaleAllowed } from "@/lib/mock/transfer";
 import type { ListingAI } from "@/lib/mock/types";
 import { SAMPLE_SIGNALS, inPriceBand, isBlocked, isFlagged, isSampleTicket, publicSellerName } from "@/lib/listings/rules";
@@ -137,7 +139,7 @@ export async function POST(req: Request) {
   if (!Number.isInteger(quantity) || quantity < 1 || quantity > MAX_QUANTITY) return fail(400, `jumlah tiket 1 sampai ${MAX_QUANTITY}`);
 
   const [ev, tier] = await Promise.all([
-    admin.from("catalogue_events").select("starts_at, status, transfer_policy, currency, title, venue, city").eq("id", eventId).maybeSingle(),
+    admin.from("catalogue_events").select("starts_at, status, transfer_policy, currency, title, venue, city, cap_pct").eq("id", eventId).maybeSingle(),
     admin.from("tiers").select("face_value").eq("id", tierId).eq("event_id", eventId).maybeSingle(),
   ]);
   if (ev.error || tier.error) return fail(500, (ev.error ?? tier.error)!.message);
@@ -151,7 +153,9 @@ export async function POST(req: Request) {
     return fail(409, "acara ini sudah dimulai atau dibatalkan");
   }
   const faceValue = tier.data.face_value;
-  if (!inPriceBand(askPrice, faceValue)) return fail(400, "harga harus di antara 50% dan 150% harga asli");
+  // The show's own ceiling, lower than 150% where its organiser's terms say so (events.cap_pct).
+  const capPct = capOf({ capPct: ev.data.cap_pct ?? undefined });
+  if (!inPriceBand(askPrice, faceValue, capPct)) return fail(400, `harga harus di antara 50% dan ${capPct}% harga asli`);
 
   // Duplicate-pass fraud clusters in the hours before doors, so late listings are reviewed too.
   const late = isLateListing(ev.data.starts_at);

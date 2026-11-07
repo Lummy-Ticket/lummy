@@ -358,8 +358,8 @@ export default function HowItWorks() {
       Icon: Tag,
       title: t("Set your price", "Pasang harga"),
       body: t(
-        `Anywhere from ${FLOOR_PCT}% to ${CAP_PCT}% of face value. Listing is free: the buyer pays the service fee on top, so the price you set is what you receive.`,
-        `Bebas dari ${FLOOR_PCT}% sampai ${CAP_PCT}% harga asli. Pasang listing gratis: pembeli yang bayar biaya layanan, jadi harga yang kamu pasang itulah yang kamu terima.`
+        `Anywhere from ${FLOOR_PCT}% to ${CAP_PCT}% of face value, or lower where the organiser's terms set a lower ceiling; the show's page says so. Listing is free: the buyer pays the service fee on top, so the price you set is what you receive.`,
+        `Bebas dari ${FLOOR_PCT}% sampai ${CAP_PCT}% harga asli, atau lebih rendah kalau aturan penyelenggaranya menetapkan batas sendiri; halaman acaranya menyebutnya. Pasang listing gratis: pembeli yang bayar biaya layanan, jadi harga yang kamu pasang itulah yang kamu terima.`
       ),
       state: t("Live, open to buyers", "Tayang untuk pembeli"),
       tone: "held",

@@ -220,7 +220,7 @@ async function pdfChecks() {
   });
   const r = await prepareForExtraction(pdf, ["Maya Kusuma"]);
   const out = r.ok ? r.text : "";
-  check("a real PDF: its ticket text goes, cleaned", r.ok && out.includes("5SOS: EVERYONE'S A STAR! JAKARTA") && out.includes("Indonesia Arena") && out.includes("6 Desember 2026") && out.includes("Rp 1.250.000"), JSON.stringify(r).slice(0, 300));
+  check("a real PDF: its ticket text goes, cleaned", r.ok && out.includes("WESTLIFE 25: THE ANNIVERSARY WORLD TOUR") && out.includes("Stadion Utama GBK") && out.includes("23 Januari 2027") && out.includes("Rp 1.250.000"), JSON.stringify(r).slice(0, 300));
   check(
     "the code the decoder read is gone from the text, with the name, email, phone and order code",
     r.ok && r.removed.payload >= 1 && !out.includes("8842-7731-2290") && !/maya|kusuma/i.test(out) && !out.includes("0813") && !out.includes("TL77QX19"),
@@ -235,13 +235,13 @@ async function pdfChecks() {
   check("a real PDF, holder typed one letter off or as someone else: nothing sent", [typo, other].every((x) => !x.ok && x.reason === "holder_not_found"), JSON.stringify([typo, other]));
   // A PDF of four tickets: each page's barcode counts one, and the facts read say four, as the
   // listing will (the fake model, offline, reads one).
-  const codes = [1, 2, 3, 4].map((n) => ({ text: `LMY|ev-5sos-jakarta|CAT3|C-${20 + n}|4444-5555-000${n}`, format: "QRCode" as const }));
+  const codes = [1, 2, 3, 4].map((n) => ({ text: `LMY|ev-westlife-jakarta|CAT3|C-${20 + n}|4444-5555-000${n}`, format: "QRCode" as const }));
   const fourPdf = await ticketPdf({ codes, producer: "Lummy test issuer PDF engine" });
   const read = await prepareForExtraction(fourPdf, [], { holder: "Maya Kusuma" });
   check("a PDF of four tickets: four barcodes, and all four pages go", read.ok && read.barcodes === 4 && read.pages.join() === "1,2,3,4", JSON.stringify(read).slice(0, 200));
   process.env.AI_PROVIDER = "fake";
-  const facts = await readTicketFacts(fourPdf, { holder: "Maya Kusuma", names: [] }, { tiers: [{ id: "t-5sos-cat3", name: "CAT 3" }] });
-  check("and the quantity read agrees with the barcodes", facts.ok && facts.facts.quantity === 4 && facts.facts.tierId === "t-5sos-cat3", JSON.stringify(facts));
+  const facts = await readTicketFacts(fourPdf, { holder: "Maya Kusuma", names: [] }, { tiers: [{ id: "t-wl-cat3", name: "CAT 3" }] });
+  check("and the quantity read agrees with the barcodes", facts.ok && facts.facts.quantity === 4 && facts.facts.tierId === "t-wl-cat3", JSON.stringify(facts));
   const blank = await PDFDocument.create();
   blank.addPage([420, 595]);
   const scanned = await prepareForExtraction(await blank.save(), []);

@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { TransferPolicyNote } from "@/components/common/TransferPolicyNote";
 import {
-  getTier, CAP_PCT, FLOOR_PCT, useSellerListings, useUser, type ListingAI,
+  getTier, CAP_PCT, FLOOR_PCT, capOf, useSellerListings, useUser, type ListingAI,
   isLateListing, LATE_LISTING_H, resaleAllowed, SELLER_PENALTY_PCT, PENALTY_NOTE,
 } from "@/lib/mock";
 import { SAMPLE_SIGNALS, type SampleTicket } from "@/lib/listings/rules";
@@ -141,8 +141,10 @@ function SellForm() {
   const params = useSearchParams();
   const askedId = params.get("event");
   const asked = askedId ? events.find((e) => e.id === askedId && resaleAllowed(e.transferPolicy)) : undefined;
-  const [eventId, setEventId] = useState(asked?.id ?? "ev-5sos-jakarta");
-  const [tierId, setTierId] = useState(asked ? asked.tiers[0]?.id ?? "" : "t-5sos-cat3");
+  // The form starts on a show still to come, the one the sample tickets (public/samples) print;
+  // moved on with the catalogue as shows pass (tasks 12.7).
+  const [eventId, setEventId] = useState(asked?.id ?? "ev-westlife-jakarta");
+  const [tierId, setTierId] = useState(asked ? asked.tiers[0]?.id ?? "" : "t-wl-cat3");
   const [orderer, setOrderer] = useState("");
   // With the AI step on, a real ticket is read by a model, here and again at publish. The original
   // buyer's name, typed as printed, is what keeps it out of what the model reads, so it comes first.
@@ -164,7 +166,9 @@ function SellForm() {
   const event = catalogue.eventById(eventId);
   const tier = event ? getTier(event, tierId) : undefined;
   const faceValue = tier?.faceValue ?? 0;
-  const cap = Math.round(faceValue * (CAP_PCT / 100));
+  // The show's own ceiling: lower than CAP_PCT where its organiser's terms say so (events.cap_pct).
+  const capPct = capOf(event);
+  const cap = Math.round(faceValue * (capPct / 100));
   const floor = Math.round(faceValue * (FLOOR_PCT / 100));
   const markup = faceValue ? Math.round((price / faceValue - 1) * 100) : 0;
 
@@ -468,7 +472,7 @@ function SellForm() {
                 demo account's upload is still only simulated (said above once a file is chosen). */}
             {!account && (
               <p data-sample-downloads className="mt-3 text-xs text-neutral-gray leading-relaxed">
-                {t("Want to try the upload itself? Download a sample PDF for 5 Seconds of Summer, Second Show, marked SAMPLE, not a real ticket:", "Mau coba upload-nya juga? Unduh PDF contoh untuk 5 Seconds of Summer, Second Show, bertanda CONTOH, bukan tiket asli:")}{" "}
+                {t("Want to try the upload itself? Download a sample PDF for Westlife in Jakarta, marked SAMPLE, not a real ticket:", "Mau coba upload-nya juga? Unduh PDF contoh untuk Westlife di Jakarta, bertanda CONTOH, bukan tiket asli:")}{" "}
                 {SAMPLES.map((s, i) => (
                   <span key={s.id}>
                     {i > 0 && " · "}
@@ -790,7 +794,7 @@ function SellForm() {
               className="w-full accent-primary-navy cursor-pointer"
             />
             {/* A slider of 10,000 steps is fiddly on a phone (about 2 px a step), so the price can
-                be typed as well; it is held to the 50 to 150% band when the field is left. */}
+                be typed as well; it is held to the show's band when the field is left. */}
             <label className="mt-3 flex items-center gap-3 text-xs text-neutral-gray">
               <span className="shrink-0">{t("Or type it", "Atau ketik")}</span>
               <span className="flex flex-1 items-center gap-1 rounded-xl border border-neutral-light-gray-1 px-3 py-2 text-sm text-neutral-black focus-within:border-primary-navy">
@@ -813,8 +817,15 @@ function SellForm() {
             <div className="flex justify-between items-center text-xs text-neutral-gray mt-2">
               <span className="flex flex-col"><span>{formatIDR(floor)}</span><span className="text-[10px]">{t("min 50%", "min 50%")}</span></span>
               <span className={`font-medium ${markup >= 0 ? "text-secondary-green-dark" : "text-secondary-orange-dark"}`}>{markup >= 0 ? `+${markup}%` : `${markup}%`} {t("vs face value", "dari harga asli")}</span>
-              <span className="flex flex-col text-right"><span>{formatIDR(cap)}</span><span className="text-[10px]">{t("max 150%", "maks 150%")}</span></span>
+              <span className="flex flex-col text-right"><span>{formatIDR(cap)}</span><span className="text-[10px]">{t(`max ${capPct}%`, `maks ${capPct}%`)}</span></span>
             </div>
+            {capPct < CAP_PCT && (
+              <p data-show-cap className="mt-2 text-xs text-neutral-gray">
+                {capPct === 100
+                  ? t("This show's organiser does not allow resale above face value.", "Penyelenggara acara ini melarang tiketnya dijual di atas harga resmi.")
+                  : t(`This show's organiser allows at most ${capPct}% of face value.`, `Penyelenggara acara ini membatasi harga paling tinggi ${capPct}% harga asli.`)}
+              </p>
+            )}
             {qty > 1 && (
               <div className="mt-4 pt-4 border-t border-dashed border-neutral-light-gray-1 flex justify-between text-sm">
                 <span className="text-neutral-gray">{t(`Total for ${qty} tickets (one set)`, `Total ${qty} tiket (1 set)`)}</span>

@@ -5,6 +5,8 @@ import { eventPoster } from "../poster";
 // Resale ceiling = 150% of face value (docs: price cap).
 export const CAP_PCT = 150;
 export const FLOOR_PCT = 50;
+/** A show's own ceiling: CAP_PCT unless its organiser's terms allow less (events.cap_pct), never more. */
+export const capOf = (e?: Pick<EventItem, "capPct"> | null) => Math.min(e?.capPct ?? CAP_PCT, CAP_PCT);
 
 // Made-up people, never the team's own names, on Lummy's own demo subdomain (no DNS, so no mail
 // can reach it), the same names and addresses as the presenter's demo accounts (lib/supabase/demo.ts).
@@ -30,6 +32,10 @@ const PHOTOS: Record<string, { image: string; imageCredit: string }> = {
   "ev-bbw-2026": { image: "/assets/events/ev-bbw-2026.jpg", imageCredit: "Photo of the convention centre: กสิณธร ราชโอรส, CC BY-SA 4.0, via Wikimedia Commons" },
   "ev-devcon-8": { image: "/assets/events/ev-devcon-8.jpg", imageCredit: "Photo of the Jio World Centre: Fuzheado, CC0, via Wikimedia Commons" },
   "ev-sbw-2026": { image: "/assets/events/ev-sbw-2026.jpg", imageCredit: "Photo of Marina Bay: Dietmar Rabich, CC BY-SA 4.0, via Wikimedia Commons" },
+  "ev-nflying-jakarta": { image: "/assets/events/ev-nflying-jakarta.jpg", imageCredit: "Photo: 뉴스인스타 (NewsInStar), CC BY 3.0, via Wikimedia Commons" },
+  "ev-lalala-jakarta": { image: "/assets/events/ev-lalala-jakarta.jpg", imageCredit: "Photo of Olivia Dean: Harald Krichel, CC BY-SA 4.0, via Wikimedia Commons" },
+  "ev-westlife-jakarta": { image: "/assets/events/ev-westlife-jakarta.jpg", imageCredit: "Photo of a Westlife concert: Siztrust, CC BY-SA 3.0, via Wikimedia Commons" },
+  "ev-nancy-ajram": { image: "/assets/events/ev-nancy-ajram.jpg", imageCredit: "Photo of Istora Senayan: RasyaAbhirama13, CC BY-SA 4.0, via Wikimedia Commons" },
 };
 const art = (id: string) => PHOTOS[id] ?? { image: eventPoster(id) };
 /** A show's picture, for orders that snapshot it. */
@@ -51,20 +57,28 @@ export const SEARCH_KEYWORDS: Record<string, string> = {
   "ev-bbw-2026": "bbw binance",
   "ev-devcon-8": "ethereum",
   "ev-sbw-2026": "sbw",
+  "ev-nflying-jakarta": "n flying nflying enflying",
+  "ev-lalala-jakarta": "lalala fest olivia dean",
+  "ev-westlife-jakarta": "westlife 25",
+  "ev-nancy-ajram": "nancy",
 };
 
 /**
  * Where each venue is, for the location check on claim photos (radius 1.5 km,
  * lib/evidence/server.ts). Taken from each venue's Wikipedia article, not guessed. Tennis Indoor
  * Senayan has no point of its own; its article leads to the Gelora Bung Karno complex it stands
- * in, so it takes that one. The Jio World Centre has none at all, so its show skips the check.
- * Mirrored as events.venue_lat and venue_lng.
+ * in, so it takes that one, and so does GBK Basket Hall, whose article has none either. Istora's
+ * point is the one its article's Wikidata item holds (Q15108473). The Jio World Centre has none at
+ * all, so its show skips the check. Mirrored as events.venue_lat and venue_lng.
  */
 export const VENUE_LOCATION: Record<string, { lat: number; lng: number }> = {
   "Stadion Utama GBK": { lat: -6.21858, lng: 106.80251 },
   "Stadion Madya GBK": { lat: -6.21694, lng: 106.79917 },
   "Indonesia Arena": { lat: -6.21472, lng: 106.80056 },
   "Tennis Indoor Senayan": { lat: -6.21858, lng: 106.80251 },
+  "GBK Basket Hall": { lat: -6.21858, lng: 106.80251 },
+  "Istora Senayan": { lat: -6.22033, lng: 106.80625 },
+  "ICE BSD City": { lat: -6.300258, lng: 106.636604 },
   "JIExpo Kemayoran": { lat: -6.1467, lng: 106.84568 },
   "Queen Sirikit National Convention Center": { lat: 13.723992, lng: 100.559222 },
 };
@@ -183,6 +197,67 @@ export const seedEvents = (): SeedEvent[] => [
       { id: "t-dwp-ga", name: "GA 3-Day Pass", faceValue: 2_100_000 },
     ],
   },
+  // January 2027 (tasks 12.7, researched 7 Nov 2026). BIGBANG (16 and 17 Jan), ENHYPEN (23 Jan) and
+  // Maroon 5 (5 Feb) are left out: their terms say a ticket resold or offered for sale becomes
+  // invalid, which is no_resale.
+  // N.Flying: Karalas Live's terms allow resale, but not above the official price, so this show's
+  // ceiling is face value. The time is on the promoter's own terms page.
+  {
+    id: "ev-nflying-jakarta", title: "2027 N.Flying LIVE &CON5: into REM in Jakarta", category: "Music",
+    dateISO: "2027-01-10T19:00:00+07:00", venue: "GBK Basket Hall", city: "Jakarta",
+    ...art("ev-nflying-jakarta"), transferPolicy: null, capPct: 100,
+    tiers: [
+      { id: "t-nf-cockpit", name: "Cockpit", faceValue: 3_400_000 },
+      { id: "t-nf-cloud9", name: "Cloud 9", faceValue: 3_400_000 },
+      { id: "t-nf-runway", name: "Runway", faceValue: 3_000_000 },
+      { id: "t-nf-skyline", name: "Skyline", faceValue: 2_500_000 },
+      { id: "t-nf-horizon", name: "Horizon", faceValue: 1_400_000 },
+    ],
+  },
+  // LaLaLa Festival: each ticket is registered to its own KTP or passport number, and a ticket passes
+  // to someone else with a letter of attorney signed by the original holder and a copy of their ID
+  // (Bank Mandiri's terms of sale). Prices are the normal price, after the Mandiri presale. The VVIP
+  // table for six (Rp30,000,000) is a package, not a ticket, so it is not a category here.
+  {
+    id: "ev-lalala-jakarta", title: "LaLaLa Festival 2027, Jakarta", category: "Music",
+    dateISO: "2027-01-17T19:00:00+07:00", venue: "ICE BSD City", city: "Tangerang",
+    ...art("ev-lalala-jakarta"), transferPolicy: "letter",
+    tiers: [
+      { id: "t-lll-vip", name: "VIP", faceValue: 2_850_000 },
+      { id: "t-lll-ga", name: "General Admission", faceValue: 1_850_000 },
+      { id: "t-lll-early", name: "Early Entry", faceValue: 1_550_000 },
+    ],
+  },
+  // Westlife, sold out since 23 May 2026. Sound Rhythm's terms: bought in the name on a valid ID and
+  // not changed after; tickets bought by traders to resell may be voided, and tickets from third
+  // parties are at the buyer's own risk.
+  {
+    id: "ev-westlife-jakarta", title: "Westlife 25: The Anniversary World Tour, Jakarta", category: "Music",
+    dateISO: "2027-01-23T19:00:00+07:00", venue: "Stadion Utama GBK", city: "Jakarta",
+    ...art("ev-westlife-jakarta"), featured: true, transferPolicy: "id_match",
+    tiers: [
+      { id: "t-wl-vip", name: "VIP Package", faceValue: 2_750_000 },
+      { id: "t-wl-cat1", name: "CAT 1", faceValue: 2_500_000 },
+      { id: "t-wl-cat2", name: "CAT 2", faceValue: 2_250_000 },
+      { id: "t-wl-cat3", name: "CAT 3", faceValue: 1_850_000 },
+      { id: "t-wl-cat4", name: "CAT 4", faceValue: 1_450_000 },
+      { id: "t-wl-cat5", name: "CAT 5", faceValue: 1_250_000 },
+      { id: "t-wl-cat6", name: "CAT 6", faceValue: 850_000 },
+    ],
+  },
+  // Nancy Ajram: the show opens at 19:30 WIB and she plays at 20:00 (the promoter's rundown).
+  {
+    id: "ev-nancy-ajram", title: "Nancy Ajram Live in Jakarta", category: "Music",
+    dateISO: "2027-01-30T19:30:00+07:00", venue: "Istora Senayan", city: "Jakarta",
+    ...art("ev-nancy-ajram"), transferPolicy: null,
+    tiers: [
+      { id: "t-na-vip", name: "VIP", faceValue: 5_000_000 },
+      { id: "t-na-diamond", name: "Diamond", faceValue: 3_250_000 },
+      { id: "t-na-festival", name: "Festival", faceValue: 1_500_000 },
+      { id: "t-na-platinum", name: "Platinum", faceValue: 1_250_000 },
+      { id: "t-na-gold", name: "Gold", faceValue: 1_000_000 },
+    ],
+  },
   {
     id: "ev-bbw-2026", title: "Binance Blockchain Week 2026", category: "Technology",
     dateISO: "2026-11-28T09:00:00+07:00", venue: "Queen Sirikit National Convention Center", city: "Bangkok",
@@ -249,6 +324,16 @@ export const SEED_LISTINGS: Listing[] = [
   // Held for a person to check: the PDF's structure looked edited, so it is shown "under review" and
   // cannot be bought until staff clear it, as a real account's flagged listing is.
   { id: "ls-29", eventId: "ev-dwp-2026", tierId: "t-dwp-ga", sellerName: "Dinda K.", askPrice: 2_250_000, faceValue: 2_100_000, quantity: 2, splittable: true, status: "active", gateKtp: false, ai: { autofilled: true, forgeryScore: 74, barcodeDuplicate: false, pdfSuspicious: true } },
+  // January 2027. N.Flying's ceiling is face value, so its listings sit at or under it.
+  { id: "ls-30", eventId: "ev-nflying-jakarta", tierId: "t-nf-horizon", sellerName: "Putri A.", askPrice: 1_400_000, faceValue: 1_400_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(6) },
+  { id: "ls-31", eventId: "ev-nflying-jakarta", tierId: "t-nf-skyline", sellerName: "Galih S.", askPrice: 2_350_000, faceValue: 2_500_000, quantity: 2, splittable: true, status: "active", gateKtp: false, ai: ok(8) },
+  { id: "ls-32", eventId: "ev-lalala-jakarta", tierId: "t-lll-ga", sellerName: "Tasya R.", askPrice: 2_100_000, faceValue: 1_850_000, quantity: 2, splittable: true, status: "active", gateKtp: false, ai: ok(7) },
+  { id: "ls-33", eventId: "ev-lalala-jakarta", tierId: "t-lll-vip", sellerName: "Bagas W.", askPrice: 3_200_000, faceValue: 2_850_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(9) },
+  { id: "ls-34", eventId: "ev-westlife-jakarta", tierId: "t-wl-cat6", sellerName: "Rina M.", askPrice: 1_100_000, faceValue: 850_000, quantity: 2, splittable: true, status: "active", gateKtp: false, ai: ok(5) },
+  { id: "ls-35", eventId: "ev-westlife-jakarta", tierId: "t-wl-cat3", sellerName: "Andika P.", askPrice: 2_300_000, faceValue: 1_850_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(8) },
+  { id: "ls-36", eventId: "ev-westlife-jakarta", tierId: "t-wl-vip", sellerName: "Lestari H.", askPrice: 3_400_000, faceValue: 2_750_000, quantity: 2, splittable: false, status: "active", gateKtp: false, ai: ok(10) },
+  { id: "ls-37", eventId: "ev-nancy-ajram", tierId: "t-na-gold", sellerName: "Farah Z.", askPrice: 1_150_000, faceValue: 1_000_000, quantity: 2, splittable: true, status: "active", gateKtp: false, ai: ok(6) },
+  { id: "ls-38", eventId: "ev-nancy-ajram", tierId: "t-na-diamond", sellerName: "Yusuf B.", askPrice: 3_600_000, faceValue: 3_250_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(9) },
   // Shows abroad, in micro-USDC. The cheapest sits at half its face value, so one faucet top-up buys it.
   { id: "ls-bbw-1", eventId: "ev-bbw-2026", tierId: "t-bbw-early", sellerName: "Arif T.", askPrice: 9_500_000, faceValue: 19_000_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(4) },
   { id: "ls-bbw-2", eventId: "ev-bbw-2026", tierId: "t-bbw-early", sellerName: "Mei L.", askPrice: 24_000_000, faceValue: 19_000_000, quantity: 2, splittable: true, status: "active", gateKtp: false, ai: ok(6) },
