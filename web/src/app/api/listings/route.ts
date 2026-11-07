@@ -27,6 +27,7 @@ import { factDiffs, isDuplicate, MIN_HOLDER_CHARS, reviewReasons, toListingCheck
 import { aiProvider } from "@/lib/tickets/ai";
 import { namesToTakeOut, readTicketFacts } from "@/lib/tickets/fill";
 import { TICKET_ERRORS, checkTicket, setKey, ticketPepper } from "@/lib/tickets/server";
+import { errorBody } from "@/lib/route-errors";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -40,7 +41,7 @@ export const maxDuration = 60;
 const OPEN_LISTING_LIMIT = 3;
 const MAX_QUANTITY = 8;
 const noStore = { "Cache-Control": "private, no-store" };
-const fail = (status: number, error: string) => NextResponse.json({ error }, { status, headers: noStore });
+const fail = (status: number, error: string) => NextResponse.json(errorBody(error), { status, headers: noStore });
 const DUPLICATE = "barcode ini sudah pernah dijual di Lummy, jadi listing diblokir";
 
 type Body = { eventId?: unknown; tierId?: unknown; askPrice?: unknown; quantity?: unknown; splittable?: unknown; gateKtp?: unknown; sample?: unknown; holder?: unknown };

@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { getJson } from "@/lib/fetch-json";
 import { OrderError } from "@/lib/orders/client";
 import type { PaymentView, PaymentsConfig, UsdcStart } from "./types";
+import { routeErrorText } from "@/lib/route-errors";
 
 export type { PaymentStatus, PaymentView, PaymentsConfig, TypedMessage, UsdcStart } from "./types";
 
@@ -28,8 +29,8 @@ export function usePaymentsConfig(active: boolean): PaymentsConfig | null {
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const r = await fetch(path, { cache: "no-store", ...init });
-  const json = (await r.json().catch(() => ({}))) as { error?: string };
-  if (!r.ok) throw new OrderError(json.error ?? `HTTP ${r.status}`, r.status);
+  const json = (await r.json().catch(() => ({}))) as { error?: string; error_en?: string };
+  if (!r.ok) throw new OrderError(routeErrorText(json, r.status), r.status);
   return json as T;
 }
 

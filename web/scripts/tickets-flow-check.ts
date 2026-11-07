@@ -260,7 +260,8 @@ async function main() {
     check("two tickets: both read and counted", text.includes("2 read, none listed before") && both === "QR ...3333, Code 128 ...7731", both);
 
     await upload(page, "photo.pdf", latin1("this is not a pdf at all"));
-    check("not a PDF: refused with the reason", await page.getByText("file ini bukan PDF").first().waitFor({ timeout: 30000 }).then(() => true, () => false));
+    // In the page's language since 7 Nov 2026 (lib/route-errors.ts): English on an English page.
+    check("not a PDF: refused with the reason", await page.getByText(/file ini bukan PDF|this file is not a PDF/).first().waitFor({ timeout: 30000 }).then(() => true, () => false));
 
     // --- With the account's PDF reads spent, a check and a listing are refused before the file is
     // read (production audit 2 Nov 2026, B3). The listing is asked only once the check was refused,

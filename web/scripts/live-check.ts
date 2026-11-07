@@ -12,6 +12,9 @@ import { CAP_PCT, SEED_LISTINGS, capOf, seedEvents } from "../src/lib/mock/seed"
 import { inPriceBand, priceBand } from "../src/lib/listings/rules";
 import { moneyIsReal, moneyNow, paidListingAllowed, unpaidOrderAllowed } from "../src/lib/orders/unpaid";
 import { xenditConfig, xenditKeyIsLive } from "../src/lib/payments/xendit";
+import { englishFor, errorBody } from "../src/lib/route-errors";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 
 const results: { name: string; ok: boolean; note?: string }[] = [];
 const check = (name: string, ok: boolean, note?: string) => results.push({ name, ok, note: ok ? undefined : note });
@@ -94,6 +97,32 @@ const nflying = shows.find((e) => e.id === "ev-nflying-jakarta");
 check("N.Flying's Jakarta show is held at face value, as Karalas Live's terms say", capOf(nflying) === 100, String(nflying?.capPct));
 const over = SEED_LISTINGS.filter((l) => !inPriceBand(l.askPrice, l.faceValue, capOf(shows.find((e) => e.id === l.eventId))));
 check("no seed listing sits outside its show's band", over.length === 0, over.map((l) => l.id).join(", "));
+
+// Every error a buyer or seller can meet on the way to paying (checkout, payments, orders, listings,
+// the ticket reader) reads in English on an English page (UX review 5 Nov 2026, decision 6): each
+// literal message those routes send, and the shared ones they pass on, has its English in
+// lib/route-errors.ts. A placeholder in a template message stands for any number or reason.
+const src = (f: string) => readFileSync(path.join(__dirname, "..", f), "utf8");
+const bilingual = [
+  "src/app/api/orders/route.ts", "src/app/api/orders/[id]/route.ts", "src/app/api/orders/[id]/ticket/route.ts",
+  "src/app/api/orders/[id]/evidence/route.ts", "src/app/api/orders/[id]/pass/route.ts", "src/app/api/payments/route.ts",
+  "src/app/api/payments/[id]/route.ts", "src/app/api/payments/[id]/usdc/route.ts", "src/app/api/listings/route.ts",
+  "src/app/api/listings/[id]/route.ts", "src/app/api/listings/[id]/ticket/route.ts", "src/app/api/tickets/check/route.ts",
+  "src/app/api/tickets/extract/route.ts", "src/lib/orders/create.ts", "src/lib/payments/checkout.ts",
+];
+const literal = (s: string) => s.replace(/\$\{[^}]*\}/g, "8");
+const messages = new Set<string>();
+for (const f of bilingual) for (const m of src(f).matchAll(/fail\(\s*\d+\s*,\s*(?:"([^"]+)"|`([^`]+)`)/g)) messages.add(literal(m[1] ?? m[2]));
+const block = (f: string, name: string) => src(f).match(new RegExp(`${name}[^=]*=\\s*\\{([\\s\\S]*?)\\n\\};`))?.[1] ?? "";
+for (const [f, name] of [["src/lib/rate.ts", "RATE_REFUSED"], ["src/lib/tickets/server.ts", "TICKET_ERRORS"]] as const) {
+  for (const m of block(f, name).matchAll(/:\s*(?:"([^"]+)"|`([^`]+)`)/g)) messages.add(literal(m[1] ?? m[2]));
+}
+const duplicate = src("src/app/api/listings/route.ts").match(/const DUPLICATE = "([^"]+)"/)?.[1];
+if (duplicate) messages.add(duplicate);
+const untranslated = [...messages].filter((m) => !englishFor(m));
+check(`every one of the ${messages.size} errors of checkout, payments, orders, listings and the ticket reader has its English`, messages.size > 90 && untranslated.length === 0, untranslated.join(" | ") || `only ${messages.size} found`);
+check("an error body carries both languages, and a message without English still goes out", errorBody("masuk dulu").error_en === "sign in first" && errorBody("permission denied for table x").error_en === undefined);
+check("a message with a number keeps it", englishFor("satu akun paling banyak punya 3 listing yang tayang atau direview") === "one account can have at most 3 listings live or in review");
 
 for (const r of results) console.log(`${r.ok ? "PASS" : "FAIL"}  ${r.name}${r.note ? `  (${r.note})` : ""}`);
 const failed = results.filter((r) => !r.ok).length;

@@ -8,13 +8,14 @@ import { MAX_TICKET_BYTES, TicketError } from "@/lib/tickets/analyze";
 import { TICKET_ERRORS, checkTicket, readerWorks, ticketPepper } from "@/lib/tickets/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { currentUser } from "@/lib/supabase/session";
+import { errorBody } from "@/lib/route-errors";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const noStore = { "Cache-Control": "private, no-store" };
-const fail = (status: number, error: string, code?: string) => NextResponse.json({ error, code }, { status, headers: noStore });
+const fail = (status: number, error: string, code?: string) => NextResponse.json({ ...errorBody(error), code }, { status, headers: noStore });
 
 /** Whether this deployment checks real PDFs: a pepper, a database and a reader that works. */
 export async function GET() {

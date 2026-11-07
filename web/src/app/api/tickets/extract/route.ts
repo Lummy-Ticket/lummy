@@ -14,13 +14,14 @@ import { MAX_TICKET_BYTES, TicketError } from "@/lib/tickets/analyze";
 import { MIN_HOLDER_CHARS } from "@/lib/tickets/checks";
 import { catalogueTiers, fillAllowed, namesToTakeOut, readTicketFacts } from "@/lib/tickets/fill";
 import { TICKET_ERRORS } from "@/lib/tickets/server";
+import { errorBody } from "@/lib/route-errors";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const noStore = { "Cache-Control": "private, no-store" };
-const fail = (status: number, error: string, code?: string) => NextResponse.json({ error, code }, { status, headers: noStore });
+const fail = (status: number, error: string, code?: string) => NextResponse.json({ ...errorBody(error), code }, { status, headers: noStore });
 
 /** Whether this server fills the form in from a ticket, and which AI reads it, for the page to name. */
 export async function GET() {

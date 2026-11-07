@@ -10,6 +10,7 @@ import { supabaseBrowser } from "@/lib/supabase/browser";
 import type { Provider } from "@/lib/tickets/ai";
 import type { ListingChecks, TicketCheck, TicketFacts } from "@/lib/tickets/checks";
 import type { SampleTicket } from "./rules";
+import { routeErrorText } from "@/lib/route-errors";
 
 /** Whose listings: one seller's (withdrawn ones left out), or everything waiting for review. */
 export type ListingScope = { seller: string } | { review: true };
@@ -106,8 +107,8 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     headers: form ? undefined : { "content-type": "application/json" },
     body: form ? body : JSON.stringify(body),
   });
-  const json = (await r.json().catch(() => ({}))) as { error?: string };
-  if (!r.ok) throw new ListingError(json.error ?? `HTTP ${r.status}`, r.status);
+  const json = (await r.json().catch(() => ({}))) as { error?: string; error_en?: string };
+  if (!r.ok) throw new ListingError(routeErrorText(json, r.status), r.status);
   return json as T;
 }
 

@@ -17,6 +17,7 @@ import { xenditConfig, xenditKeyIsLive } from "@/lib/payments/xendit";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { isDemoEmail } from "@/lib/supabase/demo";
 import { currentUser } from "@/lib/supabase/session";
+import { errorBody } from "@/lib/route-errors";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -30,7 +31,7 @@ const H = 3_600_000;
  */
 const OPEN_ORDER_LIMIT = 3;
 const noStore = { "Cache-Control": "private, no-store" };
-const fail = (status: number, error: string) => NextResponse.json({ error }, { status, headers: noStore });
+const fail = (status: number, error: string) => NextResponse.json(errorBody(error), { status, headers: noStore });
 const iso = (ms: number) => new Date(ms).toISOString();
 
 export async function POST(req: Request) {

@@ -8,6 +8,7 @@ import { PAYMENT_ID } from "@/lib/payments/checkout";
 import { submitUsdcPayment, usdcRail } from "@/lib/payments/usdc";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { currentUser } from "@/lib/supabase/session";
+import { errorBody } from "@/lib/route-errors";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -15,7 +16,7 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const noStore = { "Cache-Control": "private, no-store" };
-const fail = (status: number, error: string) => NextResponse.json({ error }, { status, headers: noStore });
+const fail = (status: number, error: string) => NextResponse.json(errorBody(error), { status, headers: noStore });
 /** A 65-byte signature, as wallets return it. */
 const signature = (v: unknown): v is `0x${string}` => typeof v === "string" && isHex(v) && v.length === 132;
 

@@ -8,6 +8,7 @@ import { demoPrefs } from "@/lib/chain/client";
 import type { DisputeEvidence, DisputeReason, EvidenceKind, Order, Remedy } from "@/lib/mock/types";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import { HELD, ORDER_SELECT, orderFromRow, type OrderRow } from "./map";
+import { routeErrorText } from "@/lib/route-errors";
 
 /** Which orders to read: bought by, sold by, one by id, or the open claims (staff). */
 export type OrderScope = { buyer: string } | { seller: string } | { id: string } | { openClaims: true };
@@ -110,8 +111,8 @@ async function send<T>(path: string, body: unknown, withKey = false): Promise<T>
     headers: { "content-type": "application/json", ...(key ? { "x-demo-key": key } : {}) },
     body: JSON.stringify(body),
   });
-  const json = (await r.json().catch(() => ({}))) as { error?: string };
-  if (!r.ok) throw new OrderError(json.error ?? `HTTP ${r.status}`, r.status);
+  const json = (await r.json().catch(() => ({}))) as { error?: string; error_en?: string };
+  if (!r.ok) throw new OrderError(routeErrorText(json, r.status), r.status);
   return json as T;
 }
 

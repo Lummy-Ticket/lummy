@@ -8,6 +8,7 @@ import { emailDeadline } from "@/lib/email/send";
 import type { Database } from "@/lib/supabase/types";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { currentUser } from "@/lib/supabase/session";
+import { errorBody } from "@/lib/route-errors";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -16,7 +17,7 @@ export const maxDuration = 60;
 
 type ListingStatus = Database["public"]["Enums"]["listing_status"];
 const noStore = { "Cache-Control": "private, no-store" };
-const fail = (status: number, error: string) => NextResponse.json({ error }, { status, headers: noStore });
+const fail = (status: number, error: string) => NextResponse.json(errorBody(error), { status, headers: noStore });
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const started = Date.now();

@@ -12,6 +12,7 @@ import { QRIS_MAX, xenditConfig } from "@/lib/payments/xendit";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { isDemoEmail } from "@/lib/supabase/demo";
 import { currentUser } from "@/lib/supabase/session";
+import { errorBody } from "@/lib/route-errors";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -20,7 +21,7 @@ export const maxDuration = 30;
 /** In test mode paying costs nothing, so the cap on open orders from POST /api/orders holds here too. */
 const OPEN_ORDER_LIMIT = 3;
 const noStore = { "Cache-Control": "private, no-store" };
-const fail = (status: number, error: string) => NextResponse.json({ error }, { status, headers: noStore });
+const fail = (status: number, error: string) => NextResponse.json(errorBody(error), { status, headers: noStore });
 
 export async function GET() {
   const cfg = xenditConfig();

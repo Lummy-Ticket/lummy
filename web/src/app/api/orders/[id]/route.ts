@@ -25,13 +25,14 @@ import { moneyIsReal, moneyNow } from "@/lib/orders/unpaid";
 import { isDemoEmail } from "@/lib/supabase/demo";
 import { currentUser } from "@/lib/supabase/session";
 import type { Json } from "@/lib/supabase/types";
+import { errorBody } from "@/lib/route-errors";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const noStore = { "Cache-Control": "private, no-store" };
-const fail = (status: number, error: string) => NextResponse.json({ error }, { status, headers: noStore });
+const fail = (status: number, error: string) => NextResponse.json(errorBody(error), { status, headers: noStore });
 const done = (extra: Record<string, unknown> = {}) => NextResponse.json({ ok: true, ...extra }, { headers: noStore });
 const text = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 const asJson = (v: object | undefined) => (v ? (v as unknown as Json) : null);

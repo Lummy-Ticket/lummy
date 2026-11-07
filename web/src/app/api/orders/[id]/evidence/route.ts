@@ -8,12 +8,13 @@ import type { DisputeEvidence } from "@/lib/mock/types";
 import { EVIDENCE_RETENTION_DAYS, evidenceGoneAt, isGone } from "@/lib/retention";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { currentUser } from "@/lib/supabase/session";
+import { errorBody } from "@/lib/route-errors";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const noStore = { "Cache-Control": "private, no-store" };
-const fail = (status: number, error: string) => NextResponse.json({ error }, { status, headers: noStore });
+const fail = (status: number, error: string) => NextResponse.json(errorBody(error), { status, headers: noStore });
 
 type Claim = { evidence: unknown; decided_at: string | null; dispute_replies: { from_seller: boolean; evidence: unknown }[] | null };
 type Row = { buyer_id: string; seller_id: string | null; disputes: Claim | Claim[] | null };
