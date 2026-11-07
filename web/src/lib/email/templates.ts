@@ -299,6 +299,40 @@ export function showCancelled(o: OrderFacts): Rendered {
   });
 }
 
+/**
+ * The account's payout account changed (api/profile/payout), told to the account so that a change its
+ * owner did not make is caught (production audit 2 Nov 2026, M7). Only the bank and the last four
+ * digits, never the whole number.
+ */
+export function payoutChanged(p: { bank: string; last4: string; at: string }): Rendered {
+  return render({
+    subject: { id: "Rekening pencairanmu diganti", en: "Your payout account was changed" },
+    about: `${p.bank} ...${p.last4}`,
+    heading: { id: "Rekening pencairan diganti", en: "Payout account changed" },
+    lines: [
+      {
+        id: `Rekening untuk pencairan hasil penjualanmu di Lummy sekarang ${p.bank} dengan nomor berakhiran ${p.last4}.`,
+        en: `The account your Lummy sales are paid out to is now ${p.bank}, number ending in ${p.last4}.`,
+      },
+      {
+        id: "Kalau bukan kamu yang menggantinya, balas email ini sekarang, lalu masuk dan ganti lagi dari halaman Profil.",
+        en: "If you did not change it, reply to this email now, then sign in and change it back from your profile.",
+      },
+    ],
+    facts: [
+      { label: { id: "Bank", en: "Bank" }, value: same(p.bank) },
+      { label: { id: "Nomor rekening", en: "Account number" }, value: same(`...${p.last4}`) },
+      { label: { id: "Waktu", en: "When" }, value: both((lang) => showDate(p.at, lang)) },
+    ],
+    action: { path: "/profile", label: { id: "Buka profil", en: "Open your profile" } },
+    note: FEATURES.payouts ? undefined : TEST_MODE_NOTE,
+    why: {
+      id: "Kamu menerima email ini karena rekening pencairan akunmu di Lummy diganti.",
+      en: "You get this email because the payout account of your Lummy account changed.",
+    },
+  });
+}
+
 export type ListingFacts = {
   eventId: string;
   eventTitle: string;

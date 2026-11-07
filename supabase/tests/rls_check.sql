@@ -85,6 +85,8 @@ select pg_temp.probe('authenticated', '44444444-4444-4444-4444-444444444444', 'a
 select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: make self admin', $q$update public.profiles set role = 'admin' where id = '11111111-1111-1111-1111-111111111111' returning id::text$q$, 'DENIED');
 select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: mark self KYC verified', $q$update public.profiles set kyc = 'verified' returning id::text$q$, 'DENIED');
 select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: edit own phone', $q$with u as (update public.profiles set phone = '0812' returning 1) select count(*)::text from u$q$, '1');
+-- The payout account changes only through api/profile/payout, with a recent sign-in (audit M7).
+select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: change own payout account directly', $q$update public.profiles set payout_number = '1234567890' returning id::text$q$, 'DENIED');
 select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: edit other phone', $q$with u as (update public.profiles set phone = '0812' where id = '22222222-2222-2222-2222-222222222222' returning 1) select count(*)::text from u$q$, '0');
 select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: insert order', $q$insert into public.orders (buyer_id,event_title,event_date,tier_name,seller_name,quantity,amount) values ('11111111-1111-1111-1111-111111111111','x',now(),'x','x',1,1) returning id$q$, 'DENIED');
 select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: set own escrow to Released', $q$update public.orders set escrow_status = 'Released' returning id$q$, 'DENIED');
@@ -135,6 +137,10 @@ select pg_temp.probe('authenticated', '44444444-4444-4444-4444-444444444444', 'a
 select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: read rate_attempts', 'select count(*)::text from public.rate_attempts', 'DENIED');
 select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: add an attempt directly', $q$insert into public.rate_attempts (account_id, kind) values ('11111111-1111-1111-1111-111111111111', 'pdf_read') returning id::text$q$, 'DENIED');
 select pg_temp.probe('anon', null, 'anon: spend an account''s attempts', $q$select public.take_attempt('11111111-1111-1111-1111-111111111111', 'pdf_read', 99, 600)::text$q$, 'DENIED');
+-- The record of staff opening personal files is the server's alone (audit M8): nobody reads it or
+-- writes a row of their own.
+select pg_temp.probe('authenticated', '44444444-4444-4444-4444-444444444444', 'admin: read file_access through the API', 'select count(*)::text from public.file_access', 'DENIED');
+select pg_temp.probe('authenticated', '11111111-1111-1111-1111-111111111111', 'buyer: write a file opening', $q$insert into public.file_access (staff_id, kind, ref) values ('11111111-1111-1111-1111-111111111111', 'ticket_pdf', 'listing:x') returning id::text$q$, 'DENIED');
 select pg_temp.probe('authenticated', '33333333-3333-3333-3333-333333333333', 'stranger: spend another account''s attempts', $q$select public.take_attempt('11111111-1111-1111-1111-111111111111', 'ai_fill', 99, 600)::text$q$, 'DENIED');
 -- And as the server: with a limit of two, two attempts get through and the third does not.
 do $$

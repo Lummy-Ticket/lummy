@@ -93,7 +93,8 @@ async function cancel(admin: Admin, id: string, staffId: string) {
   if (error) return fail(500, error.message);
   if (!event) return fail(404, "acara tidak ditemukan");
   if (event.status !== "cancelled") {
-    const r = await admin.from("events").update({ status: "cancelled" }).eq("id", id);
+    // The first cancellation's time stays: its page says when (events/[id]/layout.tsx).
+    const r = await admin.from("events").update({ status: "cancelled", cancelled_at: at }).eq("id", id);
     if (r.error) return fail(500, r.error.message);
   }
 

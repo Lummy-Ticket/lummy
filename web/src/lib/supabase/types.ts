@@ -285,6 +285,7 @@ export type Database = {
       }
       events: {
         Row: {
+          cancelled_at: string | null
           cap_pct: number
           category: string
           city: string
@@ -305,6 +306,7 @@ export type Database = {
           venue_lng: number | null
         }
         Insert: {
+          cancelled_at?: string | null
           cap_pct?: number
           category: string
           city: string
@@ -327,6 +329,7 @@ export type Database = {
           venue_lng?: number | null
         }
         Update: {
+          cancelled_at?: string | null
           cap_pct?: number
           category?: string
           city?: string
@@ -347,6 +350,30 @@ export type Database = {
           venue?: string
           venue_lat?: number | null
           venue_lng?: number | null
+        }
+        Relationships: []
+      }
+      file_access: {
+        Row: {
+          at: string
+          id: number
+          kind: string
+          ref: string
+          staff_id: string | null
+        }
+        Insert: {
+          at?: string
+          id?: never
+          kind: string
+          ref: string
+          staff_id?: string | null
+        }
+        Update: {
+          at?: string
+          id?: never
+          kind?: string
+          ref?: string
+          staff_id?: string | null
         }
         Relationships: []
       }
@@ -1021,6 +1048,7 @@ export type Database = {
     Views: {
       catalogue_events: {
         Row: {
+          cancelled_at: string | null
           cap_pct: number | null
           category: string | null
           city: string | null

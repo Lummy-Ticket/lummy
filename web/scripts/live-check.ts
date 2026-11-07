@@ -13,6 +13,7 @@ import { inPriceBand, priceBand } from "../src/lib/listings/rules";
 import { moneyIsReal, moneyNow, paidListingAllowed, unpaidOrderAllowed } from "../src/lib/orders/unpaid";
 import { xenditConfig, xenditKeyIsLive } from "../src/lib/payments/xendit";
 import { englishFor, errorBody } from "../src/lib/route-errors";
+import { FRESH_SIGN_IN_MINUTES, freshSignIn, isPayoutBank, payoutNumberOf, signedInAt } from "../src/lib/profile/payout";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -109,6 +110,7 @@ const bilingual = [
   "src/app/api/payments/[id]/route.ts", "src/app/api/payments/[id]/usdc/route.ts", "src/app/api/listings/route.ts",
   "src/app/api/listings/[id]/route.ts", "src/app/api/listings/[id]/ticket/route.ts", "src/app/api/tickets/check/route.ts",
   "src/app/api/tickets/extract/route.ts", "src/lib/orders/create.ts", "src/lib/payments/checkout.ts",
+  "src/app/api/profile/payout/route.ts",
 ];
 const literal = (s: string) => s.replace(/\$\{[^}]*\}/g, "8");
 const messages = new Set<string>();
@@ -123,6 +125,17 @@ const untranslated = [...messages].filter((m) => !englishFor(m));
 check(`every one of the ${messages.size} errors of checkout, payments, orders, listings and the ticket reader has its English`, messages.size > 90 && untranslated.length === 0, untranslated.join(" | ") || `only ${messages.size} found`);
 check("an error body carries both languages, and a message without English still goes out", errorBody("masuk dulu").error_en === "sign in first" && errorBody("permission denied for table x").error_en === undefined);
 check("a message with a number keeps it", englishFor("satu akun paling banyak punya 3 listing yang tayang atau direview") === "one account can have at most 3 listings live or in review");
+
+// The payout account changes only with a sign-in made in the last minutes (audit M7): a session
+// stolen earlier, or refreshed for days, cannot send a seller's money elsewhere.
+const now = Date.UTC(2026, 10, 7, 12, 0, 0);
+const at = (minutesAgo: number) => ({ amr: [{ method: "otp", timestamp: Math.floor((now - minutesAgo * 60_000) / 1000) }] });
+check("payout: a sign-in 5 minutes ago may change the account", freshSignIn(signedInAt(at(5)), now));
+check(`payout: one ${FRESH_SIGN_IN_MINUTES + 1} minutes ago may not`, !freshSignIn(signedInAt(at(FRESH_SIGN_IN_MINUTES + 1)), now));
+check("payout: a token that does not say when it signed in may not", !freshSignIn(signedInAt({}), now) && !freshSignIn(signedInAt({ amr: ["otp"] }), now) && !freshSignIn(signedInAt(null), now));
+check("payout: the latest of several sign-in methods counts", signedInAt({ amr: [{ method: "otp", timestamp: 100 }, { method: "totp", timestamp: 200 }] }) === 200_000);
+check("payout: a sign-in dated in the future does not count", !freshSignIn(signedInAt(at(-5)), now));
+check("payout: only a known bank, and 6 to 20 digits with spaces taken out", isPayoutBank("BCA") && !isPayoutBank("bca") && !isPayoutBank("Jago") && payoutNumberOf("1234 5678 90") === "1234567890" && payoutNumberOf("12345") === null && payoutNumberOf("12345678901234567890123") === null && payoutNumberOf("12a456789") === null);
 
 for (const r of results) console.log(`${r.ok ? "PASS" : "FAIL"}  ${r.name}${r.note ? `  (${r.note})` : ""}`);
 const failed = results.filter((r) => !r.ok).length;

@@ -9,6 +9,7 @@ import { EVIDENCE_RETENTION_DAYS, evidenceGoneAt, isGone } from "@/lib/retention
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { currentUser } from "@/lib/supabase/session";
 import { errorBody } from "@/lib/route-errors";
+import { NOT_RECORDED, recordStaffOpening } from "@/lib/files/access-log";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -49,6 +50,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     return fail(410, `foto bukti dihapus ${EVIDENCE_RETENTION_DAYS} hari setelah klaim diputus, karena memuat data pribadi`);
   }
 
+  // Staff who are not a party to the claim are written down first; without that record no photo (audit M8).
+  const party = row.buyer_id === user.id || row.seller_id === user.id;
+  if (!party && !(await recordStaffOpening(admin, user.id, "claim_photo", `order:${id}:${side}`))) return fail(500, NOT_RECORDED);
   const signed = await admin.storage.from("evidence").createSignedUrl(path, 60);
   if (signed.error || !signed.data) return fail(500, signed.error?.message ?? "link foto gagal dibuat");
   return NextResponse.redirect(signed.data.signedUrl, { status: 302, headers: noStore });

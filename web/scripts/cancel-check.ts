@@ -121,13 +121,22 @@ async function main() {
     const again = await cancelShow(page);
     check("pressing again changes nothing", again.status === 200 && again.body.refunded === 0 && again.body.listingsClosed === 0, JSON.stringify(again));
 
-    // --- Its page now says why it is gone, and tells search engines to drop the link.
+    // --- Its page now says it was cancelled, when, and that buyers are refunded (decision 5 of the
+    // UX review of 5 Nov 2026), and tells search engines to drop the link.
+    const { data: when } = await admin.from("events").select("cancelled_at").eq("id", EVENT).single();
+    check("the cancellation's time is kept", !!when?.cancelled_at && Math.abs(Date.parse(when.cancelled_at) - Date.now()) < 10 * 60_000, String(when?.cancelled_at));
     await page.goto(`${BASE}/events/${EVENT}`, { waitUntil: "networkidle" });
     const heading = (await page.getByRole("heading", { level: 1 }).first().innerText().catch(() => "")).trim();
-    check("the cancelled show's page says it is not on Lummy", /^(This show is not on Lummy|Acara ini tidak ada di Lummy)$/.test(heading), heading);
+    check("the cancelled show's page says it was cancelled", /^(This show was cancelled|Acara ini dibatalkan)$/.test(heading), heading);
+    const said = (await page.locator("[data-cancelled-show]").innerText().catch(() => "")).replace(/\s+/g, " ");
+    check(
+      "it names the show, when sales closed, and that buyers are refunded",
+      said.includes("Uji pembatalan") && /refunded automatically|dikembalikan otomatis/.test(said) && /closed its sales on|menutup penjualannya pada/.test(said),
+      said.slice(0, 200)
+    );
     // Next can write the tag twice once the page has loaded (the streamed copy and the hoisted one)
     const robots = await page.locator('meta[name="robots"]').first().getAttribute("content").catch(() => null);
-    check("the cancelled show's page is not indexed", robots === "noindex", String(robots));
+    check("the cancelled show's page is not indexed", /^noindex/.test(robots ?? ""), String(robots));
   } catch (e) {
     check("check ran to the end", false, (e as Error).message.split("\n")[0].slice(0, 200));
   } finally {

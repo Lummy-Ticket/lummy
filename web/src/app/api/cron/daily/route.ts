@@ -23,6 +23,7 @@ import { reconcileUsdcHolds, usdcRail } from "@/lib/payments/usdc";
 import { xenditConfig } from "@/lib/payments/xendit";
 import { purgeExpired } from "@/lib/retention-purge";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { FILE_ACCESS_DAYS } from "@/lib/files/access-log";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -109,6 +110,9 @@ export async function GET(req: Request) {
   // clears its own, this takes the rest, so none lasts past two days, as the privacy page says.
   const attempts = await admin.from("rate_attempts").delete().lt("at", new Date(Date.now() - 86_400_000).toISOString());
   if (attempts.error) console.error("[cron/daily] old attempt counts not deleted:", attempts.error.message);
+  // The record of staff opening personal files (lib/files/access-log.ts) is kept a year.
+  const openings = await admin.from("file_access").delete().lt("at", new Date(Date.now() - FILE_ACCESS_DAYS * 86_400_000).toISOString());
+  if (openings.error) console.error("[cron/daily] old file openings not deleted:", openings.error.message);
   // Something here needs a person: a step that threw, payouts that failed or are held for a show
   // that changed, holds the recheck could not read or that leave its window unread, files not
   // deleted. The answer is then 500, so Vercel's cron page shows the run as failed instead of

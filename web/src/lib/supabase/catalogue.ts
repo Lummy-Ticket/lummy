@@ -95,6 +95,31 @@ async function fetchCatalogue(url: string, key: string): Promise<CatalogueData> 
 // sits in Singapore. Anything that changes a listing should call revalidateTag("catalogue").
 const cachedCatalogue = unstable_cache(fetchCatalogue, ["catalogue"], { revalidate: 30, tags: ["catalogue"] });
 
+/** A show staff cancelled: out of the catalogue, but a link to it says so (UX review 5 Nov 2026, decision 5). */
+export type CancelledShow = { id: string; title: string; dateISO: string; venue: string; city: string; cancelledAt: string | null };
+
+/**
+ * The cancelled show behind an id the catalogue does not have, or null. Read only then, and apart
+ * from the catalogue, so cancelled shows never travel to the browser with it. Any failure reads as
+ * "not a cancelled show", and the page falls back to not found.
+ */
+export async function loadCancelledShow(id: string): Promise<CancelledShow | null> {
+  const env = supabasePublicEnv();
+  if (!env) return null;
+  try {
+    const db = createClient<Database>(env.url, env.key, { auth: { persistSession: false, autoRefreshToken: false } });
+    const { data, error } = await db
+      .from("catalogue_events")
+      .select("id, title, starts_at, venue, city, status, cancelled_at")
+      .eq("id", id)
+      .maybeSingle();
+    if (error || !data || data.status !== "cancelled" || !data.id || !data.title || !data.starts_at) return null;
+    return { id: data.id, title: data.title, dateISO: data.starts_at, venue: data.venue ?? "", city: data.city ?? "", cancelledAt: data.cancelled_at };
+  } catch {
+    return null;
+  }
+}
+
 export async function loadCatalogue(): Promise<CatalogueData | null> {
   const env = supabasePublicEnv();
   if (!env) return null;

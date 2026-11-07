@@ -7,7 +7,7 @@ import { EVENT_DURATION_H } from "@/lib/mock/escrow";
 import type { DisputeReason, Remedy } from "@/lib/mock/types";
 import type { Database } from "@/lib/supabase/types";
 import { queueEmails, type Mail } from "./send";
-import { claimReceipt, claimToSeller, orderPaid, ruling, showCancelled, ticketsListed, type OrderFacts, type Rendered } from "./templates";
+import { claimReceipt, claimToSeller, orderPaid, payoutChanged, ruling, showCancelled, ticketsListed, type OrderFacts, type Rendered } from "./templates";
 
 if (typeof window !== "undefined") throw new Error("lib/email/notify hanya boleh dipakai di server");
 
@@ -125,6 +125,15 @@ export function notifyRuling(admin: Admin, orderId: string) {
       ...mail(seller, "ruling-seller", row.id, ruling(o, "seller", claim.verdict_remedy, refund)),
     ];
   });
+}
+
+/**
+ * The account's payout account changed (api/profile/payout): its owner hears, at the address they
+ * sign in with, so a change they did not make is caught (audit M7). Bank and last four digits only.
+ */
+export function notifyPayoutChanged(admin: Admin, userId: string, bank: string, number: string) {
+  const at = new Date().toISOString();
+  queueEmails(`payout ${userId}`, async () => mail(await addressOf(admin, userId), "payout-changed", userId, payoutChanged({ bank, last4: number.slice(-4), at })));
 }
 
 /**

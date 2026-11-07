@@ -107,6 +107,11 @@ const sections: LegalSection[] = [
         id: "Saat kamu mengecek tiket, memasang listing, mengisi form dari tiket, atau meminta upload foto klaim: waktunya, dihitung untuk akunmu, supaya satu akun tidak bisa mengulangnya tanpa batas. Tidak ada hal lain soal percobaan itu yang disimpan.",
       },
       {
+        // lib/files/access-log.ts and the file_access table (production audit 2 Nov 2026, M8).
+        en: "When a member of our staff opens your ticket PDF or your claim photo (to review a listing or decide a claim): which staff account opened which file, and when, so it can always be said who saw it. You opening your own files is not recorded.",
+        id: "Saat staf kami membuka PDF tiketmu atau foto klaimmu (untuk meninjau listing atau memutus klaim): akun staf mana yang membuka file mana, dan kapan, supaya selalu bisa dijawab siapa yang melihatnya. Kamu membuka file milikmu sendiri tidak dicatat.",
+      },
+      {
         en: "We do not accept photos of ID cards yet, and we run no analytics or advertising trackers. The site keeps a sign-in cookie, a language cookie (\"en\" or \"id\", so pages open in your language), and sample data in your browser.",
         id: "Kami belum menerima foto KTP, dan tidak memakai analytics atau pelacak iklan. Situs menyimpan cookie masuk, cookie bahasa (\"en\" atau \"id\", supaya halaman langsung terbuka dalam bahasamu), dan data contoh di browsermu.",
       },
@@ -177,6 +182,7 @@ const sections: LegalSection[] = [
         id: "Foto yang di-upload tapi tidak pernah dilampirkan: dihapus setelah 7 hari, dan lebih cepat kalau sudah ada tiga foto seperti itu di satu pesanan, saat upload baru menggantikan yang paling lama.",
       },
       { en: "The count of your attempts above: deleted within two days.", id: "Hitungan percobaanmu di atas: dihapus paling lambat dua hari kemudian." },
+      { en: "The record of staff opening your files: deleted after a year.", id: "Catatan staf membuka file-mu: dihapus setelah setahun." },
       { en: "Your account, orders, payments and claims: while your account exists, then as long as needed to settle anything still open. Records on the public ledger cannot be deleted by anyone.", id: "Akun, pesanan, pembayaran, dan klaim: selama akunmu ada, lalu selama dibutuhkan untuk menyelesaikan yang masih berjalan. Catatan di buku besar publik tidak bisa dihapus siapa pun." },
       // .github/workflows/backup.yml, once it runs (FEATURES.backups). Until then there are none.
       ...(FEATURES.backups
@@ -237,7 +243,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage
       title={{ en: "Privacy policy", id: "Kebijakan privasi" }}
-      effective={{ en: "5 Nov 2026", id: "5 Nov 2026" }}
+      effective={{ en: "7 Nov 2026", id: "7 Nov 2026" }}
       intro={{
         en: "What Lummy Ticket keeps about you, why, who can see it, and when it is deleted. Written to match what the app actually does.",
         id: "Apa yang disimpan Lummy Ticket tentang kamu, untuk apa, siapa yang bisa melihatnya, dan kapan dihapus. Ditulis sesuai yang benar-benar dilakukan aplikasinya.",

@@ -16,6 +16,7 @@ import { TICKET_RETENTION_DAYS, isGone, ticketFileGoneAt } from "@/lib/retention
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { currentUser } from "@/lib/supabase/session";
 import { errorBody } from "@/lib/route-errors";
+import { NOT_RECORDED, recordStaffOpening } from "@/lib/files/access-log";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -81,6 +82,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       },
     });
   }
+  // Staff opening another person's ticket is written first; without that record no file (audit M8).
+  if (!buyer && !(await recordStaffOpening(admin, user.id, "ticket_pdf", `order:${id}`))) return fail(500, NOT_RECORDED);
   const signed = await admin.storage.from("tickets").createSignedUrl(listing.ticket_path, 60, { download: `lummy-ticket-${id}.pdf` });
   if (signed.error || !signed.data) return fail(500, signed.error?.message ?? "link file gagal dibuat");
   return NextResponse.redirect(signed.data.signedUrl, { status: 302, headers: noStore });

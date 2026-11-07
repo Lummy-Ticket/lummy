@@ -92,6 +92,9 @@ const EXACT: Record<string, string> = {
   "status listing ini sudah berubah": "this listing's status already changed",
   "cuma staf yang boleh membuka file tiket": "only staff may open ticket files",
   "listing ini tidak punya file tiket": "this listing has no ticket file",
+  "link file gagal dibuat": "the file link could not be made",
+  "link foto gagal dibuat": "the photo link could not be made",
+  "akses file gagal dicatat, coba lagi": "opening the file could not be recorded; try again",
   "isi otomatis belum aktif di server ini": "filling from the ticket is not on yet on this server",
   "ketik dulu nama pemesan asli, supaya ikut dibuang sebelum tiketnya dibaca": "type the original buyer's name first, so it is taken out before the ticket is read",
   "isi otomatis gagal, isi sendiri ya": "filling from the ticket failed; please fill it in yourself",
@@ -99,6 +102,11 @@ const EXACT: Record<string, string> = {
   "file ini bukan PDF": "this file is not a PDF",
   "PDF ini dikunci kata sandi, upload versi tanpa kata sandi dari penyelenggara": "this PDF is locked with a password; upload the organiser's copy without one",
   "PDF ini tidak bisa dibaca": "this PDF cannot be read",
+  // The payout account (api/profile/payout)
+  "permintaan ini bukan dari halaman Lummy": "this request did not come from a Lummy page",
+  "bank tidak dikenal": "unknown bank",
+  "nomor rekening 6 sampai 20 angka": "the account number is 6 to 20 digits",
+  "akun tidak ditemukan": "account not found",
   // Attempt limits (lib/rate.ts)
   "terlalu banyak pemeriksaan tiket dalam 10 menit terakhir, coba lagi sebentar lagi": "too many ticket checks in the last 10 minutes; try again in a moment",
   "terlalu sering, coba lagi beberapa menit lagi": "too often; try again in a few minutes",
@@ -121,6 +129,7 @@ const PATTERNS: [RegExp, string][] = [
   [/^file tiket dihapus (\d+) hari setelah acara, karena memuat data pribadi$/, "ticket files are deleted $1 days after the show, as they hold personal data"],
   [/^foto bukti dihapus (\d+) hari setelah klaim diputus, karena memuat data pribadi$/, "claim photos are deleted $1 days after the claim is decided, as they hold personal data"],
   [/^file lebih dari (\d+) MB$/, "the file is over $1 MB"],
+  [/^demi keamanan, masuk ulang dulu: rekening hanya bisa diganti dalam (\d+) menit setelah masuk$/, "for your safety, sign in again first: the payout account can only be changed within $1 minutes of signing in"],
 ];
 
 /** The English of a route's Indonesian error, or undefined when this table does not have it. */

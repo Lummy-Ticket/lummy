@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { Mail, Phone, ShieldCheck, BadgeCheck, Bell, X, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,8 +17,10 @@ import { useT } from "@/lib/i18n";
 import { FEATURES } from "@/lib/features";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import { isDemoEmail } from "@/lib/supabase/demo";
+import { FRESH_SIGN_IN_MINUTES, PAYOUT_BANKS, payoutNumberOf } from "@/lib/profile/payout";
+import { routeErrorText } from "@/lib/route-errors";
 
-const BANKS: PayoutBank[] = ["BCA", "Mandiri", "BNI", "BRI"];
+const BANKS: PayoutBank[] = [...PAYOUT_BANKS];
 
 type DbProfile = { full_name: string; phone: string | null; payout_bank: string | null; payout_number: string | null; kyc: "unverified" | "verified" };
 const PROFILE_COLUMNS = "full_name, phone, payout_bank, payout_number, kyc";
@@ -34,6 +37,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function ProfilePage() {
   const t = useT();
+  const router = useRouter();
   const ready = useAccessGuard("account");
   const mounted = useHydrated();
   const user = useUser((s) => s.user);
@@ -120,22 +124,43 @@ export default function ProfilePage() {
     toast.success(t("Profile saved", "Profil disimpan"));
   };
 
+  // Set when the server asks for a fresh sign-in before the payout account may change.
+  const [reauth, setReauth] = useState(false);
   const savePayout = async () => {
     if (!account) {
       setPayout(bank, acct);
       toast.success(t("Payout account saved", "Rekening disimpan"));
       return;
     }
-    const number = acct.replace(/\s/g, "");
-    if (!/^[0-9]{6,20}$/.test(number)) {
+    const number = payoutNumberOf(acct);
+    if (!number) {
       toast.error(t("Account number: 6 to 20 digits.", "Nomor rekening: 6 sampai 20 angka."));
       return;
     }
-    const saved = await saveRow({ payout_bank: bank, payout_number: number });
-    if (!saved) return;
+    // Through the server, which wants a recent sign-in and emails the account (audit M7): the browser
+    // can no longer write these two columns itself.
+    const r = await fetch("/api/profile/payout", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ bank, number }),
+    }).catch(() => null);
+    const json = (r ? await r.json().catch(() => ({})) : {}) as { error?: string; error_en?: string; code?: string; payout_bank?: string | null; payout_number?: string | null };
+    if (!r?.ok) {
+      if (json.code === "reauth") setReauth(true);
+      else toast.error(r ? routeErrorText(json, r.status) : t("Could not save. Try again.", "Gagal menyimpan. Coba lagi."));
+      return;
+    }
+    setDb((d) => (d ? { ...d, payout_bank: json.payout_bank ?? bank, payout_number: json.payout_number ?? number } : d));
     setBankDraft(null);
     setAcctDraft(null);
+    setReauth(false);
     toast.success(t("Payout account saved", "Rekening disimpan"));
+  };
+
+  // A sign-in older than FRESH_SIGN_IN_MINUTES cannot change the account: sign out, then back in by email.
+  const signInAgain = async () => {
+    await (await supabaseBrowser())?.auth.signOut();
+    router.push("/login?next=/profile");
   };
 
   // A full screen tall until the browser has read who this is, like every guarded page: a short
@@ -282,6 +307,17 @@ export default function ProfilePage() {
                   "Lummy masih mode uji, jadi belum ada uang sungguhan yang cair ke rekening ini."
                 )}
               </p>
+            )}
+            {reauth && (
+              <div data-payout-reauth className="rounded-xl bg-secondary-gray-soft px-4 py-3 text-xs text-neutral-black flex flex-col gap-2">
+                <p>
+                  {t(
+                    `For your safety, the payout account can only be changed within ${FRESH_SIGN_IN_MINUTES} minutes of signing in. Sign in again by email, then save it.`,
+                    `Demi keamanan, rekening hanya bisa diganti dalam ${FRESH_SIGN_IN_MINUTES} menit setelah masuk. Masuk ulang lewat email, lalu simpan lagi.`
+                  )}
+                </p>
+                <Button.Ghost className="text-xs w-fit" onClick={() => void signInAgain()}>{t("Sign in again", "Masuk ulang")}</Button.Ghost>
+              </div>
             )}
             <Button.Primary wrapperClass="w-fit" className="text-sm" onClick={() => void savePayout()}>{t("Save account", "Simpan rekening")}</Button.Primary>
           </div>

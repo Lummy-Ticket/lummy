@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { currentUser } from "@/lib/supabase/session";
 import { errorBody } from "@/lib/route-errors";
+import { NOT_RECORDED, recordStaffOpening } from "@/lib/files/access-log";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -24,6 +25,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (error) return fail(500, error.message);
   if (!data?.ticket_path) return fail(404, "listing ini tidak punya file tiket");
 
+  // Who opened it is written first; without that record the file is not handed out (audit M8).
+  if (!(await recordStaffOpening(admin, user.id, "ticket_pdf", `listing:${id}`))) return fail(500, NOT_RECORDED);
   const signed = await admin.storage.from("tickets").createSignedUrl(data.ticket_path, 60);
   if (signed.error || !signed.data) return fail(500, signed.error?.message ?? "link file gagal dibuat");
   return NextResponse.redirect(signed.data.signedUrl, { status: 302, headers: noStore });
