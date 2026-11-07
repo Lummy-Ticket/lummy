@@ -127,7 +127,7 @@ export async function letterPdf(o: LetterOrder): Promise<Uint8Array> {
     english(row, LEFT + 10, by, 7);
     by -= 8.5;
   }
-  y -= boxH + 20;
+  y -= boxH + 14;
 
   // A sentence of the letter, with its English in small type under it.
   const sentence = (id: string, en: string) => {
@@ -143,7 +143,7 @@ export async function letterPdf(o: LetterOrder): Promise<Uint8Array> {
   };
   const party = (term: string, en: string) => {
     english(en, write(term, LEFT, y, { font: bold, size: 8.5 }) + 5, y);
-    y -= 17;
+    y -= 15;
   };
   // A line a party fills in: the label in Indonesian with its English under it, and the note
   // under the line that it is written by hand.
@@ -152,19 +152,38 @@ export async function letterPdf(o: LetterOrder): Promise<Uint8Array> {
     english(en, LEFT, y - 9);
     drawBlank(page, LEFT + 140, y, RIGHT - LEFT - 140);
     write(BY_HAND, LEFT + 140, y - 12, { size: 6.5, color: GREY });
-    y -= 23;
+    y -= 21;
+  };
+  // Two short fields on one line, each with its label above the line (meeting 22 Oct 2026 §11:
+  // the promoters' templates ask for both parties' date of birth and phone number).
+  const pairLine = (a: [string, string], b: [string, string]) => {
+    const w = (RIGHT - LEFT - 140 - 12) / 2;
+    write(a[0], LEFT, y);
+    english(a[1], LEFT, y - 9);
+    drawBlank(page, LEFT + 140, y, w);
+    const bx = LEFT + 140 + w + 12;
+    const end = write(b[0], bx, y, { size: 8.5 });
+    english(b[1], bx, y - 9, 6.5);
+    drawBlank(page, Math.max(end, bx + 60) + 6, y, RIGHT - Math.max(end, bx + 60) - 6);
+    y -= 21;
+  };
+  // The fields the promoters' own templates ask for (NCT, Honne, Dewa 19, Golden Disc Awards):
+  // the kind and number of ID, date of birth and phone for both parties, and the seller's address,
+  // all by hand (the buyer's address was never asked for in our draft, and the page has no room).
+  const person = (withAddress: boolean) => {
+    blankLine("Nama lengkap", "Full name");
+    blankLine("Jenis & no. identitas", "ID type & no. (KTP, SIM or passport)");
+    pairLine(["Tanggal lahir", "Date of birth"], ["No. HP", "Phone"]);
+    if (withAddress) blankLine("Alamat", "Address");
   };
 
   sentence("Yang bertanda tangan di bawah ini:", "The undersigned:");
   party("PEMBERI KUASA", "Authoriser, the seller");
-  blankLine("Nama lengkap", "Full name");
-  blankLine("NIK / No. Paspor", "ID or passport no.");
-  blankLine("Alamat", "Address");
+  person(true);
   y -= 2;
   sentence("selanjutnya disebut Pemberi Kuasa, dengan ini memberi kuasa kepada:", "hereinafter the Authoriser, who hereby authorises:");
   party("PENERIMA KUASA", "Authorised person, the buyer");
-  blankLine("Nama lengkap", "Full name");
-  blankLine("NIK / No. Paspor", "ID or passport no.");
+  person(false);
   y -= 2;
   sentence(
     "selanjutnya disebut Penerima Kuasa, untuk menukarkan dan menggunakan tiket berikut atas nama Pemberi Kuasa:",
@@ -178,8 +197,10 @@ export async function letterPdf(o: LetterOrder): Promise<Uint8Array> {
     [["Acara", "Event", o.eventTitle]],
     [["Tanggal", "Date", day(o.eventDateISO)], ...(place ? [["Tempat", "Venue", place] as [string, string, string]] : [])],
     [["Kategori", "Category", o.tierName], ["Jumlah", "Quantity", `${o.quantity} tiket / ${o.quantity} ${o.quantity === 1 ? "ticket" : "tickets"}`]],
+    // Written in by the seller from their e-voucher: Lummy does not keep the code.
+    [["Kode booking / No. e-voucher", "Booking code / e-voucher no.", ""]],
   ];
-  const ticketH = 20 + rows.length * 25 + 4;
+  const ticketH = 20 + rows.length * 23 + 4;
   page.drawRectangle({ x: LEFT, y: y + 4 - ticketH, width: RIGHT - LEFT, height: ticketH, borderColor: LINE, borderWidth: 0.8 });
   let ty = y - 10;
   english("The ticket covered", write("Tiket yang dikuasakan", LEFT + 10, ty, { font: bold, size: 9 }) + 5, ty, 7.5);
@@ -189,9 +210,11 @@ export async function letterPdf(o: LetterOrder): Promise<Uint8Array> {
       const x = LEFT + 10 + i * (half + 10);
       const width = row.length === 1 ? RIGHT - LEFT - 20 : half;
       english(`/ ${en}`, write(label.toUpperCase(), x, ty, { font: bold, size: 6.5, color: GREY }) + 3, ty, 6.5);
-      write(value, x, ty - 11, { size: fit(latin(value), regular, 10, width) });
+      // An empty value is a line to write on, like the parties' fields.
+      if (value) write(value, x, ty - 11, { size: fit(latin(value), regular, 10, width) });
+      else drawBlank(page, x, ty - 11, width);
     });
-    ty -= 25;
+    ty -= 23;
   }
   y -= ticketH + 10;
 
@@ -209,7 +232,7 @@ export async function letterPdf(o: LetterOrder): Promise<Uint8Array> {
   english("date", dateX + 4, y - 9);
   drawBlank(page, dateEnd + 6, y, RIGHT - dateEnd - 6);
   write(BY_HAND, dateEnd + 6, y - 12, { size: 6.5, color: GREY });
-  y -= 32;
+  y -= 28;
 
   // Two signature blocks, each with the name Lummy knows under its line. The seller signs across
   // the stamp, half on it and half on the paper.
@@ -220,15 +243,15 @@ export async function letterPdf(o: LetterOrder): Promise<Uint8Array> {
     english(en, x, y - 9.5);
     if (stamp) {
       const sx = x + 4;
-      const sy = y - 70;
-      page.drawRectangle({ x: sx, y: sy, width: 92, height: 56, borderColor: GREY, borderWidth: 0.7, borderDashArray: [3, 3] });
+      const sy = y - 64;
+      page.drawRectangle({ x: sx, y: sy, width: 92, height: 50, borderColor: GREY, borderWidth: 0.7, borderDashArray: [3, 3] });
       const mid = (s: string, yy: number, st: Style) => write(s, sx + (92 - (st.font ?? regular).widthOfTextAtSize(s, st.size ?? 10)) / 2, yy, st);
-      mid("METERAI", sy + 40, { font: bold, size: 8, color: GREY });
-      mid("Rp10.000", sy + 29, { size: 8, color: GREY });
-      mid("tanda tangan di atasnya", sy + 16, { size: 6, color: GREY });
-      mid("sign across the stamp", sy + 8, { font: italic, size: 6, color: GREY });
+      mid("METERAI", sy + 36, { font: bold, size: 8, color: GREY });
+      mid("Rp10.000", sy + 26, { size: 8, color: GREY });
+      mid("tanda tangan di atasnya", sy + 14, { size: 6, color: GREY });
+      mid("sign across the stamp", sy + 6, { font: italic, size: 6, color: GREY });
     }
-    const lineY = y - 80;
+    const lineY = y - 72;
     page.drawLine({ start: { x, y: lineY }, end: { x: x + sigW, y: lineY }, thickness: 0.7, color: INK });
     if (name) {
       write(name, x, lineY - 12, { size: fit(latin(name), regular, 9.5, sigW) });
@@ -250,7 +273,7 @@ export async function letterPdf(o: LetterOrder): Promise<Uint8Array> {
     latin("A draft from lummy.id. Lummy does not sign this letter or add an e-stamp. The seller signs it over a Rp10,000 meterai (paper duty stamp) and gives it to the buyer with a copy of their ID card or passport. The organiser has the final say at the door."),
     italic, 6.5, RIGHT - LEFT
   );
-  let fy = 26 + (footer.length + footerEn.length - 1) * 8;
+  let fy = 20 + (footer.length + footerEn.length - 1) * 8;
   page.drawLine({ start: { x: LEFT, y: fy + 11 }, end: { x: RIGHT, y: fy + 11 }, thickness: 0.4, color: LINE });
   for (const row of footer) {
     write(row, LEFT, fy, { size: 7, color: GREY });

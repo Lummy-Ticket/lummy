@@ -985,18 +985,34 @@ export default function OrderDetailPage() {
               <li>
                 <b className="text-neutral-black">Pemberi Kuasa</b>{" "}
                 {t(
-                  `is the seller, ${order.sellerName}, who holds the original ticket. They write in their full name, NIK or passport number and address, and sign over a Rp10,000 meterai (a paper duty stamp).`,
-                  `adalah penjual, ${order.sellerName}, pemegang tiket asli. Penjual menulis nama lengkap, NIK atau nomor paspor, dan alamatnya, lalu tanda tangan di atas meterai Rp10.000.`
+                  `is the seller, ${order.sellerName}, who holds the original ticket. They write in their full name, the kind and number of their ID (KTP, driving licence or passport), date of birth, phone and address, and the booking code or e-voucher number from their e-ticket, and sign over a Rp10,000 meterai (a paper duty stamp).`,
+                  `adalah penjual, ${order.sellerName}, pemegang tiket asli. Penjual menulis nama lengkap, jenis dan nomor identitas (KTP, SIM, atau paspor), tanggal lahir, nomor HP, dan alamatnya, serta kode booking atau nomor e-voucher dari e-tiketnya, lalu tanda tangan di atas meterai Rp10.000.`
                 )}
               </li>
               <li>
                 <b className="text-neutral-black">Penerima Kuasa</b>{" "}
                 {t(
-                  `is the buyer${buyerName ? `, ${buyerName}` : ""}, who uses the ticket at the gate. The buyer writes in their own full name and NIK or passport number, and signs too.`,
-                  `adalah pembeli${buyerName ? `, ${buyerName}` : ""}, yang memakai tiketnya di gate. Pembeli menulis nama lengkap dan NIK atau nomor paspornya sendiri, lalu ikut tanda tangan.`
+                  `is the buyer${buyerName ? `, ${buyerName}` : ""}, who uses the ticket at the gate. The buyer writes in their own full name, the kind and number of their ID, date of birth and phone, and signs too.`,
+                  `adalah pembeli${buyerName ? `, ${buyerName}` : ""}, yang memakai tiketnya di gate. Pembeli menulis nama lengkap, jenis dan nomor identitas, tanggal lahir, dan nomor HP-nya sendiri, lalu ikut tanda tangan.`
                 )}
               </li>
             </ul>
+            {/* What promoters ask for at a redemption made on someone's behalf (meeting 22 Oct 2026 §11). */}
+            <div data-letter-bring className="mt-3">
+              <div className="text-sm font-medium text-neutral-black">{t("What the buyer brings to the redemption", "Yang dibawa pembeli saat penukaran")}</div>
+              <ul className="mt-1.5 flex flex-col gap-1 list-disc pl-4">
+                <li>{t("This letter, the original, signed over the meterai (a photocopy is not accepted)", "Surat ini, yang asli, bertanda tangan di atas meterai (fotokopi tidak diterima)")}</li>
+                <li>{t("A photocopy of the seller's ID", "Fotokopi identitas penjual")}</li>
+                <li>{t("The e-voucher or proof of purchase, printed", "E-voucher atau bukti pembelian, tercetak")}</li>
+                <li>{t("The buyer's own original ID", "Identitas asli pembeli sendiri")}</li>
+              </ul>
+              <p className="mt-1.5 text-xs">
+                {t(
+                  "Some promoters have their own form or do not let a benefit be redeemed on someone's behalf: check their terms first.",
+                  "Beberapa promotor punya format sendiri atau tidak mengizinkan benefit tertentu diwakilkan: cek syarat mereka dulu."
+                )}
+              </p>
+            </div>
             <p className="mt-2 text-xs">
               {t(
                 "The lines are blank on purpose: Lummy does not collect anyone's ID card or ID number, so they are written by hand, on paper, and never typed into Lummy.",
