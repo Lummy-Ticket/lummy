@@ -220,7 +220,9 @@ async function main() {
     check("claude: a good reply becomes facts, past the thinking block", out.ok && out.facts.tierId === "t-tl-vip" && out.facts.seat === "Row C No. 12", JSON.stringify(out));
     check("claude: goes to the Messages API", calls[0]?.url === "https://api.anthropic.com/v1/messages", calls[0]?.url);
     check("claude: the default model is Haiku 5.5", body.model === "claude-haiku-5-5" && out.ok && out.model === "claude-haiku-5-5", body.model);
-    check("claude: the key goes in a header, never in the URL", header(calls[0], "x-api-key") === "test-key-not-real" && !calls[0]?.url.includes("test-key"));
+    // SDK 1.x (API version 2026-10-21) sends the key as a bearer token, no longer in X-Api-Key.
+    check("claude: the key goes in a header, never in the URL", header(calls[0], "authorization") === "Bearer test-key-not-real" && header(calls[0], "x-api-key") === null && !calls[0]?.url.includes("test-key"));
+    check("claude: API version 2026-10-21, with no sampling settings", header(calls[0], "anthropic-version") === "2026-10-21" && !["temperature", "top_p", "top_k"].some((k) => k in body), header(calls[0], "anthropic-version") ?? "no version");
     const format = body.output_config?.format;
     check("claude: asks for JSON held to the schema, closed to other fields", format?.type === "json_schema" && !!format.schema?.properties?.tier && format.schema.additionalProperties === false, JSON.stringify(body.output_config));
     check("claude: low effort, no temperature, no prefill", body.output_config?.effort === "low" && body.temperature === undefined && body.messages?.length === 1 && body.messages[0].role === "user");
