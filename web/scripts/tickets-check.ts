@@ -7,12 +7,14 @@
  *
  *   npm run tickets:check
  */
-import { analyzeTicket, TicketError, type TicketAnalysis } from "../src/lib/tickets/analyze";
+import { MAX_DRY_RENDERS, analyzeTicket, TicketError, type TicketAnalysis } from "../src/lib/tickets/analyze";
 import { MAX_INFLATED_BYTES, MAX_INFLATED_STREAMS, assertInflatesWithin, inflatedSize } from "../src/lib/tickets/inflate-guard";
 import { deflateSync } from "node:zlib";
+import { createCanvas } from "@napi-rs/canvas";
+import { PDFDocument, StandardFonts } from "pdf-lib";
 import { barcodeKey } from "../src/lib/tickets/barcode";
 import { judge, parsePdfDate, scanStructure, toolHits, voidMarker, type ForensicReason } from "../src/lib/tickets/forensics";
-import { GENUINE, appendRevision, genuineTicket, initWriter, latin1, rewrite, ticketPdf, withScript } from "./ticket-fixtures";
+import { GENUINE, appendRevision, drawCode, genuineTicket, initWriter, latin1, rewrite, ticketPdf, withScript } from "./ticket-fixtures";
 
 const PEPPER = "tickets-check, not a real pepper";
 
@@ -156,6 +158,36 @@ async function main() {
 
   const none = await timed("no barcode", await ticketPdf({ codes: [], producer: "Lummy test issuer PDF engine" }));
   check("no barcode: nothing read, nothing invented", none.barcodes.length === 0 && none.scannedPages === 1);
+
+  // --- Pages that each hold a picture but no code (the audit of 4 Nov 2026 timed forty of them at
+  // 23 s): rendering stops after MAX_DRY_RENDERS such pages in a row, and the file counts as not read
+  // in full, so a person looks. A real order spaces its tickets with pages of terms that carry the
+  // promoter's logo, and every ticket in it is still found.
+  const logoCanvas = createCanvas(80, 80);
+  const g = logoCanvas.getContext("2d");
+  g.fillStyle = "#cc3333";
+  g.fillRect(0, 0, 80, 80);
+  g.fillStyle = "#ffffff";
+  g.fillRect(20, 20, 40, 40);
+  const logo = new Uint8Array(await logoCanvas.encode("png"));
+  const pagesOf = async (layout: (string | null)[]) => {
+    const doc = await PDFDocument.create({ updateMetadata: false });
+    doc.setProducer("Lummy test issuer PDF engine");
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    const png = await doc.embedPng(logo);
+    for (const [i, code] of layout.entries()) {
+      const page = doc.addPage([420, 595]);
+      page.drawText(code ? `Ticket, page ${i + 1}` : `Terms and conditions, page ${i + 1}`, { x: 36, y: 540, size: 12, font });
+      page.drawImage(png, { x: 330, y: 520, width: 50, height: 50 });
+      if (code) await drawCode(doc, page, { text: code, format: "QRCode" });
+    }
+    return doc.save({ useObjectStreams: false });
+  };
+  const order = [0, 1, 2].flatMap((t) => [`LMY|ev-westlife-jakarta|CAT3|C-3${t}|7777-0000-000${t}`, ...Array(5).fill(null)]);
+  const spread = await timed("3 tickets, terms", await pagesOf(order));
+  check("three tickets, each followed by five pages of terms with a logo: all three read, every page", spread.barcodes.length === 3 && spread.scannedPages === spread.pages && spread.pages === 18, JSON.stringify({ found: spread.barcodes.length, scanned: spread.scannedPages, pages: spread.pages }));
+  const cheap = await timed("1 ticket, 19 logos", await pagesOf([GENUINE, ...Array(19).fill(null)]));
+  check(`a ticket then nineteen pages with a picture and no code: rendering stops after ${MAX_DRY_RENDERS} of them, and the file is not read in full`, cheap.barcodes.length === 1 && cheap.scannedPages === 1 + MAX_DRY_RENDERS && cheap.pages === 20, JSON.stringify({ found: cheap.barcodes.length, scanned: cheap.scannedPages, pages: cheap.pages }));
 
   const js = await timed("with a script", await withScript(genuinePdf));
   check("script: active content flagged", js.forensics.reasons.some((r) => r.code === "active_content") && js.forensics.suspicious, codes(js));

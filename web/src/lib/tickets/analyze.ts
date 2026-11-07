@@ -19,6 +19,15 @@ if (typeof window !== "undefined") throw new Error("lib/tickets/analyze is serve
  * seven pages of terms. Pages of only text are skipped cheaply, so the limit can be generous.
  */
 const MAX_PAGES = 40;
+/**
+ * Pages rendered in a row without a new barcode before the first pass stops rendering. In a real
+ * order each ticket's code comes within a few pages of the last one (seven pages of terms between
+ * them in the largest tried), while a file of forty pages that each hold a small picture and no code
+ * took 23 s to render whole. Past the streak, the remaining pages still have their text and scripts
+ * read, and the file counts as not read in full, so a person looks at it before it goes live
+ * (unread_pages).
+ */
+export const MAX_DRY_RENDERS = 10;
 const TIME_BUDGET_MS = 20_000;
 const MAX_SIDE_PX = 5000;
 /** Separate vector shapes from which a page counts as possibly drawing a barcode. */
@@ -164,17 +173,22 @@ export async function analyzeTicket(bytes: Uint8Array, pepper: string): Promise<
       pages = doc.numPages;
       const scripts: string[] = [];
       const text: TextRun[][] = [];
+      // Rendered pages since the last new barcode; past MAX_DRY_RENDERS only text and scripts are read.
+      let dry = 0;
       for (let n = 1; n <= Math.min(pages, pass.pages) && Date.now() < deadline; n++) {
         const page = await doc.getPage(n);
         try {
           if (i === 0 && nonEmpty(await page.getJSActions())) scripts.push("JavaScript");
           if (i === 0) text.push(await textRuns(page));
+          if (pass.onlyGraphics && dry >= MAX_DRY_RENDERS) continue;
           // The operator list is cached and reused by render, so the look costs nothing extra.
           if (!pass.onlyGraphics || mayHoldBarcode(await page.getOperatorList(), OPS)) {
+            const before = found.size;
             for (const c of await readPage(page, pass.dpi)) {
               const key = barcodeKey(c.bytes, pepper);
               if (!found.has(key)) found.set(key, { key, format: c.format, tail: payloadTail(c.text), page: n });
             }
+            dry = found.size > before ? 0 : dry + 1;
           }
           if (i === 0) scannedPages = n;
         } finally {
