@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import Link from "next/link";
 import { useUser, type Role } from "@/lib/mock";
-import { useT } from "@/lib/i18n";
+import { useActiveLang, useT } from "@/lib/i18n";
+import { TURNSTILE_SITE_KEY, Turnstile } from "@/components/auth/Turnstile";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import { isDemoEmail } from "@/lib/supabase/demo";
 import { supabasePublicEnv } from "@/lib/supabase/env";
@@ -42,6 +43,10 @@ function LoginInner() {
       : null
   );
   const [role, setRole] = useState<Role>("BUYER");
+  // Cloudflare Turnstile, only when its site key is set (components/auth/Turnstile.tsx).
+  const lang = useActiveLang();
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const [captchaRound, setCaptchaRound] = useState(0);
   // Headed to a USDC checkout: a demo account would reach a button it cannot press, so say so here.
   const catalogue = useCatalogue();
   const usdcNext = (() => {
@@ -70,6 +75,8 @@ function LoginInner() {
         "Sign-in emails are not open to everyone yet. You can explore with a demo account below.",
         "Email masuk belum dibuka untuk umum. Kamu bisa menjelajah dengan akun demo di bawah."
       );
+    if (msg.includes("captcha"))
+      return t("The security check did not pass. Wait for it to finish under the email box, then send again.", "Cek keamanan belum lolos. Tunggu sampai selesai di bawah kotak email, lalu kirim lagi.");
     if (e.status === 429 || msg.includes("rate limit"))
       return t("Too many sign-in emails just now. Try again in a few minutes.", "Terlalu banyak email masuk barusan. Coba lagi beberapa menit lagi.");
     return t("We could not send the email. Try again.", "Email gagal dikirim. Coba lagi.");
@@ -86,6 +93,10 @@ function LoginInner() {
       setError(t("Demo accounts open from the demo button below, not by email.", "Akun demo dibuka lewat tombol akun demo di bawah, bukan lewat email."));
       return;
     }
+    if (TURNSTILE_SITE_KEY && !captcha) {
+      setError(t("Wait for the security check under the email box, then send again.", "Tunggu cek keamanan di bawah kotak email selesai, lalu kirim lagi."));
+      return;
+    }
     setSending(true);
     const sb = await supabaseBrowser();
     if (!sb) {
@@ -97,8 +108,14 @@ function LoginInner() {
     const next = safePath(params.get("next"));
     const { error: sendError } = await sb.auth.signInWithOtp({
       email: address,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` },
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+        // Supabase checks it when its CAPTCHA setting is on (components/auth/Turnstile.tsx).
+        ...(captcha ? { captchaToken: captcha } : {}),
+      },
     });
+    // A token works once: the next send gets a fresh check.
+    if (TURNSTILE_SITE_KEY) setCaptchaRound((n) => n + 1);
     setSending(false);
     if (sendError) setError(explain(sendError));
     else setSentTo(address);
@@ -167,6 +184,7 @@ function LoginInner() {
                   <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="email" placeholder="you@email.com" className="w-full outline-none text-sm text-neutral-black" />
                 </div>
               </label>
+              <Turnstile onToken={setCaptcha} round={captchaRound} lang={lang} />
               <Button.Primary type="submit" wrapperClass="w-full mt-4" className="w-full flex items-center justify-center gap-2" disabled={sending}>
                 {sending && <Loader2 className="w-4 h-4 animate-spin" />}
                 {t("Email me a sign-in link", "Kirim link masuk ke email")}
