@@ -140,6 +140,12 @@ try {
   check("RLS: user tidak bisa mengangkat diri jadi admin", promote.status === 401 || promote.status === 403, `HTTP ${promote.status}`);
   const orders = await rest("orders", { method: "POST", body: JSON.stringify({ buyer_id: mine[0]?.id, event_title: "x", event_date: new Date().toISOString(), tier_name: "x", seller_name: "x", quantity: 1, amount: 1 }) });
   check("RLS: user tidak bisa menulis pesanan sendiri", orders.status === 401 || orders.status === 403, `HTTP ${orders.status}`);
+  // The payout account changes only through api/profile/payout (audit M7, 7 Nov 2026): the save above
+  // went through it with this fresh sign-in; the Data API and another site cannot.
+  const payoutDirect = await rest(`profiles?id=eq.${mine[0]?.id}`, { method: "PATCH", body: JSON.stringify({ payout_number: "1111111111" }), headers: { prefer: "return=representation" } });
+  check("RLS: rekening tidak bisa diganti langsung lewat API", payoutDirect.status === 401 || payoutDirect.status === 403, `HTTP ${payoutDirect.status}`);
+  const foreignPayout = await page.request.post(`${BASE}/api/profile/payout`, { data: { bank: "BCA", number: "1111111111" }, headers: { origin: "https://evil.example" } });
+  check("rekening tidak bisa diganti dari situs lain", foreignPayout.status() === 403, String(foreignPayout.status()));
 
   // --- Admin view only for staff
   await pickPersona("Admin", "/admin");
