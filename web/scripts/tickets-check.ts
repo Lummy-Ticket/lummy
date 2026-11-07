@@ -11,9 +11,9 @@ import { MAX_DRY_RENDERS, analyzeTicket, TicketError, type TicketAnalysis } from
 import { MAX_INFLATED_BYTES, MAX_INFLATED_STREAMS, assertInflatesWithin, inflatedSize } from "../src/lib/tickets/inflate-guard";
 import { deflateSync } from "node:zlib";
 import { createCanvas } from "@napi-rs/canvas";
-import { PDFDocument, StandardFonts } from "pdf-lib";
+import { PDFDocument, PDFName, StandardFonts } from "pdf-lib";
 import { barcodeKey } from "../src/lib/tickets/barcode";
-import { judge, parsePdfDate, scanStructure, toolHits, voidMarker, type ForensicReason } from "../src/lib/tickets/forensics";
+import { judge, libraryResave, parsePdfDate, scanStructure, toolHits, voidMarker, type ForensicReason } from "../src/lib/tickets/forensics";
 import { GENUINE, appendRevision, drawCode, genuineTicket, initWriter, latin1, rewrite, ticketPdf, withScript } from "./ticket-fixtures";
 
 const PEPPER = "tickets-check, not a real pepper";
@@ -144,6 +144,30 @@ async function main() {
   const rewritten = await timed("edited, iLovePDF", await rewrite(genuinePdf, "iLovePDF"));
   const tool = (a: TicketAnalysis, code: ForensicReason["code"]) => a.forensics.reasons.find((r) => r.code === code) as { tool?: string } | undefined;
   check("iLovePDF rewrite: editor named", tool(rewritten, "editor")?.tool === "iLovePDF" && rewritten.forensics.suspicious, codes(rewritten));
+
+  // --- Edited in code (tasks 12.5): a ticket a browser printed, with the XMP packet browsers write,
+  // opened in pdf-lib and saved again, as a few lines of script would to change a name. pdf-lib
+  // rewrites the Info dictionary and leaves the XMP, so the file names two different makers.
+  const browserMade = await PDFDocument.load(genuinePdf, { updateMetadata: false });
+  browserMade.setProducer("Skia/PDF m120");
+  browserMade.setCreator("Mozilla/5.0 (X11; Linux x86_64) Chrome/120");
+  const xmp = `<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?><x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmlns:pdf="http://ns.adobe.com/pdf/1.3/"><xmp:CreatorTool>Chrome/120</xmp:CreatorTool><pdf:Producer>Skia/PDF m120</pdf:Producer></rdf:Description></rdf:RDF></x:xmpmeta><?xpacket end="w"?>`;
+  browserMade.catalog.set(PDFName.of("Metadata"), browserMade.context.register(browserMade.context.stream(xmp, { Type: "Metadata", Subtype: "XML" })));
+  const fromBrowser = await browserMade.save({ useObjectStreams: false });
+  const browserOnly = await timed("browser, XMP", fromBrowser);
+  check("a browser-made ticket whose metadata agrees: not re-saved", !browserOnly.forensics.reasons.some((r) => r.code === "resaved"), codes(browserOnly));
+  const edited = await PDFDocument.load(fromBrowser); // updateMetadata on, as pdf-lib is by default
+  const scripted = await timed("edited, pdf-lib", await edited.save({ useObjectStreams: false }));
+  const resaved = scripted.forensics.reasons.find((r) => r.code === "resaved") as { tool?: string; was?: string } | undefined;
+  check("the same ticket re-saved with pdf-lib: re-saved by pdf-lib, made by the browser, suspicious", resaved?.tool === "pdf-lib" && /Chrome|Skia/.test(resaved.was ?? "") && scripted.forensics.suspicious, codes(scripted));
+  const fromNothing = await PDFDocument.create();
+  fromNothing.addPage([420, 595]).drawText("Ticket made with pdf-lib", { x: 36, y: 540 });
+  const libraryMade = await timed("made with pdf-lib", await fromNothing.save());
+  check("a ticket written from nothing with pdf-lib: not flagged for it", !libraryMade.forensics.reasons.some((r) => r.code === "resaved"), codes(libraryMade));
+  check(
+    "an issuing library filling a designed template is not an edit (iText over InDesign)",
+    libraryResave({ producer: "iText 7.2.5", xmp: "<xmp:CreatorTool>Adobe InDesign 18.0</xmp:CreatorTool>" }) === null
+  );
 
   const redrawn = await timed("redrawn in Canva", await ticketPdf({ codes: [{ text: GENUINE, format: "QRCode", vector: true }], producer: "Canva", creator: "Canva", name: "Budi Santoso" }));
   check("redrawn in Canva: design tool, suspicious", tool(redrawn, "design")?.tool === "Canva" && redrawn.forensics.suspicious, codes(redrawn));

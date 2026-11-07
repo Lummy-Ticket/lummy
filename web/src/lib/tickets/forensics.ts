@@ -10,6 +10,7 @@ export type ForensicReason =
   | { code: "editor"; tool: string } // made or re-saved with a PDF editor
   | { code: "design"; tool: string } // drawn in a design or office tool
   | { code: "print"; tool: string } // printed to PDF: a copy, not the file the organiser sent
+  | { code: "resaved"; tool: string; was: string } // re-saved by a PDF library after another tool made it
   | { code: "modified_later"; days: number } // changed days after it was created
   | { code: "active_content"; what: string[] } // scripts, launch actions, attachments: no ticket needs them
   | { code: "appended"; bytes: number } // data after the end of the file
@@ -118,10 +119,36 @@ const WEIGHT: Record<ForensicReason["code"], number> = {
   active_content: 30,
   appended: 30,
   void_marker: 60,
+  resaved: 40,
 };
 
 /** Codes that send a file to review on their own. The rest only add to the score. */
-const SUSPICIOUS = new Set<ForensicReason["code"]>(["revised", "signed_then_changed", "editor", "design", "active_content", "appended", "void_marker"]);
+const SUSPICIOUS = new Set<ForensicReason["code"]>(["revised", "signed_then_changed", "editor", "design", "active_content", "appended", "void_marker", "resaved"]);
+
+/**
+ * Libraries a person reaches for to change a PDF in a few lines of code (tasks 12.5): open the
+ * organiser's file, cover a name or a seat, save. Writing a ticket from nothing with one of them is
+ * legitimate, so the name alone flags nothing. What gives an edit away is the file's own metadata
+ * disagreeing: these libraries rewrite the Info dictionary on save (pdf-lib sets its own Producer and
+ * a new ModDate) but leave the XMP packet the first tool wrote, which still names that tool. Issuing
+ * libraries (iText, PDFBox, ReportLab, PDFKit) are left out: organisers fill designed templates with
+ * them, which leaves the same disagreement for an honest reason.
+ */
+const EDIT_LIBRARIES: { name: string; re: RegExp }[] = [
+  { name: "pdf-lib", re: /pdf-lib/i },
+  { name: "pypdf", re: /\bpypdf\d?\b/i },
+  { name: "pikepdf", re: /pikepdf/i },
+  { name: "qpdf", re: /\bqpdf\b/i },
+  { name: "MuPDF", re: /mupdf|\bfitz\b/i },
+];
+
+/** The library the Info dictionary names, when the XMP packet still names some other tool. */
+export function libraryResave(info: Pick<DocInfo, "producer" | "creator" | "xmp">): { tool: string; was: string } | null {
+  const lib = EDIT_LIBRARIES.find((l) => l.re.test(info.producer ?? "") || l.re.test(info.creator ?? ""));
+  if (!lib) return null;
+  const other = xmpTools(info.xmp).find((t) => !EDIT_LIBRARIES.some((l) => l.re.test(t)));
+  return other ? { tool: lib.name, was: other.slice(0, 60) } : null;
+}
 
 const DAY = 86_400_000;
 
@@ -264,6 +291,8 @@ export function judge(structure: PdfStructure, info: DocInfo): Forensics {
     const names = tools.filter((t) => t.kind === kind).map((t) => t.name);
     if (names.length) reasons.push({ code: kind, tool: names.join(", ") });
   }
+  const resave = libraryResave(info);
+  if (resave) reasons.push({ code: "resaved", ...resave });
 
   const created = parsePdfDate(info.creationDate);
   const modified = parsePdfDate(info.modDate);

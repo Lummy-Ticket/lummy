@@ -130,6 +130,8 @@ export function reasonText(r: ForensicReason, t: T) {
       return t(`Made with a design or office app (${r.tool})`, `Dibuat dengan aplikasi desain atau office (${r.tool})`);
     case "print":
       return t(`Printed to PDF (${r.tool}): a copy, not the file the organiser sent`, `Dicetak ke PDF (${r.tool}): salinan, bukan file dari penyelenggara`);
+    case "resaved":
+      return t(`Made by ${r.was}, then re-saved with ${r.tool}`, `Dibuat dengan ${r.was}, lalu disimpan ulang dengan ${r.tool}`);
     case "modified_later":
       return t(`Modified ${r.days} day${r.days === 1 ? "" : "s"} after it was created`, `Diubah ${r.days} hari setelah dibuat`);
     case "active_content":
