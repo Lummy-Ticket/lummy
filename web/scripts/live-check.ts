@@ -184,6 +184,18 @@ async function emailTest() {
       else process.env[n] = saved[n];
     }
   }
+
+  // The payout account email (audit M7), the one email:check does not send. It is given the last four
+  // digits only (lib/email/notify.ts cuts them from the number); here: it names the bank and those
+  // digits, leads with Indonesian, links back to the profile, and has no em-dash.
+  const { payoutChanged } = await import("../src/lib/email/templates");
+  const m = payoutChanged({ bank: "BCA", last4: "7890", at: "2026-11-08T04:00:00Z" });
+  check(
+    "payout email: names the bank and the last four digits, Indonesian first, links to the profile",
+    m.subject.startsWith("Rekening pencairanmu diganti") && m.text.includes("BCA") && m.text.includes("...7890") && m.html.includes("/profile") && m.text.includes("/profile"),
+    m.subject
+  );
+  check("payout email: no em-dash", !/—/.test(m.text + m.html + m.subject));
 }
 emailTest()
   .catch((e) => check("email test: the checks ran", false, e instanceof Error ? e.message : String(e)))

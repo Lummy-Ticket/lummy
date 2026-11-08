@@ -41,11 +41,13 @@ export const FEATURES = {
    * an alert when tickets for a show someone follows go on sale (decided 23 Oct 2026: email, not
    * WhatsApp, since every account already has a verified address and a phone number would be more
    * personal data to keep). The sending is built (lib/email) and checked (npm run email:check, which
-   * writes the emails to a folder instead of sending them); off until its mail credentials are in
-   * Vercel (SMTP_*, MAIL_FROM: web/.env.example). Until then nothing is sent, the alert buttons say
-   * so, and WhatsApp and Telegram are not offered.
+   * writes the emails to a folder instead of sending them). On since 8 Nov 2026: the mail credentials
+   * have been in Vercel since 24 Oct, and a test email from production (admin, Beta tab, "Send me a
+   * test email") reached a Gmail inbox, which lummy.id's DMARC p=reject allows only when SPF or DKIM
+   * passes. Turned off, nothing but the sign-in link is sent, the alert buttons say so, and the
+   * privacy page follows. WhatsApp and Telegram are not offered.
    */
-  emails: false,
+  emails: true,
   /**
    * Nightly encrypted database backups kept with GitHub for 14 days (docs/ops/backups.md). Built,
    * but not running yet: the SUPABASE_DB_URL secret is not in GitHub, so every night's run skips.

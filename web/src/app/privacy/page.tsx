@@ -24,6 +24,10 @@ const emailLines: { list: Bi[]; mailspace: Bi } = FEATURES.emails
           id: "Tiket baru, hanya kalau kamu minta: saat kamu mengikuti acara atau masuk waitlist sebuah tier, akunmu menyimpan acara atau tier mana dan kapan, lalu kami mengirim email saat ada tiket baru di sana, paling banyak sekali dalam beberapa jam untuk tiap acara, dan tidak pernah untuk listing-mu sendiri. Berhenti kapan saja di halaman acara atau di profilmu; setiap email notifikasi menyebut caranya.",
         },
         {
+          en: "When the payout account on your profile changes: the bank and the last 4 digits of the new account, so a change you did not make is noticed in time. This one cannot be turned off either.",
+          id: "Saat rekening pencairan di profilmu diganti: nama bank dan 4 digit terakhir rekening barunya, supaya penggantian yang bukan olehmu cepat ketahuan. Email ini juga tidak bisa dimatikan.",
+        },
+        {
           en: "Every email goes to the address you sign in with and carries only your own order's details or the new listing, never the other side's name or email. A reply reaches our team inbox.",
           id: "Setiap email dikirim ke alamat yang kamu pakai untuk masuk dan hanya memuat data pesananmu sendiri atau listing barunya, tidak pernah nama atau email pihak lain. Balasanmu masuk ke kotak masuk tim kami.",
         },
@@ -243,7 +247,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage
       title={{ en: "Privacy policy", id: "Kebijakan privasi" }}
-      effective={{ en: "7 Nov 2026", id: "7 Nov 2026" }}
+      effective={{ en: "8 Nov 2026", id: "8 Nov 2026" }}
       intro={{
         en: "What Lummy Ticket keeps about you, why, who can see it, and when it is deleted. Written to match what the app actually does.",
         id: "Apa yang disimpan Lummy Ticket tentang kamu, untuk apa, siapa yang bisa melihatnya, dan kapan dihapus. Ditulis sesuai yang benar-benar dilakukan aplikasinya.",
