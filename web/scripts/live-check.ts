@@ -14,7 +14,7 @@ import { moneyIsReal, moneyNow, paidListingAllowed, unpaidOrderAllowed } from ".
 import { xenditConfig, xenditKeyIsLive } from "../src/lib/payments/xendit";
 import { englishFor, errorBody } from "../src/lib/route-errors";
 import { FRESH_SIGN_IN_MINUTES, freshSignIn, isPayoutBank, payoutNumberOf, signedInAt } from "../src/lib/profile/payout";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 const results: { name: string; ok: boolean; note?: string }[] = [];
@@ -136,6 +136,24 @@ check("payout: a token that does not say when it signed in may not", !freshSignI
 check("payout: the latest of several sign-in methods counts", signedInAt({ amr: [{ method: "otp", timestamp: 100 }, { method: "totp", timestamp: 200 }] }) === 200_000);
 check("payout: a sign-in dated in the future does not count", !freshSignIn(signedInAt(at(-5)), now));
 check("payout: only a known bank, and 6 to 20 digits with spaces taken out", isPayoutBank("BCA") && !isPayoutBank("bca") && !isPayoutBank("Jago") && payoutNumberOf("1234 5678 90") === "1234567890" && payoutNumberOf("12345") === null && payoutNumberOf("12345678901234567890123") === null && payoutNumberOf("12a456789") === null);
+
+// Task 4.7: an ID card never goes to an AI. Only the cleaned text of the ticket PDF does
+// (lib/tickets/clean.ts), and the show request research sends the show's details alone. So no file
+// that talks to a model, directly or through the two modules that do, may touch where ID cards are
+// kept: the `ktp` bucket or the ktp_assets table. Checked on the source, so it holds the day the
+// seller's ID card (FEATURES.sellerIdCard) is built, not only while it is off.
+const sourceFiles = (dir: string): string[] =>
+  readdirSync(dir, { withFileTypes: true }).flatMap((d) =>
+    d.isDirectory() ? sourceFiles(path.join(dir, d.name)) : /\.(ts|tsx)$/.test(d.name) ? [path.join(dir, d.name)] : []
+  );
+const srcRoot = path.join(__dirname, "..", "src");
+const TALKS_TO_AI = /from\s+["'](?:@anthropic-ai\/sdk|@google\/genai|@google\/generative-ai|@\/lib\/tickets\/ai|@\/lib\/events\/research|\.\/ai|\.\/research)["']/;
+const TOUCHES_ID_CARDS = /ktp_assets|\.from\(\s*["']ktp["']\s*\)|bucket(?:Id|_id)?\s*[:=]\s*["']ktp["']/;
+const aiFiles = sourceFiles(srcRoot)
+  .filter((f) => !f.includes(`${path.sep}supabase${path.sep}types.ts`))
+  .filter((f) => TALKS_TO_AI.test(readFileSync(f, "utf8")));
+const leaking = aiFiles.filter((f) => TOUCHES_ID_CARDS.test(readFileSync(f, "utf8"))).map((f) => path.relative(srcRoot, f));
+check(`4.7: the code that calls an AI (${aiFiles.length} files) never touches the ID card store`, aiFiles.length >= 3 && leaking.length === 0, leaking.join(", ") || `only ${aiFiles.length} files call an AI: the pattern no longer finds them`);
 
 for (const r of results) console.log(`${r.ok ? "PASS" : "FAIL"}  ${r.name}${r.note ? `  (${r.note})` : ""}`);
 const failed = results.filter((r) => !r.ok).length;
