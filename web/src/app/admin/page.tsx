@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import {
   CheckCircle2, XCircle, AlertTriangle, Calendar, CalendarClock, CalendarX, MapPin, Scale, Paperclip,
-  ExternalLink, Gavel, Clock, Loader2, Ticket, MinusCircle, Banknote, DoorOpen, Activity,
+  ExternalLink, Gavel, Clock, Loader2, Ticket, MinusCircle, Banknote, DoorOpen, Activity, FileText,
 } from "lucide-react";
 import { PaymentsPanel, usePaymentsOverview } from "@/components/admin/PaymentsPanel";
 import { EvidencePhoto } from "@/components/common/EvidencePhoto";
@@ -226,6 +226,73 @@ function VenueLocation({
 }
 
 /**
+ * The organiser's own letter of authorisation, for a show that accepts a representative with a
+ * letter (tasks 12.2). Staff paste the official link; the ticket page offers it beside Lummy's letter.
+ */
+function LetterTemplate({
+  url, busy, onSave,
+}: {
+  url: string | undefined;
+  busy: boolean;
+  onSave: (url: string | null) => Promise<boolean>;
+}) {
+  const t = useT();
+  // null: the form is closed.
+  const [text, setText] = useState<string | null>(null);
+  const ok = !!text && /^https:\/\/\S+\.\S+$/.test(text.trim());
+  const save = async (value: string | null) => {
+    if (await onSave(value)) setText(null);
+  };
+
+  return (
+    <div className="mt-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-gray">
+        <FileText className="w-3.5 h-3.5 shrink-0" />
+        {url ? (
+          <a href={url} target="_blank" rel="noreferrer noopener" className="text-primary-navy hover:opacity-80 break-all">
+            {t("The organiser's letter template", "Template surat kuasa penyelenggara")}
+          </a>
+        ) : (
+          <span>{t("No letter template from the organiser: buyers get Lummy's letter.", "Belum ada template surat kuasa dari penyelenggara: pembeli memakai surat dari Lummy.")}</span>
+        )}
+        <button onClick={() => setText(text === null ? url ?? "" : null)} className="text-primary-navy font-medium hover:opacity-80 cursor-pointer">
+          {text !== null ? t("Close", "Tutup") : url ? t("Change", "Ubah") : t("Set it", "Isi")}
+        </button>
+      </div>
+      {text !== null && (
+        <form
+          data-letter-template-form
+          className="mt-2 flex flex-col gap-2"
+          onSubmit={(ev) => {
+            ev.preventDefault();
+            if (ok) void save(text.trim());
+          }}
+        >
+          <input
+            value={text}
+            onChange={(ev) => setText(ev.target.value)}
+            aria-label={t("Letter template link", "Link template surat kuasa")}
+            inputMode="url"
+            placeholder={t("The official link, https://...", "Link resminya, https://...")}
+            className="rounded-xl border border-lummy-500 px-4 py-2.5 text-sm text-neutral-black outline-none"
+          />
+          <div className="flex flex-wrap gap-2">
+            <Button.Ghost type="submit" className="text-sm" disabled={busy || !ok}>
+              {t("Save the link", "Simpan link")}
+            </Button.Ghost>
+            {url && (
+              <Button.Ghost tone="danger" className="text-sm" disabled={busy} onClick={() => void save(null)}>
+                {t("Clear it", "Hapus")}
+              </Button.Ghost>
+            )}
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
+
+/**
  * Shows still to come, where staff record what an organiser did to one. Cancelled: the server
  * closes its listings and refunds every order still in escrow, fee included; asking twice guards
  * the button. Postponed: the show moves to a later date, never an earlier one, and every order
@@ -266,6 +333,26 @@ function ShowsPanel() {
         return next;
       });
       toast.success(j.location ? t("Venue location saved", "Lokasi venue disimpan") : t("Venue location cleared", "Lokasi venue dihapus"));
+      return true;
+    } catch (e) {
+      toast.error(`${t("Not saved", "Gagal disimpan")}: ${e instanceof Error ? e.message : String(e)}`);
+      return false;
+    } finally {
+      setBusy(null);
+    }
+  };
+  const setTemplate = async (id: string, url: string | null): Promise<boolean> => {
+    setBusy(id);
+    try {
+      const r = await fetch(`/api/events/${encodeURIComponent(id)}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "letter_template", url }),
+      });
+      const j = (await r.json().catch(() => ({}))) as { error?: string };
+      if (!r.ok) throw new Error(j.error ?? `HTTP ${r.status}`);
+      toast.success(url ? t("Letter template saved", "Template surat kuasa disimpan") : t("Letter template cleared", "Template surat kuasa dihapus"));
+      router.refresh();
       return true;
     } catch (e) {
       toast.error(`${t("Not saved", "Gagal disimpan")}: ${e instanceof Error ? e.message : String(e)}`);
@@ -373,6 +460,7 @@ function ShowsPanel() {
             </div>
           </div>
           {locations && <VenueLocation point={locations[e.id]} busy={busy === e.id} onSave={(text) => place(e.id, text)} />}
+          {e.transferPolicy === "letter" && <LetterTemplate url={e.letterTemplateUrl} busy={busy === e.id} onSave={(url) => setTemplate(e.id, url)} />}
           {moving?.id === e.id && (
             <form
               data-postpone-form

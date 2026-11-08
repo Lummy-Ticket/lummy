@@ -6,6 +6,8 @@
 //     the new date, and every order still held moves with it, so its window opens after the new
 //     show; its buyer may keep the ticket or take the money back (docs/01).
 //   location: where the venue is, for the location check on claim photos (docs/config/05).
+//   letter_template: the organiser's own letter of authorisation, an official https link or null
+//     (tasks 12.2); the ticket page offers it beside Lummy's letter.
 // On a chain order the contract acts first and the database records it. Both are safe to press
 // again: a run that reaches its time budget leaves the rest for the next one, and finished orders
 // are never touched twice.
@@ -17,6 +19,7 @@ import { chainError, operatorSetup, postpone, readListing, settle } from "@/lib/
 import { notifyShowCancelled } from "@/lib/email/notify";
 import { emailDeadline } from "@/lib/email/send";
 import { inIndonesia, parseLocation } from "@/lib/events/location";
+import { officialUrl } from "@/lib/events/requests";
 import { queueLedgerSync } from "@/lib/orders/ledger";
 import { closeHoldsOfEvent } from "@/lib/payments/checkout";
 import { DISPUTE_WINDOW_H, EVENT_DURATION_H } from "@/lib/mock/escrow";
@@ -57,11 +60,26 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!user) return fail(401, "masuk dulu");
   if (!user.staff) return fail(403, "cuma staf yang bisa mencatat perubahan acara");
   if (!/^[\w-]{1,64}$/.test(id)) return fail(404, "acara tidak ditemukan");
-  const body = ((await req.json().catch(() => null)) ?? {}) as { action?: unknown; startsAt?: unknown; location?: unknown };
+  const body = ((await req.json().catch(() => null)) ?? {}) as { action?: unknown; startsAt?: unknown; location?: unknown; url?: unknown };
   if (body.action === "cancel") return cancel(admin, id, user.id);
   if (body.action === "postpone") return postponeShow(admin, id, body.startsAt);
   if (body.action === "location") return setLocation(admin, id, body.location);
+  if (body.action === "letter_template") return setLetterTemplate(admin, id, body.url);
   return fail(400, "aksi tidak dikenal");
+}
+
+/** The organiser's own letter of authorisation: an official https link, or null to clear it. */
+async function setLetterTemplate(admin: Admin, id: string, raw: unknown) {
+  let url: string | null = null;
+  if (raw !== null) {
+    url = typeof raw === "string" ? officialUrl(raw) : null;
+    if (!url || url.length > 500) return fail(400, "tempel link resmi template surat kuasa dari penyelenggara (https://...)");
+  }
+  const r = await admin.from("events").update({ letter_template_url: url }).eq("id", id).select("id");
+  if (r.error) return fail(500, r.error.message);
+  if (!r.data.length) return fail(404, "acara tidak ditemukan");
+  revalidateTag("catalogue", { expire: 0 });
+  return NextResponse.json({ ok: true, url }, { headers: noStore });
 }
 
 /**

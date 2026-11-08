@@ -5,6 +5,7 @@
 // ever comes from the browser (supabase/migrations rls, event_requests).
 import type { Category, Currency, TransferPolicy } from "@/lib/mock/types";
 import type { EventRequest } from "@/lib/mock/useEventRequests";
+import type { Research } from "./research";
 
 export const REQUEST_CATEGORIES: Category[] = ["Music", "Sports", "Theater", "Arts", "Technology", "Education", "Food", "Movies"];
 
@@ -162,10 +163,18 @@ export interface RequestRow {
   review_note: string | null;
   created_at: string;
   event_id: string | null;
+  research?: unknown;
+  researched_at?: string | null;
 }
 
 export const REQUEST_SELECT =
-  "id, submitter_name, title, starts_at, venue, city, country, currency, category, face_values, pdf_tier, organizer_ref, note, forgery_score, pdf_suspicious, ticket_checked, status, review_note, created_at, event_id";
+  "id, submitter_name, title, starts_at, venue, city, country, currency, category, face_values, pdf_tier, organizer_ref, note, forgery_score, pdf_suspicious, ticket_checked, status, review_note, created_at, event_id, research, researched_at";
+
+/** Staff may lower a new show's price ceiling when its terms cap resale (events.cap_pct): 100 to 150. */
+export const capPctOf = (v: unknown): number | null => {
+  const n = v === undefined || v === null || v === "" ? 150 : Number(v);
+  return Number.isInteger(n) && n >= 100 && n <= 150 ? n : null;
+};
 
 export function requestFromRow(r: RequestRow): EventRequest {
   const faceValues = Array.isArray(r.face_values)
@@ -192,5 +201,7 @@ export function requestFromRow(r: RequestRow): EventRequest {
     reviewNote: r.review_note ?? undefined,
     createdAtISO: r.created_at,
     eventId: r.event_id ?? undefined,
+    // Written by the server alone (lib/events/research.ts), so it is taken as it was stored.
+    research: r.research && typeof r.research === "object" ? (r.research as Research) : undefined,
   };
 }

@@ -191,6 +191,8 @@ export type Database = {
           currency: string
           event_id: string | null
           note: string
+          research: Json | null
+          researched_at: string | null
           review_note: string | null
           reviewed_at: string | null
           reviewed_by: string | null
@@ -216,6 +218,8 @@ export type Database = {
           currency?: string
           event_id?: string | null
           note?: string
+          research?: Json | null
+          researched_at?: string | null
           review_note?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -241,6 +245,8 @@ export type Database = {
           currency?: string
           event_id?: string | null
           note?: string
+          research?: Json | null
+          researched_at?: string | null
           review_note?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -296,6 +302,7 @@ export type Database = {
           id: string
           image_credit: string | null
           image_url: string | null
+          letter_template_url: string | null
           rolling_hour: number | null
           starts_at: string
           status: Database["public"]["Enums"]["event_status"]
@@ -317,6 +324,7 @@ export type Database = {
           id: string
           image_credit?: string | null
           image_url?: string | null
+          letter_template_url?: string | null
           rolling_hour?: number | null
           starts_at: string
           status?: Database["public"]["Enums"]["event_status"]
@@ -340,6 +348,7 @@ export type Database = {
           id?: string
           image_credit?: string | null
           image_url?: string | null
+          letter_template_url?: string | null
           rolling_hour?: number | null
           starts_at?: string
           status?: Database["public"]["Enums"]["event_status"]
@@ -1059,6 +1068,7 @@ export type Database = {
           id: string | null
           image_credit: string | null
           image_url: string | null
+          letter_template_url: string | null
           listing_count: number | null
           starts_at: string | null
           status: Database["public"]["Enums"]["event_status"] | null

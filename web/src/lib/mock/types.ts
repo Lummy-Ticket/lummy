@@ -64,6 +64,8 @@ export interface EventItem {
    * where the organiser's terms allow less, as N.Flying's forbid reselling above the official price.
    */
   capPct?: number;
+  /** The organiser's own letter of authorisation, an official link (events.letter_template_url). */
+  letterTemplateUrl?: string;
   /** Where the show is (ISO 3166 country code). Absent means Indonesia. */
   country?: string;
   /** Absent means IDR. */

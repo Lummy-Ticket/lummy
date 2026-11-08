@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Category, Currency } from "./types";
+import type { Research } from "@/lib/events/research";
 
 // A show that is not in the catalogue yet is requested by the first seller who has a ticket for it
 // (the Sell page). A seller's PDF shows only their own category and price, sometimes no price at
@@ -37,6 +38,8 @@ export interface EventRequest {
   createdAtISO?: string;
   /** The show approval created. */
   eventId?: string;
+  /** What the AI research found, when staff ran it (lib/events/research.ts). */
+  research?: Research;
 }
 
 /** A source as a link: stored requests from before 29 Oct 2026 kept it without the scheme. */

@@ -18,6 +18,8 @@ export const RATE = {
   ai_fill: { limit: FILLS_PER_WINDOW, windowSeconds: FILL_WINDOW_MS / 1000 },
   // Upload links for claim photos: a claim, a few answers and some retakes fit in a day.
   evidence_url: { limit: 20, windowSeconds: 24 * 60 * 60 },
+  // AI research of a show request, by staff (lib/events/research.ts): a busy day's queue and retries.
+  ai_research: { limit: 30, windowSeconds: 24 * 60 * 60 },
 } as const;
 export type RateKind = keyof typeof RATE;
 
@@ -26,6 +28,7 @@ export const RATE_REFUSED: Record<RateKind, string> = {
   pdf_read: "terlalu banyak pemeriksaan tiket dalam 10 menit terakhir, coba lagi sebentar lagi",
   ai_fill: "terlalu sering, coba lagi beberapa menit lagi",
   evidence_url: "sudah terlalu banyak upload foto hari ini, coba lagi besok",
+  ai_research: "riset AI hari ini sudah mencapai batas, coba lagi besok",
 };
 
 /**

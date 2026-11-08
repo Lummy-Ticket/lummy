@@ -152,6 +152,23 @@ begin
   insert into t_out(line) values ((case when a and b and not c then 'ok    ' else 'FAIL  ' end) || 'server: take_attempt lets 2 of 3 through a limit of 2 -> ' || a || ',' || b || ',' || c);
 end $$;
 
+-- The AI research on a request and an organiser's letter template are written by the server only
+-- (tasks 12.1, 12.2); the template is read with the rest of the show.
+select pg_temp.probe('anon', null, 'anon: reads letter templates in the catalogue', 'select (count(*) >= 0)::text from (select letter_template_url from public.catalogue_events) x', 'true');
+select pg_temp.probe('authenticated', '44444444-4444-4444-4444-444444444444', 'admin: set a letter template directly', $q$update public.events set letter_template_url = 'https://example.com/form.pdf' where id = 'ev-boyz-dewa' returning id$q$, 'DENIED');
+select pg_temp.probe('authenticated', '22222222-2222-2222-2222-222222222222', 'seller: write research on own request', $q$update public.event_requests set research = '{}'::jsonb where id = 'req-test' returning id$q$, 'DENIED');
+do $$
+declare http_refused boolean := false; ok_research boolean;
+begin
+  begin
+    update public.events set letter_template_url = 'http://example.com/form.pdf' where id = 'ev-boyz-dewa';
+  exception when check_violation then http_refused := true;
+  end;
+  ok_research := public.take_attempt('11111111-1111-1111-1111-111111111111', 'ai_research', 1, 600);
+  insert into t_out(line) values ((case when http_refused then 'ok    ' else 'FAIL  ' end) || 'server: a letter template that is not https is refused -> ' || http_refused);
+  insert into t_out(line) values ((case when ok_research then 'ok    ' else 'FAIL  ' end) || 'server: take_attempt counts ai_research -> ' || ok_research);
+end $$;
+
 insert into t_out(line)
   select (case when role = 'member' then 'ok    ' else 'FAIL  ' end) || 'signup metadata cannot set role -> ' || role::text
   from public.profiles where id = '22222222-2222-2222-2222-222222222222';

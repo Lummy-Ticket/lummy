@@ -1006,12 +1006,22 @@ export default function OrderDetailPage() {
                 <li>{t("The e-voucher or proof of purchase, printed", "E-voucher atau bukti pembelian, tercetak")}</li>
                 <li>{t("The buyer's own original ID", "Identitas asli pembeli sendiri")}</li>
               </ul>
-              <p className="mt-1.5 text-xs">
-                {t(
-                  "Some promoters have their own form or do not let a benefit be redeemed on someone's behalf: check their terms first.",
-                  "Beberapa promotor punya format sendiri atau tidak mengizinkan benefit tertentu diwakilkan: cek syarat mereka dulu."
-                )}
-              </p>
+              {listedEvent?.letterTemplateUrl ? (
+                <p data-letter-template className="mt-1.5 text-xs">
+                  {t("This show's organiser publishes its own letter:", "Penyelenggara acara ini punya format surat kuasa sendiri:")}{" "}
+                  <a href={listedEvent.letterTemplateUrl} target="_blank" rel="noreferrer noopener" className="underline underline-offset-2 text-primary-navy">
+                    {t("open the official template", "buka template resminya")}
+                  </a>
+                  {t(". Use it if the gate asks for it, filled in the same way.", ". Pakai itu kalau gate memintanya, diisi dengan cara yang sama.")}
+                </p>
+              ) : (
+                <p className="mt-1.5 text-xs">
+                  {t(
+                    "Some promoters have their own form or do not let a benefit be redeemed on someone's behalf: check their terms first.",
+                    "Beberapa promotor punya format sendiri atau tidak mengizinkan benefit tertentu diwakilkan: cek syarat mereka dulu."
+                  )}
+                </p>
+              )}
             </div>
             <p className="mt-2 text-xs">
               {t(

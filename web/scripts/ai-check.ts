@@ -11,6 +11,7 @@
 import { aiProvider, buildPrompt, extractTicketFacts, fakeFacts, parseAnswer, responseSchema, type ShowForTicket } from "../src/lib/tickets/ai";
 import { factDiffs, isPastDay, MIN_HOLDER_CHARS, reviewReasons, showDay, type ListingChecks, type TicketFacts } from "../src/lib/tickets/checks";
 import { FILL_WINDOW_MS, FILLS_PER_WINDOW, fillAllowed, namesToTakeOut } from "../src/lib/tickets/fill";
+import { DEFAULT_RESEARCH_MODEL, MAX_FETCHES, MAX_SEARCHES, REPORT_TOOL, researchPrompt, researchRequest, type RequestForResearch } from "../src/lib/events/research";
 
 const results: { name: string; ok: boolean; note?: string }[] = [];
 const check = (name: string, ok: boolean, note?: string) => results.push({ name, ok, note: ok ? undefined : note });
@@ -370,6 +371,80 @@ async function main() {
     delete process.env.GEMINI_API_KEY;
     delete process.env.GEMINI_MODEL;
     delete process.env.GEMINI_THINKING;
+  }
+
+  // --- The research step for show requests (lib/events/research.ts, tasks 12.1), fetch stubbed
+  const REQUEST: RequestForResearch = {
+    title: "Westlife 25: The Anniversary World Tour", startsAt: "2027-01-23T12:00:00Z", venue: "Stadion Utama GBK", city: "Jakarta",
+    country: "ID", currency: "IDR", organizerRef: "https://westlifestadiumshowjkt.com/", pdfTier: "CAT 3", printedPrice: 1_850_000,
+  };
+  const FOUND = {
+    official_url: "https://westlifestadiumshowjkt.com/", matches_request: true,
+    show: { title: "Westlife 25", date: "2027-01-23", start_time: "", venue: "Stadion Utama GBK", city: "Jakarta" },
+    tiers: [
+      { name: "CAT 1", price: 2_500_000, source: "https://katadata.co.id/westlife" },
+      { name: "", price: 1, source: "" },
+      { name: "CAT 6", price: 850_000, source: "http://insecure.example/westlife" },
+    ],
+    price_note: "", resale: "allowed", resale_quote: "Tickets purchased from third-party websites are at the sole risk of the Ticket Purchaser.", resale_source: "https://westlifestadiumshowjkt.com/",
+    name_rule: "id_match", name_rule_quote: "Name in accordance with a valid ID Card is required", name_rule_source: "https://westlifestadiumshowjkt.com/",
+    sold_out: "yes", sources: [{ url: "https://westlifestadiumshowjkt.com/", title: "Official" }, { url: "javascript:alert(1)", title: "bad" }],
+    summary: "Westlife di GBK, tiket habis.",
+  };
+  const message = (content: unknown[], stop: string, searches = 0) => ({
+    status: 200,
+    body: { id: "msg_r", type: "message", role: "assistant", model: DEFAULT_RESEARCH_MODEL, content, stop_reason: stop, stop_sequence: null, usage: { input_tokens: 4_000, output_tokens: 300, server_tool_use: { web_search_requests: searches } } },
+  });
+  const searching = [{ type: "server_tool_use", id: "srvtoolu_1", name: "web_search", input: { query: "Westlife Jakarta 2027 harga tiket" } }];
+  const reported = (input: unknown) => message([...searching, { type: "web_search_tool_result", tool_use_id: "srvtoolu_1", content: [] }, { type: "tool_use", id: "toolu_1", name: REPORT_TOOL.name, input }], "tool_use", 2);
+  const soon = () => Date.now() + 20_000;
+  const awake2 = setInterval(() => {}, 1_000);
+  try {
+    let calls = stubFetch([message(searching, "pause_turn", 1), reported(FOUND)]);
+    let out = await researchRequest(REQUEST, { key: "test-key-not-real", deadline: soon(), today: "2026-11-07" });
+    const body = JSON.parse(String(calls[0]?.init.body ?? "{}"));
+    const second = JSON.parse(String(calls[1]?.init.body ?? "{}"));
+    check("research: a paused search turn is sent back, then the report is read", out.ok && calls.length === 2 && second.messages?.length === 2 && second.messages[1].role === "assistant", JSON.stringify(out).slice(0, 200));
+    check("research: an empty category, an http source and a javascript link are dropped", out.ok && out.research.tiers.length === 2 && out.research.tiers[1].source === "" && out.research.sources.length === 1, JSON.stringify(out.ok && out.research.tiers));
+    check(
+      "research: the report asks for the organiser's letter template, and one left out reads as none",
+      REPORT_TOOL.input_schema.required.includes("letter_template_url") && out.ok && out.research.letter_template_url === "",
+      JSON.stringify(out.ok && out.research.letter_template_url)
+    );
+    check("research: searches and tokens add up over the turns", out.ok && out.research.searches === 3 && out.research.tokens.in === 8_000 && out.research.tokens.out === 600, JSON.stringify(out.ok && { s: out.research.searches, t: out.research.tokens }));
+    const tools = (body.tools ?? []) as { type?: string; name?: string; max_uses?: number; strict?: boolean; input_schema?: { additionalProperties?: boolean } }[];
+    check(
+      "research: Opus 5.5 at low effort, web search and fetch with their limits, the report tool strict and closed",
+      body.model === "claude-opus-5-5" && body.output_config?.effort === "low" && body.temperature === undefined &&
+        tools.some((t) => t.type === "web_search_20260209" && t.max_uses === MAX_SEARCHES) && tools.some((t) => t.type === "web_fetch_20260209" && t.max_uses === MAX_FETCHES) &&
+        tools.some((t) => t.name === "report_findings" && t.strict === true && t.input_schema?.additionalProperties === false),
+      JSON.stringify(tools).slice(0, 200)
+    );
+    check("research: the rules say what forbids resale and what does not", /becomes invalid/.test(body.system) && /is not a ban/.test(body.system) && /surat kuasa/.test(body.system), String(body.system).slice(0, 80));
+    check("research: the key goes as a bearer token, on API version 2026-10-21", header(calls[0], "authorization") === "Bearer test-key-not-real" && header(calls[0], "anthropic-version") === "2026-10-21");
+    check("research: the prompt carries the request, the seller's page and ticket, nothing about the seller", researchPrompt(REQUEST).includes("westlifestadiumshowjkt.com") && researchPrompt(REQUEST).includes("CAT 3"));
+
+    calls = stubFetch([message([{ type: "text", text: "Here is what I found." }], "end_turn"), reported(FOUND)]);
+    out = await researchRequest(REQUEST, { key: "test-key-not-real", deadline: soon() });
+    const nudged = JSON.parse(String(calls[1]?.init.body ?? "{}"));
+    check("research: a turn that ends without the report gets one reminder", out.ok && calls.length === 2 && /report_findings/.test(JSON.stringify(nudged.messages?.at(-1))), `${calls.length} calls`);
+
+    calls = stubFetch([reported({ ...FOUND, resale: "maybe" })]);
+    out = await researchRequest(REQUEST, { key: "test-key-not-real", deadline: soon() });
+    check("research: a report outside the schema is not used", !out.ok && out.reason === "no_answer", JSON.stringify(out));
+
+    calls = stubFetch([claudeError(529, "overloaded_error")]);
+    out = await researchRequest(REQUEST, { key: "test-key-not-real", deadline: soon() });
+    check("research: an overloaded model is busy, not retried", !out.ok && out.reason === "busy" && calls.length === 1, JSON.stringify(out));
+    calls = stubFetch([claudeError(400, "invalid_request_error", "bad tool")]);
+    out = await researchRequest(REQUEST, { key: "test-key-not-real", deadline: soon() });
+    check("research: a refused request fails and says why", !out.ok && out.reason === "failed" && /400/.test(out.detail ?? ""), JSON.stringify(out));
+    calls = stubFetch([reported(FOUND)]);
+    out = await researchRequest(REQUEST, { key: "test-key-not-real", deadline: Date.now() + 1_000 });
+    check("research: with no time left, nothing is asked", !out.ok && out.reason === "busy" && calls.length === 0, JSON.stringify(out));
+  } finally {
+    clearInterval(awake2);
+    globalThis.fetch = realFetch;
   }
 
   for (const x of results) console.log(`${x.ok ? "PASS" : "FAIL"}  ${x.name}${x.note ? `  (${x.note.slice(0, 240)})` : ""}`);

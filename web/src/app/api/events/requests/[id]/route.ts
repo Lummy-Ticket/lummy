@@ -3,21 +3,29 @@
 //     against the organiser's page, and the name rule they found there. Its seller can then list
 //     the ticket, which is checked like any other.
 //   reject: with the reason the seller sees, such as resale being forbidden by the organiser's terms.
-// Pressing either twice changes nothing: only a waiting request can be decided.
+//   research: the AI looks up the official page, prices and terms with their sources (tasks 12.1,
+//     lib/events/research.ts) and the findings are kept on the request for staff; it decides nothing.
+// Pressing either decision twice changes nothing: only a waiting request can be decided.
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
-import { APPROVABLE_POLICIES, REQUEST_SELECT, checkTiers, eventIdFor, requestFromRow, type RequestRow } from "@/lib/events/requests";
+import { APPROVABLE_POLICIES, REQUEST_SELECT, capPctOf, officialUrl, checkTiers, eventIdFor, requestFromRow, type RequestRow } from "@/lib/events/requests";
+import { researchRequest } from "@/lib/events/research";
 import type { TransferPolicy } from "@/lib/mock/types";
+import { RATE_REFUSED, takeAttempt } from "@/lib/rate";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { currentUser } from "@/lib/supabase/session";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+// The research makes several searches; the function's own limit on the current Vercel plan.
+export const maxDuration = 60;
+const RESEARCH_BUDGET_MS = 50_000;
 
 const noStore = { "Cache-Control": "private, no-store" };
 const fail = (status: number, error: string) => NextResponse.json({ error }, { status, headers: noStore });
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const started = Date.now();
   const { id } = await params;
   const admin = supabaseAdmin();
   if (!admin) return fail(503, "database belum tersambung di server ini");
@@ -25,7 +33,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!user) return fail(401, "masuk dulu");
   if (!user.staff) return fail(403, "cuma staf yang bisa memutus pengajuan acara");
   if (!/^[\w-]{1,64}$/.test(id)) return fail(404, "pengajuan tidak ditemukan");
-  const body = ((await req.json().catch(() => null)) ?? {}) as { action?: unknown; note?: unknown; tiers?: unknown; transferPolicy?: unknown };
+  const body = ((await req.json().catch(() => null)) ?? {}) as { action?: unknown; note?: unknown; tiers?: unknown; transferPolicy?: unknown; capPct?: unknown; letterTemplateUrl?: unknown };
 
   const found = await admin.from("event_requests").select(REQUEST_SELECT).eq("id", id).maybeSingle();
   if (found.error) return fail(500, found.error.message);
@@ -34,6 +42,43 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (request.status !== "pending") return fail(409, "pengajuan ini sudah diputus");
   const note = typeof body.note === "string" ? body.note.trim().slice(0, 500) : "";
   const decided = { reviewed_by: user.id, reviewed_at: new Date().toISOString() };
+
+  if (body.action === "research") {
+    const key = process.env.ANTHROPIC_API_KEY?.trim();
+    if (!key) return fail(503, "riset AI belum aktif di server ini");
+    if (!(await takeAttempt(admin, user.id, "ai_research"))) return fail(429, RATE_REFUSED.ai_research);
+    const seller = requestFromRow(request);
+    const first = seller.faceValues[0];
+    const usdc = seller.currency === "USDC";
+    const out = await researchRequest(
+      {
+        title: request.title,
+        startsAt: request.starts_at,
+        venue: request.venue,
+        city: request.city,
+        country: request.country,
+        currency: usdc ? "USDC" : "IDR",
+        organizerRef: request.organizer_ref,
+        pdfTier: request.pdf_tier,
+        printedPrice: first ? (usdc ? first.value / 1_000_000 : first.value) : null,
+      },
+      { key, deadline: started + RESEARCH_BUDGET_MS }
+    );
+    if (!out.ok) {
+      console.error("[events/requests] research did not finish:", id, out.reason, out.detail);
+      return out.reason === "busy" ? fail(503, "riset AI belum selesai tepat waktu, coba lagi sebentar") : fail(502, "riset AI tidak memberi jawaban yang bisa dipakai, coba lagi atau cek manual");
+    }
+    const saved = await admin
+      .from("event_requests")
+      .update({ research: out.research, researched_at: out.research.at })
+      .eq("id", id)
+      .eq("status", "pending")
+      .select(REQUEST_SELECT)
+      .maybeSingle();
+    if (saved.error) return fail(500, saved.error.message);
+    if (!saved.data) return fail(409, "pengajuan ini sudah diputus");
+    return NextResponse.json({ request: requestFromRow(saved.data as RequestRow) }, { headers: noStore });
+  }
 
   if (body.action === "reject") {
     if (note.length < 5) return fail(400, "tulis alasannya untuk penjual");
@@ -48,6 +93,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!tiers.ok) return fail(400, tiers.error);
   const policy = (body.transferPolicy ?? null) as TransferPolicy | null;
   if (!APPROVABLE_POLICIES.includes(policy)) return fail(400, "aturan nama tidak dikenal; kalau S&K melarang resale, tolak pengajuannya");
+  const capPct = capPctOf(body.capPct);
+  if (capPct === null) return fail(400, "batas harga harus 100 sampai 150 persen harga asli");
+  const rawTemplate = typeof body.letterTemplateUrl === "string" ? body.letterTemplateUrl.trim() : "";
+  const letterTemplate = rawTemplate ? officialUrl(rawTemplate) : null;
+  if (rawTemplate && (!letterTemplate || letterTemplate.length > 500)) return fail(400, "link template surat kuasa harus link resmi https://");
   if (Date.parse(request.starts_at) <= Date.now()) return fail(400, "acaranya sudah lewat, jadi tidak bisa masuk katalog");
 
   // A free id: the show's name and date, with a suffix if the same name and day exist already.
@@ -69,6 +119,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     country: request.country,
     currency: request.currency,
     transfer_policy: policy,
+    cap_pct: capPct,
+    letter_template_url: letterTemplate,
     featured: false,
   });
   if (made.error) return fail(500, made.error.message);

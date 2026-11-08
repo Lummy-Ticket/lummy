@@ -111,6 +111,7 @@ const EXACT: Record<string, string> = {
   "terlalu banyak pemeriksaan tiket dalam 10 menit terakhir, coba lagi sebentar lagi": "too many ticket checks in the last 10 minutes; try again in a moment",
   "terlalu sering, coba lagi beberapa menit lagi": "too often; try again in a few minutes",
   "sudah terlalu banyak upload foto hari ini, coba lagi besok": "too many photo uploads today; try again tomorrow",
+  "riset AI hari ini sudah mencapai batas, coba lagi besok": "today's AI research allowance is used up; try again tomorrow",
 };
 
 // Messages that carry a number or a reason in them.
