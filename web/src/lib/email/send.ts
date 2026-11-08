@@ -60,14 +60,66 @@ function transport(): Transport | null {
     return { kind: "file", from: process.env.MAIL_FROM?.trim() || "Lummy <no-reply@lummy.id>", dir };
   }
   if (!FEATURES.emails) return null;
+  return smtpSettings().settings;
+}
+
+type Smtp = Extract<Transport, { kind: "smtp" }>;
+
+/** The mail server settings in this deployment's env, whatever the flag says, and the names missing. */
+function smtpSettings(): { settings: Smtp | null; missing: string[] } {
   const host = process.env.SMTP_HOST?.trim();
   const user = process.env.SMTP_USER?.trim();
   // Trimmed like every other secret here: a pasted value often ends in a newline.
   const pass = process.env.SMTP_PASSWORD?.trim();
   const from = process.env.MAIL_FROM?.trim();
   const port = Number(process.env.SMTP_PORT?.trim() || 465);
-  if (!host || !user || !pass || !from || !Number.isInteger(port)) return null;
-  return { kind: "smtp", from, host, port, user, pass };
+  const missing = [
+    ...(host ? [] : ["SMTP_HOST"]),
+    ...(user ? [] : ["SMTP_USER"]),
+    ...(pass ? [] : ["SMTP_PASSWORD"]),
+    ...(from ? [] : ["MAIL_FROM"]),
+    ...(Number.isInteger(port) ? [] : ["SMTP_PORT"]),
+  ];
+  if (!host || !user || !pass || !from || missing.length) return { settings: null, missing };
+  return { settings: { kind: "smtp", from, host, port, user, pass }, missing };
+}
+
+/**
+ * One test email to `to`, sent now and waited for, over this deployment's mail settings even while
+ * FEATURES.emails is off (api/admin/email-test, tasks 11.3): proof that the credentials work before
+ * the flag goes on, or after the mailbox password changes. A failure comes back as its code only.
+ */
+export async function sendTestEmail(to: string): Promise<{ ok: true; messageId: string } | { ok: false; reason: string }> {
+  const { settings, missing } = smtpSettings();
+  if (!settings) return { ok: false, reason: `belum diisi di server: ${missing.join(", ")}` };
+  if (!deliverable(to, false)) return { ok: false, reason: "alamat ini tidak bisa menerima email" };
+  // The connection settings of sendAll below, without the pool.
+  const t = createTransport({
+    host: settings.host,
+    port: settings.port,
+    secure: settings.port === 465,
+    requireTLS: settings.port !== 465,
+    auth: { user: settings.user, pass: settings.pass },
+    connectionTimeout: SOCKET_MS,
+    greetingTimeout: SOCKET_MS,
+    socketTimeout: SOCKET_MS,
+  });
+  const sent = new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
+  try {
+    const info = await t.sendMail({
+      from: settings.from,
+      to,
+      replyTo: REPLY_TO,
+      subject: "Lummy: email uji dari server",
+      text: `Ini email uji dari server Lummy, dikirim ${sent} WIB lewat ${settings.host} sebagai ${settings.user}. Kalau email ini sampai di kotak masuk dan bukan di spam, setelan email notifikasi di server sudah benar.`,
+      headers: { "Auto-Submitted": "auto-generated" },
+    });
+    return info.accepted.length ? { ok: true, messageId: info.messageId } : { ok: false, reason: "server email tidak menerimanya" };
+  } catch (e) {
+    return { ok: false, reason: failure(e) };
+  } finally {
+    t.close();
+  }
 }
 
 /** The domains kept for examples (RFC 2606). The checks make their accounts there. */

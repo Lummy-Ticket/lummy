@@ -155,7 +155,41 @@ const aiFiles = sourceFiles(srcRoot)
 const leaking = aiFiles.filter((f) => TOUCHES_ID_CARDS.test(readFileSync(f, "utf8"))).map((f) => path.relative(srcRoot, f));
 check(`4.7: the code that calls an AI (${aiFiles.length} files) never touches the ID card store`, aiFiles.length >= 3 && leaking.length === 0, leaking.join(", ") || `only ${aiFiles.length} files call an AI: the pattern no longer finds them`);
 
-for (const r of results) console.log(`${r.ok ? "PASS" : "FAIL"}  ${r.name}${r.note ? `  (${r.note})` : ""}`);
-const failed = results.filter((r) => !r.ok).length;
-console.log(`\n${results.length - failed}/${results.length} checks pass`);
-process.exit(failed ? 1 : 0);
+// The staff test email (api/admin/email-test): it names what the server is missing, and refuses an
+// address that cannot receive mail before it opens any connection. Offline: no address here is ever
+// sent to, and with the settings unset it stops before the mail server.
+async function emailTest() {
+  const { sendTestEmail } = await import("../src/lib/email/send");
+  const names = ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASSWORD", "MAIL_FROM"] as const;
+  const saved = Object.fromEntries(names.map((n) => [n, process.env[n]]));
+  try {
+    for (const n of names) delete process.env[n];
+    const unset = await sendTestEmail("someone@gmail.com");
+    check(
+      "email test: with no mail settings it names each one missing and sends nothing",
+      !unset.ok && ["SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD", "MAIL_FROM"].every((n) => unset.reason.includes(n)),
+      JSON.stringify(unset)
+    );
+    Object.assign(process.env, { SMTP_HOST: "smtp.invalid", SMTP_PORT: "465", SMTP_USER: "u@lummy.id", SMTP_PASSWORD: "not-real", MAIL_FROM: "Lummy <u@lummy.id>" });
+    const example = await sendTestEmail("staff@example.com");
+    const demo = await sendTestEmail("admin@demo.lummy.id");
+    check(
+      "email test: an example or demo address is refused before any connection",
+      !example.ok && !demo.ok && example.reason === "alamat ini tidak bisa menerima email" && demo.reason === example.reason,
+      JSON.stringify({ example, demo })
+    );
+  } finally {
+    for (const n of names) {
+      if (saved[n] === undefined) delete process.env[n];
+      else process.env[n] = saved[n];
+    }
+  }
+}
+emailTest()
+  .catch((e) => check("email test: the checks ran", false, e instanceof Error ? e.message : String(e)))
+  .finally(() => {
+    for (const r of results) console.log(`${r.ok ? "PASS" : "FAIL"}  ${r.name}${r.note ? `  (${r.note})` : ""}`);
+    const failed = results.filter((r) => !r.ok).length;
+    console.log(`\n${results.length - failed}/${results.length} checks pass`);
+    process.exit(failed ? 1 : 0);
+  });
