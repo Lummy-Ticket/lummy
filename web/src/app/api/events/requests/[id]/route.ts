@@ -17,9 +17,11 @@ import { currentUser } from "@/lib/supabase/session";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-// The research makes several searches; the function's own limit on the current Vercel plan.
-export const maxDuration = 60;
-const RESEARCH_BUDGET_MS = 50_000;
+// The research makes several searches and page reads inside one API call, which took more than 50 s
+// in the first real run (8 Nov 2026). Vercel with Fluid compute allows 300 s on any plan (Pro up to
+// 800 s), so the research gets four minutes and the answer the rest.
+export const maxDuration = 300;
+const RESEARCH_BUDGET_MS = 240_000;
 
 const noStore = { "Cache-Control": "private, no-store" };
 const fail = (status: number, error: string) => NextResponse.json({ error }, { status, headers: noStore });

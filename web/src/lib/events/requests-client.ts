@@ -29,7 +29,7 @@ export const decideEventRequest = (
   decision: { action: "approve"; tiers: ApprovalTier[]; transferPolicy: TransferPolicy | null; capPct?: number; letterTemplateUrl?: string; note?: string } | { action: "reject"; note: string }
 ) => call<{ request: EventRequest; eventId?: string }>(`/api/events/requests/${encodeURIComponent(id)}`, { method: "POST", body: JSON.stringify(decision) });
 
-/** Staff ask the AI to research a waiting request (lib/events/research.ts); it takes up to a minute. */
+/** Staff ask the AI to research a waiting request (lib/events/research.ts); it can take a few minutes. */
 export const researchEventRequest = (id: string) =>
   call<{ request: EventRequest }>(`/api/events/requests/${encodeURIComponent(id)}`, { method: "POST", body: JSON.stringify({ action: "research" }) }).then((r) => r.request);
 

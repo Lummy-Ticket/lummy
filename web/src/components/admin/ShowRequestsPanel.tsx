@@ -171,7 +171,7 @@ export function ShowRequestsPanel({ queue }: { queue: ReturnType<typeof useShowR
   const { account, requests, loading, error, refresh } = queue;
   const countryName = (c?: string) => REQUEST_COUNTRIES.find((x) => x.code === (c ?? "ID"));
 
-  // The AI looks the show up (lib/events/research.ts): up to a minute, a few cents, staff decide.
+  // The AI looks the show up (lib/events/research.ts): a few minutes at most, staff decide.
   const research = async (r: EventRequest) => {
     setResearching(r.id);
     try {
@@ -343,7 +343,7 @@ export function ShowRequestsPanel({ queue }: { queue: ReturnType<typeof useShowR
                       <Button.Ghost data-request-research className="text-sm" disabled={!!researching} onClick={() => void research(r)}>
                         {researching === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                         {researching === r.id
-                          ? t("Researching, up to a minute...", "Sedang riset, sampai satu menit...")
+                          ? t("Researching, this can take a few minutes...", "Sedang riset, bisa sampai beberapa menit...")
                           : r.research
                             ? t("Research again", "Riset ulang")
                             : t("Research with AI", "Riset dengan AI")}
