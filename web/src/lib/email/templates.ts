@@ -417,3 +417,58 @@ export function ticketsListed(l: ListingFacts): Rendered {
     },
   });
 }
+
+/** Staff decided a listing held for review: on sale now, or refused. Only its seller hears this. */
+export function listingReviewed(l: ListingFacts, cleared: boolean): Rendered {
+  const what = { id: `${l.quantity} tiket ${l.tierName} untuk ${l.eventTitle}`, en: `${l.quantity} ${l.tierName} ticket${l.quantity > 1 ? "s" : ""} for ${l.eventTitle}` };
+  return render({
+    subject: cleared ? { id: "Listingmu tayang", en: "Your listing is live" } : { id: "Listingmu tidak lolos", en: "Your listing was not approved" },
+    about: l.eventTitle,
+    heading: cleared ? { id: "Listingmu sudah tayang", en: "Your listing is live" } : { id: "Listingmu tidak lolos", en: "Your listing was not approved" },
+    lines: cleared
+      ? [{ id: `Staf sudah mengecek tiketmu. ${what.id} sekarang tayang dan bisa dibeli.`, en: `Staff have checked your ticket. ${what.en} is now on sale.` }]
+      : [
+          { id: `Staf sudah mengecek tiketmu, dan ${what.id} tidak ditayangkan.`, en: `Staff have checked your ticket, and ${what.en} will not go on sale.` },
+          { id: "Kalau menurutmu ini keliru, balas email ini.", en: "If you think this is a mistake, reply to this email." },
+        ],
+    facts: [
+      { label: { id: "Acara", en: "Show" }, value: same(l.eventTitle) },
+      { label: { id: "Kategori", en: "Tier" }, value: same(`${l.tierName} × ${l.quantity}`) },
+      { label: { id: "Harga per tiket", en: "Price per ticket" }, value: both((lang) => money(l.askPrice, l.currency, lang)) },
+    ],
+    action: OPEN_SALES,
+    note: FEATURES.payouts ? undefined : TEST_MODE_NOTE,
+    why: { id: "Kamu menerima email ini karena memasang listing ini di Lummy.", en: "You get this email because you posted this listing on Lummy." },
+  });
+}
+
+export type ShowRequestFacts = {
+  title: string;
+  startsAt: string;
+  /** The show approving made, the one to list on. */
+  eventId: string | null;
+  /** What staff wrote for the seller: always on a refusal, optional on an approval. */
+  note: string | null;
+};
+
+/** Staff decided a show the seller asked for: in the catalogue now, or refused with the reason. */
+export function showRequestDecided(r: ShowRequestFacts, approved: boolean): Rendered {
+  const when = { label: { id: "Tanggal", en: "Date" }, value: both((lang) => showDate(r.startsAt, lang)) };
+  const show = { label: { id: "Acara", en: "Show" }, value: same(r.title) };
+  const staffNote = r.note ? [{ label: { id: approved ? "Catatan staf" : "Alasan staf", en: approved ? "Staff's note" : "Staff's reason" }, value: same(r.note) }] : [];
+  return render({
+    subject: approved ? { id: "Acaramu disetujui", en: "Your show was approved" } : { id: "Acaramu tidak disetujui", en: "Your show was not approved" },
+    about: r.title,
+    heading: approved ? { id: "Acaramu sudah masuk katalog", en: "Your show is in the catalogue" } : { id: "Acaramu tidak disetujui", en: "Your show was not approved" },
+    lines: approved
+      ? [{ id: `${r.title} sudah masuk katalog Lummy. Sekarang kamu bisa menjual tiketmu untuk acara ini.`, en: `${r.title} is in Lummy's catalogue. You can list your ticket for it now.` }]
+      : [{ id: `Staf sudah mengecek ${r.title}, dan acara ini tidak bisa masuk katalog Lummy.`, en: `Staff have checked ${r.title}, and it cannot go into Lummy's catalogue.` }],
+    facts: [show, when, ...staffNote],
+    action:
+      approved && r.eventId
+        ? { path: `/sell?event=${encodeURIComponent(r.eventId)}`, label: { id: "Jual tiketmu sekarang", en: "List your ticket now" } }
+        : OPEN_SALES,
+    note: approved && !FEATURES.payouts ? TEST_MODE_NOTE : undefined,
+    why: { id: "Kamu menerima email ini karena mengajukan acara ini di Lummy.", en: "You get this email because you requested this show on Lummy." },
+  });
+}

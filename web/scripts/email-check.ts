@@ -19,6 +19,8 @@
  *      same seller again within a day (even after withdrawing and posting again), or anyone within
  *      six hours of the show's last live listing, tells nobody. Time is moved by setting the show's
  *      listings back.
+ *      Staff's decisions reach the seller who is waiting on them: a held listing cleared or refused,
+ *      and a show request approved or refused with the reason.
  *   4. Staff cancel the show: the order still held is refunded and its buyer hears it; the order
  *      already settled by the ruling sends nothing.
  *   5. Then the whole run's mail is counted: exactly the emails above, nothing twice, nothing to the
@@ -33,6 +35,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { chromium, type Browser, type BrowserContext } from "playwright-core";
+import { REQUEST_CATEGORIES } from "../src/lib/events/requests";
 import { deliverable } from "../src/lib/email/send";
 import type { Database } from "../src/lib/supabase/types";
 import { loadTarget } from "./lib/target-env.mjs";
@@ -136,6 +139,13 @@ async function main() {
    * that can be caught).
    */
   let cleaning: Promise<{ error?: string; alertsLeft: number }> | null = null;
+  /** The shows approving a request made here. Removed as soon as they are checked: the catalogue is public. */
+  const approvedShows: string[] = [];
+  const dropApprovedShows = async () => {
+    if (!approvedShows.length) return;
+    await admin.from("tiers").delete().in("event_id", approvedShows);
+    await admin.from("events").delete().in("id", approvedShows);
+  };
   const cleanup = () =>
     (cleaning ??= (async () => {
       if (userIds.length) await admin.from("profiles").update({ role: "member" }).in("id", userIds);
@@ -147,6 +157,9 @@ async function main() {
       }
       await admin.from("tiers").delete().in("id", [TIER_A, TIER_B, TIER_C]);
       const gone = await admin.from("events").delete().eq("id", EVENT);
+      // A request outlives its account (submitted_by is set null), so it goes while it can be found.
+      if (userIds.length) await admin.from("event_requests").delete().in("submitted_by", userIds);
+      await dropApprovedShows();
       const users = await Promise.all(userIds.map((id) => admin.auth.admin.deleteUser(id)));
       const error = gone.error?.message ?? users.find((u) => u.error)?.error?.message;
       // Late emails of this run would land after the accounts are gone: give them a moment, then clear.
@@ -306,9 +319,10 @@ async function main() {
       api(ctx, "POST", "/api/listings", { eventId: EVENT, tierId, askPrice, quantity, sample });
     /** The alerts a listing sent, once anything sent twice would have landed too. */
     const alertsAbout = async (id: string, expected: number) => {
-      if (expected) await waitFor((m) => m.ref === id, expected);
+      const about = (m: Mail) => m.ref === id && m.kind === "tickets-listed";
+      if (expected) await waitFor(about, expected);
       await sleep(expected ? 1500 : 3000);
-      return inbox().filter((m) => m.ref === id);
+      return inbox().filter(about);
     };
     /** Moves every listing of the show back in time, as if it had been posted (and cleared) `ms` ago. */
     const age = async (ms: number) => {
@@ -326,6 +340,22 @@ async function main() {
     const cleared = await api(staffCtx, "POST", `/api/listings/${lc}`, { action: "approve" });
     const clearedAgain = await api(staffCtx, "POST", `/api/listings/${lc}`, { action: "approve" });
     check("staff clear it, once", cleared.status === 200 && clearedAgain.status === 409, JSON.stringify({ cleared, clearedAgain }));
+    const [liveMail] = await waitFor((m) => m.kind === "listing-approved" && m.ref === lc);
+    check(
+      "the seller hears it is live, once, with the seller page's link",
+      liveMail?.to === SELLER_EMAIL && liveMail.subject === `Listingmu tayang / Your listing is live: ${TITLE}` && linked(liveMail, `${SITE}/seller`) && liveMail.text.includes("Rp330.000"),
+      JSON.stringify({ to: liveMail?.to, subject: liveMail?.subject })
+    );
+    const heldR = await post(sellerCtx, TIER_C, 330_000, "edited");
+    const lr = String(heldR.body.id ?? "");
+    const refused = await api(staffCtx, "POST", `/api/listings/${lr}`, { action: "reject" });
+    const [refusedMail] = await waitFor((m) => m.kind === "listing-rejected" && m.ref === lr);
+    check(
+      "staff refuse another: the seller hears that too, and is told to reply if it is a mistake",
+      refused.status === 200 && refusedMail?.to === SELLER_EMAIL && refusedMail.subject === `Listingmu tidak lolos / Your listing was not approved: ${TITLE}` && refusedMail.text.includes("balas email ini"),
+      JSON.stringify({ refused, to: refusedMail?.to, subject: refusedMail?.subject })
+    );
+    check("and nobody following the show hears about a refused listing", (await alertsAbout(lr, 0)).length === 0);
     const aboutC = await alertsAbout(lc, 1);
     check(
       "cleared, it reaches the show's follower only: not the VIP follower, not its seller, not the demo account",
@@ -403,6 +433,31 @@ async function main() {
     const again = await api(staffCtx, "POST", `/api/events/${EVENT}`, { action: "cancel" });
     check("cancelling again refunds nothing more", again.status === 200 && again.body.refunded === 0, JSON.stringify(again));
 
+    // --- Show requests: whoever asked hears the decision. The approved show is public, so it goes at once.
+    const asked = { startsAt: iso(Date.now() + 30 * 86_400_000), venue: "Aula Uji", city: "Jakarta", country: "ID", category: REQUEST_CATEGORIES[0], organizerRef: "https://example.com/uji-email" };
+    const rq1 = await api(sellerCtx, "POST", "/api/events/requests", { ...asked, title: "Uji Email Ditolak" });
+    const rq1Id = String((rq1.body.request as { id?: string } | undefined)?.id ?? "");
+    const no = await api(staffCtx, "POST", `/api/events/requests/${rq1Id}`, { action: "reject", note: "S&K <promotor> melarang resale" });
+    const [noMail] = await waitFor((m) => m.kind === "request-rejected" && m.ref === rq1Id);
+    check(
+      "a show request refused: whoever asked hears it, with staff's reason, escaped in the HTML",
+      no.status === 200 && noMail?.to === SELLER_EMAIL && noMail.subject === "Acaramu tidak disetujui / Your show was not approved: Uji Email Ditolak" &&
+        noMail.text.includes("S&K <promotor> melarang resale") && noMail.html.includes("S&amp;K &lt;promotor&gt;") && !noMail.html.includes("<promotor>") && linked(noMail, `${SITE}/seller`),
+      JSON.stringify({ no, to: noMail?.to, subject: noMail?.subject })
+    );
+    const rq2 = await api(sellerCtx, "POST", "/api/events/requests", { ...asked, title: "Uji Email Disetujui" });
+    const rq2Id = String((rq2.body.request as { id?: string } | undefined)?.id ?? "");
+    const yes = await api(staffCtx, "POST", `/api/events/requests/${rq2Id}`, { action: "approve", tiers: [{ name: "Reguler", faceValue: 500_000 }], transferPolicy: "open", capPct: 150 });
+    const madeShow = String(yes.body.eventId ?? "");
+    if (madeShow) approvedShows.push(madeShow);
+    const [yesMail] = await waitFor((m) => m.kind === "request-approved" && m.ref === rq2Id);
+    await dropApprovedShows();
+    check(
+      "a show request approved: whoever asked hears it, with a link to list on that show",
+      yes.status === 200 && yesMail?.to === SELLER_EMAIL && yesMail.subject === "Acaramu disetujui / Your show was approved: Uji Email Disetujui" && linked(yesMail, `${SITE}/sell?event=${encodeURIComponent(madeShow)}`),
+      JSON.stringify({ yes, to: yesMail?.to, subject: yesMail?.subject })
+    );
+
     // --- 5. The whole run's mail: exactly what was expected, nothing twice, nobody else.
     await sleep(2000);
     const all = inbox();
@@ -410,6 +465,8 @@ async function main() {
     const want = [
       `order-paid buyer ${id1}`, `order-paid buyer ${id2}`,
       `order-sold seller ${id1}`, `order-sold seller ${id2}`, `order-sold seller ${id3}`,
+      `listing-approved seller ${lc}`, `listing-rejected seller ${lr}`,
+      `request-rejected seller ${rq1Id}`, `request-approved seller ${rq2Id}`,
       `claim-seller seller ${id1}`, `claim-buyer buyer ${id1}`,
       `ruling-buyer buyer ${id1}`, `ruling-seller seller ${id1}`,
       `tickets-listed follower ${lc}`,

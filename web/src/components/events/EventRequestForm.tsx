@@ -8,6 +8,7 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 import { Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FEATURES } from "@/lib/features";
 import { NativeSelect } from "@/components/ui/select-menu";
 import { REQUEST_CATEGORIES, REQUEST_COUNTRIES, checkRequest, currencyOf, faceValuesOf, localStart } from "@/lib/events/requests";
 import { RequestError, fileEventRequest } from "@/lib/events/requests-client";
@@ -68,7 +69,9 @@ export function EventRequestForm({ prefill, onDone }: { prefill?: RequestPrefill
       }
       toast.success(
         user?.account
-          ? t("Sent. Staff check it against the official page, usually within a day.", "Terkirim. Staf mengeceknya ke halaman resmi, biasanya dalam sehari.")
+          ? FEATURES.emails
+            ? t("Sent. Staff check it against the official page, usually within a day, and email you the result.", "Terkirim. Staf mengeceknya ke halaman resmi, biasanya dalam sehari, lalu mengirim hasilnya lewat email.")
+            : t("Sent. Staff check it against the official page, usually within a day.", "Terkirim. Staf mengeceknya ke halaman resmi, biasanya dalam sehari.")
           : t("Sent, in this demo only: the demo admin sees it in the New events queue.", "Terkirim, khusus di demo ini: admin demo melihatnya di antrean Event baru.")
       );
       onDone(made);

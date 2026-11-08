@@ -37,7 +37,7 @@ export const FEATURES = {
    */
   realListings: false,
   /**
-   * Email from Lummy beyond sign-in: an order paid or sold, a claim and its ruling, a show cancelled, and
+   * Email from Lummy beyond sign-in: an order paid or sold, a claim and its ruling, staff's decision on a held listing or a show request, a show cancelled, and
    * an alert when tickets for a show someone follows go on sale (decided 23 Oct 2026: email, not
    * WhatsApp, since every account already has a verified address and a phone number would be more
    * personal data to keep). The sending is built (lib/email) and checked (npm run email:check, which

@@ -7,7 +7,7 @@ import { EVENT_DURATION_H } from "@/lib/mock/escrow";
 import type { DisputeReason, Remedy } from "@/lib/mock/types";
 import type { Database } from "@/lib/supabase/types";
 import { queueEmails, type Mail } from "./send";
-import { claimReceipt, claimToSeller, orderPaid, orderSold, payoutChanged, ruling, showCancelled, ticketsListed, type OrderFacts, type Rendered } from "./templates";
+import { claimReceipt, claimToSeller, listingReviewed, orderPaid, orderSold, payoutChanged, ruling, showCancelled, showRequestDecided, ticketsListed, type OrderFacts, type Rendered } from "./templates";
 
 if (typeof window !== "undefined") throw new Error("lib/email/notify hanya boleh dipakai di server");
 
@@ -245,4 +245,45 @@ export function notifyListingLive(admin: Admin, listingId: string, deadline: num
     const to = await addressesOf(admin, people);
     return people.flatMap((id) => mail(to.get(id) ?? null, "tickets-listed", listing.id, letter));
   }, deadline);
+}
+
+/** Staff cleared or refused a listing held for review (api/listings/[id]): its seller is waiting on that. */
+export function notifyListingReviewed(admin: Admin, listingId: string, cleared: boolean) {
+  queueEmails(`listing-review ${listingId}`, async () => {
+    const { data: l, error } = await admin.from("listings").select("id, event_id, tier_id, seller_id, ask_price, quantity").eq("id", listingId).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!l) return [];
+    const [ev, tier] = await Promise.all([
+      admin.from("catalogue_events").select("title, starts_at, currency").eq("id", l.event_id).maybeSingle(),
+      admin.from("tiers").select("name").eq("id", l.tier_id).maybeSingle(),
+    ]);
+    const failed = ev.error ?? tier.error;
+    if (failed) throw new Error(failed.message);
+    if (!ev.data?.title || !ev.data.starts_at || !tier.data) return [];
+    const letter = listingReviewed(
+      {
+        eventId: l.event_id,
+        eventTitle: ev.data.title,
+        eventDate: ev.data.starts_at,
+        tierName: tier.data.name,
+        quantity: l.quantity,
+        askPrice: Number(l.ask_price),
+        currency: ev.data.currency === "USDC" ? "USDC" : "IDR",
+      },
+      cleared
+    );
+    return mail(await addressOf(admin, l.seller_id), cleared ? "listing-approved" : "listing-rejected", l.id, letter);
+  });
+}
+
+/** Staff decided a show request (api/events/requests/[id]): whoever asked hears it, with the reason if refused. */
+export function notifyShowRequestDecided(admin: Admin, requestId: string) {
+  queueEmails(`show-request ${requestId}`, async () => {
+    const { data: r, error } = await admin.from("event_requests").select("id, submitted_by, title, starts_at, status, review_note, event_id").eq("id", requestId).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!r || r.status === "pending") return [];
+    const approved = r.status === "approved";
+    const letter = showRequestDecided({ title: r.title, startsAt: r.starts_at, eventId: r.event_id, note: r.review_note }, approved);
+    return mail(await addressOf(admin, r.submitted_by), approved ? "request-approved" : "request-rejected", r.id, letter);
+  });
 }

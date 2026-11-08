@@ -9,6 +9,7 @@
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { APPROVABLE_POLICIES, REQUEST_SELECT, capPctOf, officialUrl, checkTiers, eventIdFor, requestFromRow, type RequestRow } from "@/lib/events/requests";
+import { notifyShowRequestDecided } from "@/lib/email/notify";
 import { researchRequest } from "@/lib/events/research";
 import type { TransferPolicy } from "@/lib/mock/types";
 import { RATE_REFUSED, takeAttempt } from "@/lib/rate";
@@ -87,6 +88,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const r = await admin.from("event_requests").update({ status: "rejected", review_note: note, ...decided }).eq("id", id).eq("status", "pending").select(REQUEST_SELECT).maybeSingle();
     if (r.error) return fail(500, r.error.message);
     if (!r.data) return fail(409, "pengajuan ini sudah diputus");
+    notifyShowRequestDecided(admin, id);
     return NextResponse.json({ request: requestFromRow(r.data as RequestRow) }, { headers: noStore });
   }
 
@@ -152,5 +154,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return r.error ? fail(500, r.error.message) : fail(409, "pengajuan ini sudah diputus");
   }
   revalidateTag("catalogue", { expire: 0 });
+  notifyShowRequestDecided(admin, id);
   return NextResponse.json({ request: requestFromRow(r.data as RequestRow), eventId }, { headers: noStore });
 }

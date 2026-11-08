@@ -213,6 +213,30 @@ async function emailTest() {
     `payouts ${FEATURES.payouts}`
   );
   check("sale email: no em-dash", !/—/.test(sold.text + sold.html + sold.subject));
+
+  // Staff's decisions, read by the seller who is waiting on them. email:check sends these; here the
+  // words, without a database.
+  const { listingReviewed, showRequestDecided } = await import("../src/lib/email/templates");
+  const listing = { eventId: "ev-1", eventTitle: "Show", eventDate: "2027-04-10T12:00:00Z", tierName: "CAT 2", quantity: 2, askPrice: 1_450_000, currency: "IDR" as const };
+  const live = listingReviewed(listing, true);
+  const refusedListing = listingReviewed(listing, false);
+  check(
+    "review email: says live or refused, the price per ticket, links to the seller page",
+    live.subject.startsWith("Listingmu tayang") && refusedListing.subject.startsWith("Listingmu tidak lolos") && live.text.includes("Rp1.450.000") && live.text.includes("/seller") && refusedListing.text.includes("/seller"),
+    `${live.subject} | ${refusedListing.subject}`
+  );
+  const asked = { title: "Show", startsAt: "2027-04-10T12:00:00Z", eventId: "ev-show-1", note: "<b>S&K</b> melarang resale" };
+  const refusedShow = showRequestDecided(asked, false);
+  const approvedShow = showRequestDecided({ ...asked, note: null }, true);
+  check(
+    "show request email: a refusal carries staff's reason, escaped, an approval links to listing on that show",
+    refusedShow.text.includes("<b>S&K</b> melarang resale") && !refusedShow.html.includes("<b>S&K") && approvedShow.html.includes('href="https://lummy.id/sell?event=ev-show-1"'),
+    refusedShow.subject
+  );
+  check(
+    "seller decision emails: no em-dash",
+    !/—/.test([live, refusedListing, refusedShow, approvedShow].map((r) => r.text + r.html + r.subject).join(""))
+  );
 }
 emailTest()
   .catch((e) => check("email test: the checks ran", false, e instanceof Error ? e.message : String(e)))
