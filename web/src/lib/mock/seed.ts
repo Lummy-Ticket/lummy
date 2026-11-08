@@ -36,6 +36,7 @@ const PHOTOS: Record<string, { image: string; imageCredit: string }> = {
   "ev-lalala-jakarta": { image: "/assets/events/ev-lalala-jakarta.jpg", imageCredit: "Photo of Olivia Dean: Harald Krichel, CC BY-SA 4.0, via Wikimedia Commons" },
   "ev-westlife-jakarta": { image: "/assets/events/ev-westlife-jakarta.jpg", imageCredit: "Photo of a Westlife concert: Siztrust, CC BY-SA 3.0, via Wikimedia Commons" },
   "ev-nancy-ajram": { image: "/assets/events/ev-nancy-ajram.jpg", imageCredit: "Photo of Istora Senayan: RasyaAbhirama13, CC BY-SA 4.0, via Wikimedia Commons" },
+  "ev-m2m-jakarta": { image: "/assets/events/ev-m2m-jakarta.jpg", imageCredit: "Photos of Marit Larsen and Marion Raven: Martijn van de Streek and Maxker89, CC BY-SA 2.0, via Wikimedia Commons" },
 };
 const art = (id: string) => PHOTOS[id] ?? { image: eventPoster(id) };
 /** A show's picture, for orders that snapshot it. */
@@ -61,6 +62,7 @@ export const SEARCH_KEYWORDS: Record<string, string> = {
   "ev-lalala-jakarta": "lalala fest olivia dean",
   "ev-westlife-jakarta": "westlife 25",
   "ev-nancy-ajram": "nancy",
+  "ev-m2m-jakarta": "m2m marit larsen marion raven",
 };
 
 /**
@@ -258,6 +260,22 @@ export const seedEvents = (): SeedEvent[] => [
       { id: "t-na-gold", name: "Gold", faceValue: 1_000_000 },
     ],
   },
+  // M2M (Akselerasi Entertainment, sold through Loket). The terms: the ID shown at entry must match
+  // the name on the ticket; the promoter is not responsible for transferred tickets, and tickets used
+  // commercially without its consent may be cancelled: not a resale ban. No start time announced, so
+  // 19:00 WIB as for the others; prices before the 20% tax and fees.
+  {
+    id: "ev-m2m-jakarta", title: "M2M TWO. Tour 2027, Jakarta", category: "Music",
+    dateISO: "2027-04-10T19:00:00+07:00", venue: "Tennis Indoor Senayan", city: "Jakarta",
+    ...art("ev-m2m-jakarta"), transferPolicy: "id_match",
+    tiers: [
+      { id: "t-m2m-cat1", name: "CAT 1", faceValue: 1_850_000 },
+      { id: "t-m2m-cat2", name: "CAT 2", faceValue: 1_250_000 },
+      { id: "t-m2m-cat3", name: "CAT 3", faceValue: 2_250_000 },
+      { id: "t-m2m-cat4a", name: "CAT 4A", faceValue: 1_650_000 },
+      { id: "t-m2m-cat4b", name: "CAT 4B", faceValue: 1_650_000 },
+    ],
+  },
   {
     id: "ev-bbw-2026", title: "Binance Blockchain Week 2026", category: "Technology",
     dateISO: "2026-11-28T09:00:00+07:00", venue: "Queen Sirikit National Convention Center", city: "Bangkok",
@@ -334,6 +352,8 @@ export const SEED_LISTINGS: Listing[] = [
   { id: "ls-36", eventId: "ev-westlife-jakarta", tierId: "t-wl-vip", sellerName: "Lestari H.", askPrice: 3_400_000, faceValue: 2_750_000, quantity: 2, splittable: false, status: "active", gateKtp: false, ai: ok(10) },
   { id: "ls-37", eventId: "ev-nancy-ajram", tierId: "t-na-gold", sellerName: "Farah Z.", askPrice: 1_150_000, faceValue: 1_000_000, quantity: 2, splittable: true, status: "active", gateKtp: false, ai: ok(6) },
   { id: "ls-38", eventId: "ev-nancy-ajram", tierId: "t-na-diamond", sellerName: "Yusuf B.", askPrice: 3_600_000, faceValue: 3_250_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(9) },
+  { id: "ls-39", eventId: "ev-m2m-jakarta", tierId: "t-m2m-cat2", sellerName: "Dewi K.", askPrice: 1_450_000, faceValue: 1_250_000, quantity: 2, splittable: true, status: "active", gateKtp: false, ai: ok(7) },
+  { id: "ls-40", eventId: "ev-m2m-jakarta", tierId: "t-m2m-cat3", sellerName: "Reza F.", askPrice: 2_600_000, faceValue: 2_250_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(8) },
   // Shows abroad, in micro-USDC. The cheapest sits at half its face value, so one faucet top-up buys it.
   { id: "ls-bbw-1", eventId: "ev-bbw-2026", tierId: "t-bbw-early", sellerName: "Arif T.", askPrice: 9_500_000, faceValue: 19_000_000, quantity: 1, splittable: false, status: "active", gateKtp: false, ai: ok(4) },
   { id: "ls-bbw-2", eventId: "ev-bbw-2026", tierId: "t-bbw-early", sellerName: "Mei L.", askPrice: 24_000_000, faceValue: 19_000_000, quantity: 2, splittable: true, status: "active", gateKtp: false, ai: ok(6) },

@@ -118,3 +118,11 @@ The licences cover the photographs only. Some Commons pages (for example the Sim
 - Licence: CC BY-SA 4.0 (Creative Commons Attribution-ShareAlike 4.0 International), https://creativecommons.org/licenses/by-sa/4.0/
 - Source: https://commons.wikimedia.org/wiki/File:Istora_Gelora_Bung_Karno,_3_March_2024.jpg
 - Changes: cropped to 16:9 and resized
+
+## ev-m2m-jakarta.jpg
+
+- Photo: Marit Larsen in 2009 (left) and Marion Raven in 2007 (right), the two members of M2M, side by side
+- Authors: Martijn van de Streek (Marit Larsen photograph), Maxker89 (Marion Raven photograph)
+- Licence: CC BY-SA 2.0 (Creative Commons Attribution-ShareAlike 2.0 Generic), https://creativecommons.org/licenses/by-sa/2.0/
+- Source: https://commons.wikimedia.org/wiki/File:Marit_Larsen_and_Marion_Raven.jpg (from Flickr: https://www.flickr.com/photos/treenaks/3466817418 and https://www.flickr.com/photos/29627566@N02/2825587143)
+- Changes: cropped to 16:9 and resized
