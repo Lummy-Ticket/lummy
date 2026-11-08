@@ -45,6 +45,7 @@
     "payments:check": "tsx scripts/payments-check.ts",
     "usdc:check": "tsx scripts/usdc-check.ts",
     "email:check": "tsx scripts/email-check.ts",
+    "email:smoke": "tsx scripts/email-smoke.ts",
     "gate:check": "tsx scripts/gate-check.ts",
     "motion:check": "node scripts/motion-check.mjs",
     "perf:probe": "node scripts/perf-probe.mjs",
