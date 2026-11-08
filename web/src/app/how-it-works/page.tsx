@@ -210,9 +210,16 @@ export default function HowItWorks() {
     {
       Icon: Flag,
       title: t("Go to the show", "Datang ke acara"),
+      // Lummy's own door pass (components/tickets/EntryPass, docs/09 §8) is left out of this step
+      // while no organiser scans it (decision 3b, UX review 5 Nov 2026; 8 Nov): the buyer's ticket
+      // page explains it where it appears. The sentence this step carried, for when one does:
+      //   "Lummy also has a pass a door can scan, which refuses a copy used before you and refunds you
+      //    on the spot; no organiser uses it yet." / "Lummy juga punya pass yang bisa dipindai di pintu,
+      //    yang menolak salinan yang dipakai lebih dulu dan langsung mengembalikan uangmu; belum ada
+      //    penyelenggara yang memakainya."
       body: t(
-        `Show your ticket at the door. Got in? You do nothing. Turned away? Take a photo there and file a claim within ${DISPUTE_WINDOW_H} hours of the show ending. Lummy also has a pass a door can scan, which refuses a copy used before you and refunds you on the spot; no organiser uses it yet.`,
-        `Tunjukkan tiketmu di pintu masuk. Berhasil masuk? Kamu tidak perlu apa-apa. Ditolak? Foto di sana dan ajukan klaim dalam ${DISPUTE_WINDOW_H} jam setelah acara selesai. Lummy juga punya pass yang bisa dipindai di pintu, yang menolak salinan yang dipakai lebih dulu dan langsung mengembalikan uangmu; belum ada penyelenggara yang memakainya.`
+        `Show your ticket at the door. Got in? You do nothing. Turned away? Take a photo there and file a claim within ${DISPUTE_WINDOW_H} hours of the show ending.`,
+        `Tunjukkan tiketmu di pintu masuk. Berhasil masuk? Kamu tidak perlu apa-apa. Ditolak? Foto di sana dan ajukan klaim dalam ${DISPUTE_WINDOW_H} jam setelah acara selesai.`
       ),
       state: t(`${DISPUTE_WINDOW_H}h to raise a problem`, `${DISPUTE_WINDOW_H} jam untuk melapor`),
       tone: "open",
