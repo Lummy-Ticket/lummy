@@ -196,6 +196,42 @@ export function orderPaid(o: OrderFacts): Rendered {
   });
 }
 
+/**
+ * The seller's ticket sold. Nothing for them to do, so it says when the money follows, and, while
+ * every payment is simulated, that their file stayed with Lummy (api/orders/[id]/ticket).
+ */
+export function orderSold(o: OrderFacts): Rendered {
+  return render({
+    subject: { id: "Tiketmu terjual", en: "Your ticket sold" },
+    about: o.eventTitle,
+    heading: { id: "Tiketmu terjual", en: "Your ticket sold" },
+    lines: [
+      {
+        id: `Tiketmu untuk ${o.eventTitle} terjual. Uangnya ditahan di escrow Lummy, dan baru diteruskan ke kamu setelah acaranya selesai dan masa klaim lewat tanpa masalah.`,
+        en: `Your ticket for ${o.eventTitle} sold. The money is held in Lummy's escrow and goes to you only after the show, once the claim window passes without a problem.`,
+      },
+      ...(FEATURES.payouts
+        ? []
+        : [
+            {
+              id: "Selama mode uji, file tiketmu tidak diserahkan: pembeli hanya menerima file pengganti tanpa barcode.",
+              en: "While Lummy is in test mode your ticket file is not handed over: the buyer only gets a stand-in with no barcode.",
+            },
+          ]),
+    ],
+    facts: [
+      factShow(o),
+      { label: { id: "Tanggal", en: "Date" }, value: both((lang) => showDate(o.eventDate, lang)) },
+      factTier(o),
+      { label: { id: "Hasil penjualan", en: "Sale amount" }, value: both((lang) => money(o.amount, o.currency, lang)) },
+      factOrder(o),
+    ],
+    action: OPEN_SALES,
+    note: moneyNote(o),
+    why: WHY_SELLER,
+  });
+}
+
 /** The seller hears that a claim froze the payout, and where to answer it. */
 export function claimToSeller(o: OrderFacts, reason: DisputeReason): Rendered {
   const r = reasonMeta(reason).label;

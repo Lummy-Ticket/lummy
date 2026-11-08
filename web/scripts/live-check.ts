@@ -196,6 +196,23 @@ async function emailTest() {
     m.subject
   );
   check("payout email: no em-dash", !/—/.test(m.text + m.html + m.subject));
+
+  // The seller's sale email: while payments are simulated it must say the file stayed with Lummy,
+  // and once payouts are on it must stop saying so.
+  const { orderSold } = await import("../src/lib/email/templates");
+  const sale = { id: "ord-1", eventTitle: "Show", eventDate: "2027-04-10T12:00:00Z", tierName: "CAT 2", quantity: 1, amount: 1_450_000, fee: 72_500, materai: 10_000, currency: "IDR" as const, chainId: null };
+  const sold = orderSold(sale);
+  check(
+    "sale email: Indonesian first, the sale amount without the buyer's fee, links to the seller page",
+    sold.subject.startsWith("Tiketmu terjual") && sold.text.includes("Rp1.450.000") && !sold.text.includes("1.532.500") && sold.html.includes("/seller") && sold.text.includes("/seller"),
+    sold.subject
+  );
+  check(
+    "sale email: says the ticket file is not handed over exactly while payouts are off",
+    sold.text.includes("file tiketmu tidak diserahkan") === !FEATURES.payouts,
+    `payouts ${FEATURES.payouts}`
+  );
+  check("sale email: no em-dash", !/—/.test(sold.text + sold.html + sold.subject));
 }
 emailTest()
   .catch((e) => check("email test: the checks ran", false, e instanceof Error ? e.message : String(e)))

@@ -7,7 +7,7 @@ import { EVENT_DURATION_H } from "@/lib/mock/escrow";
 import type { DisputeReason, Remedy } from "@/lib/mock/types";
 import type { Database } from "@/lib/supabase/types";
 import { queueEmails, type Mail } from "./send";
-import { claimReceipt, claimToSeller, orderPaid, payoutChanged, ruling, showCancelled, ticketsListed, type OrderFacts, type Rendered } from "./templates";
+import { claimReceipt, claimToSeller, orderPaid, orderSold, payoutChanged, ruling, showCancelled, ticketsListed, type OrderFacts, type Rendered } from "./templates";
 
 if (typeof window !== "undefined") throw new Error("lib/email/notify hanya boleh dipakai di server");
 
@@ -90,12 +90,14 @@ function factsOf(r: OrderRow): OrderFacts {
 
 const claimOf = (r: OrderRow) => (Array.isArray(r.disputes) ? r.disputes[0] : r.disputes) ?? null;
 
-/** The order is written and its money held: QRIS (lib/payments/checkout), USDC (lib/payments/usdc), or the straight path (api/orders). */
+/** The order is written and its money held: QRIS (lib/payments/checkout), USDC (lib/payments/usdc), or the straight path (api/orders). The buyer hears it, and so does the seller, whose ticket sold. */
 export function notifyOrderPaid(admin: Admin, orderId: string) {
   queueEmails(`order-paid ${orderId}`, async () => {
     const [row] = await loadOrders(admin, [orderId]);
     if (!row) return [];
-    return mail(await addressOf(admin, row.buyer_id), "order-paid", row.id, orderPaid(factsOf(row)));
+    const o = factsOf(row);
+    const [buyer, seller] = await Promise.all([addressOf(admin, row.buyer_id), addressOf(admin, row.seller_id)]);
+    return [...mail(buyer, "order-paid", row.id, orderPaid(o)), ...mail(seller, "order-sold", row.id, orderSold(o))];
   });
 }
 

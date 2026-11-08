@@ -16,8 +16,8 @@ const emailLines: { list: Bi[]; mailspace: Bi } = FEATURES.emails
       list: [
         { en: "The sign-in link, when you ask for one.", id: "Link untuk masuk, saat kamu memintanya." },
         {
-          en: "About your orders: to the buyer when an order is paid, to the seller when a claim is filed (with a receipt to the buyer), to both when the claim is decided, and to the buyer when a show is cancelled and the order refunded. These are part of the sale you asked for, so they cannot be turned off.",
-          id: "Soal pesananmu: ke pembeli saat pesanan dibayar, ke penjual saat klaim diajukan (dengan tanda terima ke pembeli), ke kedua pihak saat klaim diputus, dan ke pembeli saat acara batal dan pesanannya direfund. Email ini bagian dari transaksi yang kamu minta, jadi tidak bisa dimatikan.",
+          en: "About your orders: to the buyer when an order is paid, to the seller when their ticket sells and when a claim is filed (with a receipt to the buyer), to both when the claim is decided, and to the buyer when a show is cancelled and the order refunded. These are part of the sale you asked for, so they cannot be turned off.",
+          id: "Soal pesananmu: ke pembeli saat pesanan dibayar, ke penjual saat tiketnya terjual dan saat klaim diajukan (dengan tanda terima ke pembeli), ke kedua pihak saat klaim diputus, dan ke pembeli saat acara batal dan pesanannya direfund. Email ini bagian dari transaksi yang kamu minta, jadi tidak bisa dimatikan.",
         },
         {
           en: "New tickets, only if you ask: when you follow a show or join a tier's waitlist, your account keeps which show or tier and when, and we email you when new tickets appear there, at most once every few hours for each show, and never about your own listing. Stop any time on the show's page or in your profile; every alert email says where.",

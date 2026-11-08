@@ -9,7 +9,8 @@
  * could write the order (and so not send this server's email) first. A demo account (demo.lummy.id)
  * buys and follows too, and must never receive anything.
  *
- *   1. Each order paid emails its buyer, with the total and a link to the order.
+ *   1. Each order paid emails its buyer, with the total and a link to the order, and its seller, with
+ *      the sale amount and a link to the seller page.
  *   2. A claim emails the seller, with a link to the seller page, and the buyer a receipt; staff rule,
  *      and both hear the ruling. Neither email names the other side.
  *   3. Alerts through /api/alerts: a listing staff clear from review, and later one posted live,
@@ -226,6 +227,21 @@ async function main() {
     const paid2 = await waitFor((m) => m.kind === "order-paid" && m.ref === id2);
     check("the second order gets its own", paid2.length === 1 && paid2[0].to === BUYER_EMAIL, JSON.stringify(paid2.map((m) => m.to)));
 
+    // The seller hears the sale, the amount without the buyer's fee, and that the file stayed here.
+    const [sold1] = await waitFor((m) => m.kind === "order-sold" && m.ref === id1);
+    check("order sold: the seller gets it", sold1?.to === SELLER_EMAIL && sold1.subject === `Tiketmu terjual / Your ticket sold: ${TITLE}`, JSON.stringify({ to: sold1?.to, subject: sold1?.subject }));
+    check("with a link to the seller page", linked(sold1, `${SITE}/seller`), sold1?.text.slice(0, 300));
+    check(
+      "it says the sale amount, not what the buyer paid in total, that no real money moves yet, and that the file is not handed over",
+      !!sold1 &&
+        sold1.text.includes(`Rp${PRICE.toLocaleString("id-ID")}`) &&
+        !sold1.text.includes(`Rp${TOTAL.toLocaleString("id-ID")}`) &&
+        sold1.text.includes("no real money moves yet") &&
+        sold1.text.includes("file tiketmu tidak diserahkan"),
+      sold1?.text.slice(0, 700)
+    );
+    check("and nothing about the buyer", !!sold1 && !sold1.text.includes(BUYER_EMAIL) && !sold1.html.includes(BUYER_EMAIL));
+
     // --- 2. A claim, then the ruling.
     const claim = await api(buyerCtx, "POST", `/api/orders/${id1}`, { action: "dispute", reason: "NOT_DELIVERED", note: "uji email" });
     check("the buyer files a claim", claim.status === 200, JSON.stringify(claim));
@@ -393,6 +409,7 @@ async function main() {
     const got = all.map((m) => `${m.kind} ${m.to === BUYER_EMAIL ? "buyer" : m.to === SELLER_EMAIL ? "seller" : m.to === FOLLOWER_EMAIL ? "follower" : m.to} ${m.ref}`).sort();
     const want = [
       `order-paid buyer ${id1}`, `order-paid buyer ${id2}`,
+      `order-sold seller ${id1}`, `order-sold seller ${id2}`, `order-sold seller ${id3}`,
       `claim-seller seller ${id1}`, `claim-buyer buyer ${id1}`,
       `ruling-buyer buyer ${id1}`, `ruling-seller seller ${id1}`,
       `tickets-listed follower ${lc}`,
