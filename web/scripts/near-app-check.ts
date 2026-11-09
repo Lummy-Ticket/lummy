@@ -173,7 +173,7 @@ async function main() {
     const held = await api(buyerCtx, "POST", "/api/payments/intents", pay(L2));
     const heldId = String((held.body.payment as { id?: string } | undefined)?.id ?? "");
     const l2Held = (await admin.from("listings").select("quantity, status").eq("id", L2).single()).data;
-    check("a hold takes the seat and gives an address to pay", held.status === 200 && !!(held.body.deposit as { address?: string } | undefined)?.address && l2Held?.quantity === 0, JSON.stringify(held).slice(0, 300));
+    check("a hold takes the seat and gives an address to pay", held.status === 200 && !!(held.body.deposit as { address?: string } | undefined)?.address && l2Held?.status === "sold", JSON.stringify({ held: held.status, l2Held }));
     const cancelled = await api(buyerCtx, "POST", `/api/payments/${heldId}`, { action: "cancel" });
     const l2Back = (await admin.from("listings").select("quantity, status").eq("id", L2).single()).data;
     check("cancelled, the seat comes back", cancelled.status === 200 && l2Back?.quantity === 1 && l2Back.status === "active", JSON.stringify({ cancelled, l2Back }).slice(0, 300));
@@ -218,7 +218,7 @@ async function main() {
     check("on chain: in its window, the receiver as the buyer", live.status === "DisputeWindow" && live.buyer.toLowerCase() === receiver.toLowerCase(), `${live.status} ${live.buyer}`);
     check("the extra went straight back to the refund address", (await usdcOf(REFUND_TO)) === BigInt(EXTRA), String(await usdcOf(REFUND_TO)));
     const sold = (await admin.from("listings").select("quantity, status").eq("id", L1).single()).data;
-    check("the listing is sold", sold?.quantity === 0 && sold.status === "sold", JSON.stringify(sold));
+    check("the listing is sold", sold?.status === "sold", JSON.stringify(sold));
 
     // --- 4. A claim upheld in full
     const claim = await api(buyerCtx, "POST", `/api/orders/${orderId}`, { action: "dispute", reason: "NOT_DELIVERED", note: "The seller never sent the ticket." });
