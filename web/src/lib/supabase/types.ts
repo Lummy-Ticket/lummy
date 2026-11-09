@@ -864,6 +864,7 @@ export type Database = {
           onchain_listing_id: string | null
           paid_at: string | null
           payer_wallet: string | null
+          intent: Json | null
           provider: string
           provider_payment_id: string | null
           provider_ref: string | null
@@ -892,6 +893,7 @@ export type Database = {
           onchain_listing_id?: string | null
           paid_at?: string | null
           payer_wallet?: string | null
+          intent?: Json | null
           provider?: string
           provider_payment_id?: string | null
           provider_ref?: string | null
@@ -920,6 +922,7 @@ export type Database = {
           onchain_listing_id?: string | null
           paid_at?: string | null
           payer_wallet?: string | null
+          intent?: Json | null
           provider?: string
           provider_payment_id?: string | null
           provider_ref?: string | null

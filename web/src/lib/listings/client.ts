@@ -149,6 +149,7 @@ export function fillFromTicket(file: File, holder: string) {
 export const FILL_BY: Record<Provider, { en: string; id: string }> = {
   claude: { en: "Claude (Anthropic's AI)", id: "Claude (AI dari Anthropic)" },
   gemini: { en: "Gemini (Google's AI)", id: "Gemini (AI dari Google)" },
+  near: { en: "A model in NEAR AI's Trusted Execution Environment", id: "Model di Trusted Execution Environment NEAR AI" },
   fake: { en: "A test stand-in on this server", id: "Model tiruan untuk tes di server ini" },
 };
 

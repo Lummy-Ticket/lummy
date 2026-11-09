@@ -6,7 +6,7 @@
 import type { Hex } from "viem";
 import { NextResponse } from "next/server";
 import { readHistory } from "@/lib/chain/history";
-import { chainError, operatorSetup, payOut, readListing, settle, type Operator } from "@/lib/chain/server";
+import { chainError, operatorFor, payOut, readListing, settle, type Operator } from "@/lib/chain/server";
 import { notifyClaimFiled, notifyRuling } from "@/lib/email/notify";
 import {
   availableReasons, canFileDispute, canRefundPostponed, checkEvidence, mockEvidenceOptions, mockSellerEvidence, partialAmount,
@@ -183,7 +183,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       // If the contract refuses, the claim is taken back so the two never disagree.
       let failure = flagged.error?.message ?? null;
       if (!failure && order.chain) {
-        const op = operatorSetup();
+        const op = operatorFor(order.chain.chainId);
         const listingId = order.chain.listingId as Hex;
         try {
           if (!op) throw new Error("mode chain mati: kunci operator belum diset");
@@ -249,7 +249,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       // The contract splits the money first; the database records what it did.
       let tx: { tx: string; withdrawals: string[] } | null = null;
       if (order.chain) {
-        const op = operatorSetup();
+        const op = operatorFor(order.chain.chainId);
         if (!op) return fail(503, "mode chain mati: kunci operator belum diset");
         const listingId = order.chain.listingId as Hex;
         const toBuyer = (BigInt(order.chain.price) * BigInt(refund)) / BigInt(order.amount);
@@ -309,7 +309,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       if (!canRefundPostponed(order, now)) return fail(409, "refund karena acara diundur tidak tersedia untuk pesanan ini");
       let tx: { tx: string; withdrawals: string[] } | null = null;
       if (order.chain) {
-        const op = operatorSetup();
+        const op = operatorFor(order.chain.chainId);
         if (!op) return fail(503, "mode chain mati: kunci operator belum diset");
         try {
           tx = await settle(op, order.chain.listingId as Hex, "refund");

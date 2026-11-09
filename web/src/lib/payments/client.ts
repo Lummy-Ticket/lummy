@@ -6,10 +6,10 @@
 import { useEffect, useState } from "react";
 import { getJson } from "@/lib/fetch-json";
 import { OrderError } from "@/lib/orders/client";
-import type { PaymentView, PaymentsConfig, UsdcStart } from "./types";
+import type { IntentView, NearOptions, PaymentView, PaymentsConfig, UsdcStart } from "./types";
 import { routeErrorText } from "@/lib/route-errors";
 
-export type { PaymentStatus, PaymentView, PaymentsConfig, TypedMessage, UsdcStart } from "./types";
+export type { IntentView, NearOptions, PaymentStatus, PaymentView, PaymentsConfig, TypedMessage, UsdcStart } from "./types";
 
 const OFF: PaymentsConfig = { enabled: false, testMode: false, max: 0, usdc: false };
 
@@ -50,3 +50,29 @@ export const startUsdcPayment = (listingId: string, quantity: number, wallet: st
 /** Both signatures back to the server, which locks the money on chain and writes the order. */
 export const submitUsdcPayment = (id: string, authSig: string, fundSig: string) =>
   call<{ orderId: string }>(`/api/payments/${encodeURIComponent(id)}/usdc`, post({ authSig, fundSig }));
+
+/** What the NEAR HACKATHON demo can do here. Null while asking, or when the server does not answer. */
+export function useNearOptions(active = true) {
+  const [options, setOptions] = useState<NearOptions | null>(null);
+  useEffect(() => {
+    if (!active) return;
+    const ctrl = new AbortController();
+    void getJson<NearOptions>("/api/near/options", ctrl.signal, { cache: "no-store" }).then((o) => {
+      if (!ctrl.signal.aborted) setOptions(o);
+    });
+    return () => ctrl.abort();
+  }, [active]);
+  return active ? options : null;
+}
+
+export type NearQuote = { symbol: string; chainLabel: string; amountIn: string; amountInUsd: string | null; amountOut: string; etaSeconds: number | null };
+
+/** A live quote, which holds nothing. `amount` in micro-USDC. */
+export const nearQuote = (originAsset: string, amount: string) => call<NearQuote>("/api/near/quote", post({ originAsset, amount }));
+
+/** Hold the seats and get an address to pay, on the NEAR Intents rail. */
+export const startIntentPayment = (p: { listingId: string; quantity: number; originAsset: string; refundTo: string; originRefund: string }) =>
+  call<IntentView>("/api/payments/intents", post(p));
+
+/** Read a payment on this rail, which also moves it along once the money has arrived. */
+export const readIntentPayment = (id: string) => call<IntentView>(`/api/payments/${encodeURIComponent(id)}/intents`);

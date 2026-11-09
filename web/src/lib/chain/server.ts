@@ -9,9 +9,9 @@ import { privateKeyToAccount } from "viem/accounts";
 import { escrowAbi, tokenAbi } from "./abi";
 import { signFund, type FundSignature } from "./buyer";
 import { CHAINS, USDC_DECIMALS } from "./config";
-import { DEPLOYMENTS } from "./deployments";
+import { DEPLOYMENTS, INTENTS } from "./deployments";
 import { demoKeyAllowed, demoMode, type DemoMode } from "@/lib/demo-key";
-import { disputeDeadline, escrowAs, getListing, pendingOf, publicClient, type BlockRef, type Listing } from "./escrow";
+import { disputeDeadline, escrowAs, getListing, intentsAs, pendingOf, publicClient, type BlockRef, type IntentOrder, type Listing } from "./escrow";
 import { rpcUrls } from "./rpc";
 
 if (typeof window !== "undefined") throw new Error("lib/chain/server hanya boleh dipakai di server");
@@ -26,6 +26,8 @@ export type Operator = ChainTarget & {
   seller: Address;
   /** Nominal USDC testnet per pesanan demo, terpisah dari harga rupiah di app. */
   price: bigint;
+  /** The factory of the NEAR Intents rail: this operator works on Arbitrum One, where the buyer is a receiver contract. */
+  factory?: Address;
 };
 
 /**
@@ -46,8 +48,47 @@ export function chainTarget(): ChainTarget | null {
   return { chain, rpcUrl: rpcUrls(chainId)[0], escrow, token };
 }
 
+export const ARBITRUM_ONE = 42161;
+
+/** The contract an order on this chain lives in: mainnet for the NEAR Intents rail, else the app's chain. */
+export function targetFor(chainId?: number | null): ChainTarget | null {
+  if (chainId !== ARBITRUM_ONE) return chainTarget();
+  const dep = DEPLOYMENTS[ARBITRUM_ONE];
+  return dep ? { chain: CHAINS[ARBITRUM_ONE], rpcUrl: rpcUrls(ARBITRUM_ONE)[0], escrow: dep.escrow, token: dep.token } : null;
+}
+
 /** Nilai env pertama yang terisi, tanpa spasi atau newline yang ikut ter-paste. */
 const envOf = (...names: string[]) => names.map((n) => process.env[n]?.trim()).find(Boolean);
+
+/** ~/.lummy/mainnet.env, on a dev machine only. Production reads its env and never this file. */
+function mainnetFile(): Record<string, string> {
+  const file = path.join(os.homedir(), ".lummy", "mainnet.env");
+  if (process.env.NODE_ENV === "production" || !fs.existsSync(file)) return {};
+  const env: Record<string, string> = {};
+  for (const line of fs.readFileSync(file, "utf8").split("\n")) {
+    const eq = line.indexOf("=");
+    if (eq > 0 && !line.startsWith("#")) env[line.slice(0, eq)] = line.slice(eq + 1).trim();
+  }
+  return env;
+}
+
+/**
+ * The operator on Arbitrum One, for payments through NEAR Intents: real USDC, the team's own for now.
+ * Its key is separate from the testnet ones. Null until the contracts are deployed and its env is set.
+ */
+export function intentsOperator(): Operator | null {
+  const target = targetFor(ARBITRUM_ONE);
+  const factory = INTENTS[ARBITRUM_ONE]?.factory;
+  const file = mainnetFile();
+  const key = envOf("LUMMY_INTENTS_OPERATOR_KEY") ?? file.OPERATOR_PRIVATE_KEY;
+  const seller = envOf("LUMMY_INTENTS_SELLER") ?? file.SELLER_ADDRESS;
+  if (!target || !factory || !key || !seller) return null;
+  const operator = privateKeyToAccount(key as Hex);
+  return { ...target, operator, buyer: operator, seller: seller as Address, price: BigInt(0), factory };
+}
+
+/** Who acts for an order on this chain. */
+export const operatorFor = (chainId?: number | null): Operator | null => (chainId === ARBITRUM_ONE ? intentsOperator() : operatorSetup());
 
 /** ~/.lummy/testnet.env, khusus mesin dev di Arbitrum Sepolia. Produksi tidak pernah membacanya. */
 function testnetFile(chainId: number): Record<string, string> {
@@ -209,6 +250,45 @@ export async function openOrder(
   });
 }
 
+/**
+ * The payment reached this order's receiver: the operator creates the listing on the agreed terms, the
+ * money goes into the escrow, and the handover is recorded. Each step is skipped when the chain says it
+ * already happened, so a run cut off half way is finished by the next. The commitment is per order:
+ * a refund keeps a commitment used, and shows abroad do not sell real barcodes yet (lib/payments/usdc).
+ */
+export async function openIntentOrder(op: Operator, order: IntentOrder, tag: string, ticketSha256: string | null, done: { create?: string; fund?: string; handover?: string }) {
+  return serial(op.operator.address, async () => {
+    const pc = publicClient(op.chain, op.rpcUrl);
+    const as = escrowAs(pc, op.operator, op.chain, op.rpcUrl, op.escrow);
+    const rail = intentsAs(pc, op.operator, op.chain, op.rpcUrl, op.factory!);
+    const id = order.listingId;
+    const txs = { ...done };
+    let live = await getListing(pc, op.escrow, id);
+    if (live.status === "None") {
+      txs.create = (await as.createListingFor(order.seller, id, order.price, keccak256(toHex(`lummy:barcode:${tag}`)), order.eventEndsAt)).hash;
+      live = await getListing(pc, op.escrow, id);
+    }
+    if (live.status === "Listed") {
+      txs.fund = (await rail.deployAndFund(order)).hash;
+      live = await getListing(pc, op.escrow, id);
+    }
+    if (live.status === "Funded") {
+      txs.handover = (await as.markHandover(id, keccak256(toHex(ticketSha256 ? `lummy:serah-terima:${id}:${ticketSha256}` : `lummy:surat-kuasa:${id}`)))).hash;
+    }
+    return { listingId: id, price: order.price.toString(), txs };
+  });
+}
+
+/** Money waiting in a receiver goes back to its refund address, deploying the receiver if need be. */
+export async function sweepIntentReceiver(op: Operator, order: IntentOrder, receiver: Address) {
+  return serial(op.operator.address, async () => {
+    const pc = publicClient(op.chain, op.rpcUrl);
+    const rail = intentsAs(pc, op.operator, op.chain, op.rpcUrl, op.factory!);
+    if (!(await pc.getCode({ address: receiver }))) await rail.deploy(order);
+    return (await rail.sweep(receiver)).hash;
+  });
+}
+
 /** Listing yang dibuat tapi belum didanai dibatalkan, supaya komitmen barcode-nya lepas lagi. */
 export async function cancelOnchainListing(op: Operator, id: Hex) {
   return serial(op.operator.address, async () => {
@@ -217,12 +297,18 @@ export async function cancelOnchainListing(op: Operator, id: Hex) {
   });
 }
 
-/** Dana yang teralokasi untuk penjual dan pembeli listing ini dikirim ke pemiliknya. Dipanggil di dalam antrean operator. */
-async function sendPending(pc: ReturnType<typeof publicClient>, as: ReturnType<typeof escrowAs>, escrow: Address, id: Hex) {
-  const L = await getListing(pc, escrow, id);
+/**
+ * Dana yang teralokasi untuk penjual dan pembeli listing ini dikirim ke pemiliknya. Dipanggil di dalam
+ * antrean operator. On the NEAR Intents rail the buyer is a receiver contract, so its share is swept:
+ * the receiver collects it and passes it on to the refund address in one transaction.
+ */
+async function sendPending(op: Operator, pc: ReturnType<typeof publicClient>, as: ReturnType<typeof escrowAs>, id: Hex) {
+  const L = await getListing(pc, op.escrow, id);
   const withdrawals: Hex[] = [];
   for (const who of [L.seller, L.buyer]) {
-    if ((await pendingOf(pc, escrow, who)) > BigInt(0)) withdrawals.push((await as.withdrawFor(who)).hash);
+    if ((await pendingOf(pc, op.escrow, who)) <= BigInt(0)) continue;
+    const sweep = op.factory && who === L.buyer;
+    withdrawals.push(sweep ? (await intentsAs(pc, op.operator, op.chain, op.rpcUrl, op.factory!).sweep(who)).hash : (await as.withdrawFor(who)).hash);
   }
   return withdrawals;
 }
@@ -237,7 +323,7 @@ export async function settle(op: Operator, id: Hex, action: SettleAction, toBuye
       : action === "resolve" ? await as.resolveDispute(id, toBuyer)
       : action === "release" ? await as.release(id)
       : await as.refund(id);
-    const withdrawals = action === "dispute" ? [] : await sendPending(pc, as, op.escrow, id);
+    const withdrawals = action === "dispute" ? [] : await sendPending(op, pc, as, id);
     return { tx: r.hash, withdrawals };
   });
 }
@@ -249,7 +335,7 @@ export async function settle(op: Operator, id: Hex, action: SettleAction, toBuye
 export async function payOut(op: Operator, id: Hex) {
   return serial(op.operator.address, async () => {
     const pc = publicClient(op.chain, op.rpcUrl);
-    return sendPending(pc, escrowAs(pc, op.operator, op.chain, op.rpcUrl, op.escrow), op.escrow, id);
+    return sendPending(op, pc, escrowAs(pc, op.operator, op.chain, op.rpcUrl, op.escrow), id);
   });
 }
 

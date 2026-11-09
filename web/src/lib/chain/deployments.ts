@@ -6,6 +6,8 @@ export type Deployment = { escrow: Address; token: Address; mockToken: boolean; 
 
 export type LedgerDeployment = { ledger: Address; disputeWindow: number; deployBlock?: number };
 
+export type IntentsDeployment = { factory: Address; escrow: Address };
+
 export const DEPLOYMENTS: Partial<Record<number, Deployment>> = {
   "421614": {
     "escrow": "0x6830Db86283157E4cB80b0615d4c51381A0C25Dd",
@@ -23,3 +25,5 @@ export const LEDGERS: Partial<Record<number, LedgerDeployment>> = {
     "deployBlock": 317357843
   }
 };
+
+export const INTENTS: Partial<Record<number, IntentsDeployment>> = {};

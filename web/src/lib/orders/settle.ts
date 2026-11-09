@@ -4,7 +4,7 @@
 // contract's clock decides, and it may already have been settled by anyone.
 import type { Hex } from "viem";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { chainError, chainTarget, operatorSetup, readListing, settle } from "@/lib/chain/server";
+import { chainError, operatorFor, readListing, settle, targetFor } from "@/lib/chain/server";
 import { phaseOf } from "@/lib/mock/escrow";
 import type { Database } from "@/lib/supabase/types";
 import { HELD, ORDER_SELECT, orderFromRow, type OrderRow } from "./map";
@@ -87,7 +87,7 @@ export async function settleOrder(admin: SupabaseClient<Database>, row: OrderRow
     return { ok: true, released: r.data.length > 0 };
   }
 
-  const target = chainTarget();
+  const target = targetFor(order.chain.chainId);
   if (!target) return { ok: false, status: 503, error: "belum ada kontrak untuk chain ini" };
   try {
     const live = await readListing(target, order.chain.listingId as Hex);
@@ -102,7 +102,7 @@ export async function settleOrder(admin: SupabaseClient<Database>, row: OrderRow
     if (live.status !== "DisputeWindow" || live.disputed || live.now <= live.deadline) {
       return { ok: false, status: 409, error: "masa sengketa di kontrak belum lewat" };
     }
-    const op = operatorSetup();
+    const op = operatorFor(order.chain.chainId);
     if (!op) return { ok: false, status: 503, error: "mode chain mati: kunci operator belum diset" };
     const tx = await settle(op, order.chain.listingId as Hex, "release");
     const r = await admin

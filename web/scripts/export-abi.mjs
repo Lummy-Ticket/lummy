@@ -10,8 +10,8 @@ const CONTRACTS = path.resolve(WEB, "../contracts");
 const OUT_DIR = path.join(WEB, "src/lib/chain");
 const HEADER = "// Dibuat oleh scripts/export-abi.mjs dari artefak Foundry. Jangan diedit manual.\n\n";
 
-function artifactAbi(name) {
-  const f = path.join(CONTRACTS, "out", `${name}.sol`, `${name}.json`);
+function artifactAbi(name, file = name) {
+  const f = path.join(CONTRACTS, "out", `${file}.sol`, `${name}.json`);
   if (!fs.existsSync(f)) throw new Error(`artefak tidak ada: ${f}. Jalankan forge build di contracts/ dulu.`);
   return JSON.parse(fs.readFileSync(f, "utf8")).abi;
 }
@@ -19,12 +19,16 @@ function artifactAbi(name) {
 const escrowAbi = artifactAbi("LummyEscrow");
 const tokenAbi = artifactAbi("MockUSDC");
 const ledgerAbi = artifactAbi("LummyLedger");
+const intentReceiverAbi = artifactAbi("LummyIntentReceiver");
+const intentFactoryAbi = artifactAbi("LummyIntentFactory", "LummyIntentReceiver");
 fs.writeFileSync(
   path.join(OUT_DIR, "abi.ts"),
   HEADER +
     `export const escrowAbi = ${JSON.stringify(escrowAbi, null, 2)} as const;\n\n` +
     `export const tokenAbi = ${JSON.stringify(tokenAbi, null, 2)} as const;\n\n` +
-    `export const ledgerAbi = ${JSON.stringify(ledgerAbi, null, 2)} as const;\n`,
+    `export const ledgerAbi = ${JSON.stringify(ledgerAbi, null, 2)} as const;\n\n` +
+    `export const intentReceiverAbi = ${JSON.stringify(intentReceiverAbi, null, 2)} as const;\n\n` +
+    `export const intentFactoryAbi = ${JSON.stringify(intentFactoryAbi, null, 2)} as const;\n`,
 );
 
 /**
@@ -49,8 +53,16 @@ const PUBLIC_CHAINS = new Set([421614, 42161]);
 const dir = path.join(CONTRACTS, "deployments");
 const deployments = {};
 const ledgers = {};
+const intents = {};
 for (const f of fs.existsSync(dir) ? fs.readdirSync(dir) : []) {
   const name = path.basename(f, ".json");
+  if (name.startsWith("intents-")) {
+    const chainId = Number(name.slice("intents-".length));
+    if (!PUBLIC_CHAINS.has(chainId)) continue;
+    const d = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
+    intents[chainId] = { factory: d.factory, escrow: d.escrow };
+    continue;
+  }
   const isLedger = name.startsWith("ledger-");
   const chainId = Number(isLedger ? name.slice("ledger-".length) : name);
   if (!PUBLIC_CHAINS.has(chainId)) continue;
@@ -77,8 +89,10 @@ fs.writeFileSync(
     'import type { Address } from "viem";\n\n' +
     "export type Deployment = { escrow: Address; token: Address; mockToken: boolean; disputeWindow: number; deployBlock?: number };\n\n" +
     "export type LedgerDeployment = { ledger: Address; disputeWindow: number; deployBlock?: number };\n\n" +
+    "export type IntentsDeployment = { factory: Address; escrow: Address };\n\n" +
     `export const DEPLOYMENTS: Partial<Record<number, Deployment>> = ${JSON.stringify(deployments, null, 2)};\n\n` +
-    `export const LEDGERS: Partial<Record<number, LedgerDeployment>> = ${JSON.stringify(ledgers, null, 2)};\n`,
+    `export const LEDGERS: Partial<Record<number, LedgerDeployment>> = ${JSON.stringify(ledgers, null, 2)};\n\n` +
+    `export const INTENTS: Partial<Record<number, IntentsDeployment>> = ${JSON.stringify(intents, null, 2)};\n`,
 );
 
 console.log(

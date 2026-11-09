@@ -11,7 +11,7 @@ import {
   type LocalAccount,
   type PublicClient,
 } from "viem";
-import { escrowAbi } from "./abi";
+import { escrowAbi, intentFactoryAbi, intentReceiverAbi } from "./abi";
 import type { FundSignature } from "./buyer";
 import { STATUS, type Status } from "./config";
 import { rpcTransport, writeTransport } from "./rpc";
@@ -94,5 +94,28 @@ export function escrowAs(pc: PublicClient, account: LocalAccount, chain: Chain, 
     resolveDispute: async (id: Hex, toBuyer: bigint) => done(await c.write.resolveDispute([id, toBuyer])),
     withdraw: async () => done(await c.write.withdraw()),
     withdrawFor: async (payee: Address) => done(await c.write.withdrawFor([payee])),
+  };
+}
+
+/** One order on the NEAR Intents rail, as LummyIntentFactory takes it. */
+export type IntentOrder = { listingId: Hex; seller: Address; price: bigint; eventEndsAt: number; refundTo: Address; refundAfter: number };
+
+/** The address to pay for this order. It can hold money before it has any code. */
+export function intentReceiverOf(pc: PublicClient, factory: Address, order: IntentOrder): Promise<Address> {
+  return pc.readContract({ address: factory, abi: intentFactoryAbi, functionName: "receiverOf", args: [order] });
+}
+
+/** The writes on the NEAR Intents rail. As with escrowAs, each waits for its receipt and fails on a revert. */
+export function intentsAs(pc: PublicClient, account: LocalAccount, chain: Chain, rpcUrl: string, factory: Address) {
+  const wallet = createWalletClient({ account, chain, transport: writeTransport(chain, rpcUrl) });
+  const done = async (hash: Hash): Promise<Receipt> => {
+    const r = await pc.waitForTransactionReceipt({ hash });
+    if (r.status !== "success") throw new Error(`tx ${hash} revert`);
+    return { hash, blockNumber: r.blockNumber, gasUsed: r.gasUsed };
+  };
+  return {
+    deployAndFund: async (order: IntentOrder) => done(await wallet.writeContract({ address: factory, abi: intentFactoryAbi, functionName: "deployAndFund", args: [order] })),
+    deploy: async (order: IntentOrder) => done(await wallet.writeContract({ address: factory, abi: intentFactoryAbi, functionName: "deploy", args: [order] })),
+    sweep: async (receiver: Address) => done(await wallet.writeContract({ address: receiver, abi: intentReceiverAbi, functionName: "sweep" })),
   };
 }

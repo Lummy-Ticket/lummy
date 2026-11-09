@@ -40,6 +40,34 @@ export type UsdcStart = {
   fund: TypedMessage;
 };
 
+/** One payment through NEAR Intents, as its buyer sees it (lib/payments/intents.ts). */
+export type IntentView = {
+  payment: PaymentView;
+  /** What to send, and where. */
+  deposit: { address: string; memo: string | null; amount: string; usd: string | null; symbol: string; chainLabel: string; etaSeconds: number | null };
+  swapStatus: "PENDING_DEPOSIT" | "KNOWN_DEPOSIT_TX" | "INCOMPLETE_DEPOSIT" | "PROCESSING" | "SUCCESS" | "REFUNDED" | "FAILED";
+  /** The contract this order's money lands on, on Arbitrum One. */
+  receiver: string;
+  refundTo: string;
+  /** Unix seconds: from then on the money can only go back to refundTo. */
+  refundAfter: number;
+  swapUrl: string;
+  originTx: string | null;
+  arrivalTx: string | null;
+};
+export type IntentStart = IntentView;
+
+/** What the NEAR HACKATHON demo can do here (GET /api/near/options). */
+export type NearOptions = {
+  assets: { assetId: string; symbol: string; chain: string; chainLabel: string; evm: boolean }[];
+  rail: boolean;
+  team: boolean;
+  ticketAi: boolean;
+  chainId: number;
+  escrow: string | null;
+  factory: string | null;
+};
+
 // --- Staff view of money that needs a person (GET /api/admin/payments).
 
 export type StaffPayment = {

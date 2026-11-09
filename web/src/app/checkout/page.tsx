@@ -20,7 +20,7 @@ import { useCatalogue } from "@/lib/catalogue";
 import { chainCheckoutReady, demoPrefs, openChainOrder, useChainInfo } from "@/lib/chain/client";
 import { DEPLOYMENTS } from "@/lib/chain/deployments";
 import { OrderError, placeOrder } from "@/lib/orders/client";
-import { startPayment, usePaymentsConfig, type PaymentView } from "@/lib/payments/client";
+import { startPayment, useNearOptions, usePaymentsConfig, type PaymentView } from "@/lib/payments/client";
 import { QrisPanel, SampleQrisPanel } from "@/components/checkout/QrisPanel";
 import dynamic from "next/dynamic";
 import { USDC_FAUCET } from "@/lib/chain/format";
@@ -32,6 +32,7 @@ import { TEST_MODE } from "@/components/layout/TestModeNotice";
 // The wallet panel brings the chain client (viem) with it, which only a USDC show needs: QRIS
 // buyers no longer download it (UX audit, 4 Nov 2026).
 const UsdcPanel = dynamic(() => import("@/components/checkout/UsdcPanel").then((m) => m.UsdcPanel), { ssr: false });
+const IntentsPanel = dynamic(() => import("@/components/checkout/IntentsPanel").then((m) => m.IntentsPanel), { ssr: false });
 
 /**
  * Unix seconds when the show ends, which is when the contract starts the dispute window. The demo
@@ -81,6 +82,10 @@ function CheckoutInner() {
   // A demo account walks the same QRIS step, with a demo code and the order kept in this browser.
   const [samplePay, setSamplePay] = useState(false);
   const [usdcOpen, setUsdcOpen] = useState(false);
+  // Paying from any chain through NEAR Intents: real money, so only the team sees it for now (lib/near/team.ts).
+  const near = useNearOptions(usdc && account);
+  const [intentsOpen, setIntentsOpen] = useState(false);
+  const canPayIntents = usdc && account && !!near?.team && near.rail;
 
   const [processing, setProcessing] = useState(false);
   // Where the gate matches ID to the name, the buyer says they know before paying.
@@ -295,6 +300,11 @@ function CheckoutInner() {
           >
             {t("Pay", "Bayar")} {money(total)}
           </Button.Primary>
+          {canPayIntents && (
+            <Button.Secondary data-intents-open wrapperClass="w-full" className="w-full" disabled={mustConfirmName && !nameRiskOk} onClick={() => setIntentsOpen(true)}>
+              {t("Pay from any chain (NEAR Intents)", "Bayar dari chain mana pun (NEAR Intents)")}
+            </Button.Secondary>
+          )}
           {overQris && (
             <p data-qris-over className="text-xs text-secondary-pink-dark text-center">
               {t(
@@ -375,6 +385,27 @@ function CheckoutInner() {
               : t("Securing your money in escrow.", "Mengamankan dana kamu di escrow.")}
           </p>
         </div>
+      </Modal>
+
+      {/* Paying from any chain: the same rule, only its own buttons close it. */}
+      <Modal open={intentsOpen} onClose={() => {}} className="max-w-md" label={t("Pay from any chain", "Bayar dari chain mana pun")}>
+        {intentsOpen && near && (
+          <IntentsPanel
+            options={near}
+            listingId={listing.id}
+            quantity={qty}
+            total={total}
+            onPaid={(orderId) => {
+              toast.success(t("Paid. Your money is locked in the escrow on Arbitrum One.", "Pembayaran berhasil. Uangmu dikunci di escrow di Arbitrum One."));
+              router.push(`/tickets/${orderId}`);
+              router.refresh();
+            }}
+            onClose={() => {
+              setIntentsOpen(false);
+              router.refresh();
+            }}
+          />
+        )}
       </Modal>
 
       {/* Paying in USDC: the wallet signs, the server locks the money. Like QRIS, only its own

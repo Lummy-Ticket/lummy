@@ -238,6 +238,8 @@ export interface Dispute {
  */
 export interface OrderChain {
   listingId: string;
+  /** Which chain, on an order from the database. Absent means Arbitrum Sepolia. */
+  chainId?: number;
   escrow: string;
   /** USDC units (6 decimals) locked on chain, a small testnet stand-in for the rupiah amount. */
   price: string;

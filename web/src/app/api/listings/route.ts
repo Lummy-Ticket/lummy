@@ -6,6 +6,7 @@
 // tickets, whose signals come from the server's own table (lib/listings/rules.ts). With an AI
 // provider, a real PDF is also read for its category and date (docs/09 §5.1), and a ticket that
 // prints another category or day than the seller picked waits for a person.
+import { nearTeam } from "@/lib/near/team";
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { notifyListingLive } from "@/lib/email/notify";
@@ -168,8 +169,8 @@ export async function POST(req: Request) {
     // name typed wrong on purpose cannot skip the cross-check.
     const tiers = await admin.from("tiers").select("id, name").eq("event_id", eventId);
     const who = { holder, names: namesToTakeOut(user, holder), known: [ev.data.title, ev.data.venue, ev.data.city].map((w) => w ?? "") };
-    const read = tiers.data?.length ? await readTicketFacts(ticket.bytes, who, { tiers: tiers.data }, 15_000).catch(() => null) : null;
-    if (read?.ok) checks = { ...checks, ai: { model: read.model, facts: read.facts, differs: factDiffs(read.facts, { tierId, startsAt: ev.data.starts_at }) } };
+    const read = tiers.data?.length ? await readTicketFacts(ticket.bytes, who, { tiers: tiers.data }, 15_000, nearTeam(user) && process.env.NEAR_AI_API_KEY ? "near" : undefined).catch(() => null) : null;
+    if (read?.ok) checks = { ...checks, ai: { model: read.model, facts: read.facts, differs: factDiffs(read.facts, { tierId, startsAt: ev.data.starts_at }), ...(read.receipt ? { receipt: read.receipt } : {}) } };
     else if (read?.reason === "holder_not_found") checks = { ...checks, nameNotOnTicket: true };
   }
   const status = (checks ? reviewReasons(checks).length > 0 : isFlagged(signals)) || late ? "review" : "active";

@@ -3,6 +3,7 @@
 // gzip on the ticket page and checkout; UX audit, 4 Nov 2026). 421614 is Arbitrum Sepolia.
 const EXPLORERS: Record<number, string> = {
   421614: "https://sepolia.arbiscan.io",
+  42161: "https://arbiscan.io",
 };
 
 export const explorerTx = (chainId: number, hash: string) => (EXPLORERS[chainId] ? `${EXPLORERS[chainId]}/tx/${hash}` : null);

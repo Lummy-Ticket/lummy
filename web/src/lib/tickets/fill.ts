@@ -3,14 +3,15 @@
 // sell page asks for it to fill the form in; publishing asks again, on the file it stores, rather
 // than trust what the page says it read.
 import type { EventItem } from "@/lib/mock/types";
-import { aiProvider, extractTicketFacts, type ShowForTicket } from "./ai";
+import { aiProvider, extractTicketFacts, type Provider, type ShowForTicket } from "./ai";
+import type { TeeReceipt } from "./near-ai";
 import { MIN_HOLDER_CHARS, showDay, type TicketFacts } from "./checks";
 import { prepareForExtraction } from "./extract";
 
 if (typeof window !== "undefined") throw new Error("lib/tickets/fill is server-only");
 
 export type FillOutcome =
-  | { ok: true; facts: TicketFacts; model: string }
+  | { ok: true; facts: TicketFacts; model: string; receipt?: TeeReceipt }
   | { ok: false; reason: "off" | "no_text" | "no_ticket_page" | "holder_not_found" | "personal_data_left" | "busy" | "failed" | "bad_answer" };
 
 /**
@@ -24,13 +25,14 @@ export async function readTicketFacts(
   bytes: Uint8Array,
   who: { holder: string; names: string[]; known?: string[] },
   show: ShowForTicket,
-  timeoutMs = 20_000
+  timeoutMs = 20_000,
+  provider?: Provider
 ): Promise<FillOutcome> {
-  if (!aiProvider()) return { ok: false, reason: "off" };
+  if (!provider && !aiProvider()) return { ok: false, reason: "off" };
   const known = [...(who.known ?? []), ...show.tiers.flatMap((t) => [t.name, t.show ?? ""])];
   const clean = await prepareForExtraction(bytes, who.names, { holder: who.holder, known });
   if (!clean.ok) return { ok: false, reason: clean.reason };
-  const out = await extractTicketFacts(clean.text, show, { timeoutMs });
+  const out = await extractTicketFacts(clean.text, show, { timeoutMs, ...(provider ? { provider } : {}) });
   if (!out.ok) {
     // The reason only: the text and the answer stay out of the logs.
     if (out.reason !== "off") console.warn(`[ai] no facts from the ticket: ${out.reason}${out.detail ? ` (${out.detail})` : ""}`);
@@ -38,7 +40,7 @@ export async function readTicketFacts(
   }
   // One barcode is one ticket, as the listing counts them, whatever the text says it admits.
   const quantity = clean.barcodes > 0 ? clean.barcodes : out.facts.quantity;
-  return { ok: true, facts: { ...out.facts, quantity }, model: out.model };
+  return { ok: true, facts: { ...out.facts, quantity }, model: out.model, ...(out.receipt ? { receipt: out.receipt } : {}) };
 }
 
 /**

@@ -2,10 +2,12 @@
 // it may match, go to a model that answers in a fixed JSON shape. Its answer only pre-fills the form
 // and cross-checks the seller; it decides nothing, and when the model is off, busy or wrong, the
 // seller fills the form in by hand. Claude with the key from docs/config/01, Gemini on made-up
-// tickets only, or a fake provider for tests that never leaves this machine.
+// tickets only, NEAR AI's Trusted Execution Environment with a receipt anyone can check (near-ai.ts),
+// or a fake provider for tests that never leaves this machine.
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import type { TicketFacts } from "./checks";
+import { completeInTee, DEFAULT_NEAR_MODEL, type TeeReceipt } from "./near-ai";
 
 if (typeof window !== "undefined") throw new Error("lib/tickets/ai is server-only");
 
@@ -22,10 +24,10 @@ export type ShowForTicket = { tiers: { id: string; name: string; show?: string; 
 /** The shows the categories belong to, as id and label, when they say so. */
 const showsOf = (show: ShowForTicket) => [...new Map(show.tiers.flatMap((t) => (t.showId ? [[t.showId, t.show ?? t.showId] as const] : []))).entries()];
 
-export type Provider = "claude" | "gemini" | "fake";
+export type Provider = "claude" | "gemini" | "near" | "fake";
 
 export type ExtractOutcome =
-  | { ok: true; facts: TicketFacts; provider: Provider; model: string; ms: number; tokens: { in: number; out: number } }
+  | { ok: true; facts: TicketFacts; provider: Provider; model: string; ms: number; tokens: { in: number; out: number }; receipt?: TeeReceipt }
   | { ok: false; reason: "off" | "busy" | "failed" | "bad_answer"; detail?: string };
 
 /** The cheap, fast Claude, chosen on 20 Oct 2026 for cost; CLAUDE_MODEL can name another. */
@@ -34,8 +36,9 @@ export const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite";
 const NONE = "none";
 
 /**
- * Which provider this server uses: AI_PROVIDER=fake for tests, off to stop it, claude or gemini to
- * pick one; else Claude once its key is set, then Gemini. A provider without its key is none.
+ * Which provider this server uses: AI_PROVIDER=fake for tests, off to stop it, claude, gemini or near
+ * to pick one; else Claude once its key is set, then Gemini. A provider without its key is none.
+ * NEAR AI is only ever asked for by name, here or per call: it is not a fallback.
  */
 export function aiProvider(): Provider | null {
   const p = process.env.AI_PROVIDER;
@@ -45,6 +48,7 @@ export function aiProvider(): Provider | null {
   const gemini = !!process.env.GEMINI_API_KEY;
   if (p === "claude") return claude ? "claude" : null;
   if (p === "gemini") return gemini ? "gemini" : null;
+  if (p === "near") return process.env.NEAR_AI_API_KEY ? "near" : null;
   return claude ? "claude" : gemini ? "gemini" : null;
 }
 
@@ -223,7 +227,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 type Ask = { key: string; model: string; deadline: number };
 type Reply =
-  | { ok: true; text: string; tokens: { in: number; out: number } }
+  | { ok: true; text: string; tokens: { in: number; out: number }; receipt?: TeeReceipt }
   | { ok: false; reason: "busy" | "failed" | "bad_answer"; detail: string };
 /** One try's result: a reply to keep, or why it is worth trying again. */
 type Try = Reply | { ok: false; reason: "again"; detail: string };
@@ -327,6 +331,15 @@ async function askGemini(prompt: string, schema: object, o: Ask): Promise<Reply>
   });
 }
 
+// NEAR AI, over its OpenAI-compatible API. The call and the receipt are in near-ai.ts.
+async function askNear(prompt: string, schema: object, o: Ask): Promise<Reply> {
+  return withRetries(o.deadline, async (ms) => {
+    const r = await completeInTee(prompt, schema, { key: o.key, model: o.model, timeoutMs: ms, maxTokens: MAX_OUTPUT_TOKENS });
+    if (r.ok) return { ok: true, text: r.text, tokens: r.tokens, receipt: r.receipt };
+    return { ok: false, reason: r.retry ? "again" : "failed", detail: r.detail };
+  });
+}
+
 /** What the ticket says, from the cleaned text (lib/tickets/clean.ts) and the picked show's categories. */
 export async function extractTicketFacts(
   text: string,
@@ -340,15 +353,20 @@ export async function extractTicketFacts(
     return { ok: true, facts: fakeFacts(text, show), provider, model: "fake", ms: Date.now() - t0, tokens: { in: 0, out: 0 } };
   }
 
-  const claude = provider === "claude";
-  const key = claude ? process.env.ANTHROPIC_API_KEY : process.env.GEMINI_API_KEY;
+  const key = provider === "claude" ? process.env.ANTHROPIC_API_KEY : provider === "near" ? process.env.NEAR_AI_API_KEY : process.env.GEMINI_API_KEY;
   if (!key) return { ok: false, reason: "off" };
-  const model = opts.model ?? (claude ? process.env.CLAUDE_MODEL || DEFAULT_CLAUDE_MODEL : process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL);
-  const ask = claude ? askClaude : askGemini;
+  const model =
+    opts.model ??
+    (provider === "claude"
+      ? process.env.CLAUDE_MODEL || DEFAULT_CLAUDE_MODEL
+      : provider === "near"
+        ? process.env.NEAR_AI_MODEL || DEFAULT_NEAR_MODEL
+        : process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL);
+  const ask = provider === "claude" ? askClaude : provider === "near" ? askNear : askGemini;
   const r = await ask(buildPrompt(text, show), responseSchema(show), { key, model, deadline: t0 + (opts.timeoutMs ?? 20_000) });
   if (!r.ok) return { ok: false, reason: r.reason, detail: r.detail };
 
   const facts = parseAnswer(r.text, show);
   if (!facts) return { ok: false, reason: "bad_answer", detail: "not the JSON asked for" };
-  return { ok: true, facts, provider, model, ms: Date.now() - t0, tokens: r.tokens };
+  return { ok: true, facts, provider, model, ms: Date.now() - t0, tokens: r.tokens, ...(r.receipt ? { receipt: r.receipt } : {}) };
 }

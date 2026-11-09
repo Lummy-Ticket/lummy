@@ -8,7 +8,7 @@ import { DEPLOYMENTS } from "./deployments";
 import { publicClient } from "./escrow";
 import { ledgerTarget, readRecord, REFUND_REASONS, type LedgerRecord, type LedgerTarget, type RefundReason } from "./ledger";
 import { pickRecord, type Read } from "./pick";
-import { chainTarget, readListing, type ChainTarget, type OnchainListing } from "./server";
+import { ARBITRUM_ONE, chainTarget, readListing, targetFor, type ChainTarget, type OnchainListing } from "./server";
 
 if (typeof window !== "undefined") throw new Error("lib/chain/history hanya boleh dipakai di server");
 
@@ -381,5 +381,10 @@ export async function readAnyHistory(id: Hex, source?: HistorySource): Promise<E
     ledger ? cached(`${ledger.chain.id}:${ledger.ledger}:${id}`.toLowerCase(), () => readLedgerHistory(ledger, id)) : Promise.resolve(null),
   ]);
   const [fromEscrow, fromLedger] = reads.map((r): Read<EscrowHistory> => (r.status === "fulfilled" ? { ok: true, value: r.value } : { ok: false, error: r.reason }));
-  return pickRecord(fromEscrow, fromLedger, !!ledger, found);
+  const picked = pickRecord(fromEscrow, fromLedger, !!ledger, found);
+  if (picked) return picked;
+  // Not on the app's chain: an order paid through NEAR Intents lives on Arbitrum One.
+  const mainnet = source === "ledger" ? null : targetFor(ARBITRUM_ONE);
+  const there = mainnet ? await readHistoryCached(mainnet, id).catch(() => null) : null;
+  return there && found(there) ? there : null;
 }

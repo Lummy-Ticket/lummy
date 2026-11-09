@@ -153,9 +153,15 @@ const TEST_MODE_NOTE: Bi = {
   en: "Lummy is still in test mode: no real money moves yet.",
 };
 
+const TEAM_DEMO_NOTE: Bi = {
+  id: "Demo NEAR HACKATHON: USDC sungguhan di Arbitrum One, khusus akun tim Lummy, belum dibuka untuk umum.",
+  en: "NEAR HACKATHON demo: real USDC on Arbitrum One, for Lummy team accounts only, not open to the public.",
+};
+
 /** Said wherever money is, for as long as none of it is real (lib/features.ts, `payouts`). */
 function moneyNote(o: OrderFacts): Bi | undefined {
   if (o.currency === "USDC" && o.chainId !== ARBITRUM_ONE) return TESTNET_NOTE;
+  if (o.currency === "USDC") return TEAM_DEMO_NOTE;
   return FEATURES.payouts ? undefined : TEST_MODE_NOTE;
 }
 

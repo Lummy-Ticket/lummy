@@ -61,6 +61,7 @@ export function orderFromRow(r: OrderRow): Order {
     r.onchain_listing_id && r.contract_address && r.onchain_price && r.event_ends_at && r.tx_create && r.tx_fund && r.tx_handover
       ? {
           listingId: r.onchain_listing_id,
+          chainId: r.chain_id ?? undefined,
           escrow: r.contract_address,
           price: r.onchain_price,
           eventEndsAt: unix(r.event_ends_at)!,

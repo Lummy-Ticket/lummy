@@ -2477,3 +2477,538 @@ export const ledgerAbi = [
     "inputs": []
   }
 ] as const;
+
+export const intentReceiverAbi = [
+  {
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "escrow",
+        "type": "address",
+        "internalType": "contract LummyEscrow"
+      },
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "contract IERC20"
+      },
+      {
+        "name": "order",
+        "type": "tuple",
+        "internalType": "struct IntentOrder",
+        "components": [
+          {
+            "name": "listingId",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "seller",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "price",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "eventEndsAt",
+            "type": "uint40",
+            "internalType": "uint40"
+          },
+          {
+            "name": "refundTo",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "refundAfter",
+            "type": "uint40",
+            "internalType": "uint40"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "ESCROW",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract LummyEscrow"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "EVENT_ENDS_AT",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint40",
+        "internalType": "uint40"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "LISTING_ID",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "PRICE",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint128",
+        "internalType": "uint128"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "REFUND_AFTER",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint40",
+        "internalType": "uint40"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "REFUND_TO",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "SELLER",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "TOKEN",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract IERC20"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "fund",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "isValidSignature",
+    "inputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes4",
+        "internalType": "bytes4"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "raiseDispute",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "sweep",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "Paid",
+    "inputs": [
+      {
+        "name": "listingId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "price",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "returned",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Swept",
+    "inputs": [
+      {
+        "name": "to",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "NotBuyer",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotListed",
+    "inputs": [
+      {
+        "name": "current",
+        "type": "uint8",
+        "internalType": "enum LummyEscrow.Status"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "NotPaid",
+    "inputs": [
+      {
+        "name": "balance",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "price",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "NothingToSweep",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SafeERC20FailedOperation",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "TermsChanged",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "TooEarly",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "TooLate",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ZeroAddress",
+    "inputs": []
+  }
+] as const;
+
+export const intentFactoryAbi = [
+  {
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "escrow",
+        "type": "address",
+        "internalType": "contract LummyEscrow"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "ESCROW",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract LummyEscrow"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "TOKEN",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract IERC20"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "deploy",
+    "inputs": [
+      {
+        "name": "order",
+        "type": "tuple",
+        "internalType": "struct IntentOrder",
+        "components": [
+          {
+            "name": "listingId",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "seller",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "price",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "eventEndsAt",
+            "type": "uint40",
+            "internalType": "uint40"
+          },
+          {
+            "name": "refundTo",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "refundAfter",
+            "type": "uint40",
+            "internalType": "uint40"
+          }
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "name": "receiver",
+        "type": "address",
+        "internalType": "contract LummyIntentReceiver"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "deployAndFund",
+    "inputs": [
+      {
+        "name": "order",
+        "type": "tuple",
+        "internalType": "struct IntentOrder",
+        "components": [
+          {
+            "name": "listingId",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "seller",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "price",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "eventEndsAt",
+            "type": "uint40",
+            "internalType": "uint40"
+          },
+          {
+            "name": "refundTo",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "refundAfter",
+            "type": "uint40",
+            "internalType": "uint40"
+          }
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "name": "receiver",
+        "type": "address",
+        "internalType": "contract LummyIntentReceiver"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "receiverOf",
+    "inputs": [
+      {
+        "name": "order",
+        "type": "tuple",
+        "internalType": "struct IntentOrder",
+        "components": [
+          {
+            "name": "listingId",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "seller",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "price",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "eventEndsAt",
+            "type": "uint40",
+            "internalType": "uint40"
+          },
+          {
+            "name": "refundTo",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "refundAfter",
+            "type": "uint40",
+            "internalType": "uint40"
+          }
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "event",
+    "name": "ReceiverDeployed",
+    "inputs": [
+      {
+        "name": "listingId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "receiver",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "refundTo",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  }
+] as const;

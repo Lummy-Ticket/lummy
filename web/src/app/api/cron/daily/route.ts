@@ -19,6 +19,7 @@ import { NextResponse } from "next/server";
 import { syncLedgerDue } from "@/lib/orders/ledger";
 import { settleDue } from "@/lib/orders/settle";
 import { expireHolds, recheckClosedHolds, type RecheckReport } from "@/lib/payments/checkout";
+import { settleIntentLeftovers } from "@/lib/payments/intents";
 import { reconcileUsdcHolds, usdcRail } from "@/lib/payments/usdc";
 import { xenditConfig } from "@/lib/payments/xendit";
 import { purgeExpired } from "@/lib/retention-purge";
@@ -97,6 +98,15 @@ export async function GET(req: Request) {
       }
     }
   }
+  // Money from NEAR Intents that reached a receiver with no order to go to: back to its refund address.
+  let intentsSwept: number | { error: string } | "later" = "later";
+  if (left(Infinity) >= 15_000) {
+    try {
+      intentsSwept = await settleIntentLeftovers(admin);
+    } catch (e) {
+      intentsSwept = { error: (e as Error).message };
+    }
+  }
   // After the payouts above, so a release made just now reaches the chain in the same run.
   let ledger: Awaited<ReturnType<typeof syncLedgerDue>> | { error: string };
   try {
@@ -119,7 +129,7 @@ export async function GET(req: Request) {
   // green with the trouble only in the body (money audit, 4 Nov 2026). Counts only, as before.
   const failedStep = (v: unknown) => !!v && typeof v === "object" && "error" in v;
   const attention =
-    [settle, holdsReleased, holdsRechecked, usdcReconciled, ledger].some(failedStep) ||
+    [settle, holdsReleased, holdsRechecked, usdcReconciled, intentsSwept, ledger].some(failedStep) ||
     (!failedStep(settle) && (settle as Awaited<ReturnType<typeof settleDue>>).failed > 0) ||
     (!!holdsRechecked && !failedStep(holdsRechecked) && ((holdsRechecked as RecheckReport).failed > 0 || (holdsRechecked as RecheckReport).lastChance > 0)) ||
     purge.errors.length > 0;
@@ -130,6 +140,7 @@ export async function GET(req: Request) {
       holdsReleased,
       holdsRechecked,
       usdcReconciled,
+      intentsSwept,
       ledger,
       purge: { ticketFiles: purge.ticketFiles, evidenceFiles: purge.evidenceFiles, orphanUploads: purge.orphanUploads, errors: purge.errors.length, unfinished: purge.unfinished },
       attempts: attempts.error ? "failed" : "cleared",

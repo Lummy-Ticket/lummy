@@ -26,6 +26,7 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import {useOrders, useUser, explorerTx, explorerAddr, shortHash, phaseOf, msUntilRelease, disputeDeadlineISO, endedAtISO, canRefundPostponed, checkEvidence, mockEvidenceOptions, DISPUTE_WINDOW_H, reasonMeta, availableReasons, reasonBlockedNote, canFileDispute, REMEDY_LABEL, penaltyNote, windowMs, windowLabel, withChainSnapshot, type DisputeEvidence, type DisputeReason,
 } from "@/lib/mock";
 import { chainAction, chainWritable, useChainHistory, useChainInfo, useChainListing, usdcText } from "@/lib/chain/client";
+import { explorerAddress as onchainExplorerAddress, explorerTx as chainExplorerTx } from "@/lib/chain/format";
 import { DEPLOYMENTS, LEDGERS } from "@/lib/chain/deployments";
 import { shortAddress } from "@/lib/chain/format";
 import { OrderError, orderAction, uploadEvidence, useAccountOrders } from "@/lib/orders/client";
@@ -35,6 +36,8 @@ import { publicSellerName } from "@/lib/listings/rules";
 import { CONTACT_EMAIL } from "@/components/legal/LegalPage";
 
 /** The escrow that new on-chain orders go to, shown even on sample orders so anyone can inspect it. */
+/** A transaction's page on the explorer of the chain this order is on. */
+const onchainTx = (c: { chainId?: number }, hash: string) => chainExplorerTx(c.chainId ?? 421614, hash) ?? undefined;
 const LIVE_ESCROW = DEPLOYMENTS[421614]?.escrow;
 const LIVE_LEDGER = LEDGERS[421614]?.ledger;
 /**
@@ -609,20 +612,20 @@ export default function OrderDetailPage() {
           {showProof && onchain && (
             <div className="mt-3">
               <div className="bg-secondary-blue-extra rounded-2xl p-4">
-                <ChainRow label={t("Escrow contract", "Kontrak escrow")} value={shortHash(onchain.escrow)} href={explorerAddr(onchain.escrow)} onCopy={() => copy(onchain.escrow)} />
+                <ChainRow label={t("Escrow contract", "Kontrak escrow")} value={shortHash(onchain.escrow)} href={onchainExplorerAddress(onchain.chainId ?? 421614, onchain.escrow) ?? undefined} onCopy={() => copy(onchain.escrow)} />
                 <ChainRow label={t("Status on chain", "Status di kontrak")} value={(live?.status ?? onchain.status ?? "…") + (live?.disputed ? t(", disputed", ", disengketakan") : "")} />
-                <ChainRow label={t("Locked in the contract", "Terkunci di kontrak")} value={t(`${usdcText(onchain.price)} (testnet)`, `${usdcText(onchain.price)} (testnet)`)} />
-                <ChainRow label={t("Listing tx", "Tx listing")} value={shortHash(onchain.txs.create)} href={explorerTx(onchain.txs.create)} onCopy={() => copy(onchain.txs.create)} />
-                <ChainRow label={t("Funding tx", "Tx dana dikunci")} value={shortHash(onchain.txs.fund)} href={explorerTx(onchain.txs.fund)} onCopy={() => copy(onchain.txs.fund)} />
-                <ChainRow label={t("Handover proof tx", "Tx bukti serah terima")} value={shortHash(onchain.txs.handover)} href={explorerTx(onchain.txs.handover)} onCopy={() => copy(onchain.txs.handover)} />
+                <ChainRow label={t("Locked in the contract", "Terkunci di kontrak")} value={onchain.chainId === 42161 ? usdcText(onchain.price) : t(`${usdcText(onchain.price)} (testnet)`, `${usdcText(onchain.price)} (testnet)`)} />
+                <ChainRow label={t("Listing tx", "Tx listing")} value={shortHash(onchain.txs.create)} href={onchainTx(onchain, onchain.txs.create)} onCopy={() => copy(onchain.txs.create)} />
+                <ChainRow label={t("Funding tx", "Tx dana dikunci")} value={shortHash(onchain.txs.fund)} href={onchainTx(onchain, onchain.txs.fund)} onCopy={() => copy(onchain.txs.fund)} />
+                <ChainRow label={t("Handover proof tx", "Tx bukti serah terima")} value={shortHash(onchain.txs.handover)} href={onchainTx(onchain, onchain.txs.handover)} onCopy={() => copy(onchain.txs.handover)} />
                 {onchain.txs.settle && (
-                  <ChainRow label={order.escrowStatus === "RELEASED" ? t("Release tx", "Tx pencairan") : t("Refund tx", "Tx refund")} value={shortHash(onchain.txs.settle)} href={explorerTx(onchain.txs.settle)} onCopy={() => copy(onchain.txs.settle!)} />
+                  <ChainRow label={order.escrowStatus === "RELEASED" ? t("Release tx", "Tx pencairan") : t("Refund tx", "Tx refund")} value={shortHash(onchain.txs.settle)} href={onchainTx(onchain, onchain.txs.settle)} onCopy={() => copy(onchain.txs.settle!)} />
                 )}
                 {(onchain.txs.withdrawals ?? []).map((w) => (
-                  <ChainRow key={w} label={t("Payout tx", "Tx kirim dana")} value={shortHash(w)} href={explorerTx(w)} onCopy={() => copy(w)} />
+                  <ChainRow key={w} label={t("Payout tx", "Tx kirim dana")} value={shortHash(w)} href={onchainTx(onchain, w)} onCopy={() => copy(w)} />
                 ))}
                 <ChainRow label={t("Release condition", "Syarat pencairan")} value={t(`Event end + ${win.en}`, `Acara selesai + ${win.id}`)} />
-                <ChainRow label={t("Network", "Jaringan")} value="Arbitrum Sepolia (421614)" />
+                <ChainRow label={t("Network", "Jaringan")} value={onchain.chainId === 42161 ? "Arbitrum One (42161)" : "Arbitrum Sepolia (421614)"} />
               </div>
               <p className="flex items-center gap-1.5 text-xs text-neutral-gray mt-3">
                 <ShieldCheck className="w-3.5 h-3.5 text-secondary-green-dark" /> {t("Do not take our word for it, read the contract.", "Jangan percaya kami, baca kontraknya sendiri.")}
@@ -710,7 +713,7 @@ export default function OrderDetailPage() {
                   <span className="absolute -left-[7px] top-1 w-3 h-3 rounded-full bg-lummy-500 border-2 border-neutral-white" />
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm text-neutral-black">{t("Funds locked in escrow", "Dana dikunci di escrow")}</span>
-                    {showProof && onchain && <a href={explorerTx(onchain.txs.fund)} target="_blank" rel="noreferrer" className="text-xs text-primary-navy flex items-center gap-1 shrink-0">{shortHash(onchain.txs.fund, 4)} <ExternalLink className="w-3 h-3" /></a>}
+                    {showProof && onchain && <a href={onchainTx(onchain, onchain.txs.fund)} target="_blank" rel="noreferrer" className="text-xs text-primary-navy flex items-center gap-1 shrink-0">{shortHash(onchain.txs.fund, 4)} <ExternalLink className="w-3 h-3" /></a>}
                   </div>
                   <span className="text-xs text-neutral-gray">{formatDateTime(order.createdAtISO)}</span>
                 </li>
@@ -739,7 +742,7 @@ export default function OrderDetailPage() {
                             : t("Released to seller by verdict", "Cair ke penjual lewat putusan")
                           : t("Refunded to buyer", "Dikembalikan ke pembeli")}
                       </span>
-                      {showProof && onchain?.txs.settle && <a href={explorerTx(onchain.txs.settle)} target="_blank" rel="noreferrer" className="text-xs text-primary-navy flex items-center gap-1 shrink-0">{shortHash(onchain.txs.settle, 4)} <ExternalLink className="w-3 h-3" /></a>}
+                      {showProof && onchain?.txs.settle && <a href={onchainTx(onchain, onchain.txs.settle)} target="_blank" rel="noreferrer" className="text-xs text-primary-navy flex items-center gap-1 shrink-0">{shortHash(onchain.txs.settle, 4)} <ExternalLink className="w-3 h-3" /></a>}
                     </div>
                   </li>
                 ) : (
@@ -777,7 +780,7 @@ export default function OrderDetailPage() {
           {onchain && order.escrowStatus === "LOCKED" && (
             <div className="mt-5 rounded-2xl border-2 border-dashed border-neutral-light-gray-1 p-4">
               <div className="text-xs font-semibold text-neutral-gray flex items-center gap-1.5 mb-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-secondary-green-dark" /> {t("Real escrow on Arbitrum Sepolia", "Escrow sungguhan di Arbitrum Sepolia")}
+                <ShieldCheck className="w-3.5 h-3.5 text-secondary-green-dark" /> {onchain.chainId === 42161 ? t("Real escrow on Arbitrum One", "Escrow sungguhan di Arbitrum One") : t("Real escrow on Arbitrum Sepolia", "Escrow sungguhan di Arbitrum Sepolia")}
               </div>
               <p className="text-xs text-neutral-gray mb-3">
                 {t(

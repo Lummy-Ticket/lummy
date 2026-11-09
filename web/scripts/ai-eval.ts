@@ -12,6 +12,7 @@
  *   npm run ai:eval -- --pdf table                     # the same, laid out as a table
  *   npm run ai:eval -- --repeat 3                      # the whole set three times, for drift
  *   npm run ai:eval -- --provider gemini               # GEMINI_MODEL, else gemini-3.5-flash-lite
+ *   npm run ai:eval -- --provider near                 # NEAR_AI_MODEL, else z-ai/glm-5.3-flash, in a TEE
  *   npm run ai:eval -- --model claude-sonnet-5-5
  *   npm run ai:eval -- --provider fake                 # offline, no key
  *   npm run ai:eval -- --only wtf-3day-range --show    # one case, with the text the model reads
@@ -24,6 +25,7 @@ import { homedir } from "node:os";
 import { cleanTicketText, type CleanResult } from "../src/lib/tickets/clean";
 import { prepareForExtraction } from "../src/lib/tickets/extract";
 import { DEFAULT_CLAUDE_MODEL, DEFAULT_GEMINI_MODEL, extractTicketFacts, type Provider, type TicketFacts } from "../src/lib/tickets/ai";
+import { DEFAULT_NEAR_MODEL } from "../src/lib/tickets/near-ai";
 import { CASES, SHOWS, SHOW_LABEL, type EvalCase } from "./ai-eval-cases";
 import { casePdf, type Layout } from "./ai-pdf";
 import { initWriter } from "./ticket-fixtures";
@@ -47,6 +49,7 @@ const EVERY_SHOW = {
 const KEYS: Partial<Record<Provider, { key: string; lines: RegExp }>> = {
   claude: { key: "ANTHROPIC_API_KEY", lines: /^(ANTHROPIC_API_KEY|CLAUDE_[A-Z_]+)=(.*)$/ },
   gemini: { key: "GEMINI_API_KEY", lines: /^(GEMINI_[A-Z_]+)=(.*)$/ },
+  near: { key: "NEAR_AI_API_KEY", lines: /^(NEAR_AI_[A-Z_]+)=(.*)$/ },
 };
 const needs = KEYS[provider];
 if (needs && !process.env[needs.key]) {
@@ -66,6 +69,7 @@ if (needs && !process.env[needs.key]) {
 const model =
   provider === "fake" ? "fake"
   : provider === "claude" ? (arg("model") ?? (process.env.CLAUDE_MODEL || DEFAULT_CLAUDE_MODEL))
+  : provider === "near" ? (arg("model") ?? (process.env.NEAR_AI_MODEL || DEFAULT_NEAR_MODEL))
   : (arg("model") ?? (process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL));
 // Gemini's free tier counts requests per minute; a pause keeps a run of the whole set under that.
 const gapMs = Number(arg("gap") ?? (provider === "gemini" ? 4_000 : 0));

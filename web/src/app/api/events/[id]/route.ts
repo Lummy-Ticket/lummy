@@ -15,7 +15,7 @@ import type { Hex } from "viem";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
-import { chainError, operatorSetup, postpone, readListing, settle } from "@/lib/chain/server";
+import { chainError, operatorFor, postpone, readListing, settle } from "@/lib/chain/server";
 import { notifyShowCancelled } from "@/lib/email/notify";
 import { emailDeadline } from "@/lib/email/send";
 import { inIndonesia, parseLocation } from "@/lib/events/location";
@@ -156,7 +156,7 @@ async function cancel(admin: Admin, id: string, staffId: string) {
     const order = orderFromRow(row);
     let tx: { tx: string; withdrawals: string[] } | null = null;
     if (order.chain) {
-      const op = operatorSetup();
+      const op = operatorFor(order.chain.chainId);
       if (!op) {
         failures.push("mode chain mati: kunci operator belum diset");
         continue;
@@ -271,7 +271,7 @@ async function postponeShow(admin: Admin, id: string, startsAtRaw: unknown) {
     if (row.event_ends_at && new Date(row.event_ends_at).getTime() >= end) continue;
     let deadline: number;
     if (order.chain) {
-      const op = operatorSetup();
+      const op = operatorFor(order.chain.chainId);
       if (!op) {
         failures.push("mode chain mati: kunci operator belum diset");
         continue;

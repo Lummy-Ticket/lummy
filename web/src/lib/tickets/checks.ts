@@ -1,6 +1,7 @@
 // What the ticket check tells the seller and staff, shared by the sell page, the review queue and
 // the routes. Safe for the browser: no barcode payload or key ever appears here, only formats,
 // pages, the last four characters for the seller who uploaded the file, and the reasons.
+import type { TeeReceipt } from "./near-ai";
 import type { ForensicReason } from "./forensics";
 
 export type { ForensicReason };
@@ -57,7 +58,7 @@ export type ListingChecks = {
   reasons: ForensicReason[];
   producer: string | null;
   /** The AI step at publish, when the server has one: what it read, and where that differs. */
-  ai?: { model: string; facts: TicketFacts; differs: FactDiff[] } | null;
+  ai?: { model: string; facts: TicketFacts; differs: FactDiff[]; receipt?: TeeReceipt } | null;
   /** The buyer's name the seller typed is not printed on the ticket, so the AI step did not read it. */
   nameNotOnTicket?: boolean;
 };
