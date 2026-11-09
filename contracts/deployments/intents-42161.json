@@ -1,0 +1,5 @@
+{
+  "chainId": 42161,
+  "escrow": "0x68d535494bf33a6F483A945683Ab629D036d3cb3",
+  "factory": "0x3dFc2bFFBfC17F1e5F741E0dCD04e8F24dd6b75C"
+}

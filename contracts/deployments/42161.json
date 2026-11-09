@@ -1,0 +1,10 @@
+{
+  "admin": "0x5Bf8a2A7673146805443Eb06e1De57C61A346070",
+  "chainId": 42161,
+  "disputeWindow": 172800,
+  "escrow": "0x68d535494bf33a6F483A945683Ab629D036d3cb3",
+  "mockToken": false,
+  "operator": "0x6a494D6b9099b7e14755f8d01eB2a122B86Df5f0",
+  "priceCap": 25000000,
+  "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"
+}
