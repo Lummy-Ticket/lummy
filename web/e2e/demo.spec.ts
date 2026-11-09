@@ -3,7 +3,9 @@ import { DEMO_SIGN_IN, expect, isBuyable, listingWhere, persona, rupiah, showWhe
 
 // Shows and listings by what they are, not by id: every show is real and passes on its own date.
 const LATE_SHOW = showWhere("a rupiah show with listings", (e, ls) => rupiah(e) && ls.length > 0 && e.transferPolicy !== "no_resale");
-const PAIR = listingWhere("a rupiah listing of two", (l, e) => rupiah(e) && isBuyable(l) && l.quantity >= 2);
+// Not on a show whose gate checks the ID card: there Pay waits for a tick (needsNameAcknowledgement),
+// which ID_MATCH covers. As shows pass the pick moves on, and on 9 Nov 2026 it landed on one.
+const PAIR = listingWhere("a rupiah listing of two", (l, e) => rupiah(e) && isBuyable(l) && l.quantity >= 2 && e.transferPolicy !== "id_match");
 const OPEN_SHOW = showWhere("a rupiah show with no name rule", (e, ls) => rupiah(e) && !e.transferPolicy && ls.some(isBuyable));
 const USDC_SHOW = showWhere("a USDC show with tickets on sale", (e, ls) => e.currency === "USDC" && ls.some(isBuyable));
 const USDC_DEAR = listingWhere("a USDC listing above a faucet's 20 test USDC", (l, e) => e.currency === "USDC" && isBuyable(l) && l.askPrice > 20_000_000);
