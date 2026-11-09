@@ -85,6 +85,8 @@ On 9 November 2026 the team paid 1.0156 USDC from a wallet on Base. Each step is
 
 The swap cost 0.0054 USDC. The four transactions on Arbitrum One cost about 0.000026 ETH in gas, paid by the operator.
 
+**Check the terms yourself.** The receiver of this payment, [`0x903C…8f6A`](https://arbiscan.io/address/0x903CE1751A2F5e8034b9A14a37b9294b8Ab58f6A#readContract), shows its listing, seller, price, show end, refund address and deadline under Read Contract. Give them to the factory's [`receiverOf`](https://arbiscan.io/address/0x3dFc2bFFBfC17F1e5F741E0dCD04e8F24dd6b75C#readContract) and it returns that same address. Change any one of them, the refund address included, and the address changes: the money could only go where those terms say.
+
 ### 2. A ticket check you can verify (Privacy & Private AI)
 
 Before a ticket is listed, a model reads the show, date, category and seat off its PDF. It fills the listing in and cross-checks what the seller picked. It decides nothing: anything that does not match goes to a person. This week that read moved into NEAR AI's TEE, and every read now comes back with a receipt anyone can check.
@@ -123,7 +125,8 @@ NEAR's page checks NVIDIA's freshly issued GPU token with no allowance for clock
 | 3 | Press **Check it on NEAR's Verification Center** | NEAR's page verifies the same receipt and the hardware evidence in your browser |
 | 4 | Press **Change one character and check again** | The changed receipt is refused |
 | 5 | Open the six links under "On chain" | The first real payment, step by step, on Basescan, the NEAR Intents explorer and Arbiscan |
-| 6 | Clone this repository, then run `cd web && npm ci && npm run near:check` | 39 checks pass offline, with no keys: the receipt, the Verification Center link, the 1Click request, and who may pay |
+| 6 | Open [that payment's receiver](https://arbiscan.io/address/0x903CE1751A2F5e8034b9A14a37b9294b8Ab58f6A#readContract) on Arbiscan, then the factory's [`receiverOf`](https://arbiscan.io/address/0x3dFc2bFFBfC17F1e5F741E0dCD04e8F24dd6b75C#readContract) with the terms it shows | The same address comes back: the terms the buyer paid against are fixed in the address itself |
+| 7 | Clone this repository, then run `cd web && npm ci && npm run near:check` | 39 checks pass offline, with no keys: the receipt, the Verification Center link, the 1Click request, and who may pay |
 
 Paying for real through NEAR Intents is open to the Lummy team's accounts only, so a visitor sees the quote but no deposit address.
 

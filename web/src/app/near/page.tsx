@@ -15,6 +15,8 @@ import { nearQuote, useNearOptions, type NearQuote } from "@/lib/payments/client
 /** The cheapest Binance Blockchain Week listing on Lummy, in micro-USDC: what the live quote is for. */
 const DEMO_PRICE = "9500000";
 const ARBITRUM_ONE = 42161;
+/** The receiver the first real payment went through: CREATE2 of its terms, readable on Arbiscan. */
+const FIRST_RECEIVER = "0x903CE1751A2F5e8034b9A14a37b9294b8Ab58f6A";
 /** The first real payment, 9 Nov 2026: 1 USDC from Base, locked in the escrow, refunded, each step on its explorer. */
 const DEMO_TXS: { en: string; id: string; url: string }[] = [
   { en: "1. Paid 1.0156 USDC on Base", id: "1. Bayar 1,0156 USDC di Base", url: "https://basescan.org/tx/0xbd2abb9fb8c13c081bdff9fb65915ccb89f888b9d40ee95c972cf2bfdf6b4ffb" },
@@ -280,6 +282,25 @@ export default function NearPage() {
                 {t(d.en, d.id)} <ExternalLink className="w-3.5 h-3.5" />
               </a>
             ))}
+            {/* The guarantee itself, checked without trusting us: the receiver's terms are public, and the
+                factory turns them back into its address. Its source was verified on Arbiscan on 9 Nov 2026. */}
+            <p data-near-terms className="mt-2 text-neutral-gray">
+              {t("Check the terms yourself: the receiver of this payment, ", "Cek sendiri syaratnya: kontrak penerima pembayaran ini, ")}
+              <a href={`${explorerAddress(ARBITRUM_ONE, FIRST_RECEIVER)}#readContract`} target="_blank" rel="noreferrer" className="text-primary-navy font-medium">
+                {shortAddress(FIRST_RECEIVER)}
+              </a>
+              {t(
+                ", shows its listing, seller, price, show end, refund address and deadline under Read Contract. Give them to the factory's ",
+                ", menampilkan listing, penjual, harga, akhir acara, alamat refund, dan batas waktunya di Read Contract. Masukkan semuanya ke "
+              )}
+              <a href={`${explorerAddress(ARBITRUM_ONE, factory)}#readContract`} target="_blank" rel="noreferrer" className="text-primary-navy font-medium font-mono">
+                receiverOf
+              </a>
+              {t(
+                " and it returns that same address. Change any one of them, the refund address included, and the address changes: the money could only go where those terms say.",
+                " milik factory, hasilnya alamat yang sama. Ubah salah satunya, termasuk alamat refund, dan alamatnya berubah: uangnya hanya bisa pergi ke tempat yang disebut syarat itu."
+              )}
+            </p>
           </div>
         ) : (
           <p className="text-sm text-neutral-gray">{t("The contracts are not deployed yet.", "Kontraknya belum di-deploy.")}</p>
