@@ -94,5 +94,173 @@
     "confidence": "High",
     "triage": "false positive: parse artefact, see SECURITY-ANALYSIS.md",
     "description": "LummyEscrow.listings (src/LummyEscrow.sol#64) is never initialized. It is used in:\n\t- LummyEscrow.cancelListing(bytes32) (src/LummyEscrow.sol#135-143)\n\t- LummyEscrow.fund(bytes32,address,uint256,uint256,uint256,bytes32,bytes,uint256,bytes) (src/LummyEscrow.sol#153-178)\n\t- LummyEscrow.markHandover(bytes32,bytes32) (src/LummyEscrow.sol#187-196)\n\t- LummyEscrow.postponeEvent(bytes32,uint40) (src/LummyEscrow.sol#201-211)\n\t- LummyEscrow.raiseDispute(bytes32) (src/LummyEscrow.sol#215-224)\n\t- LummyEscrow.release(bytes32) (src/LummyEscrow.sol#232-241)\n\t- LummyEscrow.refund(bytes32) (src/LummyEscrow.sol#246-254)\n\t- LummyEscrow.resolveDispute(bytes32,uint256) (src/LummyEscrow.sol#258-270)\n\t- LummyEscrow._createListing(address,bytes32,uint256,bytes32,uint40) (src/LummyEscrow.sol#298-315)\n"
+  },
+  {
+    "check": "incorrect-equality",
+    "confidence": "High",
+    "description": "LummyIntentReceiver.sweep() (src/LummyIntentReceiver.sol#113-125) uses a dangerous strict equality:\n\t- amount == 0 (src/LummyIntentReceiver.sol#121)\n",
+    "id": "7eaa840a611c262ae112ac0c382410d69cfc78165a50fa7812f99717d668aa0e",
+    "impact": "Medium",
+    "triage": "False positive. `amount == 0` only stops a sweep with nothing to send. Anyone sending the contract a token more changes nothing but where that token goes: to the refund address."
+  },
+  {
+    "check": "unused-return",
+    "confidence": "Medium",
+    "description": "LummyIntentReceiver.fund() (src/LummyIntentReceiver.sol#80-108) ignores return value by (seller,None,price,None,eventEndsAt,status,None,None) = ESCROW.listings(LISTING_ID) (src/LummyIntentReceiver.sol#83)\n",
+    "id": "46711ef2ba41af18e12d197862565e8b63d5747c9ff7f9a3e1631083ef3efdfe",
+    "impact": "Medium",
+    "triage": "Reading a public struct getter and using the fields that matter. Nothing is ignored that could report a failure: the getter cannot fail."
+  },
+  {
+    "check": "unused-return",
+    "confidence": "Medium",
+    "description": "LummyIntentReceiver.sweep() (src/LummyIntentReceiver.sol#113-125) ignores return value by (None,buyer,None,None,None,status,None,None) = ESCROW.listings(LISTING_ID) (src/LummyIntentReceiver.sol#115)\n",
+    "id": "df51e1921facaf403a88f9eccd594ab910a55de13a42a859067d83a64f39a4aa",
+    "impact": "Medium",
+    "triage": "Reading a public struct getter and using the fields that matter. Nothing is ignored that could report a failure: the getter cannot fail."
+  },
+  {
+    "check": "reentrancy-benign",
+    "confidence": "Medium",
+    "description": "Reentrancy in LummyIntentReceiver.fund() (src/LummyIntentReceiver.sol#80-108):\n\tExternal calls:\n\t- ESCROW.fund(LISTING_ID,address(this),PRICE,0,type()(uint256).max,keccak256(bytes)(abi.encode(address(this),LISTING_ID)),,type()(uint256).max,) (src/LummyIntentReceiver.sol#90-100)\n\tState variables written after the call(s):\n\t- signing = false (src/LummyIntentReceiver.sol#101)\n",
+    "id": "fe1e5dd9df3f105c9d097cce4b0ba9ae3e1cc5dc6f52faf9b87885cda8098897",
+    "impact": "Low",
+    "triage": "`signing` is cleared after ESCROW.fund. ESCROW and TOKEN are immutable, known contracts: the escrow calls nothing but the token, and USDC has no hooks, so nothing outside runs while it is set. isValidSignature also answers only those two."
+  },
+  {
+    "check": "reentrancy-events",
+    "confidence": "Medium",
+    "description": "Reentrancy in LummyIntentReceiver.sweep() (src/LummyIntentReceiver.sol#113-125):\n\tExternal calls:\n\t- ESCROW.withdrawFor(address(this)) (src/LummyIntentReceiver.sol#119)\n\tEvent emitted after the call(s):\n\t- Swept(REFUND_TO,amount) (src/LummyIntentReceiver.sol#123)\n",
+    "id": "9f98811b5b0a55773f530591e46fc8ffc863bc5f4b40af63df67e6c9356adc95",
+    "impact": "Low",
+    "triage": "An event after a call to the escrow, which calls nothing but the token. Nothing outside runs in between, so the logs cannot be reordered."
+  },
+  {
+    "check": "reentrancy-events",
+    "confidence": "Medium",
+    "description": "Reentrancy in LummyIntentReceiver.fund() (src/LummyIntentReceiver.sol#80-108):\n\tExternal calls:\n\t- ESCROW.fund(LISTING_ID,address(this),PRICE,0,type()(uint256).max,keccak256(bytes)(abi.encode(address(this),LISTING_ID)),,type()(uint256).max,) (src/LummyIntentReceiver.sol#90-100)\n\tEvent emitted after the call(s):\n\t- Paid(LISTING_ID,PRICE,returned) (src/LummyIntentReceiver.sol#106)\n",
+    "id": "b51ec03f9118373c29a3b7e749dc3d7e2ddf62ab4d40570aebb1ccd608ecacb0",
+    "impact": "Low",
+    "triage": "An event after a call to the escrow, which calls nothing but the token. Nothing outside runs in between, so the logs cannot be reordered."
+  },
+  {
+    "check": "timestamp",
+    "confidence": "Medium",
+    "description": "LummyIntentReceiver.sweep() (src/LummyIntentReceiver.sol#113-125) uses timestamp for comparisons\n\tDangerous comparisons:\n\t- buyer != address(this) && stillOpen && block.timestamp < REFUND_AFTER (src/LummyIntentReceiver.sol#117)\n",
+    "id": "0eafffc4a9654c5c16ab5824a9b551d6829f645544baa1915953cd8fb0e9cd79",
+    "impact": "Low",
+    "triage": "By design: the deadline is in seconds and the sequencer can only move time by seconds. A deadline moved a few seconds changes nothing."
+  },
+  {
+    "check": "timestamp",
+    "confidence": "Medium",
+    "description": "LummyIntentReceiver.fund() (src/LummyIntentReceiver.sol#80-108) uses timestamp for comparisons\n\tDangerous comparisons:\n\t- block.timestamp >= REFUND_AFTER (src/LummyIntentReceiver.sol#81)\n",
+    "id": "bdb4c61f2a97ad3b36c3a3968cdc85bc50df3712963d459fbaf932a2509478c1",
+    "impact": "Low",
+    "triage": "By design: the deadline is in seconds and the sequencer can only move time by seconds. A deadline moved a few seconds changes nothing."
+  },
+  {
+    "check": "pragma",
+    "confidence": "High",
+    "description": "7 different versions of Solidity are used:\n\t- Version constraint ^0.8.20 is used by:\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/access/AccessControl.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/Context.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/Create2.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/Errors.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/LowLevelCall.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/Panic.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/ShortStrings.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/StorageSlot.sol#5)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/introspection/ERC165.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol#5)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/math/SignedMath.sol#4)\n\t- Version constraint >=0.8.4 is used by:\n\t\t->=0.8.4 (lib/openzeppelin-contracts/contracts/access/IAccessControl.sol#4)\n\t\t->=0.8.4 (lib/openzeppelin-contracts/contracts/interfaces/draft-IERC6093.sol#4)\n\t- Version constraint >=0.5.0 is used by:\n\t\t->=0.5.0 (lib/openzeppelin-contracts/contracts/interfaces/IERC1271.sol#4)\n\t\t->=0.5.0 (lib/openzeppelin-contracts/contracts/interfaces/IERC7913.sol#4)\n\t- Version constraint >=0.6.2 is used by:\n\t\t->=0.6.2 (lib/openzeppelin-contracts/contracts/interfaces/IERC1363.sol#4)\n\t\t->=0.6.2 (lib/openzeppelin-contracts/contracts/interfaces/IERC20Metadata.sol#4)\n\t\t->=0.6.2 (lib/openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol#4)\n\t- Version constraint >=0.4.16 is used by:\n\t\t->=0.4.16 (lib/openzeppelin-contracts/contracts/interfaces/IERC165.sol#4)\n\t\t->=0.4.16 (lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol#4)\n\t\t->=0.4.16 (lib/openzeppelin-contracts/contracts/interfaces/IERC5267.sol#4)\n\t\t->=0.4.16 (lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol#4)\n\t\t->=0.4.16 (lib/openzeppelin-contracts/contracts/utils/introspection/IERC165.sol#4)\n\t- Version constraint ^0.8.24 is used by:\n\t\t-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/Bytes.sol#4)\n\t\t-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/ReentrancyGuardTransient.sol#4)\n\t\t-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/Strings.sol#4)\n\t\t-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/TransientSlot.sol#5)\n\t\t-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/cryptography/EIP712.sol#4)\n\t\t-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/cryptography/MessageHashUtils.sol#4)\n\t\t-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol#4)\n\t- Version constraint 0.8.28 is used by:\n\t\t-0.8.28 (src/LummyEscrow.sol#2)\n\t\t-0.8.28 (src/LummyIntentReceiver.sol#2)\n\t\t-0.8.28 (src/LummyLedger.sol#2)\n\t\t-0.8.28 (src/MockUSDC.sol#2)\n\t\t-0.8.28 (src/interfaces/IERC3009.sol#2)\n",
+    "id": "cd29b56cbee4a689b38cdb041f71351d7acf92fb1ba8a82ca3aef3b15a470dcd",
+    "impact": "Informational",
+    "triage": "OpenZeppelin's own version constraints; our sources all pin 0.8.28."
+  },
+  {
+    "check": "naming-convention",
+    "confidence": "High",
+    "description": "Variable LummyIntentReceiver.TOKEN (src/LummyIntentReceiver.sol#42) is not in mixedCase\n",
+    "id": "0881b357a95ef60631703c9c9c81ba4d5beb8af8efd5b8c4d751971be084d7f5",
+    "impact": "Informational",
+    "triage": "Immutables are written in capitals in this contract, as in LummyEscrow."
+  },
+  {
+    "check": "naming-convention",
+    "confidence": "High",
+    "description": "Variable LummyIntentReceiver.REFUND_AFTER (src/LummyIntentReceiver.sol#48) is not in mixedCase\n",
+    "id": "337a91d9ff2d2593f14071a3ce26d59e2cb00a063ac0a8f6d9c7bcaf5d99b723",
+    "impact": "Informational",
+    "triage": "Immutables are written in capitals in this contract, as in LummyEscrow."
+  },
+  {
+    "check": "naming-convention",
+    "confidence": "High",
+    "description": "Variable LummyIntentReceiver.REFUND_TO (src/LummyIntentReceiver.sol#47) is not in mixedCase\n",
+    "id": "48ca9b301d12dd3cf0ae2d8117a3b1f7738630fefb591be45e97cb087fb4ba66",
+    "impact": "Informational",
+    "triage": "Immutables are written in capitals in this contract, as in LummyEscrow."
+  },
+  {
+    "check": "naming-convention",
+    "confidence": "High",
+    "description": "Variable LummyIntentReceiver.ESCROW (src/LummyIntentReceiver.sol#41) is not in mixedCase\n",
+    "id": "4981ca7b46af00beaa9dbda93bb40f8251369799515ef4b4278fd3a18345d218",
+    "impact": "Informational",
+    "triage": "Immutables are written in capitals in this contract, as in LummyEscrow."
+  },
+  {
+    "check": "naming-convention",
+    "confidence": "High",
+    "description": "Variable LummyIntentReceiver.SELLER (src/LummyIntentReceiver.sol#44) is not in mixedCase\n",
+    "id": "6af641c65b95c040bf932f99b6ad5b78a075e8e71830eb4aed67de9cfb884900",
+    "impact": "Informational",
+    "triage": "Immutables are written in capitals in this contract, as in LummyEscrow."
+  },
+  {
+    "check": "naming-convention",
+    "confidence": "High",
+    "description": "Variable LummyIntentFactory.ESCROW (src/LummyIntentReceiver.sol#146) is not in mixedCase\n",
+    "id": "72c9895a8ad3a1673b04748cd1d1453ee3f2a9a79805c1087ceb23ff8db9a8b1",
+    "impact": "Informational",
+    "triage": "Immutables are written in capitals in this contract, as in LummyEscrow."
+  },
+  {
+    "check": "naming-convention",
+    "confidence": "High",
+    "description": "Variable LummyIntentReceiver.EVENT_ENDS_AT (src/LummyIntentReceiver.sol#46) is not in mixedCase\n",
+    "id": "86a54d582149b5992c13f536776a5d00b9f70ac8762cf0c125bd2c3bf09dff66",
+    "impact": "Informational",
+    "triage": "Immutables are written in capitals in this contract, as in LummyEscrow."
+  },
+  {
+    "check": "naming-convention",
+    "confidence": "High",
+    "description": "Variable LummyIntentFactory.TOKEN (src/LummyIntentReceiver.sol#147) is not in mixedCase\n",
+    "id": "9c632b2b41e5d02cfb85b17cc3f0c2081db07341706a098fa7f67cad0d0fcbe6",
+    "impact": "Informational",
+    "triage": "Immutables are written in capitals in this contract, as in LummyEscrow."
+  },
+  {
+    "check": "naming-convention",
+    "confidence": "High",
+    "description": "Variable LummyIntentReceiver.LISTING_ID (src/LummyIntentReceiver.sol#43) is not in mixedCase\n",
+    "id": "a2152ab4bbe41ef38041005ffe8358e252ba39f07c48fd1984dd44b8c39da2c8",
+    "impact": "Informational",
+    "triage": "Immutables are written in capitals in this contract, as in LummyEscrow."
+  },
+  {
+    "check": "naming-convention",
+    "confidence": "High",
+    "description": "Variable LummyIntentReceiver.PRICE (src/LummyIntentReceiver.sol#45) is not in mixedCase\n",
+    "id": "f18582b3ffe499f46613346aba88d29e23b5836f142ce59dc5760dcb4b0d738a",
+    "impact": "Informational",
+    "triage": "Immutables are written in capitals in this contract, as in LummyEscrow."
+  },
+  {
+    "check": "too-many-digits",
+    "confidence": "Medium",
+    "description": "LummyIntentFactory.receiverOf(IntentOrder) (src/LummyIntentReceiver.sol#157-162) uses literals with too many digits:\n\t- init = abi.encodePacked(type()(LummyIntentReceiver).creationCode,abi.encode(ESCROW,TOKEN,order)) (src/LummyIntentReceiver.sol#160)\n",
+    "id": "4f4f85e52343791f66b634705d89ecf7aa6eb079a3d05b57d17a06123ea2ecc4",
+    "impact": "Informational",
+    "triage": "False positive: the creation code in the standard CREATE2 init code, not a literal anyone wrote."
+  },
+  {
+    "check": "pragma",
+    "confidence": "High",
+    "description": "7 different versions of Solidity are used:\n\t- Version constraint ^0.8.20 is used by:\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/access/AccessControl.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/Context.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/Create2.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/Errors.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/LowLevelCall.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/Panic.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/ShortStrings.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/StorageSlot.sol#5)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/introspection/ERC165.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#4)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol#5)\n\t\t-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/math/SignedMath.sol#4)\n\t- Version constraint >=0.8.4 is used by:\n\t\t->=0.8.4 (lib/openzeppelin-contracts/contracts/access/IAccessControl.sol#4)\n\t\t->=0.8.4 (lib/openzeppelin-contracts/contracts/interfaces/draft-IERC6093.sol#4)\n\t- Version constraint >=0.5.0 is used by:\n\t\t->=0.5.0 (lib/openzeppelin-contracts/contracts/interfaces/IERC1271.sol#4)\n\t\t->=0.5.0 (lib/openzeppelin-contracts/contracts/interfaces/IERC7913.sol#4)\n\t- Version constraint >=0.6.2 is used by:\n\t\t->=0.6.2 (lib/openzeppelin-contracts/contracts/interfaces/IERC1363.sol#4)\n\t\t->=0.6.2 (lib/openzeppelin-contracts/contracts/interfaces/IERC20Metadata.sol#4)\n\t\t->=0.6.2 (lib/openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol#4)\n\t- Version constraint >=0.4.16 is used by:\n\t\t->=0.4.16 (lib/openzeppelin-contracts/contracts/interfaces/IERC165.sol#4)\n\t\t->=0.4.16 (lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol#4)\n\t\t->=0.4.16 (lib/openzeppelin-contracts/contracts/interfaces/IERC5267.sol#4)\n\t\t->=0.4.16 (lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol#4)\n\t\t->=0.4.16 (lib/openzeppelin-contracts/contracts/utils/introspection/IERC165.sol#4)\n\t- Version constraint ^0.8.24 is used by:\n\t\t-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/Bytes.sol#4)\n\t\t-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/Strings.sol#4)\n\t\t-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/cryptography/EIP712.sol#4)\n\t\t-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/cryptography/MessageHashUtils.sol#4)\n\t\t-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol#4)\n\t\t-^0.8.24 (slither/ReentrancyGuardTransient.sol#2)\n\t- Version constraint 0.8.28 is used by:\n\t\t-0.8.28 (src/LummyEscrow.sol#2)\n\t\t-0.8.28 (src/LummyIntentReceiver.sol#2)\n\t\t-0.8.28 (src/LummyLedger.sol#2)\n\t\t-0.8.28 (src/MockUSDC.sol#2)\n\t\t-0.8.28 (src/interfaces/IERC3009.sol#2)\n",
+    "id": "68e0abd5ed64e8492ee27af832c756822900bc275dbe9fc697f1ad80c57734d6",
+    "impact": "Informational",
+    "triage": "OpenZeppelin's own version constraints; our sources all pin 0.8.28."
   }
 ]

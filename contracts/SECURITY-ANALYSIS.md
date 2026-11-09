@@ -49,10 +49,28 @@ Pass 2 uses the `slither` profile in `foundry.toml`. It changes one thing: the i
 
 **11-12. Several Solidity versions: accepted.** Every file in `src` pins `pragma solidity 0.8.28`. The other six constraints are OpenZeppelin's open ranges (and the analysis copy in pass 2), and everything is compiled with solc 0.8.28 (`foundry.toml`). The finding appears once per pass because the file list differs.
 
+## LummyIntentReceiver (9 Nov 2026)
+
+The receiver and factory for payments through NEAR Intents, added for NEAR HACKATHON. `LummyEscrow` did not change, and neither did its bytecode. Slither reports 21 findings on the new file, none of them a real issue. Each is in `slither.db.json` with its reason.
+
+| Detector | Severity (confidence) | Where | Triage |
+|---|---|---|---|
+| `incorrect-equality` | Medium (high) | `sweep`: `amount == 0` | False positive: it only stops a sweep with nothing to send |
+| `unused-return` | Medium (medium) | `fund`, `sweep`: `ESCROW.listings` | Accepted: a struct getter, read for the fields that matter |
+| `reentrancy-benign`, `reentrancy-events` | Low (medium) | `fund`, `sweep` | Not exploitable: the escrow calls only the token, and USDC has no hooks |
+| `timestamp` | Low (medium) | `fund`, `sweep` | By design: the deadline is in seconds |
+| `naming-convention` | Informational | The immutables | Accepted: capitals, as in `LummyEscrow.TOKEN` |
+| `too-many-digits` | Informational | `receiverOf` | False positive: the creation code in the CREATE2 init code |
+| `pragma` | Informational | All sources | Accepted: OpenZeppelin's own constraints |
+
+What a static tool cannot weigh is the one unusual choice: the receiver answers yes to EIP-1271 with no signature at all. That is safe only because it does so only inside its own `fund`, and only to the escrow and the token. `test_token_cannotBePulledWithAnEmptySignature`, and the same test against Circle's real USDC on a fork of Arbitrum One, show an empty signature moving nothing at any other moment.
+
+This is static analysis and tests by the team, not an audit. The deployment on Arbitrum One holds the team's own money, under a price cap of 25 USDC.
+
 ## How the CI gate works
 
 - `slither.config.json` keeps every finding that touches `contracts/src` (`include_paths`), even when it also touches OpenZeppelin, and drops findings that live only in `lib`, `test`, `script` or the analysis copy. We use `include_paths` rather than `filter_paths` because the latter drops a finding as soon as any of its elements sits in `lib/`, which can hide a finding in our code that calls into OpenZeppelin. Switching surfaced one extra finding, `pragma`.
-- `slither.db.json` is Slither's triage database: the 12 findings above, by id. Slither derives the ids from names and expressions, not file paths, so they hold on any machine while `src` stays as it is.
+- `slither.db.json` is Slither's triage database: the findings above, by id. Slither derives the ids from names and expressions, not file paths, so they hold on any machine while `src` stays as it is.
 - `fail_on` is `medium`: any medium or high finding not in the database fails the job. New low and informational findings are printed but do not fail it.
 - Pass 2 also fails if Slither reports any parse failure, so it cannot quietly lose coverage of LummyEscrow.
 - Slither 0.11.6 and all its dependencies are pinned in `requirements-slither.txt`, resolved from packages uploaded before 1 Oct 2026. The workflow's actions are pinned to commits at least two weeks old.

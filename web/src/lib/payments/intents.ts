@@ -16,7 +16,8 @@ import { bytesToHex, formatUnits, getAddress, type Address, type Hex } from "vie
 import { escrowAbi, tokenAbi } from "@/lib/chain/abi";
 import { USDC_DECIMALS } from "@/lib/chain/config";
 import { intentReceiverOf, publicClient, type IntentOrder } from "@/lib/chain/escrow";
-import { chainError, intentsOperator, onchainListingId, openIntentOrder, readListing, settle, sweepIntentReceiver, type Operator } from "@/lib/chain/server";
+import { INTENTS } from "@/lib/chain/deployments";
+import { ARBITRUM_ONE, chainError, intentsOperator, onchainListingId, openIntentOrder, readListing, settle, sweepIntentReceiver, type Operator } from "@/lib/chain/server";
 import { notifyOrderPaid } from "@/lib/email/notify";
 import { DISPUTE_WINDOW_H } from "@/lib/mock/escrow";
 import { OneClickError, payOptions, readSwapStatus, requestQuote, swapExplorerUrl, type SwapStatus } from "@/lib/near/oneclick";
@@ -98,6 +99,15 @@ export function intentView(row: PaymentRow, orderId: string | null): IntentView 
     receiver: d.receiver,
     refundTo: d.refundTo,
     refundAfter: d.refundAfter,
+    terms: {
+      factory: INTENTS[ARBITRUM_ONE]?.factory ?? "",
+      listingId: row.onchain_listing_id ?? "",
+      seller: d.seller,
+      price: String(row.total),
+      eventEndsAt: d.eventEndsAt,
+      refundTo: d.refundTo,
+      refundAfter: d.refundAfter,
+    },
     swapUrl: swapExplorerUrl(d.depositAddress),
     originTx: d.originTx,
     arrivalTx: d.arrivalTx,

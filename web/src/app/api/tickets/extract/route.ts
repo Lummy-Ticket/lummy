@@ -2,6 +2,8 @@
 // out, goes to the model with the categories of every show on sale, and the answer comes back as a
 // suggestion the seller confirms. Nothing is stored. Off unless this server has an AI provider
 // (docs/config/01), so lummy.id answers "not available" until the Claude key is in place there.
+import { nearTeam } from "@/lib/near/team";
+import { verificationUrl } from "@/lib/tickets/near-ai";
 import { NextResponse } from "next/server";
 import { isEventOver } from "@/lib/mock/seed";
 import { resaleAllowed } from "@/lib/mock/transfer";
@@ -25,7 +27,9 @@ const fail = (status: number, error: string, code?: string) => NextResponse.json
 
 /** Whether this server fills the form in from a ticket, and which AI reads it, for the page to name. */
 export async function GET() {
-  const by = aiProvider();
+  // The sell page names who reads the ticket, and for a team account that is NEAR AI.
+  const onNear = !!process.env.NEAR_AI_API_KEY && nearTeam(await currentUser().catch(() => null));
+  const by = onNear ? "near" : aiProvider();
   return NextResponse.json({ available: !!by, by }, { headers: noStore });
 }
 
@@ -55,11 +59,13 @@ export async function POST(req: Request) {
 
   try {
     // Every word of the typed name must be printed on the ticket, or nothing is sent (holder_not_found).
-    const out = await readTicketFacts(new Uint8Array(await file.arrayBuffer()), { holder: typed, names }, catalogueTiers(events));
+    // A team account reads on NEAR AI, with a receipt it can check (lib/near/team.ts).
+    const onNear = nearTeam(user) && !!process.env.NEAR_AI_API_KEY;
+    const out = await readTicketFacts(new Uint8Array(await file.arrayBuffer()), { holder: typed, names }, catalogueTiers(events), undefined, onNear ? "near" : undefined);
     if (!out.ok) return NextResponse.json({ outcome: out.reason }, { headers: noStore });
     // The show is read on its own, so a category the catalogue lacks still finds it; none is an answer too.
     const event = events.find((e) => e.id === out.facts.showId);
-    return NextResponse.json({ outcome: "filled", facts: out.facts, eventId: event?.id ?? null }, { headers: noStore });
+    return NextResponse.json({ outcome: "filled", facts: out.facts, eventId: event?.id ?? null, ...(out.receipt?.signature ? { receiptUrl: verificationUrl(out.receipt) } : {}) }, { headers: noStore });
   } catch (e) {
     if (e instanceof TicketError) return fail(422, TICKET_ERRORS[e.code], e.code);
     console.error("ticket fill failed:", e);

@@ -51,6 +51,8 @@ export type IntentView = {
   refundTo: string;
   /** Unix seconds: from then on the money can only go back to refundTo. */
   refundAfter: number;
+  /** The order as LummyIntentFactory takes it: with these, anyone can deploy the receiver and sweep it. */
+  terms: { factory: string; listingId: string; seller: string; price: string; eventEndsAt: number; refundTo: string; refundAfter: number };
   swapUrl: string;
   originTx: string | null;
   arrivalTx: string | null;

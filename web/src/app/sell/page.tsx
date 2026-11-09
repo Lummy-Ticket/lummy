@@ -633,6 +633,11 @@ function SellForm() {
                         fill.facts.quantity && fill.facts.quantity > 1 ? t(`${fill.facts.quantity} tickets`, `${fill.facts.quantity} tiket`) : null,
                       ].filter(Boolean).join(" · ")}
                     </span>
+                    {fill.receiptUrl && (
+                      <a data-fill-receipt href={fill.receiptUrl} target="_blank" rel="noreferrer" className="text-primary-navy font-medium w-fit">
+                        {t("Read in NEAR AI's TEE: check the receipt", "Dibaca di TEE NEAR AI: cek buktinya")}
+                      </a>
+                    )}
                     <span className="text-neutral-gray">
                       {fill.eventId && catalogue.eventById(fill.eventId)
                         ? fill.facts.tierId

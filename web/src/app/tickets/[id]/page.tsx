@@ -23,7 +23,7 @@ import { EscrowSteps } from "@/components/common/EscrowSteps";
 import { EscrowTimeline } from "@/components/common/EscrowTimeline";
 import { EntryPass } from "@/components/tickets/EntryPass";
 import { PageContainer } from "@/components/layout/PageContainer";
-import {useOrders, useUser, explorerTx, explorerAddr, shortHash, phaseOf, msUntilRelease, disputeDeadlineISO, endedAtISO, canRefundPostponed, checkEvidence, mockEvidenceOptions, DISPUTE_WINDOW_H, reasonMeta, availableReasons, reasonBlockedNote, canFileDispute, REMEDY_LABEL, penaltyNote, windowMs, windowLabel, withChainSnapshot, type DisputeEvidence, type DisputeReason,
+import {useOrders, useUser, explorerAddr, shortHash, phaseOf, msUntilRelease, disputeDeadlineISO, endedAtISO, canRefundPostponed, checkEvidence, mockEvidenceOptions, DISPUTE_WINDOW_H, reasonMeta, availableReasons, reasonBlockedNote, canFileDispute, REMEDY_LABEL, penaltyNote, windowMs, windowLabel, withChainSnapshot, type DisputeEvidence, type DisputeReason,
 } from "@/lib/mock";
 import { chainAction, chainWritable, useChainHistory, useChainInfo, useChainListing, usdcText } from "@/lib/chain/client";
 import { explorerAddress as onchainExplorerAddress, explorerTx as chainExplorerTx } from "@/lib/chain/format";

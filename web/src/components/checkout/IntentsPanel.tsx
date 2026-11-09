@@ -283,6 +283,16 @@ export function IntentsPanel({
           {t(`This order's receiver: ${shortAddress(view.receiver)}`, `Kontrak penerima pesanan ini: ${shortAddress(view.receiver)}`)} <ExternalLink className="w-3 h-3" />
         </a>
         <span>{t(`Refunds can only go to ${shortAddress(view.refundTo)}.`, `Refund hanya bisa ke ${shortAddress(view.refundTo)}.`)}</span>
+        <details data-intents-terms>
+          <summary className="cursor-pointer text-primary-navy font-medium">{t("This order's terms, on chain", "Syarat pesanan ini, di chain")}</summary>
+          <p className="mt-1">
+            {t(
+              "Anyone can call deploy with these on the factory, then sweep on the receiver: past the deadline the money goes to the refund address, with no help from Lummy.",
+              "Siapa pun bisa memanggil deploy dengan data ini di factory, lalu sweep di kontrak penerima: lewat batas waktu, uangnya masuk ke alamat refund, tanpa bantuan Lummy."
+            )}
+          </p>
+          <pre className="mt-1 overflow-x-auto rounded-xl bg-secondary-blue-extra p-2 font-mono text-[10px] text-neutral-black">{JSON.stringify(view.terms, null, 2)}</pre>
+        </details>
       </div>
 
       {closed && (
