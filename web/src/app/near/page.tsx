@@ -7,11 +7,12 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, ExternalLink, Loader2, ShieldCheck, Shuffle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/select-menu";
+import { INTENTS } from "@/lib/chain/deployments";
 import { explorerAddress, shortAddress } from "@/lib/chain/format";
 import { useT } from "@/lib/i18n";
 import { nearQuote, useNearOptions, type NearQuote } from "@/lib/payments/client";
 
-/** A Binance Blockchain Week ticket on Lummy, in micro-USDC: the listing the demo payment bought. */
+/** The cheapest Binance Blockchain Week listing on Lummy, in micro-USDC: what the live quote is for. */
 const DEMO_PRICE = "9500000";
 const ARBITRUM_ONE = 42161;
 /** The first real payment, 9 Nov 2026: 1 USDC from Base, locked in the escrow, refunded, each step on its explorer. */
@@ -71,6 +72,8 @@ function Fact({ label, value }: { label: string; value: string | number | null }
 export default function NearPage() {
   const t = useT();
   const options = useNearOptions();
+  const escrow = INTENTS[ARBITRUM_ONE]?.escrow ?? options?.escrow ?? null;
+  const factory = INTENTS[ARBITRUM_ONE]?.factory ?? options?.factory ?? null;
 
   const [assetId, setAssetId] = useState("");
   const [quote, setQuote] = useState<NearQuote | null>(null);
@@ -250,13 +253,15 @@ export default function NearPage() {
 
       <section className="rounded-3xl border border-neutral-light-gray-1 p-5 flex flex-col gap-2">
         <h2 className="font-semibold text-lg text-neutral-black">{t("3. On chain", "3. Di chain")}</h2>
-        {options?.escrow && options.factory ? (
+        {/* The addresses are fixed at build (deployments.ts), so the page names them before any request:
+            a reader of the bare HTML once got "not deployed yet" until the options call came back. */}
+        {escrow && factory ? (
           <div className="text-sm flex flex-col gap-1">
-            <a href={explorerAddress(ARBITRUM_ONE, options.escrow) ?? undefined} target="_blank" rel="noreferrer" className="text-primary-navy font-medium inline-flex items-center gap-1">
-              {t(`Escrow on Arbitrum One: ${shortAddress(options.escrow)}`, `Escrow di Arbitrum One: ${shortAddress(options.escrow)}`)} <ExternalLink className="w-3.5 h-3.5" />
+            <a data-near-escrow href={explorerAddress(ARBITRUM_ONE, escrow) ?? undefined} target="_blank" rel="noreferrer" className="text-primary-navy font-medium inline-flex items-center gap-1">
+              {t(`Escrow on Arbitrum One: ${shortAddress(escrow)}`, `Escrow di Arbitrum One: ${shortAddress(escrow)}`)} <ExternalLink className="w-3.5 h-3.5" />
             </a>
-            <a href={explorerAddress(ARBITRUM_ONE, options.factory) ?? undefined} target="_blank" rel="noreferrer" className="text-primary-navy font-medium inline-flex items-center gap-1">
-              {t(`Receiver factory: ${shortAddress(options.factory)}`, `Factory penerima: ${shortAddress(options.factory)}`)} <ExternalLink className="w-3.5 h-3.5" />
+            <a href={explorerAddress(ARBITRUM_ONE, factory) ?? undefined} target="_blank" rel="noreferrer" className="text-primary-navy font-medium inline-flex items-center gap-1">
+              {t(`Receiver factory: ${shortAddress(factory)}`, `Factory penerima: ${shortAddress(factory)}`)} <ExternalLink className="w-3.5 h-3.5" />
             </a>
             {DEMO_TXS.length > 0 && <p className="mt-2 text-neutral-black font-medium">{t("The first real payment, 9 Nov 2026, with the team's own money", "Pembayaran sungguhan pertama, 9 Nov 2026, dengan uang tim sendiri")}</p>}
             {DEMO_TXS.map((d) => (
