@@ -237,6 +237,17 @@ export default function NearPage() {
                     {t("Change one character and check again", "Ubah satu karakter lalu cek lagi")}
                   </button>
                 </div>
+                {/* Found 9 Nov 2026: NEAR's page refuses NVIDIA's fresh GPU token when the viewer's clock is
+                    behind NVIDIA's, with no tolerance; a laptop 2 s slow saw "Failed", the same receipt
+                    passed in full once the clock was right. */}
+                {check.verifyUrl && (
+                  <p data-near-clock className="text-xs text-neutral-gray">
+                    {t(
+                      "NEAR's page checks the hardware evidence again in your browser. If it says the GPU check failed, check that your computer's clock is set automatically: a clock a few seconds slow makes NVIDIA's fresh token look like it is from the future.",
+                      "Halaman NEAR mengecek ulang bukti hardware-nya di browser-mu. Kalau di sana cek GPU-nya gagal, pastikan jam komputermu diatur otomatis: jam yang lambat beberapa detik membuat token NVIDIA yang baru terbit terlihat seperti dari masa depan."
+                    )}
+                  </p>
+                )}
                 {tampered && (
                   <p data-near-tampered={tampered.ok} className={`text-sm flex items-center gap-2 ${tampered.ok ? "text-secondary-pink-dark" : "text-secondary-green-dark"}`}>
                     {tampered.ok ? <XCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
