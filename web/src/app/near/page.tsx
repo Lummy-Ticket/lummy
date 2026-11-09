@@ -7,15 +7,22 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, ExternalLink, Loader2, ShieldCheck, Shuffle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/select-menu";
-import { explorerAddress, explorerTx, shortAddress } from "@/lib/chain/format";
+import { explorerAddress, shortAddress } from "@/lib/chain/format";
 import { useT } from "@/lib/i18n";
 import { nearQuote, useNearOptions, type NearQuote } from "@/lib/payments/client";
 
 /** A Binance Blockchain Week ticket on Lummy, in micro-USDC: the listing the demo payment bought. */
 const DEMO_PRICE = "9500000";
 const ARBITRUM_ONE = 42161;
-/** Payments made for the demo, as they happen: what each did, and its transaction on Arbitrum One. */
-const DEMO_TXS: { label: string; tx: string }[] = [];
+/** The first real payment, 9 Nov 2026: 1 USDC from Base, locked in the escrow, refunded, each step on its explorer. */
+const DEMO_TXS: { en: string; id: string; url: string }[] = [
+  { en: "1. Paid 1.0156 USDC on Base", id: "1. Bayar 1,0156 USDC di Base", url: "https://basescan.org/tx/0xbd2abb9fb8c13c081bdff9fb65915ccb89f888b9d40ee95c972cf2bfdf6b4ffb" },
+  { en: "2. The swap on NEAR Intents (the unused 0.0078 USDC went back on Base)", id: "2. Swap di NEAR Intents (sisa 0,0078 USDC kembali di Base)", url: "https://explorer.near-intents.org/transactions/0xD646036b628353F66A796808D0f8C68cF6f72cc2" },
+  { en: "3. 1 USDC arrives at the order's receiver on Arbitrum One", id: "3. 1 USDC tiba di kontrak penerima pesanan di Arbitrum One", url: "https://arbiscan.io/tx/0x3188de757fdb1d05159ba1736fe856a032eb0f81cfae5b2153859ad8e0858062" },
+  { en: "4. Locked in the escrow", id: "4. Dikunci di escrow", url: "https://arbiscan.io/tx/0x026c74573c2cb09eec3b50d28a2bdd0128b2c53fbabd8ad566d2128b48e4684f" },
+  { en: "5. Refunded by the escrow", id: "5. Direfund oleh escrow", url: "https://arbiscan.io/tx/0x4543d8cecbd3ee9736add4f66324c412c3d9342c28467423f8ee37fc343966e0" },
+  { en: "6. Back at the buyer's refund address", id: "6. Kembali ke alamat refund pembeli", url: "https://arbiscan.io/tx/0xef151467d037b02f731e2edce82cb44ad115ba3bc7df3272aec9cbe336e329d0" },
+];
 /** The made-up tickets in lib/near/samples.ts. */
 const TICKETS = [
   { id: "conference", en: "Conference pass, Bangkok", idn: "Tiket konferensi, Bangkok" },
@@ -251,9 +258,10 @@ export default function NearPage() {
             <a href={explorerAddress(ARBITRUM_ONE, options.factory) ?? undefined} target="_blank" rel="noreferrer" className="text-primary-navy font-medium inline-flex items-center gap-1">
               {t(`Receiver factory: ${shortAddress(options.factory)}`, `Factory penerima: ${shortAddress(options.factory)}`)} <ExternalLink className="w-3.5 h-3.5" />
             </a>
+            {DEMO_TXS.length > 0 && <p className="mt-2 text-neutral-black font-medium">{t("The first real payment, 9 Nov 2026, with the team's own money", "Pembayaran sungguhan pertama, 9 Nov 2026, dengan uang tim sendiri")}</p>}
             {DEMO_TXS.map((d) => (
-              <a key={d.tx} href={explorerTx(ARBITRUM_ONE, d.tx) ?? undefined} target="_blank" rel="noreferrer" className="text-primary-navy font-medium inline-flex items-center gap-1">
-                {d.label} <ExternalLink className="w-3.5 h-3.5" />
+              <a key={d.url} href={d.url} target="_blank" rel="noreferrer" className="text-primary-navy font-medium inline-flex items-center gap-1">
+                {t(d.en, d.id)} <ExternalLink className="w-3.5 h-3.5" />
               </a>
             ))}
           </div>
