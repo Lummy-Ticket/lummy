@@ -26,6 +26,7 @@ import { NativeSelect } from "@/components/ui/select-menu";
 import { Modal } from "@/components/common/Modal";
 import { EventRequestForm } from "@/components/events/EventRequestForm";
 import { useT, useFormatters } from "@/lib/i18n";
+import { useNearOptions } from "@/lib/payments/client";
 
 function Check({ ok, label, detail }: { ok: boolean; label: string; detail: string }) {
   return (
@@ -97,7 +98,7 @@ export default function SellPage() {
 
 function SellForm() {
   const t = useT();
-  const { formatIDR, formatEventDate } = useFormatters();
+  const { formatIDR, formatMoney, formatEventDate } = useFormatters();
   const ready = useAccessGuard("account");
   const router = useRouter();
   const addListing = useSellerListings((s) => s.add);
@@ -127,8 +128,10 @@ function SellForm() {
   const [fileName, setFileName] = useState<string | null>(null);
   // A file a sample persona chose itself, as opposed to a sample picked below: either way only simulated.
   const [uploaded, setUploaded] = useState(false);
-  // Selling for a show priced in USDC is not open yet: its listings are added by the team.
-  const events = catalogue.events.filter((e) => e.currency !== "USDC");
+  // Selling for a show priced in USDC is open to the team only, for the NEAR HACKATHON demo
+  // (lib/near/team); everyone else sells for shows in Indonesia.
+  const near = useNearOptions(account);
+  const events = catalogue.events.filter((e) => e.currency !== "USDC" || near?.team === true);
 
   const [step, setStep] = useState(0);
   const [sample, setSample] = useState<SampleTicket>("good");
@@ -171,6 +174,9 @@ function SellForm() {
   const cap = Math.round(faceValue * (capPct / 100));
   const floor = Math.round(faceValue * (FLOOR_PCT / 100));
   const markup = faceValue ? Math.round((price / faceValue - 1) * 100) : 0;
+  // A show abroad is priced in USDC, kept in micro-USDC as the server keeps it, and typed with cents.
+  const usdc = event?.currency === "USDC";
+  const money = (n: number) => formatMoney(n, event?.currency);
 
   // A duplicate barcode is a hard block. Tampering or a high score does not go live
   // straight away, it queues for admin review; so does a real PDF with no barcode to hold.
@@ -629,7 +635,7 @@ function SellForm() {
                         fill.facts.date && formatEventDate(`${fill.facts.date}T12:00:00+07:00`),
                         fill.facts.tierPrinted,
                         fill.facts.seat,
-                        fill.facts.printedPrice && formatIDR(fill.facts.printedPrice),
+                        !usdc && fill.facts.printedPrice && formatIDR(fill.facts.printedPrice),
                         fill.facts.quantity && fill.facts.quantity > 1 ? t(`${fill.facts.quantity} tickets`, `${fill.facts.quantity} tiket`) : null,
                       ].filter(Boolean).join(" · ")}
                     </span>
@@ -683,7 +689,7 @@ function SellForm() {
                         )}
                       </span>
                     )}
-                    {!!fill.facts.printedPrice && !!faceValue && Math.abs(fill.facts.printedPrice - faceValue) > faceValue / 100 && (
+                    {!usdc && !!fill.facts.printedPrice && !!faceValue && Math.abs(fill.facts.printedPrice - faceValue) > faceValue / 100 && (
                       <span className="text-neutral-gray">
                         {t(
                           `The printed price, ${formatIDR(fill.facts.printedPrice)}, is not this category's face value of ${formatIDR(faceValue)}. The price band follows the category.`,
@@ -709,7 +715,7 @@ function SellForm() {
                 <span className="text-xs text-neutral-gray">{t("Ticket tier", "Kategori tiket")}</span>
                 <NativeSelect value={tierId} onChange={(e) => setTierId(e.target.value)}>
                   {!tier && <option value="" disabled>{event ? t("Pick the category", "Pilih kategorinya") : t("Pick the show first", "Pilih acaranya dulu")}</option>}
-                  {event?.tiers.map((t) => <option key={t.id} value={t.id}>{t.name} · {formatIDR(t.faceValue)}</option>)}
+                  {event?.tiers.map((t) => <option key={t.id} value={t.id}>{t.name} · {money(t.faceValue)}</option>)}
                 </NativeSelect>
               </label>
               {!holderNeeded && (
@@ -781,11 +787,11 @@ function SellForm() {
           <div className="bg-neutral-white rounded-3xl border border-neutral-light-gray-1 p-6">
             <div className="flex justify-between text-sm mb-5">
               <span className="text-neutral-gray">{t("Face value", "Harga asli")}</span>
-              <span className="font-medium text-neutral-black">{formatIDR(faceValue)} <span className="text-neutral-gray font-normal"> {t("each", "/tiket")}</span></span>
+              <span className="font-medium text-neutral-black">{money(faceValue)} <span className="text-neutral-gray font-normal"> {t("each", "/tiket")}</span></span>
             </div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-neutral-gray">{t("Your asking price, per ticket", "Harga jual kamu, per tiket")}</span>
-              <span className="tabular-nums font-bold text-xl text-lummy-500">{formatIDR(price)}</span>
+              <span className="tabular-nums font-bold text-xl text-lummy-500">{money(price)}</span>
             </div>
             <input
               type="range"
@@ -795,7 +801,7 @@ function SellForm() {
               value={price}
               onChange={(e) => setPrice(Number(e.target.value))}
               aria-label={t("Asking price per ticket", "Harga jual per tiket")}
-              aria-valuetext={formatIDR(price)}
+              aria-valuetext={money(price)}
               className="w-full accent-primary-navy cursor-pointer"
             />
             {/* A slider of 10,000 steps is fiddly on a phone (about 2 px a step), so the price can
@@ -803,26 +809,27 @@ function SellForm() {
             <label className="mt-3 flex items-center gap-3 text-xs text-neutral-gray">
               <span className="shrink-0">{t("Or type it", "Atau ketik")}</span>
               <span className="flex flex-1 items-center gap-1 rounded-xl border border-neutral-light-gray-1 px-3 py-2 text-sm text-neutral-black focus-within:border-primary-navy">
-                <span className="text-neutral-gray">Rp</span>
+                <span className="text-neutral-gray">{usdc ? "USDC" : "Rp"}</span>
                 <input
-                  inputMode="numeric"
-                  value={typedPrice ?? String(price)}
-                  onChange={(e) => setTypedPrice(e.target.value.replace(/\D/g, "").slice(0, 9))}
+                  inputMode={usdc ? "decimal" : "numeric"}
+                  value={typedPrice ?? (usdc ? (price / 1e6).toFixed(2) : String(price))}
+                  onChange={(e) => setTypedPrice(e.target.value.replace(usdc ? /[^\d.]/g : /\D/g, "").slice(0, 9))}
                   onBlur={() => {
                     if (typedPrice === null) return;
-                    const n = Number(typedPrice);
+                    // USDC to the cent, in micro-USDC like the server.
+                    const n = usdc ? Math.round(Number(typedPrice) * 100) * 10_000 : Number(typedPrice);
                     if (n > 0) setPrice(Math.min(cap, Math.max(floor, n)));
                     setTypedPrice(null);
                   }}
-                  aria-label={t("Asking price per ticket, in rupiah", "Harga jual per tiket, dalam rupiah")}
+                  aria-label={usdc ? t("Asking price per ticket, in USDC", "Harga jual per tiket, dalam USDC") : t("Asking price per ticket, in rupiah", "Harga jual per tiket, dalam rupiah")}
                   className="w-full bg-transparent tabular-nums outline-none"
                 />
               </span>
             </label>
             <div className="flex justify-between items-center text-xs text-neutral-gray mt-2">
-              <span className="flex flex-col"><span>{formatIDR(floor)}</span><span className="text-[10px]">{t("min 50%", "min 50%")}</span></span>
+              <span className="flex flex-col"><span>{money(floor)}</span><span className="text-[10px]">{t("min 50%", "min 50%")}</span></span>
               <span className={`font-medium ${markup >= 0 ? "text-secondary-green-dark" : "text-secondary-orange-dark"}`}>{markup >= 0 ? `+${markup}%` : `${markup}%`} {t("vs face value", "dari harga asli")}</span>
-              <span className="flex flex-col text-right"><span>{formatIDR(cap)}</span><span className="text-[10px]">{t(`max ${capPct}%`, `maks ${capPct}%`)}</span></span>
+              <span className="flex flex-col text-right"><span>{money(cap)}</span><span className="text-[10px]">{t(`max ${capPct}%`, `maks ${capPct}%`)}</span></span>
             </div>
             {capPct < CAP_PCT && (
               <p data-show-cap className="mt-2 text-xs text-neutral-gray">
@@ -834,7 +841,7 @@ function SellForm() {
             {qty > 1 && (
               <div className="mt-4 pt-4 border-t border-dashed border-neutral-light-gray-1 flex justify-between text-sm">
                 <span className="text-neutral-gray">{t(`Total for ${qty} tickets (one set)`, `Total ${qty} tiket (1 set)`)}</span>
-                <span className="tabular-nums font-bold text-neutral-black">{formatIDR(price * qty)}</span>
+                <span className="tabular-nums font-bold text-neutral-black">{money(price * qty)}</span>
               </div>
             )}
           </div>

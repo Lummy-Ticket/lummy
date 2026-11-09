@@ -102,6 +102,8 @@ export interface Listing {
   seat?: string | null;
   /** Listed from a ticket PDF a seller really uploaded (its barcodes were read), not from a sample. */
   realTicket?: boolean;
+  /** NEAR AI's Verification Center for the receipt of the TEE read at publish, when one was verified. */
+  teeVerifyUrl?: string;
 }
 
 // --- Escrow -----------------------------------------------------------------

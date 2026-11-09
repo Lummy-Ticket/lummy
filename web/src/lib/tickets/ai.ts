@@ -332,8 +332,9 @@ async function askGemini(prompt: string, schema: object, o: Ask): Promise<Reply>
 }
 
 // NEAR AI, over its OpenAI-compatible API. The call and the receipt are in near-ai.ts. Its answers
-// take a little longer than Claude's (the slowest of 33 took 6.8 s), so one try may use more of the deadline.
-const NEAR_PER_TRY_MS = 20_000;
+// take a little longer than Claude's (the slowest of 33 took 6.8 s). On 9 Nov one call in a few stalled
+// for 20-30 s while the next took 1-8 s, so a try is cut at 12 s and another is sent.
+const NEAR_PER_TRY_MS = 12_000;
 async function askNear(prompt: string, schema: object, o: Ask): Promise<Reply> {
   return withRetries(o.deadline, async (ms) => {
     const r = await completeInTee(prompt, schema, { key: o.key, model: o.model, timeoutMs: ms, maxTokens: MAX_OUTPUT_TOKENS });

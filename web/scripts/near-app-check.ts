@@ -152,7 +152,7 @@ async function main() {
       await admin.from("events").insert({ id: EVENT, title: "Uji NEAR", category: "Technology", starts_at: iso(Date.now() + 10 * 86_400_000), venue: "Queen Sirikit National Convention Center", city: "Bangkok", transfer_policy: "open", country: "TH", currency: "USDC" }),
       await admin.from("tiers").insert({ id: TIER, event_id: EVENT, name: "Early Bird", face_value: 19_000_000 }),
       await admin.from("listings").insert(
-        [L1, L2].map((id) => ({ id, event_id: EVENT, tier_id: TIER, seller_id: seller, seller_name: "Near S.", ask_price: PRICE, face_value: 19_000_000, quantity: 1, splittable: false, status: "active" as const, created_at: iso(Date.now() - 2 * 86_400_000) }))
+        [L1, L2].map((id) => ({ id, event_id: EVENT, tier_id: TIER, seller_id: seller, seller_name: "Near S.", ask_price: PRICE, face_value: 19_000_000, quantity: 1, splittable: false, status: "active" as const, ticket_path: `near-check/${id}.pdf`, created_at: iso(Date.now() - 2 * 86_400_000) }))
       ),
     ];
     const setupError = setup.find((r) => r.error)?.error;
@@ -168,6 +168,8 @@ async function main() {
     check("a plain account is refused", plain.status === 403, JSON.stringify(plain));
     const memberOpts = await api(memberCtx, "GET", "/api/near/options");
     check("and is not offered it", memberOpts.body.team === false, JSON.stringify(memberOpts.body).slice(0, 200));
+    const sample = await api(buyerCtx, "POST", "/api/payments/intents", pay("ls-bbw-1"));
+    check("a sample listing, with no ticket to hand over, is refused for real money", sample.status === 409, JSON.stringify(sample).slice(0, 200));
 
     // --- 2. A hold, cancelled
     const held = await api(buyerCtx, "POST", "/api/payments/intents", pay(L2));

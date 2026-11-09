@@ -7,7 +7,8 @@
  * The receipt from NEAR AI: a real ECDSA signature over `model:request_hash:response_hash` passes, and
  * any other text, signer, or kind of signature fails. The verification link carries exactly what NEAR's
  * Verification Center reads. The 1Click request asks for the exact amount at the receiver, with refunds
- * on the chain paid from. Who may pay for real: staff and the named team, never a demo account. The
+ * on the chain paid from. A listing links a receipt only when it was verified and attested. Who may pay
+ * for real: staff and the named team, never a demo account. The
  * escrow itself is proven in contracts/test: `forge test`, plus `RUN_FORK=1 forge test --match-contract Fork`
  * against Circle's real USDC.
  */
@@ -17,7 +18,7 @@ import { allowed } from "../src/lib/near/throttle";
 import { ARBITRUM_USDC, requestQuote } from "../src/lib/near/oneclick";
 import { SAMPLES } from "../src/lib/near/samples";
 import { buildPrompt, responseSchema } from "../src/lib/tickets/ai";
-import { checkReceipt, DEFAULT_NEAR_MODEL, verificationUrl, type TeeReceipt } from "../src/lib/tickets/near-ai";
+import { checkReceipt, DEFAULT_NEAR_MODEL, teeLink, verificationUrl, type TeeReceipt } from "../src/lib/tickets/near-ai";
 
 const results: { name: string; ok: boolean; note?: string }[] = [];
 const check = (name: string, ok: boolean, note?: string) => results.push({ name, ok, note: ok ? undefined : note });
@@ -70,6 +71,15 @@ async function main() {
     JSON.stringify(Object.keys(carried))
   );
   check("link: no ticket text in it", !url.href.includes("Tribun"));
+
+  // --- What a listing shows buyers: a receipt link only for a verified, attested TEE signature
+  const kept = { ...good, verified: true, attested: true };
+  check("listing: a verified, attested receipt links the Verification Center", teeLink(kept) === verificationUrl(kept));
+  check("listing: an unverified receipt shows no link", teeLink({ ...kept, verified: false }) === undefined);
+  check("listing: a signer not named in the attestation report shows no link", teeLink({ ...kept, attested: false }) === undefined);
+  check("listing: the gateway's signature shows no link", teeLink({ ...kept, signatureKind: "gateway" }) === undefined);
+  check("listing: a receipt without its signature shows no link", teeLink({ ...kept, signature: null }) === undefined);
+  check("listing: anything else stored there shows no link, and does not throw", [null, "x", 42, {}, []].every((v) => teeLink(v) === undefined));
 
   // --- The made-up tickets: they say what they are, and hold nothing a real ticket would have to hide
   for (const s of SAMPLES) {

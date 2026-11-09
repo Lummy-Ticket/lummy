@@ -61,7 +61,7 @@ export async function POST(req: Request) {
     // Every word of the typed name must be printed on the ticket, or nothing is sent (holder_not_found).
     // A team account reads on NEAR AI, with a receipt it can check (lib/near/team.ts).
     const onNear = nearTeam(user) && !!process.env.NEAR_AI_API_KEY;
-    const out = await readTicketFacts(new Uint8Array(await file.arrayBuffer()), { holder: typed, names }, catalogueTiers(events), undefined, onNear ? "near" : undefined);
+    const out = await readTicketFacts(new Uint8Array(await file.arrayBuffer()), { holder: typed, names }, catalogueTiers(events), onNear ? 25_000 : undefined, onNear ? "near" : undefined);
     if (!out.ok) return NextResponse.json({ outcome: out.reason }, { headers: noStore });
     // The show is read on its own, so a category the catalogue lacks still finds it; none is an answer too.
     const event = events.find((e) => e.id === out.facts.showId);

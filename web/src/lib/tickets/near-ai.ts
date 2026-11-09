@@ -42,7 +42,7 @@ export type TeeReceipt = {
   responseHash: string;
   /** The signature and the signed text check out, for a provider_tee signature. */
   verified: boolean;
-  /** The signer is the key named in the model's attestation report, read before this call. */
+  /** The signer is the key named in the model's attestation report, read with this call. */
   attested: boolean;
   /** Why it is not verified. */
   problem?: string;
@@ -103,6 +103,20 @@ export function verificationUrl(r: Pick<TeeReceipt, "completionId" | "model" | "
   return `${VERIFY_URL}?model=${encodeURIComponent(r.model)}#receipt=${Buffer.from(JSON.stringify(receipt)).toString("base64url")}`;
 }
 
+/**
+ * The Verification Center link for a receipt kept with a listing (listings.checks.ai.receipt), or
+ * nothing: only a provider_tee signature this server verified, by the key named in the model's
+ * attestation report. The receipt holds hashes, never the ticket's text.
+ */
+export function teeLink(v: unknown): string | undefined {
+  if (!v || typeof v !== "object") return undefined;
+  const r = v as Partial<TeeReceipt>;
+  const text = (x: unknown) => typeof x === "string" && x.length > 0;
+  if (r.verified !== true || r.attested !== true || r.signatureKind !== "provider_tee") return undefined;
+  if (![r.completionId, r.model, r.signature, r.signedText, r.signingAddress].every(text)) return undefined;
+  return verificationUrl(r as TeeReceipt);
+}
+
 type SignatureReply = { text?: string; signature?: string; signing_address?: string; signing_algo?: string; signature_kind?: string; error_code?: string };
 
 /** The signature for a completion: it can take a moment to be recorded, so a few short tries. */
@@ -133,7 +147,9 @@ export type NearAnswer =
  * x-no-aliasing keep the gateway from rewriting the request, which would make the signature its own.
  */
 export async function completeInTee(prompt: string, schema: object, o: { key: string; model: string; timeoutMs: number; maxTokens: number }): Promise<NearAnswer> {
-  const signers = await attestedSigners(o.model);
+  // The attestation report is read alongside the call, not before it, so its time does not add to
+  // the read's (a cold start spent seconds on it, 9 Nov 2026). Unreadable, it is null, never a throw.
+  const signersP = attestedSigners(o.model).catch(() => null);
   const body = JSON.stringify({
     model: o.model,
     messages: [{ role: "user", content: prompt }],
@@ -195,6 +211,7 @@ export async function completeInTee(prompt: string, schema: object, o: { key: st
     verifiedAt: new Date().toISOString(),
   };
   const check = signed ? await checkReceipt(base) : { ok: false, problem: "NEAR AI gave no signature for this reply" };
+  const signers = await signersP;
   const receipt: TeeReceipt = {
     ...base,
     verified: check.ok,

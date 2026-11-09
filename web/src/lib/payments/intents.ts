@@ -22,6 +22,7 @@ import { notifyOrderPaid } from "@/lib/email/notify";
 import { DISPUTE_WINDOW_H } from "@/lib/mock/escrow";
 import { OneClickError, payOptions, readSwapStatus, requestQuote, swapExplorerUrl, type SwapStatus } from "@/lib/near/oneclick";
 import { checkPurchase, loadPurchase, orderInsert, priceOf, type ChainFields } from "@/lib/orders/create";
+import { paidListingAllowed } from "@/lib/orders/unpaid";
 import type { Database, Json } from "@/lib/supabase/types";
 import { cancelHold, expireHolds, orderIdOf, paymentView, type PaymentRow, type Result } from "./checkout";
 import type { IntentStart, IntentView } from "./types";
@@ -135,6 +136,9 @@ export async function startIntentCheckout(
   const check = await checkPurchase(admin, buyerId, listingId);
   if (!check.ok) return check;
   if (check.purchase.event.currency !== "USDC") return fail(400, "acara ini dibayar dengan QRIS, bukan lewat NEAR Intents");
+  // Real money buys a ticket someone holds, never a sample: a sample has no file to hand over
+  // (authorization audit, 4 Nov 2026). The QRIS checkout refuses the same way.
+  if (!paidListingAllowed(check.purchase.listing, false)) return fail(409, "listing contoh tidak dijual dengan uang sungguhan");
 
   const option = (await payOptions()).find((o) => o.assetId === pay.originAsset);
   if (!option) return fail(400, "aset ini tidak ditawarkan");

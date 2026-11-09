@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { CONTACT_EMAIL } from "@/components/legal/LegalPage";
 import { useT } from "@/lib/i18n";
 import { FEATURES } from "@/lib/features";
@@ -25,18 +26,27 @@ export const TEST_MODE = !FEATURES.payouts || !FEATURES.realListings;
  */
 export function TestModeNotice() {
   const t = useT();
+  // /near shows the team's own payments in real USDC, so there the strip says whose money is real.
+  const near = usePathname()?.startsWith("/near") ?? false;
   if (!TEST_MODE) return null;
   return (
     <div data-test-mode className="fixed z-50 top-0 inset-x-0 h-6 bg-primary-navy-dark text-white text-[11px] font-medium flex items-center justify-center gap-3 px-4">
       {/* A span, not a p: the global p style would set its own colour and size. */}
       <span className="block truncate">
         {/* Fits a 360px phone beside the link: the old line was 238px in a 238px space and lost its end */}
-        <span className="sm:hidden">{t("Beta: test payments, no real money.", "Beta: pembayaran uji, bukan uang asli.")}</span>
+        <span className="sm:hidden">
+          {near ? t("Beta: real money for the team only.", "Beta: uang asli khusus tim.") : t("Beta: test payments, no real money.", "Beta: pembayaran uji, bukan uang asli.")}
+        </span>
         <span className="hidden sm:inline">
-          {t(
-            "Beta: QRIS in Xendit's test mode and USDC on testnet, so no real money moves. Some listings are samples.",
-            "Beta: QRIS di mode uji Xendit dan USDC di testnet, jadi tidak ada uang sungguhan yang berpindah. Sebagian listing masih contoh."
-          )}
+          {near
+            ? t(
+                "Beta: everyone else pays in test mode. The real payments on this page are the Lummy team's own, on Arbitrum One.",
+                "Beta: selain tim, semua pembayaran masih uji. Pembayaran sungguhan di halaman ini milik tim Lummy sendiri, di Arbitrum One."
+              )
+            : t(
+                "Beta: QRIS in Xendit's test mode and USDC on testnet, so no real money moves. Some listings are samples.",
+                "Beta: QRIS di mode uji Xendit dan USDC di testnet, jadi tidak ada uang sungguhan yang berpindah. Sebagian listing masih contoh."
+              )}
         </span>
       </span>
       <a

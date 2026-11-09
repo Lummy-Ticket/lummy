@@ -202,6 +202,11 @@ function CheckoutInner() {
                 <Badge.Base className="bg-secondary-cream-soft text-secondary-brown-dark text-xs">{qty === 1 ? t("1 ticket", "1 tiket") : t(`${qty} tickets`, `${qty} tiket`)}</Badge.Base>
                 <span className="text-xs text-neutral-gray">{t("Seller", "Penjual")} {listing.sellerName}</span>
               </div>
+              {listing.teeVerifyUrl && (
+                <a data-checkout-tee href={listing.teeVerifyUrl} target="_blank" rel="noreferrer" className="mt-2 text-xs text-primary-navy font-medium inline-flex w-fit">
+                  {t("Ticket read by AI in NEAR AI's TEE: check the receipt", "Tiket dibaca AI di TEE NEAR AI: cek buktinya")}
+                </a>
+              )}
             </div>
           </div>
 

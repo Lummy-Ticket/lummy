@@ -148,8 +148,11 @@ export async function POST(req: Request) {
   if (!ev.data?.starts_at) return fail(404, "acara tidak ditemukan");
   if (!tier.data) return fail(400, "kategori ini bukan milik acara itu");
   if (!resaleAllowed(ev.data.transfer_policy)) return fail(409, "penyelenggara acara ini melarang tiketnya dijual ulang");
-  // Shows priced in USDC take listings from the team only, for now (tasks/founder-house-usdc.md).
-  if (ev.data.currency === "USDC") return fail(409, "jual tiket untuk acara di luar negeri belum dibuka");
+  // Shows priced in USDC take listings from the team only (tasks/founder-house-usdc.md). For the NEAR
+  // HACKATHON demo the team lists there through this same upload and its checks (lib/near/team),
+  // always with the file, as real money buys only a ticket with one to hand over.
+  if (ev.data.currency === "USDC" && !nearTeam(user)) return fail(409, "jual tiket untuk acara di luar negeri belum dibuka");
+  if (ev.data.currency === "USDC" && !ticket) return fail(400, "upload PDF tiketnya; tiket contoh tidak dipakai lagi");
   // Nothing is listed once the show has started, as nothing is bought then (lib/orders/create).
   if (ev.data.status === "cancelled" || Date.now() >= new Date(ev.data.starts_at).getTime()) {
     return fail(409, "acara ini sudah dimulai atau dibatalkan");
@@ -169,7 +172,9 @@ export async function POST(req: Request) {
     // name typed wrong on purpose cannot skip the cross-check.
     const tiers = await admin.from("tiers").select("id, name").eq("event_id", eventId);
     const who = { holder, names: namesToTakeOut(user, holder), known: [ev.data.title, ev.data.venue, ev.data.city].map((w) => w ?? "") };
-    const read = tiers.data?.length ? await readTicketFacts(ticket.bytes, who, { tiers: tiers.data }, 15_000, nearTeam(user) && process.env.NEAR_AI_API_KEY ? "near" : undefined).catch(() => null) : null;
+    // The team reads on NEAR AI's TEE, whose signature and attestation report add a few seconds.
+    const onNear = nearTeam(user) && !!process.env.NEAR_AI_API_KEY;
+    const read = tiers.data?.length ? await readTicketFacts(ticket.bytes, who, { tiers: tiers.data }, onNear ? 25_000 : 15_000, onNear ? "near" : undefined).catch(() => null) : null;
     if (read?.ok) checks = { ...checks, ai: { model: read.model, facts: read.facts, differs: factDiffs(read.facts, { tierId, startsAt: ev.data.starts_at }), ...(read.receipt ? { receipt: read.receipt } : {}) } };
     else if (read?.reason === "holder_not_found") checks = { ...checks, nameNotOnTicket: true };
   }

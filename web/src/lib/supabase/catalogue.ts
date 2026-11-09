@@ -6,6 +6,7 @@ import { unstable_cache } from "next/cache";
 import type { Category, EventItem, Listing } from "@/lib/mock/types";
 import { GRACE_SECONDS } from "@/lib/payments/hold";
 import { eventPoster } from "@/lib/poster";
+import { teeLink } from "@/lib/tickets/near-ai";
 import { supabaseAdmin } from "./admin";
 import { supabasePublicEnv } from "./env";
 import type { Database } from "./types";
@@ -33,7 +34,7 @@ async function fetchCatalogue(url: string, key: string): Promise<CatalogueData> 
     db.from("tiers").select("id, event_id, name, face_value").order("sort"),
     db
       .from("listings")
-      .select("id, event_id, tier_id, seller_name, ask_price, face_value, quantity, splittable, gate_ktp, autofilled, forgery_score, pdf_suspicious, barcode_duplicate, cleared_at, seat:checks->ai->facts->>seat, barcodes_read:checks->>barcodes")
+      .select("id, event_id, tier_id, seller_name, ask_price, face_value, quantity, splittable, gate_ktp, autofilled, forgery_score, pdf_suspicious, barcode_duplicate, cleared_at, seat:checks->ai->facts->>seat, barcodes_read:checks->>barcodes, tee:checks->ai->receipt")
       .eq("status", "active")
       .order("created_at"),
   ]);
@@ -88,6 +89,8 @@ async function fetchCatalogue(url: string, key: string): Promise<CatalogueData> 
     // seller and staff.
     seat: l.seat || null,
     realTicket: l.barcodes_read != null,
+    // NEAR HACKATHON: a ticket read in NEAR AI's TEE links its signed receipt, which holds hashes only.
+    teeVerifyUrl: teeLink(l.tee),
   }));
   return { events, listings };
 }

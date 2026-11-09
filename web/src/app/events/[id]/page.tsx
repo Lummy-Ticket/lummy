@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  MapPin, Calendar, Lock, ArrowLeft, ArrowRight, ScanLine, AlertTriangle, CheckCircle2, ShieldCheck,
+  MapPin, Calendar, Lock, ArrowLeft, ArrowRight, ScanLine, AlertTriangle, CheckCircle2, ShieldCheck, Cpu,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -61,6 +61,12 @@ function ListingRow({ event, listing, qty, cheapest, index, sampleTag }: { event
           <span data-listing-seat className="text-sm text-neutral-black break-words">
             {t("On the ticket", "Posisi di tiket")}: {listing.seat}
           </span>
+        )}
+        {/* NEAR HACKATHON: the ticket was read by a model in NEAR AI's TEE, and anyone can check the signed receipt. */}
+        {listing.teeVerifyUrl && (
+          <a data-listing-tee href={listing.teeVerifyUrl} target="_blank" rel="noreferrer" className="text-xs text-primary-navy font-medium inline-flex items-center gap-1 w-fit">
+            <Cpu className="w-3 h-3" /> {t("Read by AI in NEAR AI's TEE: check the receipt", "Dibaca AI di TEE NEAR AI: cek buktinya")}
+          </a>
         )}
         <span className="text-sm text-neutral-gray">
           {t(`Face value ${money(listing.faceValue)}`, `Harga asli ${money(listing.faceValue)}`)}
@@ -177,8 +183,9 @@ export default function EventDetailPage() {
   const forSale = listings.filter(isBuyable).length;
   // Buyable listings the ticket count hides, so the list adds up to that count.
   const otherQuantities = forSale - buyable.length;
-  // Beta testers' own tickets next to Lummy's samples: then each sample row says so.
-  const mixed = !FEATURES.realListings && listings.some((l) => l.realTicket);
+  // Beta testers' own tickets next to Lummy's samples: then each sample row says so. A show abroad
+  // has only the team's samples, files included (lib/near/team), as its own notice says.
+  const mixed = !FEATURES.realListings && event.currency !== "USDC" && listings.some((l) => l.realTicket);
   const over = isEventOver(event);
   // Running now: still on the page until it ends, but nothing can be bought or listed any more.
   const started = !over && isSaleClosed(event);
