@@ -20,8 +20,8 @@ export async function GET() {
       team: !!op && nearTeam(user),
       ticketAi: !!process.env.NEAR_AI_API_KEY,
       chainId: ARBITRUM_ONE,
-      escrow: INTENTS[ARBITRUM_ONE]?.escrow ?? null,
-      factory: INTENTS[ARBITRUM_ONE]?.factory ?? null,
+      escrow: op?.escrow ?? INTENTS[ARBITRUM_ONE]?.escrow ?? null,
+      factory: op?.factory ?? INTENTS[ARBITRUM_ONE]?.factory ?? null,
     },
     { headers: { "Cache-Control": "private, no-store" } }
   );

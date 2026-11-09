@@ -15,8 +15,13 @@ import { getAddress, recoverMessageAddress, type Hex } from "viem";
 if (typeof window !== "undefined") throw new Error("lib/tickets/near-ai is server-only");
 
 export const NEAR_AI_URL = "https://cloud-api.near.ai/v1";
-/** Confidential TEE, structured output, about US$0.0005 per ticket (cloud-api.near.ai/v1/models, 9 Nov 2026). */
-export const DEFAULT_NEAR_MODEL = "z-ai/glm-5.3-flash";
+/**
+ * Confidential TEE with structured output, chosen on 9 Nov 2026 by `npm run ai:eval -- --provider near`
+ * on the 33 made-up tickets: right on 29, every field but the show's title right on all of them (the
+ * title came back empty on four, never invented), median 2.8 s, about Rp3 a ticket. GLM-5.3-Flash and
+ * Qwen3.6-35B did worse, and thinking made every model slower and no more accurate (docs/config/08-near.md).
+ */
+export const DEFAULT_NEAR_MODEL = "Qwen/Qwen3.8-27B";
 const VERIFY_URL = "https://cloud.near.ai/verify";
 
 const SIGNATURE_TRIES = 4;
@@ -133,6 +138,9 @@ export async function completeInTee(prompt: string, schema: object, o: { key: st
     model: o.model,
     messages: [{ role: "user", content: prompt }],
     max_tokens: o.maxTokens,
+    // Copying fields off a ticket needs no thinking: with it the same reads took 19 s instead of 3 and
+    // were no more accurate. NEAR_AI_THINKING=on brings it back for a trial.
+    chat_template_kwargs: { enable_thinking: process.env.NEAR_AI_THINKING === "on" },
     response_format: { type: "json_schema", json_schema: { name: "ticket_facts", strict: true, schema: { ...schema, additionalProperties: false } } },
     stream: false,
   });

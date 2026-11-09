@@ -232,12 +232,12 @@ type Reply =
 /** One try's result: a reply to keep, or why it is worth trying again. */
 type Try = Reply | { ok: false; reason: "again"; detail: string };
 
-async function withRetries(deadline: number, once: (ms: number) => Promise<Try>): Promise<Reply> {
+async function withRetries(deadline: number, once: (ms: number) => Promise<Try>, perTryMs = PER_TRY_MS): Promise<Reply> {
   let last = "no answer";
   for (let attempt = 0; attempt < 3; attempt++) {
     const left = deadline - Date.now();
     if (left < 1_500) break;
-    const r = await once(Math.min(left, PER_TRY_MS));
+    const r = await once(Math.min(left, perTryMs));
     if (r.ok || r.reason !== "again") return r;
     last = r.detail;
     // Spread out so a burst of sellers does not retry in step: about 1 s, then 3 s.
@@ -331,13 +331,15 @@ async function askGemini(prompt: string, schema: object, o: Ask): Promise<Reply>
   });
 }
 
-// NEAR AI, over its OpenAI-compatible API. The call and the receipt are in near-ai.ts.
+// NEAR AI, over its OpenAI-compatible API. The call and the receipt are in near-ai.ts. Its answers
+// take a little longer than Claude's (the slowest of 33 took 6.8 s), so one try may use more of the deadline.
+const NEAR_PER_TRY_MS = 20_000;
 async function askNear(prompt: string, schema: object, o: Ask): Promise<Reply> {
   return withRetries(o.deadline, async (ms) => {
     const r = await completeInTee(prompt, schema, { key: o.key, model: o.model, timeoutMs: ms, maxTokens: MAX_OUTPUT_TOKENS });
     if (r.ok) return { ok: true, text: r.text, tokens: r.tokens, receipt: r.receipt };
     return { ok: false, reason: r.retry ? "again" : "failed", detail: r.detail };
-  });
+  }, NEAR_PER_TRY_MS);
 }
 
 /** What the ticket says, from the cleaned text (lib/tickets/clean.ts) and the picked show's categories. */

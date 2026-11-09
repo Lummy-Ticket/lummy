@@ -25,7 +25,7 @@ import { homedir } from "node:os";
 import { cleanTicketText, type CleanResult } from "../src/lib/tickets/clean";
 import { prepareForExtraction } from "../src/lib/tickets/extract";
 import { DEFAULT_CLAUDE_MODEL, DEFAULT_GEMINI_MODEL, extractTicketFacts, type Provider, type TicketFacts } from "../src/lib/tickets/ai";
-import { DEFAULT_NEAR_MODEL } from "../src/lib/tickets/near-ai";
+import { DEFAULT_NEAR_MODEL, type TeeReceipt } from "../src/lib/tickets/near-ai";
 import { CASES, SHOWS, SHOW_LABEL, type EvalCase } from "./ai-eval-cases";
 import { casePdf, type Layout } from "./ai-pdf";
 import { initWriter } from "./ticket-fixtures";
@@ -73,6 +73,8 @@ const model =
   : (arg("model") ?? (process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL));
 // Gemini's free tier counts requests per minute; a pause keeps a run of the whole set under that.
 const gapMs = Number(arg("gap") ?? (provider === "gemini" ? 4_000 : 0));
+/** NEAR AI's receipts, one per reading, to count how many check out. */
+const receipts: TeeReceipt[] = [];
 
 /**
  * US$ per million tokens, in and out, before tax: Claude's for prompts of 100K tokens or fewer
@@ -80,6 +82,9 @@ const gapMs = Number(arg("gap") ?? (provider === "gemini" ? 4_000 : 0));
  */
 const PRICE: Record<string, [number, number]> = {
   "claude-haiku-5-5": [0.1, 0.5],
+  "z-ai/glm-5.3-flash": [0.08, 0.5],
+  "Qwen/Qwen3.8-27B": [0.04, 1.35],
+  "Qwen/Qwen3.6-35B-A3B-FP8": [0.17, 1.1],
   "gemini-3.5-flash-lite": [0.3, 2.5],
   "gemini-3.8-flash": [0.75, 3.75],
 };
@@ -159,7 +164,8 @@ async function runOnce(cases: EvalCase[]): Promise<Outcome[]> {
     if (i > 0 && gapMs) await new Promise((r) => setTimeout(r, gapMs));
     if (show) console.log(`--- ${c.id}: what the model reads ---\n${clean.text}\n---`);
     const before = sent.length;
-    const res = await extractTicketFacts(clean.text, allShows ? EVERY_SHOW : { tiers: [...SHOWS[c.show]] }, { provider, model });
+    const res = await extractTicketFacts(clean.text, allShows ? EVERY_SHOW : { tiers: [...SHOWS[c.show]] }, { provider, model, ...(provider === "near" ? { timeoutMs: 60_000 } : {}) });
+    if (res.ok && res.receipt) receipts.push(res.receipt);
     const leaked = [...new Set([...leaks(clean.text, c), ...sent.slice(before).flatMap((p) => leaks(p, c))])];
     if (!res.ok) {
       out.push({ id: c.id, right: false, leaked, note: `no answer: ${res.reason}${res.detail ? ` (${res.detail})` : ""}` });
@@ -204,6 +210,10 @@ async function main() {
       ? `PERSONAL DATA SENT in ${leakedCases.length} reading(s)`
       : `nothing personal sent: all ${requests} requests that left searched for each case's names, numbers and codes`
   );
+  if (receipts.length) {
+    const kinds = [...new Set(receipts.map((r) => r.signatureKind))].join(", ");
+    console.log(`receipts: ${receipts.filter((r) => r.verified).length}/${receipts.length} verified (${kinds}), ${receipts.filter((r) => r.attested).length} signed by a key in the model's attestation report`);
+  }
   const timed = all.filter((o) => o.ms !== undefined);
   if (timed.length) {
     const sorted = timed.map((o) => o.ms!).sort((a, b) => a - b);

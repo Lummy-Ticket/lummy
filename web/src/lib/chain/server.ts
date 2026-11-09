@@ -49,12 +49,20 @@ export function chainTarget(): ChainTarget | null {
 }
 
 export const ARBITRUM_ONE = 42161;
+/** Circle's native USDC on Arbitrum One, the one token the NEAR Intents rail's escrow takes. */
+const ARBITRUM_USDC = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831" as Address;
 
-/** The contract an order on this chain lives in: mainnet for the NEAR Intents rail, else the app's chain. */
+/**
+ * The contract an order on this chain lives in: mainnet for the NEAR Intents rail, else the app's chain.
+ * LUMMY_INTENTS_RPC_URL, _ESCROW and _FACTORY point a local server at a fork for rehearsals
+ * (scripts/near-app-check.ts); production sets none of them.
+ */
 export function targetFor(chainId?: number | null): ChainTarget | null {
   if (chainId !== ARBITRUM_ONE) return chainTarget();
   const dep = DEPLOYMENTS[ARBITRUM_ONE];
-  return dep ? { chain: CHAINS[ARBITRUM_ONE], rpcUrl: rpcUrls(ARBITRUM_ONE)[0], escrow: dep.escrow, token: dep.token } : null;
+  const escrow = (envOf("LUMMY_INTENTS_ESCROW") ?? dep?.escrow) as Address | undefined;
+  if (!escrow) return null;
+  return { chain: CHAINS[ARBITRUM_ONE], rpcUrl: envOf("LUMMY_INTENTS_RPC_URL") ?? rpcUrls(ARBITRUM_ONE)[0], escrow, token: dep?.token ?? ARBITRUM_USDC };
 }
 
 /** Nilai env pertama yang terisi, tanpa spasi atau newline yang ikut ter-paste. */
@@ -78,7 +86,7 @@ function mainnetFile(): Record<string, string> {
  */
 export function intentsOperator(): Operator | null {
   const target = targetFor(ARBITRUM_ONE);
-  const factory = INTENTS[ARBITRUM_ONE]?.factory;
+  const factory = (envOf("LUMMY_INTENTS_FACTORY") ?? INTENTS[ARBITRUM_ONE]?.factory) as Address | undefined;
   const file = mainnetFile();
   const key = envOf("LUMMY_INTENTS_OPERATOR_KEY") ?? file.OPERATOR_PRIVATE_KEY;
   const seller = envOf("LUMMY_INTENTS_SELLER") ?? file.SELLER_ADDRESS;

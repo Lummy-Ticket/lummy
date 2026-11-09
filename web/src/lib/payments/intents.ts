@@ -100,7 +100,7 @@ export function intentView(row: PaymentRow, orderId: string | null): IntentView 
     refundTo: d.refundTo,
     refundAfter: d.refundAfter,
     terms: {
-      factory: INTENTS[ARBITRUM_ONE]?.factory ?? "",
+      factory: intentsOperator()?.factory ?? INTENTS[ARBITRUM_ONE]?.factory ?? "",
       listingId: row.onchain_listing_id ?? "",
       seller: d.seller,
       price: String(row.total),
