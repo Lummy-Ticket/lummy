@@ -30,6 +30,7 @@ exclude_lints = ["block-timestamp"]
 
 [rpc_endpoints]
 arbitrum_sepolia = "https://sepolia-rollup.arbitrum.io/rpc"
+arbitrum_one = "https://arb1.arbitrum.io/rpc"
 
 # Kampanye panjang: 10.000 urutan aksi acak. Jalankan: FOUNDRY_PROFILE=deep forge test --match-contract Invariant
 [profile.deep.invariant]
