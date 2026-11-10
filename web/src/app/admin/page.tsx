@@ -508,7 +508,7 @@ function ListingQueue({
   sampleFiles?: boolean;
 }) {
   const t = useT();
-  const { formatIDR, formatEventDate } = useFormatters();
+  const { formatIDR, formatMoney, formatEventDate } = useFormatters();
   const catalogue = useCatalogue();
   const [now] = useState(() => Date.now());
   const decide = async (fn: (id: string) => void | Promise<void>, id: string, done: () => void) => {
@@ -553,7 +553,8 @@ function ListingQueue({
                   {ev ? formatEventDate(ev.dateISO) : ""} · {l.tierName} · {l.quantity}x
                 </div>
               </div>
-              <span className="tabular-nums font-bold text-lummy-500 text-nowrap">{formatIDR(l.askPrice)}</span>
+              {/* In the show's currency: a USDC listing read "Rp9,500,000" for 9.50 USDC (10 Nov 2026). */}
+              <span className="tabular-nums font-bold text-lummy-500 text-nowrap">{formatMoney(l.askPrice, ev?.currency === "USDC" ? "USDC" : "IDR")}</span>
             </div>
 
             <div className="flex flex-wrap gap-2 mt-3">

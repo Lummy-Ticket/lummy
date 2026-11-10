@@ -813,7 +813,8 @@ function SellForm() {
                 <input
                   inputMode={usdc ? "decimal" : "numeric"}
                   value={typedPrice ?? (usdc ? (price / 1e6).toFixed(2) : String(price))}
-                  onChange={(e) => setTypedPrice(e.target.value.replace(usdc ? /[^\d.]/g : /\D/g, "").slice(0, 9))}
+                  // A comma is a decimal point in Indonesian ("9,50"): dropping it read 950 and clamped to the cap (10 Nov 2026).
+                  onChange={(e) => setTypedPrice((usdc ? e.target.value.replace(/,/g, ".").replace(/[^\d.]/g, "") : e.target.value.replace(/\D/g, "")).slice(0, 9))}
                   onBlur={() => {
                     if (typedPrice === null) return;
                     // USDC to the cent, in micro-USDC like the server.
@@ -943,15 +944,22 @@ function SellForm() {
             </div>
           )}
 
-          {/* Every payment is simulated during the beta, so the seller's file is never handed over (api/orders/[id]/ticket). */}
+          {/* During the beta the seller's file is never handed over (api/orders/[id]/ticket). On a USDC
+              show a team account may be paid in real USDC through NEAR Intents, so "simulated" would be
+              wrong there: the handover is what the beta holds back, not the payment. */}
           {sendsRealFile && !FEATURES.payouts && (
             <div data-beta-handover className="flex items-start gap-2 rounded-2xl bg-secondary-blue-extra p-3 text-xs text-neutral-black leading-relaxed">
               <Info className="w-4 h-4 text-lummy-500 shrink-0 mt-0.5" />
               <span>
-                {t(
-                  "Beta: payments are simulated, so a buyer gets a stand-in without the barcode, never your PDF. The ticket stays yours, and Lummy staff open the file only to rule on a claim.",
-                  "Beta: pembayarannya masih simulasi, jadi pembeli mendapat file pengganti tanpa barcode, bukan PDF-mu. Tiketnya tetap milikmu, dan staf Lummy membuka filenya hanya untuk memutus klaim."
-                )}
+                {usdc
+                  ? t(
+                      "Beta: a buyer gets a stand-in without the barcode, never your PDF, whatever they pay with. The ticket stays yours, and Lummy staff open the file only to rule on a claim.",
+                      "Beta: pembeli mendapat file pengganti tanpa barcode, bukan PDF-mu, apa pun cara bayarnya. Tiketnya tetap milikmu, dan staf Lummy membuka filenya hanya untuk memutus klaim."
+                    )
+                  : t(
+                      "Beta: payments are simulated, so a buyer gets a stand-in without the barcode, never your PDF. The ticket stays yours, and Lummy staff open the file only to rule on a claim.",
+                      "Beta: pembayarannya masih simulasi, jadi pembeli mendapat file pengganti tanpa barcode, bukan PDF-mu. Tiketnya tetap milikmu, dan staf Lummy membuka filenya hanya untuk memutus klaim."
+                    )}
               </span>
             </div>
           )}
