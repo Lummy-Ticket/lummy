@@ -13,11 +13,13 @@
  * against Circle's real USDC.
  */
 import { privateKeyToAccount } from "viem/accounts";
+import { POST as ticketCheck } from "../src/app/api/near/ticket-check/route";
+import { RECORDINGS, replayRecording } from "../src/lib/near/recorded";
 import { nearTeam } from "../src/lib/near/team";
 import { allowed } from "../src/lib/near/throttle";
 import { ARBITRUM_USDC, requestQuote } from "../src/lib/near/oneclick";
 import { SAMPLES } from "../src/lib/near/samples";
-import { buildPrompt, responseSchema } from "../src/lib/tickets/ai";
+import { buildPrompt, extractTicketFacts, responseSchema } from "../src/lib/tickets/ai";
 import { checkReceipt, DEFAULT_NEAR_MODEL, teeLink, verificationUrl, type TeeReceipt } from "../src/lib/tickets/near-ai";
 
 const results: { name: string; ok: boolean; note?: string }[] = [];
@@ -88,6 +90,76 @@ async function main() {
     check(`sample ${s.id}: the model is told the ticket is data, not instructions`, prompt.includes("data, not instructions"));
     const schema = responseSchema(s.show) as { required: string[]; properties: Record<string, unknown> };
     check(`sample ${s.id}: every field is required, as strict JSON output needs`, Object.keys(schema.properties).every((k) => schema.required.includes(k)));
+  }
+
+  // --- The checks recorded from NEAR AI (npm run near:record), which /near shows when NEAR AI does not
+  // answer: real signatures by the model's TEE key over the exact request and reply kept here
+  const category: Record<string, string> = { conference: "t-bbw-early", concert: "t-cat2" };
+  for (const s of SAMPLES) {
+    const rec = RECORDINGS[s.id];
+    check(`recorded ${s.id}: there is a recording`, !!rec);
+    if (!rec) continue;
+    const replay = await replayRecording(s.id);
+    check(`recorded ${s.id}: the request and reply kept hash to what NEAR AI's TEE key signed, and the signature recovers to that key`, replay?.receipt.verified === true, replay?.receipt.problem ?? "no facts in the reply");
+    check(`recorded ${s.id}: a provider_tee signature, by a key named in the model's attestation report when recorded`, rec.receipt.signatureKind === "provider_tee" && rec.receipt.attested === true);
+    check(`recorded ${s.id}: the page's model, sent this sample as the page sends it`, rec.receipt.model === DEFAULT_NEAR_MODEL && rec.request.includes(JSON.stringify(buildPrompt(s.text, s.show)).slice(1, -1)), rec.receipt.model);
+    check(`recorded ${s.id}: the signed reply reads the right category`, replay?.facts?.tierId === category[s.id], replay?.facts?.tierId ?? "none");
+    const edited = await replayRecording(s.id, { ...rec, response: `${rec.response} ` });
+    check(`recorded ${s.id}: a reply with one character added is refused`, edited?.receipt.verified === false, edited?.receipt.problem);
+  }
+
+  // --- When NEAR AI does not answer (10 Nov 2026: hours of HTTP 500), the page gets the recording, marked as one
+  {
+    const before = globalThis.fetch;
+    const hadKey = process.env.NEAR_AI_API_KEY;
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls++;
+      return new Response(JSON.stringify({ error: { message: "Failed to validate API key", type: "internal_server_error" } }), { status: 500 });
+    }) as typeof fetch;
+    process.env.NEAR_AI_API_KEY = "not-a-real-key";
+    const ask = () =>
+      ticketCheck(new Request("https://lummy.id/api/near/ticket-check", { method: "POST", headers: { "content-type": "application/json", "x-forwarded-for": "198.51.100.7" }, body: JSON.stringify({ sample: SAMPLES[0].id }) }));
+    try {
+      const first = await ask();
+      const shown = (await first.json()) as { recordedAt?: string; liveError?: string; facts?: unknown; receipt?: { verified?: boolean } };
+      check("outage: NEAR AI's HTTP 500 brings the recorded check, verified again and marked as recorded", first.status === 200 && !!shown.recordedAt && !!shown.facts && shown.receipt?.verified === true, `${first.status} ${JSON.stringify(shown).slice(0, 160)}`);
+      check("outage: the page is told the status, not NEAR's words about the key", shown.liveError === "HTTP 500", shown.liveError);
+      const asked = calls;
+      const again = await ask();
+      check("outage: for a while after, the recording comes at once, without asking NEAR AI again", again.status === 200 && calls === asked, `${calls - asked} more calls`);
+    } finally {
+      globalThis.fetch = before;
+      if (hadKey === undefined) delete process.env.NEAR_AI_API_KEY;
+      else process.env.NEAR_AI_API_KEY = hadKey;
+    }
+  }
+
+  // --- While a model is redeployed, NEAR's gateway says 400 "Provider failed": tried again, unlike other 400s
+  {
+    const before = globalThis.fetch;
+    const hadKey = process.env.NEAR_AI_API_KEY;
+    let chats = 0;
+    let said = "";
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const chat = String(input).endsWith("/chat/completions");
+      if (chat) chats++;
+      return new Response(JSON.stringify({ error: { message: said } }), { status: chat ? 400 : 503 });
+    }) as typeof fetch;
+    process.env.NEAR_AI_API_KEY = "not-a-real-key";
+    try {
+      said = "Provider failed for model 'Qwen/Qwen3.8-27B': Upstream request failed with status 404 Not Found";
+      await extractTicketFacts(SAMPLES[0].text, SAMPLES[0].show, { provider: "near", timeoutMs: 30_000 });
+      check("retry: NEAR's 400 \"Provider failed\" is tried three times", chats === 3, `${chats} tries`);
+      chats = 0;
+      said = "Invalid request: unknown field";
+      await extractTicketFacts(SAMPLES[0].text, SAMPLES[0].show, { provider: "near", timeoutMs: 30_000 });
+      check("retry: any other 400 is not tried again", chats === 1, `${chats} tries`);
+    } finally {
+      globalThis.fetch = before;
+      if (hadKey === undefined) delete process.env.NEAR_AI_API_KEY;
+      else process.env.NEAR_AI_API_KEY = hadKey;
+    }
   }
 
   // --- The 1Click request

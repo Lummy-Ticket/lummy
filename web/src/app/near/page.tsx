@@ -53,7 +53,14 @@ type Check = {
   ms: number;
   receipt: Receipt | null;
   verifyUrl: string | null;
+  /** Set when NEAR AI did not answer and this is the same check recorded from it earlier (lib/near/recorded.ts). */
+  recordedAt?: string;
+  liveError?: string;
 };
+
+/** A recording's time, the same for every visitor: UTC, as the explorers show it. */
+const recordedWhen = (iso: string) =>
+  `${new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} UTC`;
 
 async function postJson<T>(path: string, body: unknown): Promise<T> {
   const r = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), cache: "no-store" });
@@ -205,6 +212,19 @@ export default function NearPage() {
         </div>
         {options?.ticketAi === false && <p className="text-xs text-neutral-gray">{t("NEAR AI is not switched on yet.", "NEAR AI belum dinyalakan.")}</p>}
         {checkError && <p data-near-error className="rounded-2xl bg-secondary-pink-soft p-3 text-sm text-secondary-pink-dark">{checkError}</p>}
+        {check?.recordedAt && (
+          <p data-near-recorded className="rounded-2xl bg-secondary-orange-soft p-3 text-sm text-secondary-orange-dark">
+            {t(
+              `NEAR AI Cloud did not answer just now (${check.liveError ?? "no answer"}). That is on NEAR's side: see `,
+              `NEAR AI Cloud barusan tidak menjawab (${check.liveError ?? "tidak ada jawaban"}). Itu masalah di sisi NEAR: lihat `
+            )}
+            <a href="https://status.near.ai" target="_blank" rel="noreferrer" className="underline underline-offset-2">status.near.ai</a>
+            {t(
+              `. Below is the same check, recorded from NEAR AI on ${recordedWhen(check.recordedAt)}. Its hashes and its signature were just checked again here, from the exact bytes recorded, and the one-character test works the same. NEAR's Verification Center needs NEAR AI too, so it may fail until NEAR AI is back. Try the live check again in a few minutes.`,
+              `. Di bawah ini cek yang sama, direkam dari NEAR AI pada ${recordedWhen(check.recordedAt)}. Hash dan signature-nya baru saja dicek ulang di sini dari byte yang direkam persis, dan tes ubah satu karakter tetap berjalan sama. Verification Center NEAR juga butuh NEAR AI, jadi mungkin ikut gagal sampai NEAR AI pulih. Coba cek live lagi beberapa menit lagi.`
+            )}
+          </p>
+        )}
         {check && (
           <div data-near-result className="rounded-2xl bg-secondary-blue-extra p-4 flex flex-col gap-3">
             <div>
@@ -227,7 +247,9 @@ export default function NearPage() {
                 <p className="text-xs text-neutral-gray">
                   {check.model}
                   {check.receipt.signingAddress ? ` · ${t("signer", "penanda tangan")} ${shortAddress(check.receipt.signingAddress)}` : ""}
-                  {check.receipt.attested ? ` · ${t("named in the model's attestation report", "tercantum di laporan attestation model")}` : ""}
+                  {check.receipt.attested
+                    ? ` · ${check.recordedAt ? t("named in the model's attestation report when recorded", "tercantum di laporan attestation model saat direkam") : t("named in the model's attestation report", "tercantum di laporan attestation model")}`
+                    : ""}
                 </p>
                 <div className="flex flex-wrap gap-3 items-center">
                   {check.verifyUrl && (

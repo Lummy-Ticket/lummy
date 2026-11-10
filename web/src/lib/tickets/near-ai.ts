@@ -174,13 +174,15 @@ export async function completeInTee(prompt: string, schema: object, o: { key: st
   const bytes = new Uint8Array(await res.arrayBuffer());
   const raw = new TextDecoder().decode(bytes);
   if (!res.ok) {
-    const retry = [408, 429, 500, 502, 503, 504].includes(res.status);
     let message = "";
     try {
       message = String((JSON.parse(raw) as { error?: { message?: string } }).error?.message ?? "");
     } catch {
       // Not JSON: the status says enough.
     }
+    // While a model is down or being redeployed, NEAR's gateway answers 400 "Provider failed for model
+    // ...", and a try a moment later often gets through (10 Nov 2026, on and off for an hour).
+    const retry = [408, 429, 500, 502, 503, 504].includes(res.status) || (res.status === 400 && /^provider failed/i.test(message));
     return { ok: false, retry, detail: `HTTP ${res.status}${message ? `: ${message.slice(0, 160)}` : ""}` };
   }
 

@@ -130,6 +130,7 @@ const PATTERNS: [RegExp, string][] = [
   [/^file tiket dihapus (\d+) hari setelah acara, karena memuat data pribadi$/, "ticket files are deleted $1 days after the show, as they hold personal data"],
   [/^foto bukti dihapus (\d+) hari setelah klaim diputus, karena memuat data pribadi$/, "claim photos are deleted $1 days after the claim is decided, as they hold personal data"],
   [/^file lebih dari (\d+) MB$/, "the file is over $1 MB"],
+  [/^NEAR AI tidak menjawab \(([^)]*)\)$/, "NEAR AI did not answer ($1)"],
   [/^demi keamanan, masuk ulang dulu: rekening hanya bisa diganti dalam (\d+) menit setelah masuk$/, "for your safety, sign in again first: the payout account can only be changed within $1 minutes of signing in"],
 ];
 

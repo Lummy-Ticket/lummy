@@ -19,7 +19,7 @@
 ![NEAR AI: signed TEE receipts](https://img.shields.io/badge/NEAR%20AI-signed%20TEE%20receipts-00EC97?labelColor=111111)
 ![Arbitrum One: 2 verified contracts](https://img.shields.io/badge/Arbitrum%20One-2%20verified%20contracts-0D3B9A)
 ![forge test: 147 passing](https://img.shields.io/badge/forge%20test-147%20passing-1E7F54)
-![near:check: 39 of 39](https://img.shields.io/badge/near%3Acheck-39%2F39-1E7F54)
+![near:check: 56 of 56](https://img.shields.io/badge/near%3Acheck-56%2F56-1E7F54)
 
 <br>
 
@@ -116,17 +116,19 @@ flowchart LR
 
 NEAR's page checks NVIDIA's freshly issued GPU token with no allowance for clock difference. On a computer whose clock runs a few seconds slow it reports the GPU check as failed, while the same receipt passes in full once the clock is right. [lummy.id/near](https://lummy.id/near) says so next to the link.
 
+**When NEAR AI is down.** On the morning of 10 November 2026 NEAR AI Cloud's API, its private models and its attestation service were all down for hours ([status.near.ai](https://status.near.ai)), and the page could only show an HTTP 500. Now it says the live check failed and why, and shows the same check recorded from NEAR AI earlier ([`recorded.json`](web/src/lib/near/recorded.json), made by `npm run near:record`). The recording keeps the exact request and reply, so it is checked again rather than trusted: both hashes are worked out from those bytes, the signature is recovered, and the facts are read from the signed reply. The one-character test works the same. What a recording cannot show again is the attestation: that the signer was named in the model's attestation report is what our check found when it was recorded ([`recorded.ts`](web/src/lib/near/recorded.ts)).
+
 ## Try it in 2 minutes
 
 | | Do this | See this |
 |---|---|---|
 | 1 | Open [lummy.id/near](https://lummy.id/near) and pick an asset under "Pay from any chain" | A live quote from NEAR Intents: what you would send on that chain for a 9.50 USDC ticket, and how long it usually takes. Nothing is held and nothing is paid |
-| 2 | Under "A ticket check you can verify", press **Check this ticket** | A made-up ticket read in NEAR AI's TEE, "Signed by the model's TEE key", and the signer named in the attestation report |
+| 2 | Under "A ticket check you can verify", press **Check this ticket** | A made-up ticket read in NEAR AI's TEE, "Signed by the model's TEE key", and the signer named in the attestation report. If NEAR AI Cloud is not answering, the page says so and shows the same check recorded earlier, checked again |
 | 3 | Press **Check it on NEAR's Verification Center** | NEAR's page verifies the same receipt and the hardware evidence in your browser |
 | 4 | Press **Change one character and check again** | The changed receipt is refused |
 | 5 | Open the six links under "On chain" | The first real payment, step by step, on Basescan, the NEAR Intents explorer and Arbiscan |
 | 6 | Open [that payment's receiver](https://arbiscan.io/address/0x903CE1751A2F5e8034b9A14a37b9294b8Ab58f6A#readContract) on Arbiscan, then the factory's [`receiverOf`](https://arbiscan.io/address/0x3dFc2bFFBfC17F1e5F741E0dCD04e8F24dd6b75C#readContract) with the terms it shows | The same address comes back: the terms the buyer paid against are fixed in the address itself |
-| 7 | Clone this repository, then run `cd web && npm ci && npm run near:check` | 39 checks pass offline, with no keys: the receipt, the Verification Center link, the 1Click request, and who may pay |
+| 7 | Clone this repository, then run `cd web && npm ci && npm run near:check` | 56 checks pass offline, with no keys: the receipt, real receipts recorded from NEAR AI's TEE, what the page does when NEAR AI is down or flapping, the Verification Center link, the 1Click request, and who may pay |
 
 Paying for real through NEAR Intents is open to the Lummy team's accounts only, so a visitor sees the quote but no deposit address.
 
@@ -134,7 +136,7 @@ Paying for real through NEAR Intents is open to the Lummy team's accounts only, 
 
 | Check | What it covers | Result |
 |---|---|---|
-| `npm run near:check` (in CI) | Offline, no keys. A real ECDSA signature over `model:request_hash:response_hash` passes, and a changed hash, model, signer, text or kind of signature fails. The Verification Center link carries no ticket text. A listing links a receipt only when it was verified and attested. The 1Click request asks for the exact amount at the receiver, with refunds on the chain paid from. Only staff and the named team may pay, never a demo account | 39 of 39 |
+| `npm run near:check` (in CI) | Offline, no keys. A real ECDSA signature over `model:request_hash:response_hash` passes, and a changed hash, model, signer, text or kind of signature fails. The Verification Center link carries no ticket text. A listing links a receipt only when it was verified and attested. The 1Click request asks for the exact amount at the receiver, with refunds on the chain paid from. Only staff and the named team may pay, never a demo account. Real receipts recorded from NEAR AI's TEE: the exact request and reply kept in the repository hash to what the model's key signed, the signature recovers to that key, and one added character is refused. When NEAR AI answers with an HTTP 500, `/near` gets the recording, marked as one, and does not ask again for two minutes. NEAR's 400 "Provider failed", which it gives while a model is redeployed, is tried again; other 400s are not | 56 of 56 |
 | `forge test` in `contracts/` | The new receiver and its factory (33 tests: the two exits, the terms checked against the escrow, overpayment, late money, EIP-1271 only inside `fund`, fuzzing), plus the escrow and ledger from before | 147 of 147. The receiver: 100% of lines and functions, 91.7% of branches |
 | `RUN_FORK=1 forge test --match-contract Fork` | The receiver against Circle's real USDC on a fork of Arbitrum One | 2 of 2 |
 | `npm run near:fork` | The chain side through the app's own code, on that fork: a payment with too much, a release to the seller, a claim refunded through the receiver, money with no order going back by itself | 13 of 13 |
@@ -143,7 +145,7 @@ Paying for real through NEAR Intents is open to the Lummy team's accounts only, 
 | `npm run ai:eval -- --provider near` | 33 made-up tickets, each through the same cleaning as a real upload, then the TEE model; every request checked for names, numbers and codes that should have been taken out | 29 of 33 tickets, 97.8% of fields, 31 of 31 receipts |
 | Slither (Trail of Bits), in CI | The new receiver triaged with the rest in [`contracts/SECURITY-ANALYSIS.md`](contracts/SECURITY-ANALYSIS.md). CI fails on any untriaged medium or high finding | 21 new findings triaged, none a real issue |
 
-Anyone can run `near:check` and `forge test`. The fork, app and payment runs need our keys, Foundry or the database, so the team runs them; the results above are from 9 November 2026.
+Anyone can run `near:check` and `forge test`. The fork, app and payment runs need our keys, Foundry or the database, so the team runs them; the results above are from 9 and 10 November 2026.
 
 ## Contracts
 
