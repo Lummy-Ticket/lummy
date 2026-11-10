@@ -85,6 +85,16 @@ On 9 November 2026 the team paid 1.0156 USDC from a wallet on Base. Each step is
 
 The swap cost 0.0054 USDC. The four transactions on Arbitrum One cost about 0.000026 ETH in gas, paid by the operator.
 
+**Then the whole flow on lummy.id (10 November 2026).** A team seller account listed a sample Binance Blockchain Week ticket at 9.50 USDC. NEAR AI's TEE read it ([the receipt on NEAR's Verification Center](https://cloud.near.ai/verify?model=Qwen%2FQwen3.8-27B#receipt=eyJjb21wbGV0aW9uSWQiOiJmOTc0MzU3ZDE2Nzg0N2NhOTIzN2RjNDU4NjE1NzE0YiIsIm1vZGVsIjoiUXdlbi9Rd2VuMy44LTI3QiIsInNpZ25hdHVyZUtpbmQiOiJwcm92aWRlcl90ZWUiLCJzaWduaW5nQWxnbyI6ImVjZHNhIiwic2lnbmluZ0FkZHJlc3MiOiIweDgzNWFiNTNkMjAyOTRlZjc5NTkwNmRmZjIxYWU0YzA0NTMzNmFhMjYiLCJzaWduZWRUZXh0IjoiUXdlbi9Rd2VuMy44LTI3QjplNWU2NmY5NTg1OTlmM2VjOTU2ZmYwNmE0M2YxMzZiYjVmYzAxOTlmZjUwZTAzZmY1MmRlZWIyNDE2MzA5NDc3OmU1ZjYyOGIwNjI3ZGNmZjA5MDViYjc2NzEyZmVhYjU3NjUwZGVjM2M2NzEzY2U3MjQwMjA1NTRmZGI4MjJhMWIiLCJzaWduYXR1cmUiOiIweDY2ZjJlNGNkYWU2MGY0NDgyMDQ0NGQwODA1MmI3ZmJmYThlYTJmMGE2ZTAxZGNiYjFjZDUwYzgyOTdhNDY4NDMyOTgxNGNhZTY5ZTNjYTFlYWFmZDFhNzJmMTc2ZTQ0YTQ0NmJjODE4ODBkMjhkOGY1ZGY2YWZiYjFmY2FiYzQxMWIiLCJ2ZXJpZmllZEF0IjoiMjAyNi0xMS0xMFQwMzoyMjowOC42OTNaIn0)), and it went to staff review because it is stamped SAMPLE; staff cleared it. A team buyer account paid for it from Ethereum at the checkout, filed the claim "ticket never handed over", and staff ruled for the buyer:
+
+1. [Paid 9.603158 USDC on Ethereum](https://etherscan.io/tx/0x23ff90e7b19eeb8efdde3d6987f7b639ccf4ce8e5bb7a858da302828a4addb6d)
+2. [The swap on NEAR Intents](https://explorer.near-intents.org/transactions/0x9eE94a51DA7f576f109fc0E82925D362fde51fe9)
+3. [9.5 USDC at the order's receiver on Arbitrum One](https://arbiscan.io/tx/0xf30be3e23ba1bbb055d72393c1dfbf8a7b668b10bf96b0e5622e70975e734d76), and [locked in the escrow](https://arbiscan.io/tx/0x475c0b74f7959eb043262518b0bed47a125867437099eb826f9d4874ab9a3c71) under two minutes after the buyer sent it
+4. [Refunded on staff's ruling](https://arbiscan.io/tx/0x8aed0dc1631781c0ca6bba23b4ce9a3f539d173a9ddd49b01901a760b4a295d8)
+5. [Back at the buyer's refund address](https://arbiscan.io/tx/0x41c604a38bfcac55d8c73557897d4b9dc1708d1c4e8e6b509d149f8cef585dd5), the one locked in the order's terms before paying
+
+NEAR Intents used 9.507126 USDC of what was sent. The other 0.096 USDC did not come back: returning it on Ethereum costs 0.30 USDC, more than it is worth, while on Base the same leftover did come back. Gas was about 0.000015 ETH on Ethereum for the buyer and 0.000026 ETH on Arbitrum One for the operator. The seller got emails when the listing went live, sold and was claimed; the buyer when the payment arrived and the claim was filed.
+
 **Check the terms yourself.** The receiver of this payment, [`0x903C…8f6A`](https://arbiscan.io/address/0x903CE1751A2F5e8034b9A14a37b9294b8Ab58f6A#readContract), shows its listing, seller, price, show end, refund address and deadline under Read Contract. Give them to the factory's [`receiverOf`](https://arbiscan.io/address/0x3dFc2bFFBfC17F1e5F741E0dCD04e8F24dd6b75C#readContract) and it returns that same address. Change any one of them, the refund address included, and the address changes: the money could only go where those terms say.
 
 ### 2. A ticket check you can verify (Privacy & Private AI)

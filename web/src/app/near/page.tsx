@@ -26,6 +26,24 @@ const DEMO_TXS: { en: string; id: string; url: string }[] = [
   { en: "5. Refunded by the escrow", id: "5. Direfund oleh escrow", url: "https://arbiscan.io/tx/0x4543d8cecbd3ee9736add4f66324c412c3d9342c28467423f8ee37fc343966e0" },
   { en: "6. Back at the buyer's refund address", id: "6. Kembali ke alamat refund pembeli", url: "https://arbiscan.io/tx/0xef151467d037b02f731e2edce82cb44ad115ba3bc7df3272aec9cbe336e329d0" },
 ];
+/**
+ * The whole flow in the app, 10 Nov 2026 (T4): a team seller listed a sample ticket, read in NEAR AI's TEE;
+ * staff cleared it; a team buyer paid from Ethereum at checkout, claimed it was never handed over, and
+ * staff refunded it. Order or-d233378bd71c.
+ */
+const FLOW_TXS: { en: string; id: string; url: string }[] = [
+  {
+    en: "1. The ticket read in NEAR AI's TEE: its receipt on NEAR's Verification Center",
+    id: "1. Tiket dibaca di TEE NEAR AI: buktinya di Verification Center NEAR",
+    url: "https://cloud.near.ai/verify?model=Qwen%2FQwen3.8-27B#receipt=eyJjb21wbGV0aW9uSWQiOiJmOTc0MzU3ZDE2Nzg0N2NhOTIzN2RjNDU4NjE1NzE0YiIsIm1vZGVsIjoiUXdlbi9Rd2VuMy44LTI3QiIsInNpZ25hdHVyZUtpbmQiOiJwcm92aWRlcl90ZWUiLCJzaWduaW5nQWxnbyI6ImVjZHNhIiwic2lnbmluZ0FkZHJlc3MiOiIweDgzNWFiNTNkMjAyOTRlZjc5NTkwNmRmZjIxYWU0YzA0NTMzNmFhMjYiLCJzaWduZWRUZXh0IjoiUXdlbi9Rd2VuMy44LTI3QjplNWU2NmY5NTg1OTlmM2VjOTU2ZmYwNmE0M2YxMzZiYjVmYzAxOTlmZjUwZTAzZmY1MmRlZWIyNDE2MzA5NDc3OmU1ZjYyOGIwNjI3ZGNmZjA5MDViYjc2NzEyZmVhYjU3NjUwZGVjM2M2NzEzY2U3MjQwMjA1NTRmZGI4MjJhMWIiLCJzaWduYXR1cmUiOiIweDY2ZjJlNGNkYWU2MGY0NDgyMDQ0NGQwODA1MmI3ZmJmYThlYTJmMGE2ZTAxZGNiYjFjZDUwYzgyOTdhNDY4NDMyOTgxNGNhZTY5ZTNjYTFlYWFmZDFhNzJmMTc2ZTQ0YTQ0NmJjODE4ODBkMjhkOGY1ZGY2YWZiYjFmY2FiYzQxMWIiLCJ2ZXJpZmllZEF0IjoiMjAyNi0xMS0xMFQwMzoyMjowOC42OTNaIn0",
+  },
+  { en: "2. Paid 9.603158 USDC on Ethereum", id: "2. Bayar 9,603158 USDC di Ethereum", url: "https://etherscan.io/tx/0x23ff90e7b19eeb8efdde3d6987f7b639ccf4ce8e5bb7a858da302828a4addb6d" },
+  { en: "3. The swap on NEAR Intents", id: "3. Swap di NEAR Intents", url: "https://explorer.near-intents.org/transactions/0x9eE94a51DA7f576f109fc0E82925D362fde51fe9" },
+  { en: "4. 9.5 USDC at the order's receiver on Arbitrum One", id: "4. 9,5 USDC tiba di kontrak penerima pesanan di Arbitrum One", url: "https://arbiscan.io/tx/0xf30be3e23ba1bbb055d72393c1dfbf8a7b668b10bf96b0e5622e70975e734d76" },
+  { en: "5. Locked in the escrow", id: "5. Dikunci di escrow", url: "https://arbiscan.io/tx/0x475c0b74f7959eb043262518b0bed47a125867437099eb826f9d4874ab9a3c71" },
+  { en: "6. Refunded on staff's ruling, after the buyer's claim", id: "6. Direfund atas putusan staf, setelah klaim pembeli", url: "https://arbiscan.io/tx/0x8aed0dc1631781c0ca6bba23b4ce9a3f539d173a9ddd49b01901a760b4a295d8" },
+  { en: "7. Back at the refund address locked before paying", id: "7. Kembali ke alamat refund yang dikunci sebelum bayar", url: "https://arbiscan.io/tx/0x41c604a38bfcac55d8c73557897d4b9dc1708d1c4e8e6b509d149f8cef585dd5" },
+];
 /** The made-up tickets in lib/near/samples.ts. */
 const TICKETS = [
   { id: "conference", en: "Conference pass, Bangkok", idn: "Tiket konferensi, Bangkok" },
@@ -304,10 +322,21 @@ export default function NearPage() {
                 {t(d.en, d.id)} <ExternalLink className="w-3.5 h-3.5" />
               </a>
             ))}
+            <p data-near-flow className="mt-2 text-neutral-black font-medium">
+              {t(
+                "Then the whole flow on lummy.id, 10 Nov 2026: a team account sold a sample ticket, another bought it from Ethereum, claimed it was never handed over, and got the money back",
+                "Lalu seluruh alurnya di lummy.id, 10 Nov 2026: akun tim menjual tiket contoh, akun tim lain membelinya dari Ethereum, mengklaim tiketnya tidak diserahkan, dan uangnya kembali"
+              )}
+            </p>
+            {FLOW_TXS.map((d) => (
+              <a key={d.url} href={d.url} target="_blank" rel="noreferrer" className="text-primary-navy font-medium inline-flex items-center gap-1">
+                {t(d.en, d.id)} <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            ))}
             {/* The guarantee itself, checked without trusting us: the receiver's terms are public, and the
                 factory turns them back into its address. Its source was verified on Arbiscan on 9 Nov 2026. */}
             <p data-near-terms className="mt-2 text-neutral-gray">
-              {t("Check the terms yourself: the receiver of this payment, ", "Cek sendiri syaratnya: kontrak penerima pembayaran ini, ")}
+              {t("Check the terms yourself: the receiver of the first payment, ", "Cek sendiri syaratnya: kontrak penerima pembayaran pertama, ")}
               <a href={`${explorerAddress(ARBITRUM_ONE, FIRST_RECEIVER)}#readContract`} target="_blank" rel="noreferrer" className="text-primary-navy font-medium">
                 {shortAddress(FIRST_RECEIVER)}
               </a>
