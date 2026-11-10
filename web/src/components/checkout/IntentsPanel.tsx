@@ -160,8 +160,9 @@ export function IntentsPanel({
               </div>
               <p className="text-xs text-neutral-gray mt-2">
                 {t(
-                  `Includes about 1% room for the price to move; what is not used comes back to you.${quote.etaSeconds ? ` Usually about ${quote.etaSeconds} seconds.` : ""}`,
-                  `Sudah termasuk ruang sekitar 1% untuk pergerakan harga; yang tidak terpakai kembali ke kamu.${quote.etaSeconds ? ` Biasanya sekitar ${quote.etaSeconds} detik.` : ""}`
+                  // T4, 10 Nov 2026: 0.096 USDC unused on Ethereum stayed with NEAR Intents, whose fee to send it back was 0.30 USDC.
+                  `Includes about 1% room for the price to move. What is not used comes back to you, unless sending it back on that chain costs more than it is worth, as on Ethereum.${quote.etaSeconds ? ` Usually about ${quote.etaSeconds} seconds.` : ""}`,
+                  `Sudah termasuk ruang sekitar 1% untuk pergerakan harga. Yang tidak terpakai kembali ke kamu, kecuali biaya mengirimnya kembali di chain itu lebih besar dari nilainya, seperti di Ethereum.${quote.etaSeconds ? ` Biasanya sekitar ${quote.etaSeconds} detik.` : ""}`
                 )}
               </p>
             </>

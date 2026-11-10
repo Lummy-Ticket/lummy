@@ -4,6 +4,8 @@ import { usePathname } from "next/navigation";
 import { CONTACT_EMAIL } from "@/components/legal/LegalPage";
 import { useT } from "@/lib/i18n";
 import { FEATURES } from "@/lib/features";
+import { useUser } from "@/lib/mock";
+import { useNearOptions } from "@/lib/payments/client";
 
 /** Feedback goes to the team inbox, with the page it was sent from (tasks 11.7). */
 export function feedbackHref(page?: string) {
@@ -28,6 +30,10 @@ export function TestModeNotice() {
   const t = useT();
   // /near shows the team's own payments in real USDC, so there the strip says whose money is real.
   const near = usePathname()?.startsWith("/near") ?? false;
+  // A team account pays real USDC on shows abroad (lib/near/team), so "no real money moves" is wrong for
+  // it (T4, 10 Nov 2026). Asked only for a signed-in account; everyone else keeps the test-mode line.
+  const account = useUser((s) => !!s.user?.account);
+  const team = useNearOptions(account && !near)?.team === true;
   if (!TEST_MODE) return null;
   return (
     <div data-test-mode className="fixed z-50 top-0 inset-x-0 h-6 bg-primary-navy-dark text-white text-[11px] font-medium flex items-center justify-center gap-3 px-4">
@@ -35,10 +41,19 @@ export function TestModeNotice() {
       <span className="block truncate">
         {/* Fits a 360px phone beside the link: the old line was 238px in a 238px space and lost its end */}
         <span className="sm:hidden">
-          {near ? t("Beta: real money for the team only.", "Beta: uang asli khusus tim.") : t("Beta: test payments, no real money.", "Beta: pembayaran uji, bukan uang asli.")}
+          {near
+            ? t("Beta: real money for the team only.", "Beta: uang asli khusus tim.")
+            : team
+              ? t("Beta, team: real USDC on shows abroad.", "Beta, tim: USDC asli di acara luar negeri.")
+              : t("Beta: test payments, no real money.", "Beta: pembayaran uji, bukan uang asli.")}
         </span>
         <span className="hidden sm:inline">
-          {near
+          {team && !near
+            ? t(
+                "Beta, Lummy team account: shows abroad take real USDC through NEAR Intents. QRIS stays in Xendit's test mode, and everyone else pays test USDC.",
+                "Beta, akun tim Lummy: acara luar negeri dibayar USDC sungguhan lewat NEAR Intents. QRIS tetap di mode uji Xendit, dan selain tim membayar dengan USDC uji."
+              )
+            : near
             ? t(
                 "Beta: everyone else pays in test mode. The real payments on this page are the Lummy team's own, on Arbitrum One.",
                 "Beta: selain tim, semua pembayaran masih uji. Pembayaran sungguhan di halaman ini milik tim Lummy sendiri, di Arbitrum One."

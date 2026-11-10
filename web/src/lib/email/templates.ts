@@ -153,6 +153,12 @@ const TEST_MODE_NOTE: Bi = {
   en: "Lummy is still in test mode: no real money moves yet.",
 };
 
+/** Only the team lists on shows abroad (lib/near/team), and the team may pay there in real USDC. */
+const TEAM_LISTING_NOTE: Bi = {
+  id: "Demo NEAR HACKATHON: akun tim Lummy bisa membayar listing ini dengan USDC sungguhan di Arbitrum One; selain tim membayar dengan USDC uji.",
+  en: "NEAR HACKATHON demo: Lummy team accounts can pay for this listing in real USDC on Arbitrum One; anyone else pays in test USDC.",
+};
+
 const TEAM_DEMO_NOTE: Bi = {
   id: "Demo NEAR HACKATHON: USDC sungguhan di Arbitrum One, khusus akun tim Lummy, belum dibuka untuk umum.",
   en: "NEAR HACKATHON demo: real USDC on Arbitrum One, for Lummy team accounts only, not open to the public.",
@@ -443,7 +449,8 @@ export function listingReviewed(l: ListingFacts, cleared: boolean): Rendered {
       { label: { id: "Harga per tiket", en: "Price per ticket" }, value: both((lang) => money(l.askPrice, l.currency, lang)) },
     ],
     action: OPEN_SALES,
-    note: FEATURES.payouts ? undefined : TEST_MODE_NOTE,
+    // "No real money moves yet" was wrong on a show abroad, where the team pays in real USDC (T4, 10 Nov 2026).
+    note: l.currency === "USDC" ? TEAM_LISTING_NOTE : FEATURES.payouts ? undefined : TEST_MODE_NOTE,
     why: { id: "Kamu menerima email ini karena memasang listing ini di Lummy.", en: "You get this email because you posted this listing on Lummy." },
   });
 }

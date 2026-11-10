@@ -13,14 +13,16 @@ import { Badge } from "@/components/ui/badge";
 import { NotifyCard } from "@/components/events/NotifyCard";
 import { TransferPolicyNote } from "@/components/common/TransferPolicyNote";
 import {
-  getTier, isBuyable, clearedByStaff, isEventOver, isSaleClosed, resaleAllowed, capOf, SELLER_PENALTY_PCT, PENALTY_NOTE, type Listing, type EventItem,
+  getTier, isBuyable, clearedByStaff, isEventOver, isSaleClosed, resaleAllowed, capOf, SELLER_PENALTY_PCT, PENALTY_NOTE, useUser, type Listing, type EventItem,
 } from "@/lib/mock";
+import { useNearOptions } from "@/lib/payments/client";
+import { useAccountListings } from "@/lib/listings/client";
 import { useT, useFormatters, useCategoryLabel } from "@/lib/i18n";
 import { useCatalogue, useEventText } from "@/lib/catalogue";
 import { FEATURES } from "@/lib/features";
 import { TEST_MODE } from "@/components/layout/TestModeNotice";
 
-function ListingRow({ event, listing, qty, cheapest, index, sampleTag }: { event: EventItem; listing: Listing; qty: number; cheapest?: boolean; index: number; sampleTag?: boolean }) {
+function ListingRow({ event, listing, qty, cheapest, index, sampleTag, mine }: { event: EventItem; listing: Listing; qty: number; cheapest?: boolean; index: number; sampleTag?: boolean; mine?: boolean }) {
   const t = useT();
   const { formatMoney } = useFormatters();
   const money = (n: number) => formatMoney(n, event.currency);
@@ -43,6 +45,11 @@ function ListingRow({ event, listing, qty, cheapest, index, sampleTag }: { event
       <div className="flex flex-col gap-1.5 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-semibold text-lg text-neutral-black">{tier?.name}</span>
+          {/* A seller looking at their own show sees their listing marked, not a Buy button that the
+              checkout refuses ("you cannot buy your own listing"; T4, 10 Nov 2026). */}
+          {mine && (
+            <Badge.Base data-listing-mine className="rounded-full bg-secondary-blue-light text-primary-navy text-xs">{t("Your listing", "Listing kamu")}</Badge.Base>
+          )}
           {/* Brand guideline 1.0: colour only where it asks for attention. Every ticket on sale has
               been checked, so "Checked" is gray like "Cheapest"; review and duplicates keep theirs. */}
           {dup ? (
@@ -121,7 +128,9 @@ function ListingRow({ event, listing, qty, cheapest, index, sampleTag }: { event
           <div className="tabular-nums font-bold text-xl text-primary-navy text-nowrap">{money(listing.askPrice)}<span className="text-xs text-neutral-gray font-sans font-normal"> {t("each", "/tiket")}</span></div>
           {qty > 1 && <div className="text-xs text-neutral-gray text-nowrap">{t(`${qty} tickets · ${money(total)}`, `${qty} tiket · ${money(total)}`)}</div>}
         </div>
-        {buyable ? (
+        {mine ? (
+          <Button.SecondaryLink href="/seller" className="text-sm">{t("Manage", "Kelola")}</Button.SecondaryLink>
+        ) : buyable ? (
           <Button.PrimaryLink href={`/checkout?listing=${listing.id}&qty=${qty}`} className="text-sm">{t("Buy", "Beli")}</Button.PrimaryLink>
         ) : (
           <Button.Primary className="text-sm" disabled>{dup ? t("Blocked", "Diblokir") : t("In review", "Direview")}</Button.Primary>
@@ -145,6 +154,14 @@ export default function EventDetailPage() {
   const params = useParams<{ id: string }>();
   const catalogue = useCatalogue();
   const event = catalogue.eventById(params.id);
+  // On a show abroad a team account pays real USDC through NEAR Intents (lib/near/team), so the testnet
+  // notice below says so to it (T4, 10 Nov 2026). Asked only for a signed-in account on such a show.
+  const account = useUser((s) => !!s.user?.account);
+  const team = useNearOptions(account && event?.currency === "USDC")?.team === true;
+  // The account's own listings, to mark them on its own show rather than offer to sell them back to it.
+  const sellerId = useUser((s) => (s.user?.account ? s.user.id : null));
+  const { listings: myListings } = useAccountListings(sellerId ? { seller: sellerId } : null);
+  const mine = useMemo(() => new Set((myListings ?? []).map((l) => l.id)), [myListings]);
   const [sort, setSort] = useState<SortId>("cheap");
   // Opens on the number of tickets the cheapest listing sells, so the "From" price beside the list
   // is in it. A fixed 2 hid the single 9.50 USDC ticket on a USDC show, the one a faucet's 10 test
@@ -243,19 +260,28 @@ export default function EventDetailPage() {
           {event.currency === "USDC" && (
             <p data-usdc-demo className="mt-3 flex items-start gap-2 rounded-2xl bg-secondary-orange-soft px-3 py-2 text-xs text-secondary-orange-dark">
               <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-              <span>
-                {t(
-                  "Testnet demo: the tickets on this page are samples, not real tickets for sale, and they are paid in test USDC on Arbitrum Sepolia. At the door, the organiser's own rules apply.",
-                  "Demo testnet: tiket di halaman ini contoh, bukan tiket sungguhan yang dijual, dan dibayar dengan USDC uji di Arbitrum Sepolia. Di pintu masuk, aturan penyelenggara yang berlaku."
-                )}
-                {/* Said before the click: a demo account reaches checkout and meets a greyed-out button. */}
-                <span data-usdc-needs className="block mt-1 font-semibold text-neutral-black">
+              {team ? (
+                <span data-usdc-team>
                   {t(
-                    "To pay, sign in with your email and use a browser wallet such as MetaMask. A demo account can look but cannot pay in USDC.",
-                    "Untuk membayar, masuk dengan email-mu dan pakai wallet di browser seperti MetaMask. Akun demo bisa melihat, tapi tidak bisa membayar dengan USDC."
+                    "NEAR HACKATHON demo, team account: you can pay here in real USDC from any chain through NEAR Intents, into the escrow on Arbitrum One, capped at a small amount. The tickets are samples, and everyone else pays test USDC on Arbitrum Sepolia. At the door, the organiser's own rules apply.",
+                    "Demo NEAR HACKATHON, akun tim: di sini kamu bisa membayar dengan USDC sungguhan dari chain mana pun lewat NEAR Intents, masuk ke escrow di Arbitrum One, dengan batas nominal kecil. Tiketnya contoh, dan selain tim membayar dengan USDC uji di Arbitrum Sepolia. Di pintu masuk, aturan penyelenggara yang berlaku."
                   )}
                 </span>
-              </span>
+              ) : (
+                <span>
+                  {t(
+                    "Testnet demo: the tickets on this page are samples, not real tickets for sale, and they are paid in test USDC on Arbitrum Sepolia. At the door, the organiser's own rules apply.",
+                    "Demo testnet: tiket di halaman ini contoh, bukan tiket sungguhan yang dijual, dan dibayar dengan USDC uji di Arbitrum Sepolia. Di pintu masuk, aturan penyelenggara yang berlaku."
+                  )}
+                  {/* Said before the click: a demo account reaches checkout and meets a greyed-out button. */}
+                  <span data-usdc-needs className="block mt-1 font-semibold text-neutral-black">
+                    {t(
+                      "To pay, sign in with your email and use a browser wallet such as MetaMask. A demo account can look but cannot pay in USDC.",
+                      "Untuk membayar, masuk dengan email-mu dan pakai wallet di browser seperti MetaMask. Akun demo bisa melihat, tapi tidak bisa membayar dengan USDC."
+                    )}
+                  </span>
+                </span>
+              )}
             </p>
           )}
 
@@ -323,7 +349,7 @@ export default function EventDetailPage() {
           <div className="flex flex-col gap-4">
             {visibleListings.length > 0 ? (
               visibleListings.map((l, i) => (
-                <ListingRow key={l.id} event={event} listing={l} qty={qty} cheapest={l.askPrice === cheapest} index={i} sampleTag={mixed && !l.realTicket} />
+                <ListingRow key={l.id} event={event} listing={l} qty={qty} cheapest={l.askPrice === cheapest} index={i} sampleTag={mixed && !l.realTicket} mine={mine.has(l.id)} />
               ))
             ) : (
               <div className="text-center py-10 bg-secondary-gray-soft rounded-2xl">
