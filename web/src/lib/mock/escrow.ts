@@ -98,6 +98,12 @@ export const windowMs = (o: Order) => (o.chain?.window ? o.chain.window * 1000 :
 /** The window said in words, so on-chain orders never claim 48 hours they do not have. */
 export function windowLabel(o: Order): Bi {
   if (!o.chain?.window) return { en: `${DISPUTE_WINDOW_H}h`, id: `${DISPUTE_WINDOW_H} jam` };
+  // On Arbitrum One the window is the real one, in hours: an order paid through NEAR Intents read
+  // "2880 min (testnet demo)" (10 Nov 2026).
+  if (o.chain.chainId === 42161) {
+    const hours = Math.round(o.chain.window / 3600);
+    return { en: `${hours}h`, id: `${hours} jam` };
+  }
   const min = Math.round(o.chain.window / 60);
   return { en: `${min} min (testnet demo)`, id: `${min} menit (demo testnet)` };
 }

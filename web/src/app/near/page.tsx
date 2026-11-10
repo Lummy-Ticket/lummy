@@ -43,6 +43,7 @@ const FLOW_TXS: { en: string; id: string; url: string }[] = [
   { en: "5. Locked in the escrow", id: "5. Dikunci di escrow", url: "https://arbiscan.io/tx/0x475c0b74f7959eb043262518b0bed47a125867437099eb826f9d4874ab9a3c71" },
   { en: "6. Refunded on staff's ruling, after the buyer's claim", id: "6. Direfund atas putusan staf, setelah klaim pembeli", url: "https://arbiscan.io/tx/0x8aed0dc1631781c0ca6bba23b4ce9a3f539d173a9ddd49b01901a760b4a295d8" },
   { en: "7. Back at the refund address locked before paying", id: "7. Kembali ke alamat refund yang dikunci sebelum bayar", url: "https://arbiscan.io/tx/0x41c604a38bfcac55d8c73557897d4b9dc1708d1c4e8e6b509d149f8cef585dd5" },
+  { en: "8. The whole order on Lummy's public proof page, read from the contract", id: "8. Seluruh pesanan di halaman bukti publik Lummy, dibaca dari kontrak", url: "https://lummy.id/proof/0x435ad32a3c0844c5562365f0a12ddcf4126d7eaecc0b67290d49120b9883b181" },
 ];
 /** The made-up tickets in lib/near/samples.ts. */
 const TICKETS = [

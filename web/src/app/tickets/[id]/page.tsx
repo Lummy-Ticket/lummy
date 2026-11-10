@@ -878,6 +878,11 @@ export default function OrderDetailPage() {
                     <div className="text-xs text-neutral-gray">
                       {order.docsAccessed?.ticketAtISO
                         ? t(`Downloaded ${formatDateTime(order.docsAccessed.ticketAtISO)}`, `Diunduh ${formatDateTime(order.docsAccessed.ticketAtISO)}`)
+                        : !FEATURES.payouts && onchain?.chainId === 42161
+                        ? t(
+                            "Beta: you get a stand-in with this order's details and no barcode, not the seller's ticket.",
+                            "Beta: yang kamu dapat file pengganti berisi data pesanan ini tanpa barcode, bukan tiket penjual."
+                          )
                         : !FEATURES.payouts
                         ? t(
                             "The payment was simulated, so you get a stand-in with this order's details and no barcode, not the seller's ticket.",

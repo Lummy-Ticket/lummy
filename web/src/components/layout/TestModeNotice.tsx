@@ -29,7 +29,11 @@ export const TEST_MODE = !FEATURES.payouts || !FEATURES.realListings;
 export function TestModeNotice() {
   const t = useT();
   // /near shows the team's own payments in real USDC, so there the strip says whose money is real.
-  const near = usePathname()?.startsWith("/near") ?? false;
+  const path = usePathname();
+  const near = path?.startsWith("/near") ?? false;
+  // A proof page shows one escrow on the chain it names, and on Arbitrum One that is real USDC:
+  // "no real money moves" above it was wrong (10 Nov 2026).
+  const proof = path?.startsWith("/proof") ?? false;
   // A team account pays real USDC on shows abroad (lib/near/team), so "no real money moves" is wrong for
   // it (T4, 10 Nov 2026). Asked only for a signed-in account; everyone else keeps the test-mode line.
   const account = useUser((s) => !!s.user?.account);
@@ -41,14 +45,21 @@ export function TestModeNotice() {
       <span className="block truncate">
         {/* Fits a 360px phone beside the link: the old line was 238px in a 238px space and lost its end */}
         <span className="sm:hidden">
-          {near
+          {proof
+            ? t("Beta. Read from the chain named below.", "Beta. Dibaca dari chain yang tertera.")
+            : near
             ? t("Beta: real money for the team only.", "Beta: uang asli khusus tim.")
             : team
               ? t("Beta, team: real USDC on shows abroad.", "Beta, tim: USDC asli di acara luar negeri.")
               : t("Beta: test payments, no real money.", "Beta: pembayaran uji, bukan uang asli.")}
         </span>
         <span className="hidden sm:inline">
-          {team && !near
+          {proof
+            ? t(
+                "Beta. This page reads one record from the chain named under Technical details. Only an escrow on Arbitrum One holds real USDC.",
+                "Beta. Halaman ini membaca satu catatan dari chain yang tertera di Detail teknis. Hanya escrow di Arbitrum One yang memegang USDC sungguhan."
+              )
+            : team && !near
             ? t(
                 "Beta, Lummy team account: shows abroad take real USDC through NEAR Intents. QRIS stays in Xendit's test mode, and everyone else pays test USDC.",
                 "Beta, akun tim Lummy: acara luar negeri dibayar USDC sungguhan lewat NEAR Intents. QRIS tetap di mode uji Xendit, dan selain tim membayar dengan USDC uji."

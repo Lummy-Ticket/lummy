@@ -32,7 +32,8 @@ export function EscrowSteps({ order, phase, windowText }: { order: Order; phase:
   const state = (i: number): State => (i < at || (settled && i === at) ? "done" : i === at ? "now" : "next");
 
   const steps = [
-    { Icon: Check, label: t("Paid", "Dibayar"), sub: "QRIS" },
+    // An order locked in the escrow contract was paid in USDC, not by QRIS (it said QRIS, 10 Nov 2026).
+    { Icon: Check, label: t("Paid", "Dibayar"), sub: order.chain ? "USDC" : "QRIS" },
     { Icon: Lock, label: t("In escrow", "Di escrow"), sub: t("until the show ends", "sampai acara selesai") },
     cancelled
       ? { Icon: Flag, label: t("Show cancelled", "Acara batal"), sub: t("by the organiser", "oleh penyelenggara") }
