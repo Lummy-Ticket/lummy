@@ -19,7 +19,7 @@
 ![NEAR AI: signed TEE receipts](https://img.shields.io/badge/NEAR%20AI-signed%20TEE%20receipts-00EC97?labelColor=111111)
 ![Arbitrum One: 2 verified contracts](https://img.shields.io/badge/Arbitrum%20One-2%20verified%20contracts-0D3B9A)
 ![forge test: 147 passing](https://img.shields.io/badge/forge%20test-147%20passing-1E7F54)
-![near:check: 56 of 56](https://img.shields.io/badge/near%3Acheck-56%2F56-1E7F54)
+![near:check: 61 of 61](https://img.shields.io/badge/near%3Acheck-61%2F61-1E7F54)
 
 <br>
 
@@ -138,7 +138,7 @@ NEAR's page checks NVIDIA's freshly issued GPU token with no allowance for clock
 | 4 | Press **Change one character and check again** | The changed receipt is refused |
 | 5 | Open the six links under "On chain" | The first real payment, step by step, on Basescan, the NEAR Intents explorer and Arbiscan |
 | 6 | Open [that payment's receiver](https://arbiscan.io/address/0x903CE1751A2F5e8034b9A14a37b9294b8Ab58f6A#readContract) on Arbiscan, then the factory's [`receiverOf`](https://arbiscan.io/address/0x3dFc2bFFBfC17F1e5F741E0dCD04e8F24dd6b75C#readContract) with the terms it shows | The same address comes back: the terms the buyer paid against are fixed in the address itself |
-| 7 | Clone this repository, then run `cd web && npm ci && npm run near:check` | 56 checks pass offline, with no keys: the receipt, real receipts recorded from NEAR AI's TEE, what the page does when NEAR AI is down or flapping, the Verification Center link, the 1Click request, and who may pay |
+| 7 | Clone this repository, then run `cd web && npm ci && npm run near:check` | 61 checks pass offline, with no keys: the receipt, real receipts recorded from NEAR AI's TEE, what the page does when NEAR AI is down or flapping, paying the deposit from the buyer's own wallet, the Verification Center link, the 1Click request, and who may pay |
 
 Paying for real through NEAR Intents is open to the Lummy team's accounts only, so a visitor sees the quote but no deposit address.
 
@@ -146,7 +146,7 @@ Paying for real through NEAR Intents is open to the Lummy team's accounts only, 
 
 | Check | What it covers | Result |
 |---|---|---|
-| `npm run near:check` (in CI) | Offline, no keys. A real ECDSA signature over `model:request_hash:response_hash` passes, and a changed hash, model, signer, text or kind of signature fails. The Verification Center link carries no ticket text. A listing links a receipt only when it was verified and attested. The 1Click request asks for the exact amount at the receiver, with refunds on the chain paid from. Only staff and the named team may pay, never a demo account. Real receipts recorded from NEAR AI's TEE: the exact request and reply kept in the repository hash to what the model's key signed, the signature recovers to that key, and one added character is refused. When NEAR AI answers with an HTTP 500, `/near` gets the recording, marked as one, and does not ask again for two minutes. NEAR's 400 "Provider failed", which it gives while a model is redeployed, is tried again; other 400s are not | 56 of 56 |
+| `npm run near:check` (in CI) | Offline, no keys. A real ECDSA signature over `model:request_hash:response_hash` passes, and a changed hash, model, signer, text or kind of signature fails. The Verification Center link carries no ticket text. A listing links a receipt only when it was verified and attested. The 1Click request asks for the exact amount at the receiver, with refunds on the chain paid from. Only staff and the named team may pay, never a demo account. Real receipts recorded from NEAR AI's TEE: the exact request and reply kept in the repository hash to what the model's key signed, the signature recovers to that key, and one added character is refused. When NEAR AI answers with an HTTP 500, `/near` gets the recording, marked as one, and does not ask again for two minutes. NEAR's 400 "Provider failed", which it gives while a model is redeployed, is tried again; other 400s are not. Paying from the buyer's own wallet on an EVM chain sends the exact units: `transfer` to the deposit address on the token, or plain value for ETH | 61 of 61 |
 | `forge test` in `contracts/` | The new receiver and its factory (33 tests: the two exits, the terms checked against the escrow, overpayment, late money, EIP-1271 only inside `fund`, fuzzing), plus the escrow and ledger from before | 147 of 147. The receiver: 100% of lines and functions, 91.7% of branches |
 | `RUN_FORK=1 forge test --match-contract Fork` | The receiver against Circle's real USDC on a fork of Arbitrum One | 2 of 2 |
 | `npm run near:fork` | The chain side through the app's own code, on that fork: a payment with too much, a release to the seller, a claim refunded through the receiver, money with no order going back by itself | 13 of 13 |

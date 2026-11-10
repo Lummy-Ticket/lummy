@@ -17,7 +17,7 @@ export class OneClickError extends Error {
   }
 }
 
-export type Token = { assetId: string; blockchain: string; symbol: string; decimals: number; price?: number };
+export type Token = { assetId: string; blockchain: string; symbol: string; decimals: number; price?: number; contractAddress?: string };
 
 /** What the checkout offers. Chains with a high temporary minimum (Tron $100, BSC $1,000) are left out. */
 const OFFERED: { chain: string; symbol: string; label: string }[] = [
@@ -38,9 +38,15 @@ const OFFERED: { chain: string; symbol: string; label: string }[] = [
   { chain: "near", symbol: "wNEAR", label: "NEAR" },
 ];
 
-export type PayOption = { assetId: string; symbol: string; chain: string; chainLabel: string; evm: boolean };
+/**
+ * One asset the checkout offers. On an EVM chain it also carries what the buyer's own wallet needs to
+ * pay the deposit itself (lib/near/send.ts): the chain id, the token's contract (null for the chain's
+ * own coin) and its decimals.
+ */
+export type PayOption = { assetId: string; symbol: string; chain: string; chainLabel: string; evm: boolean; chainId: number | null; contract: string | null; decimals: number };
 
-const EVM_CHAINS = new Set(["base", "eth", "op", "pol", "avax", "arb"]);
+/** 1Click's EVM chains and their ids. */
+export const EVM_CHAIN_IDS: Record<string, number> = { eth: 1, base: 8453, op: 10, pol: 137, avax: 43114, arb: 42161 };
 
 async function call<T>(path: string, init?: RequestInit, timeoutMs = 15_000): Promise<T> {
   let res: Response;
@@ -68,7 +74,9 @@ export async function payOptions(): Promise<PayOption[]> {
   const tokens = await listTokens();
   return OFFERED.flatMap((o) => {
     const t = tokens.find((x) => x.blockchain === o.chain && x.symbol === o.symbol);
-    return t ? [{ assetId: t.assetId, symbol: o.symbol, chain: o.chain, chainLabel: o.label, evm: EVM_CHAINS.has(o.chain) }] : [];
+    if (!t) return [];
+    const chainId = EVM_CHAIN_IDS[o.chain] ?? null;
+    return [{ assetId: t.assetId, symbol: o.symbol, chain: o.chain, chainLabel: o.label, evm: chainId !== null, chainId, contract: chainId !== null ? (t.contractAddress ?? null) : null, decimals: t.decimals }];
   });
 }
 

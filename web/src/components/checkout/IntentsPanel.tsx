@@ -6,6 +6,8 @@
 // escrow when it has arrived. Real USDC on Arbitrum One, so only the team reaches this panel for now.
 import { useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { injectedWallet, walletRefused } from "@/lib/chain/wallet";
+import { depositTxUrl, sendDeposit } from "@/lib/near/send";
 import { Check, ExternalLink, Loader2, Shuffle } from "lucide-react";
 import { isAddress } from "viem";
 import { Button } from "@/components/ui/button";
@@ -120,6 +122,22 @@ export function IntentsPanel({
   const cancel = async () => {
     if (view && view.payment.status === "pending") await paymentAction(view.payment.id, "cancel").catch(() => null);
     onClose();
+  };
+
+  // On an EVM chain the buyer's own wallet can pay the deposit: the exact asset and amount, nothing copied.
+  const [sent, setSent] = useState<{ busy: boolean; hash?: string; error?: string }>({ busy: false });
+  const wallet = injectedWallet();
+  const payable = !!view && !!asset?.chainId && asset.symbol === view.deposit.symbol;
+  const payFromWallet = async () => {
+    if (!wallet || !view || !asset?.chainId) return;
+    setSent({ busy: true });
+    try {
+      const hash = await sendDeposit(wallet, { chainId: asset.chainId, to: view.deposit.address, amount: view.deposit.amount, decimals: asset.decimals, token: asset.contract });
+      setSent({ busy: false, hash });
+    } catch (e) {
+      const said = walletRefused(e) ? t("You cancelled it in your wallet.", "Kamu membatalkannya di wallet.") : e instanceof Error ? e.message.split("\n")[0] : String(e);
+      setSent({ busy: false, error: said });
+    }
   };
 
   const header = (
@@ -257,6 +275,29 @@ export function IntentsPanel({
             <p className="text-xs text-center text-neutral-black">
               {t("Memo", "Memo")}: <span className="font-mono">{view.deposit.memo}</span>
             </p>
+          )}
+          {payable && wallet && (
+            <div className="flex flex-col gap-1.5">
+              {sent.hash ? (
+                <p data-intents-sent className="text-xs text-center text-secondary-green-dark">
+                  {t("Sent from your wallet. NEAR Intents usually sees it within a minute.", "Terkirim dari wallet-mu. NEAR Intents biasanya melihatnya dalam semenit.")}{" "}
+                  {asset?.chainId && depositTxUrl(asset.chainId, sent.hash) && (
+                    <a href={depositTxUrl(asset.chainId, sent.hash) ?? undefined} target="_blank" rel="noreferrer" className="text-primary-navy font-medium underline underline-offset-2">
+                      {t("See it", "Lihat")}
+                    </a>
+                  )}
+                </p>
+              ) : (
+                <Button.Primary data-intents-wallet wrapperClass="w-full" className="w-full" disabled={sent.busy} onClick={() => void payFromWallet()}>
+                  {sent.busy && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {t(`Send ${view.deposit.amount} ${view.deposit.symbol} from my wallet`, `Kirim ${view.deposit.amount} ${view.deposit.symbol} dari wallet-ku`)}
+                </Button.Primary>
+              )}
+              {sent.error && <p className="text-xs text-center text-secondary-pink-dark">{sent.error}</p>}
+              <p className="text-[11px] text-center text-neutral-gray">
+                {t("Or send exactly that amount to the address above, from any wallet or exchange.", "Atau kirim persis jumlah itu ke alamat di atas, dari wallet atau exchange mana pun.")}
+              </p>
+            </div>
           )}
         </>
       )}

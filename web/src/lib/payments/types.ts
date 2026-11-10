@@ -61,7 +61,7 @@ export type IntentStart = IntentView;
 
 /** What the NEAR HACKATHON demo can do here (GET /api/near/options). */
 export type NearOptions = {
-  assets: { assetId: string; symbol: string; chain: string; chainLabel: string; evm: boolean }[];
+  assets: { assetId: string; symbol: string; chain: string; chainLabel: string; evm: boolean; chainId: number | null; contract: string | null; decimals: number }[];
   rail: boolean;
   team: boolean;
   ticketAi: boolean;

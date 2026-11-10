@@ -12,12 +12,14 @@
  * escrow itself is proven in contracts/test: `forge test`, plus `RUN_FORK=1 forge test --match-contract Fork`
  * against Circle's real USDC.
  */
+import { decodeFunctionData, erc20Abi } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { POST as ticketCheck } from "../src/app/api/near/ticket-check/route";
 import { RECORDINGS, replayRecording } from "../src/lib/near/recorded";
 import { nearTeam } from "../src/lib/near/team";
 import { allowed } from "../src/lib/near/throttle";
-import { ARBITRUM_USDC, requestQuote } from "../src/lib/near/oneclick";
+import { ARBITRUM_USDC, payOptions, requestQuote } from "../src/lib/near/oneclick";
+import { depositTransfer } from "../src/lib/near/send";
 import { SAMPLES } from "../src/lib/near/samples";
 import { buildPrompt, extractTicketFacts, responseSchema } from "../src/lib/tickets/ai";
 import { checkReceipt, DEFAULT_NEAR_MODEL, teeLink, verificationUrl, type TeeReceipt } from "../src/lib/tickets/near-ai";
@@ -178,6 +180,41 @@ async function main() {
   check("1Click: USDC on Arbitrum One is the only destination", sent.destinationAsset === ARBITRUM_USDC);
   check("1Click: a deposit that cannot be swapped goes back on the chain it came from", sent.refundTo === "0xwallet" && sent.refundType === "ORIGIN_CHAIN", JSON.stringify(sent));
   check("1Click: hands back the address to pay", q.depositAddress === "0xdep");
+
+  // --- Paying the deposit from the buyer's own wallet on an EVM chain (lib/near/send.ts): the exact
+  // asset and amount, after the team's run picked ETH while holding USDC (T4, 10 Nov 2026)
+  {
+    const USDC_ETH = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48";
+    const DEPOSIT = "0x9ee94a51da7f576f109fc0e82925d362fde51fe9";
+    const before = globalThis.fetch;
+    globalThis.fetch = (async () =>
+      new Response(
+        JSON.stringify([
+          { assetId: `nep141:eth-${USDC_ETH}.omft.near`, blockchain: "eth", symbol: "USDC", decimals: 6, contractAddress: USDC_ETH },
+          { assetId: "nep141:base.omft.near", blockchain: "base", symbol: "ETH", decimals: 18 },
+          { assetId: "nep141:sol-5ce3bf3a31af18be40ba30f721101b4341690186.omft.near", blockchain: "sol", symbol: "USDC", decimals: 6, contractAddress: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" },
+        ]),
+        { status: 200 }
+      )) as typeof fetch;
+    const offered = await payOptions().finally(() => {
+      globalThis.fetch = before;
+    });
+    const ethUsdc = offered.find((o) => o.chain === "eth" && o.symbol === "USDC");
+    const baseEth = offered.find((o) => o.chain === "base" && o.symbol === "ETH");
+    const solUsdc = offered.find((o) => o.chain === "sol" && o.symbol === "USDC");
+    check("wallet: USDC on Ethereum carries chain 1, its contract and 6 decimals", ethUsdc?.chainId === 1 && ethUsdc.contract === USDC_ETH && ethUsdc.decimals === 6 && ethUsdc.evm, JSON.stringify(ethUsdc));
+    check("wallet: ETH on Base is the chain's own coin, with no contract", baseEth?.chainId === 8453 && baseEth.contract === null && baseEth.decimals === 18, JSON.stringify(baseEth));
+    check("wallet: USDC on Solana is not offered to a browser EVM wallet", solUsdc?.chainId === null && solUsdc.contract === null && !solUsdc.evm, JSON.stringify(solUsdc));
+    const usdc = depositTransfer({ chainId: 1, to: DEPOSIT, amount: "9.603158", decimals: 6, token: USDC_ETH });
+    const call = usdc.data ? decodeFunctionData({ abi: erc20Abi, data: usdc.data }) : null;
+    check(
+      "wallet: a USDC deposit is transfer(the deposit address, the exact units) on the token, with no value",
+      usdc.to.toLowerCase() === USDC_ETH && usdc.value === BigInt(0) && call?.functionName === "transfer" && String(call.args[0]).toLowerCase() === DEPOSIT && call.args[1] === BigInt(9_603_158),
+      JSON.stringify(call, (_, v) => (typeof v === "bigint" ? v.toString() : v))
+    );
+    const eth = depositTransfer({ chainId: 8453, to: DEPOSIT, amount: "0.004553610108364126", decimals: 18, token: null });
+    check("wallet: an ETH deposit is the exact value to the deposit address, with no data", eth.to === DEPOSIT && eth.value === BigInt("4553610108364126") && !eth.data);
+  }
 
   // --- Who may pay for real
   process.env.LUMMY_NEAR_TEAM = " Team@Lummy.id ,other@lummy.id";
