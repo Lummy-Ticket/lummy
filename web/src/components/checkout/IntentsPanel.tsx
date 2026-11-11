@@ -89,11 +89,13 @@ export function IntentsPanel({
   // A payment left open comes back: a tab closed after paying must not become a second payment. The
   // server finishes the order either way (api/cron/intents); this only shows where it stands.
   const [resumed, setResumed] = useState(false);
+  const started = useRef(false);
   useEffect(() => {
     let live = true;
     void openIntentPayment(listingId)
       .then((r) => {
-        if (!live || !r.open) return;
+        // A payment started in this panel meanwhile is not one "started earlier".
+        if (!live || !r.open || started.current) return;
         const found = r.open;
         setAssetId(found.deposit.assetId);
         setView((now) => now ?? found);
@@ -133,8 +135,19 @@ export function IntentsPanel({
   const refundOk = isAddress(refundTo);
   const originOk = sameWallet ? refundOk : originRefund.trim().length >= 20;
 
+  const [cancelError, setCancelError] = useState<string | null>(null);
   const cancel = async () => {
-    if (view && view.payment.status === "pending") await paymentAction(view.payment.id, "cancel").catch(() => null);
+    if (view && view.payment.status === "pending") {
+      try {
+        await paymentAction(view.payment.id, "cancel");
+      } catch (e) {
+        // Refused because money is already on its way: the hold stays, and so does this panel.
+        if ((e as { status?: number }).status === 409) {
+          setCancelError(e instanceof Error ? e.message : String(e));
+          return;
+        }
+      }
+    }
     onClose();
   };
 
@@ -149,7 +162,7 @@ export function IntentsPanel({
     setViaWallet(true);
     setSent({ busy: true });
     try {
-      const hash = await sendDeposit(wallet, { chainId: asset.chainId, to: v.deposit.address, amount: v.deposit.amount, decimals: asset.decimals, token: asset.contract });
+      const hash = await sendDeposit(wallet, { chainId: asset.chainId, to: v.deposit.address, amount: v.deposit.amount, units: v.deposit.units, decimals: asset.decimals, token: asset.contract });
       setSent({ busy: false, hash });
     } catch (e) {
       const said = walletRefused(e) ? t("You cancelled it in your wallet.", "Kamu membatalkannya di wallet.") : e instanceof Error ? e.message.split("\n")[0] : String(e);
@@ -167,6 +180,7 @@ export function IntentsPanel({
     setError(null);
     try {
       const v = await startIntentPayment({ listingId, quantity, originAsset: assetId, refundTo, originRefund: sameWallet ? refundTo : originRefund.trim() });
+      started.current = true;
       setView(v);
       if (pay && asset?.assetId === v.deposit.assetId) void payDeposit(v);
     } catch (e) {
@@ -444,6 +458,7 @@ export function IntentsPanel({
         </p>
       )}
 
+      {cancelError && <p data-intents-cancel-error className="rounded-2xl bg-secondary-orange-soft p-3 text-xs text-secondary-orange-dark">{cancelError}</p>}
       <button type="button" data-intents-cancel disabled={!closed && (stage > 0 || sent.busy || !!sent.hash)} onClick={() => void cancel()} className="text-sm text-neutral-gray hover:text-primary-navy disabled:opacity-50 cursor-pointer">
         {closed ? t("Close", "Tutup") : t("Cancel and release the seats", "Batalkan dan lepas kursinya")}
       </button>

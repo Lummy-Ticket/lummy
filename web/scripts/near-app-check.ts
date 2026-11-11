@@ -252,6 +252,8 @@ async function main() {
     check("a second order's hold", second.status === 200 && !!id2 && receiver2.startsWith("0x"), JSON.stringify(second).slice(0, 240));
     const left = (await api(buyerCtx, "GET", `/api/payments/intents?listing=${L2}`)).body.open as Open;
     check("the checkout is told of the payment left open, and the asset it was started on", left?.payment?.id === id2 && left.deposit?.assetId === BASE_USDC_ASSET, JSON.stringify(left).slice(0, 200));
+    const dep = second.body.deposit as { amount?: string; units?: string | null } | undefined;
+    check("the hold carries the amount in the units 1Click quoted, for the wallet to send as they are", !!dep?.units && /^\d+$/.test(dep.units) && Number(dep.units) / 1e6 === Number(dep.amount), JSON.stringify(dep));
     const others = await api(memberCtx, "GET", `/api/payments/intents?listing=${L2}`);
     check("and nobody else is told of it", others.status === 200 && others.body.open === null, JSON.stringify(others).slice(0, 200));
     await deliver(receiver2, PRICE - 1);

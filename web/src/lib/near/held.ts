@@ -7,7 +7,7 @@ export type HeldAsset = {
   assetId: string;
   /** In whole units ("12.4"). Null when that chain could not be read. */
   balance: string | null;
-  /** What this order would take of it, from a live quote. Null when nothing is held, or no quote came. */
+  /** What the wallet should hold of it for this order: a live quote, with a little room. Null when nothing is held, or no quote came. */
   needs: string | null;
   /** The balance covers `needs`; for a chain's own coin, also the gas to send it. */
   enough: boolean;
@@ -32,11 +32,13 @@ export function gasReserve(chainId: number, gasPrice: bigint, token: boolean): b
  */
 export function judge(p: { balance: bigint; needs: bigint | null; token: boolean; coin: bigint; reserve: bigint }): { enough: boolean; gas: boolean } {
   if (p.needs === null || p.balance <= BigInt(0)) return { enough: false, gas: true };
-  // The quote a payment is started on can come a little above the one read here: one part in 500 of room.
-  const needs = p.needs + p.needs / BigInt(500);
+  const needs = withRoom(p.needs);
   if (p.token) return { enough: p.balance >= needs, gas: p.coin >= p.reserve };
   return { enough: p.balance >= needs + p.reserve, gas: true };
 }
+
+/** The quote a payment is started on can come a little above the one read here: one part in 500 of room. */
+export const withRoom = (needs: bigint) => needs + needs / BigInt(500);
 
 const STABLE = new Set(["USDC", "USDT"]);
 

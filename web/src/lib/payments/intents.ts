@@ -51,6 +51,8 @@ export type IntentData = {
   depositAddress: string;
   depositMemo: string | null;
   amountIn: string;
+  /** The same amount in the asset's smallest units, as 1Click quoted it. Absent on holds from before 12 Nov 2026. */
+  amountInUnits?: string;
   amountInUsd: string | null;
   etaSeconds: number | null;
   /** On the chain paid from: where 1Click returns a deposit that is short, late or too large. */
@@ -92,6 +94,7 @@ export function intentView(row: PaymentRow, orderId: string | null): IntentView 
       address: d.depositAddress,
       memo: d.depositMemo,
       amount: d.amountIn,
+      units: d.amountInUnits ?? null,
       usd: d.amountInUsd,
       symbol: d.originSymbol,
       chainLabel: d.chainLabel,
@@ -202,6 +205,7 @@ export async function startIntentCheckout(
       depositAddress: quote.depositAddress,
       depositMemo: quote.depositMemo ?? null,
       amountIn: quote.amountInFormatted,
+      amountInUnits: quote.amountIn,
       amountInUsd: quote.amountInUsd ?? null,
       etaSeconds: quote.timeEstimate ?? null,
       originRefund: pay.originRefund,
@@ -443,7 +447,8 @@ export async function advanceOpenIntents(admin: Admin, op: Operator, untilMs: nu
     .select("*")
     .eq("channel", "INTENTS")
     .in("status", ["pending", "expired"])
-    .gte("created_at", iso(Date.now() - 2 * H))
+    // Only holds that can still be funded: refundAfter is this long after a hold expires.
+    .gte("expires_at", iso(Date.now() - (REFUND_AFTER_HOLD_SECONDS - FUND_MARGIN_SECONDS) * 1000))
     .order("created_at", { ascending: true })
     .limit(limit);
   if (error) throw new Error(error.message);
@@ -489,11 +494,16 @@ export async function settleIntentLeftovers(admin: Admin, limit = 10, withinMs =
     if (swept >= limit) break;
     const d = intentOf(row);
     if (Date.now() / 1000 < d.refundAfter) continue;
-    const balance = await pc.readContract({ address: op.token, abi: tokenAbi, functionName: "balanceOf", args: [d.receiver as Address] });
-    if (balance <= BigInt(0)) continue;
-    const tx = await sweepIntentReceiver(op, orderOf(row, d), d.receiver as Address);
-    await saveIntent(admin, row, { sweepTx: tx });
-    swept++;
+    // One receiver that cannot be swept must not keep the rest waiting behind it.
+    try {
+      const balance = await pc.readContract({ address: op.token, abi: tokenAbi, functionName: "balanceOf", args: [d.receiver as Address] });
+      if (balance <= BigInt(0)) continue;
+      const tx = await sweepIntentReceiver(op, orderOf(row, d), d.receiver as Address);
+      await saveIntent(admin, row, { sweepTx: tx });
+      swept++;
+    } catch (e) {
+      console.error("[intents] could not send late money back:", row.id, chainError(e));
+    }
   }
   return swept;
 }

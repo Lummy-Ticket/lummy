@@ -13,7 +13,7 @@ import { currentUser } from "@/lib/supabase/session";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 const noStore = { "Cache-Control": "private, no-store" };
 const fail = (status: number, error: string) => NextResponse.json(errorBody(error), { status, headers: noStore });

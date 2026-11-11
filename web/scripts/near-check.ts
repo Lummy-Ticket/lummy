@@ -25,7 +25,7 @@ import { readFileSync } from "node:fs";
 import { ARBITRUM_USDC, payOptions, requestQuote } from "../src/lib/near/oneclick";
 import { depositTransfer } from "../src/lib/near/send";
 import { gpuConfirmed, readVerdict, signedBy, type Jwk } from "../src/lib/near/gpu";
-import { gasReserve, judge, orderHeld, pickHeld, previewAmount, shortAmount, type HeldAsset } from "../src/lib/near/held";
+import { gasReserve, judge, orderHeld, pickHeld, previewAmount, shortAmount, withRoom, type HeldAsset } from "../src/lib/near/held";
 import { SAMPLES } from "../src/lib/near/samples";
 import { buildPrompt, extractTicketFacts, responseSchema } from "../src/lib/tickets/ai";
 import { checkReceipt, DEFAULT_NEAR_MODEL, teeLink, verificationUrl, type TeeReceipt } from "../src/lib/tickets/near-ai";
@@ -246,6 +246,10 @@ async function main() {
       usdc.to.toLowerCase() === USDC_ETH && usdc.value === BigInt(0) && call?.functionName === "transfer" && String(call.args[0]).toLowerCase() === DEPOSIT && call.args[1] === BigInt(9_603_158),
       JSON.stringify(call, (_, v) => (typeof v === "bigint" ? v.toString() : v))
     );
+    const quoted = depositTransfer({ chainId: 1, to: DEPOSIT, amount: "9.60", units: "9603158", decimals: 6, token: USDC_ETH });
+    const quotedCall = quoted.data ? decodeFunctionData({ abi: erc20Abi, data: quoted.data }) : null;
+    check("wallet: the units 1Click quoted are sent as they are, whatever the rounded figure beside them says", quotedCall?.args[1] === BigInt(9_603_158));
+    check("wallet: units that are not a whole number are not trusted, and the written amount is used", depositTransfer({ chainId: 8453, to: DEPOSIT, amount: "1.5", units: "1.5e18", decimals: 18, token: null }).value === BigInt("1500000000000000000"));
     const eth = depositTransfer({ chainId: 8453, to: DEPOSIT, amount: "0.004553610108364126", decimals: 18, token: null });
     check("wallet: an ETH deposit is the exact value to the deposit address, with no data", eth.to === DEPOSIT && eth.value === BigInt("4553610108364126") && !eth.data);
   }
@@ -267,6 +271,7 @@ async function main() {
       "held: a balance right at the quote is not called enough, since the quote a payment starts on can come a little higher",
       !judge({ balance: U(9.6), needs: U(9.6), token: true, coin: gwei, reserve: BigInt(0) }).enough && judge({ balance: U(9.6) + U(9.6) / BigInt(500), needs: U(9.6), token: true, coin: gwei, reserve: BigInt(0) }).enough
     );
+    check("held: the room is one part in 500, and it is what the verdict uses", withRoom(U(9.6)) === U(9.6) + BigInt(19_200) && judge({ balance: withRoom(U(9.6)), needs: U(9.6), token: true, coin: gwei, reserve: BigInt(0) }).enough);
     check("held: no quote, no verdict", !judge({ balance: U(50), needs: null, token: true, coin: gwei, reserve: BigInt(0) }).enough);
     check("held: a rollup keeps three times more aside than its gas price shows", gasReserve(8453, gwei, true) === gasReserve(1, gwei, true) * BigInt(3));
     const opts = [

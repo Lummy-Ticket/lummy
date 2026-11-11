@@ -14,6 +14,8 @@ export type Deposit = {
   to: string;
   /** As 1Click wrote it ("9.603158"), in whole units of the asset. */
   amount: string;
+  /** The same in the asset's smallest units ("9603158"), when the quote's own figure is at hand: sent as it is. */
+  units?: string | null;
   decimals: number;
   /** The token's contract, or null for the chain's own coin (ETH). */
   token: string | null;
@@ -21,7 +23,7 @@ export type Deposit = {
 
 /** The transaction that pays a deposit: a token transfer, or plain value for the chain's own coin. Pure. */
 export function depositTransfer(d: Deposit): { chainId: number; to: Address; value: bigint; data?: Hex } {
-  const units = parseUnits(d.amount, d.decimals);
+  const units = d.units && /^\d+$/.test(d.units) ? BigInt(d.units) : parseUnits(d.amount, d.decimals);
   if (d.token) {
     return { chainId: d.chainId, to: d.token as Address, value: BigInt(0), data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [d.to as Address, units] }) };
   }

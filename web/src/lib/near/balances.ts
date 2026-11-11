@@ -5,7 +5,7 @@ if (typeof window !== "undefined") throw new Error("lib/near/balances is server-
 
 import { createPublicClient, erc20Abi, fallback, formatUnits, http, type Address, type Chain, type ContractFunctionParameters } from "viem";
 import { arbitrum, avalanche, base, mainnet, optimism, polygon } from "viem/chains";
-import { gasReserve, judge, type HeldAsset } from "./held";
+import { gasReserve, judge, withRoom, type HeldAsset } from "./held";
 import { payOptions, requestQuote, type PayOption } from "./oneclick";
 
 const NETS: Record<number, { chain: Chain; rpc: string[] }> = {
@@ -67,7 +67,7 @@ export async function readHeld(owner: Address, amountOut: bigint, recipient: str
       const quote = await requestQuote({ dry: true, originAsset: o.assetId, chain: o.chain, amountOut, recipient, deadline }).catch(() => null);
       const needs = quote && /^\d+$/.test(quote.amountIn) ? BigInt(quote.amountIn) : null;
       const verdict = judge({ balance, needs, token: !!o.contract, coin: read.coin, reserve: gasReserve(o.chainId as number, read.gasPrice, !!o.contract) });
-      return { assetId: o.assetId, balance: formatUnits(balance, o.decimals), needs: quote?.amountInFormatted ?? null, ...verdict };
+      return { assetId: o.assetId, balance: formatUnits(balance, o.decimals), needs: needs === null ? null : formatUnits(withRoom(needs), o.decimals), ...verdict };
     })
   );
 }
