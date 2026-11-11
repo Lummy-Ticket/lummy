@@ -35,6 +35,7 @@
     "ai:eval": "tsx scripts/ai-eval.ts",
     "near:check": "tsx scripts/near-check.ts",
     "near:held": "tsx scripts/near-held.ts",
+    "near:terms": "tsx scripts/near-terms.ts",
     "near:pay": "tsx scripts/near-pay.ts",
     "near:ticket": "tsx scripts/near-sample-ticket.ts",
     "near:prove": "tsx scripts/near-prove.ts",

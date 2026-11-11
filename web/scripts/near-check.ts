@@ -18,10 +18,12 @@ import { POST as ticketCheck } from "../src/app/api/near/ticket-check/route";
 import { RECORDINGS, replayRecording } from "../src/lib/near/recorded";
 import { nearTeam } from "../src/lib/near/team";
 import { allowed } from "../src/lib/near/throttle";
+import { englishFor } from "../src/lib/route-errors";
+import { readFileSync } from "node:fs";
 import { ARBITRUM_USDC, payOptions, requestQuote } from "../src/lib/near/oneclick";
 import { depositTransfer } from "../src/lib/near/send";
 import { gpuConfirmed, readVerdict, signedBy, type Jwk } from "../src/lib/near/gpu";
-import { gasReserve, judge, orderHeld, pickHeld, shortAmount, type HeldAsset } from "../src/lib/near/held";
+import { gasReserve, judge, orderHeld, pickHeld, previewAmount, shortAmount, type HeldAsset } from "../src/lib/near/held";
 import { SAMPLES } from "../src/lib/near/samples";
 import { buildPrompt, extractTicketFacts, responseSchema } from "../src/lib/tickets/ai";
 import { checkReceipt, DEFAULT_NEAR_MODEL, teeLink, verificationUrl, type TeeReceipt } from "../src/lib/tickets/near-ai";
@@ -139,6 +141,34 @@ async function main() {
     }
   }
 
+  // --- With no key at all (a clone a judge runs): the recorded check, saying why, and no call to NEAR AI
+  {
+    const before = globalThis.fetch;
+    const hadKey = process.env.NEAR_AI_API_KEY;
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls++;
+      return new Response("{}", { status: 500 });
+    }) as typeof fetch;
+    delete process.env.NEAR_AI_API_KEY;
+    try {
+      const res = await ticketCheck(new Request("https://lummy.id/api/near/ticket-check", { method: "POST", headers: { "content-type": "application/json", "x-forwarded-for": "198.51.100.9" }, body: JSON.stringify({ sample: SAMPLES[0].id }) }));
+      const shown = (await res.json()) as { recordedAt?: string; noKey?: boolean; liveError?: string; receipt?: { verified?: boolean } };
+      check("no key: a server without a NEAR AI key shows the recorded check, verified again, and says it has no key", res.status === 200 && !!shown.recordedAt && shown.noKey === true && shown.receipt?.verified === true && calls === 0, `${res.status} ${shown.liveError} ${calls} calls`);
+    } finally {
+      globalThis.fetch = before;
+      if (hadKey !== undefined) process.env.NEAR_AI_API_KEY = hadKey;
+    }
+  }
+
+  // --- Every error the NEAR routes send has its English, for a reader who is not Indonesian (or not a person)
+  {
+    const routes = ["near/quote", "near/held", "near/ticket-check", "payments/intents", "payments/[id]/intents"].map((r) => readFileSync(`src/app/api/${r}/route.ts`, "utf8")).join("\n");
+    const said = [...new Set([...routes.matchAll(/fail\(\d+, "([^"]+)"\)/g), ...routes.matchAll(/: "([a-z][^"]+ gagal dibaca)"/g)].map((m) => m[1]))];
+    const missing = said.filter((e) => !englishFor(e));
+    check(`errors: all ${said.length} errors of the NEAR routes carry English`, said.length >= 20 && missing.length === 0, missing.join(" | "));
+  }
+
   // --- While a model is redeployed, NEAR's gateway says 400 "Provider failed": tried again, unlike other 400s
   {
     const before = globalThis.fetch;
@@ -249,6 +279,7 @@ async function main() {
       orderHeld(opts, [h("usdc-base", false), h("usdc-eth"), h("eth-base")]).map((o) => o.assetId).join() === "eth-base,usdc-eth,usdc-base,eth-eth"
     );
     check("held: nothing that can pay, nothing picked", pickHeld(opts, [h("usdc-base", false)]) === null && pickHeld(opts, []) === null);
+    check("held: a preview keeps USDC as quoted and marks ETH's eighteen decimals as about", previewAmount("9.603158") === "9.603158" && previewAmount("0.004656339364425561") === "≈ 0.004656");
     check("held: amounts show six decimals at most, cut and never rounded up", shortAmount("12.400000") === "12.4" && shortAmount("0.004553610108364126") === "0.004553" && shortAmount("9") === "9");
   }
 

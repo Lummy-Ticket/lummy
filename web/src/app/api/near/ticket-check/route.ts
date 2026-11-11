@@ -25,9 +25,9 @@ let down: { at: number; said: string } | null = null;
 const DOWN_MS = 2 * 60_000;
 
 /** The same check recorded from NEAR AI earlier (lib/near/recorded.ts), checked again, saying why it is not live. */
-async function recorded(sampleId: string, said: string) {
+async function recorded(sampleId: string, said: string, noKey = false) {
   const rec = await replayRecording(sampleId);
-  return rec ? NextResponse.json({ ...rec, liveError: said }, { headers: noStore }) : null;
+  return rec ? NextResponse.json({ ...rec, liveError: said, ...(noKey ? { noKey: true } : {}) }, { headers: noStore }) : null;
 }
 
 export async function POST(req: Request) {
@@ -41,8 +41,9 @@ export async function POST(req: Request) {
 
   const sample = SAMPLES.find((s) => s.id === body?.sample);
   if (!sample) return fail(400, "contoh tiket tidak dikenal");
-  if (!process.env.NEAR_AI_API_KEY) return fail(503, "NEAR AI belum aktif di server ini");
   if (!allowed(req, "ticket", 6, 10 * 60_000)) return fail(429, "terlalu banyak percobaan; coba lagi beberapa menit lagi");
+  // No key here (a clone a judge runs, say): the check recorded from NEAR AI is shown instead, and says so.
+  if (!process.env.NEAR_AI_API_KEY) return (await recorded(sample.id, "no NEAR AI key on this server", true)) ?? fail(503, "NEAR AI belum aktif di server ini");
 
   if (down && Date.now() - down.at < DOWN_MS) {
     const shown = await recorded(sample.id, down.said);

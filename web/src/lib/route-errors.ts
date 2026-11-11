@@ -8,6 +8,20 @@
 // browser imports it too.
 
 const EXACT: Record<string, string> = {
+  "jumlah tidak valid": "the amount is not valid",
+  "aset ini tidak ditawarkan": "this asset is not offered",
+  "quote gagal dibaca": "the quote could not be read",
+  "contoh tiket tidak dikenal": "unknown sample ticket",
+  "NEAR AI belum aktif di server ini": "NEAR AI is not set up on this server",
+  "terlalu banyak permintaan; coba lagi sebentar lagi": "too many requests; try again in a moment",
+  "terlalu banyak percobaan; coba lagi beberapa menit lagi": "too many tries; try again in a few minutes",
+  "saldo wallet gagal dibaca": "the wallet's balances could not be read",
+  "permintaan ini harus dari halaman Lummy": "this request must come from a Lummy page",
+  "pembayaran lewat NEAR Intents belum aktif di server ini": "payments through NEAR Intents are not set up on this server",
+  "pembayaran mainnet lewat NEAR Intents khusus akun tim selama hackathon": "mainnet payments through NEAR Intents are for the team's accounts during the hackathon",
+  "aset tidak dikenal": "unknown asset",
+  "alamat refund harus alamat EVM": "the refund address must be an EVM address",
+  "alamat wallet di chain asal tidak valid": "the wallet address on the chain you pay from is not valid",
   // Every route
   "database belum tersambung di server ini": "the database is not connected on this server",
   "masuk dulu": "sign in first",
@@ -116,6 +130,7 @@ const EXACT: Record<string, string> = {
 
 // Messages that carry a number or a reason in them.
 const PATTERNS: [RegExp, string][] = [
+  [/^1Click: ([\s\S]*)$/, "1Click: $1"],
   [/^jumlah tiket 1 sampai (\d+)$/, "1 to $1 tickets"],
   [/^selama pembayaran masih simulasi, satu akun paling banyak punya (\d+) pesanan berjalan$/, "while payments are simulated, one account can have at most $1 orders in progress"],
   [/^selama pembayaran masih mode test, satu akun paling banyak punya (\d+) pesanan berjalan$/, "while payments are in test mode, one account can have at most $1 orders in progress"],

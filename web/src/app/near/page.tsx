@@ -12,6 +12,7 @@ import { explorerAddress, shortAddress } from "@/lib/chain/format";
 import { useT } from "@/lib/i18n";
 import { nearQuote, useNearOptions, type NearQuote } from "@/lib/payments/client";
 import { HeldAssets } from "@/components/checkout/HeldAssets";
+import { previewAmount } from "@/lib/near/held";
 
 /** The cheapest Binance Blockchain Week listing on Lummy, in micro-USDC: what the live quote is for. */
 const DEMO_PRICE = "9500000";
@@ -77,6 +78,8 @@ type Check = {
   /** Set when NEAR AI did not answer and this is the same check recorded from it earlier (lib/near/recorded.ts). */
   recordedAt?: string;
   liveError?: string;
+  /** The recording is shown because this server has no NEAR AI key, not because NEAR AI failed. */
+  noKey?: boolean;
 };
 
 /** A recording's time, the same for every visitor: UTC, as the explorers show it. */
@@ -192,7 +195,7 @@ export default function NearPage() {
         <div className="rounded-2xl bg-secondary-blue-extra p-4 text-sm">
           {quote ? (
             <>
-              <Fact label={t("You send", "Kamu kirim")} value={`${quote.amountIn} ${quote.symbol}`} />
+              <Fact label={t("You send", "Kamu kirim")} value={`${previewAmount(quote.amountIn)} ${quote.symbol}`} />
               <Fact label={t("Reaches the escrow on Arbitrum One", "Masuk ke escrow di Arbitrum One")} value={`${quote.amountOut} USDC`} />
               {quote.etaSeconds !== null && <Fact label={t("Usually takes", "Biasanya butuh")} value={t(`${quote.etaSeconds} seconds`, `${quote.etaSeconds} detik`)} />}
             </>
@@ -227,14 +230,21 @@ export default function NearPage() {
               <option key={s.id} value={s.id}>{t(s.en, s.idn)}</option>
             ))}
           </NativeSelect>
-          <Button.Primary data-near-run wrapperClass="shrink-0" disabled={checking || options?.ticketAi === false} onClick={() => void runCheck()}>
+          <Button.Primary data-near-run wrapperClass="shrink-0" disabled={checking} onClick={() => void runCheck()}>
             {checking && <Loader2 className="w-4 h-4 animate-spin" />}
             {t("Check this ticket", "Cek tiket ini")}
           </Button.Primary>
         </div>
-        {options?.ticketAi === false && <p className="text-xs text-neutral-gray">{t("NEAR AI is not switched on yet.", "NEAR AI belum dinyalakan.")}</p>}
         {checkError && <p data-near-error className="rounded-2xl bg-secondary-pink-soft p-3 text-sm text-secondary-pink-dark">{checkError}</p>}
-        {check?.recordedAt && (
+        {check?.recordedAt && check.noKey && (
+          <p data-near-recorded data-near-nokey className="rounded-2xl bg-secondary-orange-soft p-3 text-sm text-secondary-orange-dark">
+            {t(
+              `This server has no NEAR AI key, so it cannot ask NEAR AI itself. Below is the same check, recorded from NEAR AI on ${recordedWhen(check.recordedAt)}. Its hashes and its signature were just checked again here, from the exact bytes recorded, and the one-character test works the same. With a key in NEAR_AI_API_KEY the check runs live.`,
+              `Server ini tidak punya kunci NEAR AI, jadi tidak bisa bertanya ke NEAR AI sendiri. Di bawah ini cek yang sama, direkam dari NEAR AI pada ${recordedWhen(check.recordedAt)}. Hash dan signature-nya baru saja dicek ulang di sini dari byte yang direkam persis, dan tes ubah satu karakter tetap berjalan sama. Dengan kunci di NEAR_AI_API_KEY, ceknya berjalan live.`
+            )}
+          </p>
+        )}
+        {check?.recordedAt && !check.noKey && (
           <p data-near-recorded className="rounded-2xl bg-secondary-orange-soft p-3 text-sm text-secondary-orange-dark">
             {t(
               `NEAR AI Cloud did not answer just now (${check.liveError ?? "no answer"}). That is on NEAR's side: see `,
