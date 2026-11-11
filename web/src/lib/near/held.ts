@@ -60,6 +60,11 @@ export function orderHeld<T extends { assetId: string; symbol: string; chain: st
   return [...payable, ...options.filter((o) => !canPay(held, o.assetId))];
 }
 
+/** A quoted amount for a preview: as it is up to six decimals, and "≈ 0.004656" for ETH's eighteen. The exact amount is shown where it is paid. */
+export function previewAmount(x: string): string {
+  return (x.split(".")[1]?.length ?? 0) > 6 ? `≈ ${shortAmount(x)}` : x;
+}
+
 /** "12.400000" as "12.4", "0.004553610108364126" as "0.004553": six decimals at most, cut and never rounded up. */
 export function shortAmount(x: string): string {
   const [whole, frac = ""] = x.split(".");

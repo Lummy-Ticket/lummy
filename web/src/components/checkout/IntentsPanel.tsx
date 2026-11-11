@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { injectedWallet, walletRefused } from "@/lib/chain/wallet";
-import type { HeldAsset } from "@/lib/near/held";
+import { previewAmount, type HeldAsset } from "@/lib/near/held";
 import { depositTxUrl, sendDeposit } from "@/lib/near/send";
 import { HeldAssets } from "@/components/checkout/HeldAssets";
 import { Check, ExternalLink, Loader2, Shuffle } from "lucide-react";
@@ -121,10 +121,13 @@ export function IntentsPanel({
 
   // On an EVM chain the buyer's own wallet can pay the deposit: the exact asset and amount, nothing copied.
   const [sent, setSent] = useState<{ busy: boolean; hash?: string; error?: string }>({ busy: false });
+  // Paying through the wallet: the address and its QR step aside, so the same deposit is not sent twice.
+  const [viaWallet, setViaWallet] = useState(false);
   const wallet = injectedWallet();
   const payable = !!view && !!asset?.chainId && asset.symbol === view.deposit.symbol;
   const payDeposit = async (v: IntentView) => {
     if (!wallet || !asset?.chainId) return;
+    setViaWallet(true);
     setSent({ busy: true });
     try {
       const hash = await sendDeposit(wallet, { chainId: asset.chainId, to: v.deposit.address, amount: v.deposit.amount, decimals: asset.decimals, token: asset.contract });
@@ -195,7 +198,7 @@ export function IntentsPanel({
             <>
               <div className="flex justify-between gap-3">
                 <span className="text-neutral-gray">{t("You send", "Kamu kirim")}</span>
-                <span className="font-semibold tabular-nums">{`${quote.amountIn} ${quote.symbol}`}</span>
+                <span className="font-semibold tabular-nums">{`${previewAmount(quote.amountIn)} ${quote.symbol}`}</span>
               </div>
               <div className="flex justify-between gap-3 mt-1">
                 <span className="text-neutral-gray">{t("Reaches the escrow", "Masuk ke escrow")}</span>
@@ -225,7 +228,7 @@ export function IntentsPanel({
             value={refundTo}
             onChange={(e) => setRefundTo(e.target.value.trim())}
             placeholder="0x..."
-            className="w-full rounded-xl border border-neutral-light-gray-1 px-3 py-2 font-mono text-sm text-neutral-black"
+            className="w-full rounded-xl border border-neutral-light-gray-1 px-3 py-2 font-mono text-xs text-neutral-black"
           />
           {account && refundTo.toLowerCase() === account.toLowerCase() && (
             <span data-intents-refund-mine className="text-secondary-green-dark">{t("Filled in from your connected wallet.", "Diisi dari wallet yang terhubung.")}</span>
@@ -245,7 +248,7 @@ export function IntentsPanel({
               data-intents-origin
               value={originRefund}
               onChange={(e) => setOriginRefund(e.target.value)}
-              className="w-full rounded-xl border border-neutral-light-gray-1 px-3 py-2 font-mono text-sm text-neutral-black"
+              className="w-full rounded-xl border border-neutral-light-gray-1 px-3 py-2 font-mono text-xs text-neutral-black"
             />
             <span>{t("If the swap cannot finish, NEAR Intents returns your deposit here.", "Kalau swap-nya tidak bisa selesai, NEAR Intents mengembalikan depositmu ke sini.")}</span>
           </label>
@@ -301,7 +304,51 @@ export function IntentsPanel({
         </div>
       </div>
 
-      {!closed && stage === 0 && (
+      {!closed && stage === 0 && viaWallet && (
+        <div data-intents-via-wallet className="rounded-2xl bg-secondary-blue-extra p-4 flex flex-col items-center gap-2 text-center">
+          {sent.hash ? (
+            <>
+              <span className="w-8 h-8 rounded-full bg-secondary-green-dark text-neutral-white grid place-items-center">
+                <Check className="w-4 h-4" />
+              </span>
+              <p data-intents-sent className="text-sm font-semibold text-secondary-green-dark">{t("Sent from your wallet", "Terkirim dari wallet-mu")}</p>
+              <p className="text-xs text-neutral-gray">
+                {t(
+                  "Do not send it again. NEAR Intents usually sees it within a minute. Keep this window open until the money is locked.",
+                  "Jangan kirim lagi. NEAR Intents biasanya melihatnya dalam semenit. Biarkan jendela ini terbuka sampai uangnya terkunci."
+                )}
+              </p>
+              {asset?.chainId && depositTxUrl(asset.chainId, sent.hash) && (
+                <a href={depositTxUrl(asset.chainId, sent.hash) ?? undefined} target="_blank" rel="noreferrer" className="text-xs text-primary-navy font-medium inline-flex items-center gap-1">
+                  {t("See the transaction", "Lihat transaksinya")} <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
+            </>
+          ) : sent.busy ? (
+            <>
+              <Loader2 className="w-6 h-6 animate-spin text-lummy-500" />
+              <p className="text-sm font-semibold text-neutral-black">{t("Confirm it in your wallet", "Konfirmasi di wallet-mu")}</p>
+              <p className="text-xs text-neutral-gray">
+                {t(
+                  `${view.deposit.amount} ${view.deposit.symbol} on ${view.deposit.chainLabel}, to this order's deposit address. Your wallet may first ask to switch network.`,
+                  `${view.deposit.amount} ${view.deposit.symbol} di ${view.deposit.chainLabel}, ke alamat deposit pesanan ini. Wallet-mu mungkin minta ganti jaringan dulu.`
+                )}
+              </p>
+            </>
+          ) : (
+            <>
+              {sent.error && <p data-intents-wallet-error className="text-xs text-secondary-pink-dark">{sent.error}</p>}
+              <Button.Primary data-intents-wallet wrapperClass="w-full" className="w-full" onClick={() => void payDeposit(view)}>
+                {t(`Send ${view.deposit.amount} ${view.deposit.symbol} from my wallet`, `Kirim ${view.deposit.amount} ${view.deposit.symbol} dari wallet-ku`)}
+              </Button.Primary>
+              <button type="button" data-intents-manual onClick={() => setViaWallet(false)} className="text-sm text-primary-navy font-medium hover:opacity-80 cursor-pointer">
+                {t("Pay by address or QR instead", "Bayar lewat alamat atau QR saja")}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+      {!closed && stage === 0 && !viaWallet && (
         <>
           <div className="flex justify-center">
             <QRCodeSVG value={view.deposit.address} size={176} marginSize={1} level="M" aria-label={t("Address to pay", "Alamat pembayaran")} />
@@ -312,28 +359,16 @@ export function IntentsPanel({
               {t("Memo", "Memo")}: <span className="font-mono">{view.deposit.memo}</span>
             </p>
           )}
+          <p className="text-xs text-center text-neutral-gray">
+            {t(
+              `Send exactly ${view.deposit.amount} ${view.deposit.symbol} on ${view.deposit.chainLabel} to this address, once, from any wallet or exchange.`,
+              `Kirim persis ${view.deposit.amount} ${view.deposit.symbol} di ${view.deposit.chainLabel} ke alamat ini, sekali, dari wallet atau exchange mana pun.`
+            )}
+          </p>
           {payable && wallet && (
-            <div className="flex flex-col gap-1.5">
-              {sent.hash ? (
-                <p data-intents-sent className="text-xs text-center text-secondary-green-dark">
-                  {t("Sent from your wallet. NEAR Intents usually sees it within a minute.", "Terkirim dari wallet-mu. NEAR Intents biasanya melihatnya dalam semenit.")}{" "}
-                  {asset?.chainId && depositTxUrl(asset.chainId, sent.hash) && (
-                    <a href={depositTxUrl(asset.chainId, sent.hash) ?? undefined} target="_blank" rel="noreferrer" className="text-primary-navy font-medium underline underline-offset-2">
-                      {t("See it", "Lihat")}
-                    </a>
-                  )}
-                </p>
-              ) : (
-                <Button.Primary data-intents-wallet wrapperClass="w-full" className="w-full" disabled={sent.busy} onClick={() => void payDeposit(view)}>
-                  {sent.busy && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {t(`Send ${view.deposit.amount} ${view.deposit.symbol} from my wallet`, `Kirim ${view.deposit.amount} ${view.deposit.symbol} dari wallet-ku`)}
-                </Button.Primary>
-              )}
-              {sent.error && <p className="text-xs text-center text-secondary-pink-dark">{sent.error}</p>}
-              <p className="text-[11px] text-center text-neutral-gray">
-                {t("Or send exactly that amount to the address above, from any wallet or exchange.", "Atau kirim persis jumlah itu ke alamat di atas, dari wallet atau exchange mana pun.")}
-              </p>
-            </div>
+            <button type="button" data-intents-wallet onClick={() => void payDeposit(view)} className="text-sm text-primary-navy font-medium hover:opacity-80 cursor-pointer">
+              {t("Or send it from my browser wallet", "Atau kirim dari wallet di browser-ku")}
+            </button>
           )}
         </>
       )}
@@ -382,7 +417,7 @@ export function IntentsPanel({
         </p>
       )}
 
-      <button type="button" disabled={stage > 0 && !closed} onClick={() => void cancel()} className="text-sm text-neutral-gray hover:text-primary-navy disabled:opacity-50 cursor-pointer">
+      <button type="button" data-intents-cancel disabled={!closed && (stage > 0 || sent.busy || !!sent.hash)} onClick={() => void cancel()} className="text-sm text-neutral-gray hover:text-primary-navy disabled:opacity-50 cursor-pointer">
         {closed ? t("Close", "Tutup") : t("Cancel and release the seats", "Batalkan dan lepas kursinya")}
       </button>
     </div>

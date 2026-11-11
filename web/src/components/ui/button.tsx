@@ -15,7 +15,7 @@ const Primary = React.forwardRef<HTMLButtonElement, AdditionalProps> (({classNam
       <div className={cn("relative mt-0.5 w-fit border-lummy-500 rounded-2xl", props.disabled ? "bg-neutral-gray" : "bg-primary-navy-dark", className)}>
         <button 
           ref={ref}
-          className={cn("enabled:cursor-pointer bg-primary-sky hover:bg-primary-navy hover:text-neutral-white hover:border-primary-navy-dark disabled:bg-neutral-light-gray-1 disabled:text-neutral-gray rounded-2xl border-2 transition duration-200 enabled:hover:-translate-x-0.5 enabled:hover:-translate-y-0.5 -translate-y-1 -translate-x-1 enabled:active:translate-0 disabled:border-neutral-gray font-semibold text-primary-navy-dark border-lummy-500 px-6 py-3.5", className)}
+          className={cn("inline-flex items-center justify-center gap-2 enabled:cursor-pointer bg-primary-sky hover:bg-primary-navy hover:text-neutral-white hover:border-primary-navy-dark disabled:bg-neutral-light-gray-1 disabled:text-neutral-gray rounded-2xl border-2 transition duration-200 enabled:hover:-translate-x-0.5 enabled:hover:-translate-y-0.5 -translate-y-1 -translate-x-1 enabled:active:translate-0 disabled:border-neutral-gray font-semibold text-primary-navy-dark border-lummy-500 px-6 py-3.5", className)}
           {...props}
         >
           {children}
@@ -32,7 +32,7 @@ const Secondary = React.forwardRef<HTMLButtonElement, AdditionalProps> (({classN
       <div className={cn("relative mt-0.5 w-fit border-lummy-500 rounded-2xl", props.disabled ? "bg-neutral-gray" : "bg-primary-navy-dark", className)}>
         <button 
           ref={ref}
-          className={cn("enabled:cursor-pointer bg-neutral-white hover:bg-pastel-yellow disabled:bg-neutral-light-gray-1 disabled:text-neutral-gray rounded-2xl border-2 transition duration-200 enabled:hover:-translate-x-0.5 enabled:hover:-translate-y-0.5 -translate-y-1 -translate-x-1 enabled:active:translate-0 disabled:border-neutral-gray font-semibold text-lummy-500 border-lummy-500 px-6 py-3.5", className)} 
+          className={cn("inline-flex items-center justify-center gap-2 enabled:cursor-pointer bg-neutral-white hover:bg-pastel-yellow disabled:bg-neutral-light-gray-1 disabled:text-neutral-gray rounded-2xl border-2 transition duration-200 enabled:hover:-translate-x-0.5 enabled:hover:-translate-y-0.5 -translate-y-1 -translate-x-1 enabled:active:translate-0 disabled:border-neutral-gray font-semibold text-lummy-500 border-lummy-500 px-6 py-3.5", className)} 
           {...props}
         >
           {children}

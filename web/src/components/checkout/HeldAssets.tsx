@@ -6,6 +6,7 @@
 // why). Reading moves nothing; without a browser wallet this shows nothing and the list below stays.
 import { useState } from "react";
 import { Check, Loader2, Wallet as WalletIcon } from "lucide-react";
+import { getAddress } from "viem";
 import { Button } from "@/components/ui/button";
 import { connectWallet, injectedWallet, shortAddress, walletRefused } from "@/lib/chain/wallet";
 import { useT } from "@/lib/i18n";
@@ -45,7 +46,8 @@ export function HeldAssets({
     setBusy(true);
     setError(null);
     try {
-      const who = await connectWallet(wallet);
+      // Wallets hand the account over in lower case; the checksummed form is what explorers and receipts print.
+      const who = getAddress(await connectWallet(wallet));
       setAccount(who);
       const { held: found } = await nearHeld(who, amount);
       setHeld(found);
@@ -64,10 +66,10 @@ export function HeldAssets({
       <div data-held className="flex flex-col gap-1.5">
         <Button.Secondary data-held-connect wrapperClass="w-full" className="w-full" disabled={busy} onClick={() => void read()}>
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <WalletIcon className="w-4 h-4" />}
-          {busy ? t("Reading what your wallet holds...", "Membaca isi wallet-mu...") : t("Connect a wallet to see what can pay", "Hubungkan wallet untuk lihat yang bisa dipakai")}
+          {busy ? t("Reading what your wallet holds...", "Membaca isi wallet-mu...") : t("Connect a wallet", "Hubungkan wallet")}
         </Button.Secondary>
         <p className="text-[11px] text-center text-neutral-gray">
-          {t("Lummy only reads balances on six chains. Nothing moves until you confirm it in your wallet.", "Lummy hanya membaca saldo di enam chain. Tidak ada yang berpindah sebelum kamu konfirmasi di wallet.")}
+          {t("To see which of your assets can pay. Lummy only reads balances, on six chains: nothing moves until you confirm it in your wallet.", "Untuk melihat asetmu yang bisa dipakai bayar. Lummy hanya membaca saldo, di enam chain: tidak ada yang berpindah sebelum kamu konfirmasi di wallet.")}
         </p>
         {error && <p data-held-error className="text-xs text-center text-secondary-pink-dark">{error}</p>}
       </div>
