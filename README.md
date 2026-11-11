@@ -19,7 +19,7 @@
 ![NEAR AI: signed TEE receipts](https://img.shields.io/badge/NEAR%20AI-signed%20TEE%20receipts-00EC97?labelColor=111111)
 ![Arbitrum One: 2 verified contracts](https://img.shields.io/badge/Arbitrum%20One-2%20verified%20contracts-0D3B9A)
 ![forge test: 147 passing](https://img.shields.io/badge/forge%20test-147%20passing-1E7F54)
-![near:check: 61 of 61](https://img.shields.io/badge/near%3Acheck-61%2F61-1E7F54)
+![near:check: 83 of 83](https://img.shields.io/badge/near%3Acheck-83%2F83-1E7F54)
 
 <br>
 
@@ -70,6 +70,7 @@ sequenceDiagram
 - **The escrow did not change.** To `LummyEscrow`, the receiver is a buyer with a contract wallet (EIP-1271). It approves only the escrow and USDC, and only while its own `fund()` is running.
 - **Too much, or too late.** An overpayment goes back to the refund address in the same transaction. Money that arrives after the hold expired is swept back by a daily job, or by anyone.
 - **Polled, not pushed.** 1Click has no webhooks, so the checkout asks for the swap's status, and the server finishes the order once the USDC is at the receiver.
+- **The wallet is read before the buyer chooses.** With a browser wallet connected, the server reads what it holds of the nine EVM assets on six chains (one batched call a chain, about 3 seconds), asks 1Click what this order would take of each, and the checkout lists them: enough, how much is missing, or no gas on that chain. What can pay is picked, a stablecoin before a coin whose price moves and Ethereum last. The refund address is filled in from the wallet, and the buyer confirms one transfer there. The deposit address and its QR stay, for Solana, Bitcoin, NEAR and exchanges. We added this on 11 November after our own run, where the buyer picked ETH while holding USDC and pasted the address by hand ([`held.ts`](web/src/lib/near/held.ts), [`balances.ts`](web/src/lib/near/balances.ts)).
 - **Where it lives:** [`contracts/src/LummyIntentReceiver.sol`](contracts/src/LummyIntentReceiver.sol), [`web/src/lib/near/oneclick.ts`](web/src/lib/near/oneclick.ts), [`web/src/lib/payments/intents.ts`](web/src/lib/payments/intents.ts), [`web/src/components/checkout/IntentsPanel.tsx`](web/src/components/checkout/IntentsPanel.tsx).
 
 #### Tried with real money
@@ -114,6 +115,8 @@ flowchart LR
 - **What leaves our server.** Only the ticket's text, with names, booking codes, barcode contents, ID numbers, emails and phone numbers taken out ([`clean.ts`](web/src/lib/tickets/clean.ts)). If anything that looks personal is left, nothing is sent and the seller fills the form in by hand.
 - **What the TEE adds.** The text is read inside hardware-isolated, attested hardware: an Intel TDX machine whose NVIDIA GPUs run in confidential-computing mode. We say "hardware-isolated and attested", not "nobody can see it".
 - **The receipt.** We hash the exact bytes sent and received, fetch the model's signature, recover its signer with viem, and require that signer to be a key named in the model's attestation report. The request names the model's canonical id with `x-no-aliasing`, so NEAR's gateway forwards it unchanged and the signature comes from the model's TEE, not from the gateway. A listing links [NEAR's Verification Center](https://cloud.near.ai/verify) only when both checks pass. The receipt holds hashes, never the ticket's text.
+- **The GPU, asked from our server.** The attestation report carries the evidence each GPU produced for a nonce our server made up. The server sends it to NVIDIA's Remote Attestation Service and requires three things: NVIDIA's verdict, our nonce in NVIDIA's token (so the evidence is not a replay), and the token's ES384 signature by a key NVIDIA publishes ([`gpu.ts`](web/src/lib/near/gpu.ts)). The Intel TDX quote of the machine around the GPU is not checked by us: NEAR's Verification Center checks it in the reader's browser, from the link on each receipt.
+- **What is kept.** A listing keeps the facts that were read and the receipt: two hashes, the signature, the signer and NVIDIA's verdict. The text sent to the model is not kept. The ticket file is, in private storage, because the buyer has to receive it. The check on lummy.id/near writes nothing.
 - **Measured before it was switched on.** On 33 made-up tickets, Qwen3.8-27B with thinking off got every field right on 29. On the other 4 it left the title blank rather than invent one: 97.8% of fields right, with a median of 2.8 seconds and 31 of 31 receipts verified. Claude Haiku 5.5, which still reads other sellers' tickets, got all 231 fields right on the same set.
 - **Where it lives:** [`web/src/lib/tickets/near-ai.ts`](web/src/lib/tickets/near-ai.ts) (the call and the receipt), [`web/src/lib/tickets/ai.ts`](web/src/lib/tickets/ai.ts), [`web/src/app/near/page.tsx`](web/src/app/near/page.tsx).
 
@@ -132,13 +135,14 @@ NEAR's page checks NVIDIA's freshly issued GPU token with no allowance for clock
 
 | | Do this | See this |
 |---|---|---|
-| 1 | Open [lummy.id/near](https://lummy.id/near) and pick an asset under "Pay from any chain" | A live quote from NEAR Intents: what you would send on that chain for a 9.50 USDC ticket, and how long it usually takes. Nothing is held and nothing is paid |
-| 2 | Under "A ticket check you can verify", press **Check this ticket** | A made-up ticket read in NEAR AI's TEE, "Signed by the model's TEE key", and the signer named in the attestation report. If NEAR AI Cloud is not answering, the page says so and shows the same check recorded earlier, checked again |
+| 1 | Open [lummy.id/near](https://lummy.id/near) and pick an asset under "Pay from any chain". With a browser wallet, press **Connect a wallet to see what can pay** | A live quote from NEAR Intents: what you would send on that chain for a 9.50 USDC ticket, and how long it usually takes. With a wallet: what it holds on six chains and which of it covers the ticket, the one that does already picked. Nothing is held, nothing is paid, and reading moves nothing |
+| 2 | Under "A ticket check you can verify", press **Check this ticket** | A made-up ticket read in NEAR AI's TEE, "Signed by the model's TEE key", the signer named in the attestation report, and NVIDIA's attestation service confirming the GPU evidence for a nonce our server chose. If NEAR AI Cloud is not answering, the page says so and shows the same check recorded earlier, checked again (a recording carries no verdict from NVIDIA) |
 | 3 | Press **Check it on NEAR's Verification Center** | NEAR's page verifies the same receipt and the hardware evidence in your browser |
 | 4 | Press **Change one character and check again** | The changed receipt is refused |
 | 5 | Open the six links under "On chain" | The first real payment, step by step, on Basescan, the NEAR Intents explorer and Arbiscan |
 | 6 | Open [that payment's receiver](https://arbiscan.io/address/0x903CE1751A2F5e8034b9A14a37b9294b8Ab58f6A#readContract) on Arbiscan, then the factory's [`receiverOf`](https://arbiscan.io/address/0x3dFc2bFFBfC17F1e5F741E0dCD04e8F24dd6b75C#readContract) with the terms it shows | The same address comes back: the terms the buyer paid against are fixed in the address itself |
-| 7 | Clone this repository, then run `cd web && npm ci && npm run near:check` | 61 checks pass offline, with no keys: the receipt, real receipts recorded from NEAR AI's TEE, what the page does when NEAR AI is down or flapping, paying the deposit from the buyer's own wallet, the Verification Center link, the 1Click request, and who may pay |
+| 7 | Clone this repository, then run `cd web && npm ci && npm run near:check` | 83 checks pass offline, with no keys: the receipt, NVIDIA's verdict on the GPU evidence (its nonce and its signature), which asset a wallet is offered first, real receipts recorded from NEAR AI's TEE, what the page does when NEAR AI is down or flapping, paying the deposit from the buyer's own wallet, the Verification Center link, the 1Click request, and who may pay |
+| 8 | In the same folder, run `npm run near:held -- 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045` (or any address) | What that wallet holds of the nine EVM assets, read from public RPCs, what a 9.50 USDC ticket would take of each, and which one the checkout would offer first. Dry quotes only: nothing is held or sent |
 
 Paying for real through NEAR Intents is open to the Lummy team's accounts only, so a visitor sees the quote but no deposit address.
 
@@ -146,7 +150,7 @@ Paying for real through NEAR Intents is open to the Lummy team's accounts only, 
 
 | Check | What it covers | Result |
 |---|---|---|
-| `npm run near:check` (in CI) | Offline, no keys. A real ECDSA signature over `model:request_hash:response_hash` passes, and a changed hash, model, signer, text or kind of signature fails. The Verification Center link carries no ticket text. A listing links a receipt only when it was verified and attested. The 1Click request asks for the exact amount at the receiver, with refunds on the chain paid from. Only staff and the named team may pay, never a demo account. Real receipts recorded from NEAR AI's TEE: the exact request and reply kept in the repository hash to what the model's key signed, the signature recovers to that key, and one added character is refused. When NEAR AI answers with an HTTP 500, `/near` gets the recording, marked as one, and does not ask again for two minutes. NEAR's 400 "Provider failed", which it gives while a model is redeployed, is tried again; other 400s are not. Paying from the buyer's own wallet on an EVM chain sends the exact units: `transfer` to the deposit address on the token, or plain value for ETH | 61 of 61 |
+| `npm run near:check` (in CI) | Offline, no keys. A real ECDSA signature over `model:request_hash:response_hash` passes, and a changed hash, model, signer, text or kind of signature fails. The Verification Center link carries no ticket text. A listing links a receipt only when it was verified and attested. The 1Click request asks for the exact amount at the receiver, with refunds on the chain paid from. Only staff and the named team may pay, never a demo account. Real receipts recorded from NEAR AI's TEE: the exact request and reply kept in the repository hash to what the model's key signed, the signature recovers to that key, and one added character is refused. When NEAR AI answers with an HTTP 500, `/near` gets the recording, marked as one, and does not ask again for two minutes. NEAR's 400 "Provider failed", which it gives while a model is redeployed, is tried again; other 400s are not. Paying from the buyer's own wallet on an EVM chain sends the exact units: `transfer` to the deposit address on the token, or plain value for ETH. A wallet's balance is judged against a live quote and the gas to send it, and what can pay is offered a stablecoin first and Ethereum last. NVIDIA's verdict on the GPU evidence counts only with our nonce, unexpired, from NVIDIA's issuer and signed by a published key | 83 of 83 |
 | `forge test` in `contracts/` | The new receiver and its factory (33 tests: the two exits, the terms checked against the escrow, overpayment, late money, EIP-1271 only inside `fund`, fuzzing), plus the escrow and ledger from before | 147 of 147. The receiver: 100% of lines and functions, 91.7% of branches |
 | `RUN_FORK=1 forge test --match-contract Fork` | The receiver against Circle's real USDC on a fork of Arbitrum One | 2 of 2 |
 | `npm run near:fork` | The chain side through the app's own code, on that fork: a payment with too much, a release to the seller, a claim refunded through the receiver, money with no order going back by itself | 13 of 13 |
@@ -155,7 +159,7 @@ Paying for real through NEAR Intents is open to the Lummy team's accounts only, 
 | `npm run ai:eval -- --provider near` | 33 made-up tickets, each through the same cleaning as a real upload, then the TEE model; every request checked for names, numbers and codes that should have been taken out | 29 of 33 tickets, 97.8% of fields, 31 of 31 receipts |
 | Slither (Trail of Bits), in CI | The new receiver triaged with the rest in [`contracts/SECURITY-ANALYSIS.md`](contracts/SECURITY-ANALYSIS.md). CI fails on any untriaged medium or high finding | 21 new findings triaged, none a real issue |
 
-Anyone can run `near:check` and `forge test`. The fork, app and payment runs need our keys, Foundry or the database, so the team runs them; the results above are from 9 and 10 November 2026.
+Anyone can run `near:check` and `forge test`. The fork, app and payment runs need our keys, Foundry or the database, so the team runs them; the results above are from 9 to 11 November 2026.
 
 ## Contracts
 
@@ -269,6 +273,8 @@ Everything before the tag `pre-hackathon` (9 November 2026) existed already and 
 - The TEE read runs for the team's accounts. Other sellers' tickets are still read by Claude Haiku, after the same cleaning.
 - NEAR AI's response times vary: 1 to 8 seconds this week, with the odd stall of 20 to 30 seconds. A try is cut at 12 seconds and sent again.
 - There is no NEAR smart contract. NEAR is how the money arrives and where the ticket is read.
+- Paying from a connected wallet in one confirmation was added on 11 November. Its parts are checked, the reading against real wallets, but it has not yet carried a real payment.
+- We do not verify the Intel TDX quote ourselves. NEAR's Verification Center does, in the reader's browser.
 
 <details>
 <summary><b>Repo map</b></summary>

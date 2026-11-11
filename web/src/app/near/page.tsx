@@ -280,7 +280,7 @@ export default function NearPage() {
                       <>
                         <CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-0.5 text-secondary-green-dark" />
                         {t(
-                          `NVIDIA's attestation service confirms the GPU evidence in that report (${check.receipt.gpu.gpus} GPU), made for a nonce this server chose, in a token signed by NVIDIA.`,
+                          `NVIDIA's attestation service confirms the GPU evidence in that report (${check.receipt.gpu.gpus} ${check.receipt.gpu.gpus === 1 ? "GPU" : "GPUs"}), made for a nonce this server chose, in a token signed by NVIDIA.`,
                           `Layanan attestation NVIDIA mengonfirmasi bukti GPU di laporan itu (${check.receipt.gpu.gpus} GPU), dibuat untuk nonce pilihan server ini, dalam token bertanda tangan NVIDIA.`
                         )}
                       </>
