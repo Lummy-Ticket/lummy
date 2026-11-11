@@ -13,6 +13,7 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { SAMPLES } from "../src/lib/near/samples";
 import { extractTicketFacts } from "../src/lib/tickets/ai";
+import { gpuConfirmed } from "../src/lib/near/gpu";
 import { verificationUrl } from "../src/lib/tickets/near-ai";
 
 if (!process.env.NEAR_AI_API_KEY) {
@@ -54,6 +55,7 @@ async function main() {
     console.log(`signature kind: ${r.signatureKind}, algorithm: ${r.signingAlgo}, signer: ${r.signingAddress}`);
     console.log(`signature and text check out: ${r.verified}${r.problem ? ` (${r.problem})` : ""}`);
     console.log(`signer named in the model's attestation report: ${r.attested}`);
+    console.log(`NVIDIA's verdict on that node's GPU evidence, for a nonce made up here: ${r.gpu ? `${gpuConfirmed(r.gpu)} (verdict ${r.gpu.ok}, our nonce ${r.gpu.fresh}, NVIDIA's signature ${r.gpu.signed})` : "NVIDIA could not be asked"}`);
     if (r.signature) console.log(`check it yourself: ${verificationUrl(r)}`);
     if (!r.verified || !r.attested) failed++;
   }
