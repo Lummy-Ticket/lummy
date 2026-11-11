@@ -79,6 +79,18 @@ export function Hero({ quickCats }: { quickCats: string[] }) {
                   )}
                 </p>
               )}
+              {/* The door to what was built at NEAR HACKATHON (11 Nov 2026): the video and the X post end
+                  on lummy.id, and from this page the NEAR features were out of reach, since they are
+                  closed to everyone but the team. English only, as the line above, and for the same reason. */}
+              {lang === "en" && (
+                <Link href="/near" data-hero-near className="lm-in -mt-3 group inline-flex flex-wrap items-center gap-x-1.5 text-sm text-neutral-gray hover:text-primary-navy transition w-fit" style={{ "--d": "320ms" } as React.CSSProperties}>
+                  {t("Built at NEAR HACKATHON:", "Dibuat di NEAR HACKATHON:")}
+                  <span className="font-semibold text-primary-navy inline-flex items-center gap-1">
+                    {t("pay from any chain, and a ticket check you can verify", "bayar dari chain mana pun, dan cek tiket yang bisa diverifikasi")}
+                    <ArrowRight className="w-4 h-4 transition group-hover:translate-x-1" />
+                  </span>
+                </Link>
+              )}
               <div className="lm-in" style={{ "--d": "340ms" } as React.CSSProperties}>
                 <HeroSearch quickCats={quickCats} />
               </div>
