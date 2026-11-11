@@ -308,6 +308,7 @@ Measured on the team's own orders above, not projected.
 - The TEE read runs for the team's accounts. Other sellers' tickets are still read by Claude Haiku, after the same cleaning.
 - NEAR AI's response times vary: 1 to 8 seconds this week, with the odd stall of 20 to 30 seconds. A try is cut at 12 seconds and sent again.
 - There is no NEAR smart contract. NEAR is how the money arrives and where the ticket is read.
+- USDC that is already on Arbitrum One cannot pay yet. NEAR Intents swaps other assets into it, and the direct path, sending it straight to the order's receiver, is not built.
 - Paying from a connected wallet in one confirmation was added on 11 November. Its parts are checked, the reading against real wallets, but it has not yet carried a real payment.
 - We do not verify the Intel TDX quote ourselves. NEAR's Verification Center does, in the reader's browser.
 
