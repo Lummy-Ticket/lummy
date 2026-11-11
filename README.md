@@ -124,7 +124,7 @@ flowchart LR
 
 <table>
 <tr>
-<td width="50%"><img src="assets/near-tee.png" alt="A made-up ticket read in NEAR AI's TEE, with its signed receipt"><br><b>On lummy.id/near.</b> A made-up ticket read in the TEE in a few seconds, signed by the model's key, which is named in its attestation report.</td>
+<td width="50%"><img src="assets/near-tee.png" alt="A made-up ticket read in NEAR AI's TEE, with its signed receipt"><br><b>On lummy.id/near.</b> A made-up ticket read in the TEE in a few seconds, signed by the model's key, which is named in its attestation report, with NVIDIA's attestation service confirming the GPU evidence for a nonce our server chose.</td>
 <td width="50%"><img src="assets/near-verify.png" alt="NEAR's Verification Center: the response verified, and the hardware verified (NVIDIA GPU and Intel TDX)"><br><b>On NEAR's own page.</b> The same kind of receipt: the signature verified, and the hardware evidence (NVIDIA GPU, Intel TDX) verified in the browser.</td>
 </tr>
 </table>
