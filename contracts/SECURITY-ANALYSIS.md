@@ -67,6 +67,16 @@ What a static tool cannot weigh is the one unusual choice: the receiver answers 
 
 This is static analysis and tests by the team, not an audit. The deployment on Arbitrum One holds the team's own money, under a price cap of 25 USDC.
 
+### Known limits (11 Nov 2026)
+
+Read again as a reviewer would, with the tests beside it. None of these moves money to a third party; each is a way a purchase can fail or wait.
+
+- **A blacklisted refund address.** If Circle blacklists the address the buyer chose, USDC cannot be sent to it, so `sweep` and an overpaid `fund` revert and the money stays at the receiver. Nobody can redirect it elsewhere, which is the rule that protects the buyer in every other case. No test covers this.
+- **Funding the listing first.** Anyone can fund the escrow listing with their own money before the receiver does. The buyer's money then goes straight back (`test_sweep_listingFundedBySomeoneElse_goesBackAtOnce`) and the purchase fails. It costs the one who does it the full price, held until staff refund it.
+- **A leaked operator key** can refuse a sale or refund it, and cannot send money to anyone but the buyer's refund address and the seller (`testFuzz_leakedOperator_neverReachesAThirdParty`).
+- **Lummy's server writes the order.** Since 11 Nov a job on the server does it every minute, with or without the buyer's page. If the server is gone, the money is not: past the deadline anyone can call `deploy` and `sweep` with the order's terms (`test_sweep_afterRefundAfter_needsNoBackend`).
+- **The seller on Arbitrum One is a team wallet.** Sellers sign in with an email and have no wallet yet, so the release goes to an address the team holds.
+
 ## How the CI gate works
 
 - `slither.config.json` keeps every finding that touches `contracts/src` (`include_paths`), even when it also touches OpenZeppelin, and drops findings that live only in `lib`, `test`, `script` or the analysis copy. We use `include_paths` rather than `filter_paths` because the latter drops a finding as soon as any of its elements sits in `lib/`, which can hide a finding in our code that calls into OpenZeppelin. Switching surfaced one extra finding, `pragma`.

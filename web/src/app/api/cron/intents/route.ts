@@ -48,5 +48,10 @@ export async function GET(req: Request) {
       console.error("[cron/intents] leftovers:", swept.error);
     }
   }
-  return NextResponse.json({ rail: true, holds, swept, ms: Date.now() - started }, { headers: noStore });
+  const report = { rail: true, holds, swept, ms: Date.now() - started };
+  // One line every ten minutes, and on any run that had work: enough to see the job is alive in the
+  // runtime logs, where a quiet run otherwise leaves no trace.
+  const busy = typeof swept !== "number" || swept > 0 || "error" in holds || holds.open > 0;
+  if (busy || new Date().getUTCMinutes() % 10 === 0) console.log("[cron/intents]", JSON.stringify(report));
+  return NextResponse.json(report, { headers: noStore });
 }

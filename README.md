@@ -286,6 +286,20 @@ Everything before the tag `pre-hackathon` (9 November 2026) existed already and 
 - **NEAR:** NEAR Intents through the 1Click API (quote, deposit, status). NEAR AI Cloud: Qwen3.8-27B in a TEE, its signature endpoint and its attestation report.
 - **AI tools:** most of the code was written with Claude Code (Anthropic), directed and reviewed by the team, and Claude drafted this README. Claude Haiku 5.5 reads tickets for sellers outside the team.
 
+## What an order costs, and what comes next
+
+Measured on the team's own orders above, not projected.
+
+| For one order | Cost | Who pays it |
+|---|---|---|
+| Gas on Arbitrum One for its four transactions (create the listing, fund it, record the handover, settle) | about 0.000026 ETH | Lummy's operator |
+| The swap through NEAR Intents | 0.0054 USDC on a 1 USDC order from Base, 0.0071 USDC on a 9.50 USDC order from Ethereum | The buyer, inside the quote |
+| The ticket read in NEAR AI's TEE | about US$0.0005 | Lummy |
+
+- **How Lummy would earn.** A service fee on each order. The rupiah checkout already adds 5% for the buyer, in test mode. The USDC rail takes none yet: the escrow has no fee path, on purpose, and adding one is a contract change we would make together with an audit.
+- **Before anyone but the team pays real money.** An audit of `LummyEscrow` and `LummyIntentReceiver`. A way for sellers to be paid in USDC, since they sign in with an email and have no wallet. Live mode with the rupiah payment provider.
+- **Why NEAR stays in it.** Fans buy tickets to shows abroad with whatever they hold. NEAR Intents lets the checkout take that without Lummy running a bridge or holding an exchange account, and the TEE read costs less than the fee on the cheapest ticket.
+
 ## Not done yet
 
 - Real payments through NEAR Intents are for the team's accounts only, at most 25 USDC an order. The contracts are unaudited.
