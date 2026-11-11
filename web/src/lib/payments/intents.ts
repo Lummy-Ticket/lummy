@@ -88,6 +88,7 @@ export function intentView(row: PaymentRow, orderId: string | null): IntentView 
   return {
     payment: paymentView(row, orderId),
     deposit: {
+      assetId: d.originAsset,
       address: d.depositAddress,
       memo: d.depositMemo,
       amount: d.amountIn,
@@ -156,6 +157,9 @@ export async function startIntentCheckout(
   // One open hold per buyer: an older one, of any kind, gives its seats back first.
   const cfg = xenditConfig();
   for (const row of open.data ?? []) {
+    // Money already on its way to an older hold must find that hold open: closing it would send the
+    // buyer round to a refund, and a second payment after it.
+    if (row.channel === "INTENTS" && (await depositUnderWay(op, row))) return fail(409, UNDER_WAY);
     if (row.provider === "escrow") await closeHold(admin, row.id, "canceled");
     else if (cfg) await cancelHold(admin, cfg, row);
     else return fail(409, "masih ada pembayaran lain yang berjalan; selesaikan atau batalkan dulu");
@@ -241,6 +245,44 @@ export async function startIntentCheckout(
   }
   seatsChanged();
   return { ok: true, value: intentView(inserted.data, null) };
+}
+
+/** What a buyer is told when they try to replace or cancel a hold whose money is already travelling. */
+export const UNDER_WAY = "uangmu untuk pembayaran sebelumnya sudah dalam perjalanan; buka lagi pembayaran itu dan jangan kirim dua kali";
+
+/** 1Click has seen a deposit for this swap, in part or in full, and has not sent it back. */
+export const swapUnderWay = (status: string | null | undefined) => status === "KNOWN_DEPOSIT_TX" || status === "INCOMPLETE_DEPOSIT" || status === "PROCESSING" || status === "SUCCESS";
+
+/**
+ * Whether money is already on its way for this hold: 1Click has seen a deposit, or USDC sits at the
+ * receiver. Read fresh, since the row may not have been looked at since the buyer paid.
+ */
+export async function depositUnderWay(op: Operator, row: PaymentRow): Promise<boolean> {
+  const d = intentOf(row);
+  if (swapUnderWay(d.swapStatus)) return true;
+  const swap = await readSwapStatus(d.depositAddress, d.depositMemo).catch(() => null);
+  if (swapUnderWay(swap?.status)) return true;
+  const pc = publicClient(op.chain, op.rpcUrl);
+  const balance = await pc.readContract({ address: op.token, abi: tokenAbi, functionName: "balanceOf", args: [d.receiver as Address] }).catch(() => BigInt(0));
+  return balance > BigInt(0);
+}
+
+/** The buyer gives up a hold on this rail. Refused, with nothing changed, once money is on its way. */
+export async function cancelIntentHold(admin: Admin, op: Operator, row: PaymentRow): Promise<{ ok: true; row: PaymentRow } | { ok: false }> {
+  if (row.status !== "pending" || row.checked_at) return { ok: true, row };
+  if (await depositUnderWay(op, row)) return { ok: false };
+  await closeHold(admin, row.id, "canceled");
+  const { data } = await admin.from("payments").select("*").eq("id", row.id).single();
+  return { ok: true, row: data ?? row };
+}
+
+/** The hold this buyer still has open on this rail, for one listing or any: what the checkout shows again. */
+export async function openIntentOf(admin: Admin, buyerId: string, listingId?: string): Promise<PaymentRow | null> {
+  let q = admin.from("payments").select("*").eq("buyer_id", buyerId).eq("channel", "INTENTS").eq("status", "pending").gt("expires_at", iso(Date.now()));
+  if (listingId) q = q.eq("listing_id", listingId);
+  const { data, error } = await q.order("created_at", { ascending: false }).limit(1);
+  if (error) throw new Error(error.message);
+  return data?.[0] ?? null;
 }
 
 async function saveIntent(admin: Admin, row: PaymentRow, patch: Partial<IntentData>): Promise<PaymentRow> {
@@ -389,11 +431,47 @@ export async function advanceIntentPayment(admin: Admin, op: Operator, input: Pa
 }
 
 /**
+ * Every open hold on this rail, brought up to date without its buyer. The minute cron calls this, so an
+ * order is written even when the tab that started it was closed after paying. It is the same
+ * advanceIntentPayment the buyer's page calls, under the same lock (finish), so the two cannot both
+ * fund one order. A hold past its deadline is left to settleIntentLeftovers. Stops starting new work
+ * at `untilMs`.
+ */
+export async function advanceOpenIntents(admin: Admin, op: Operator, untilMs: number, limit = 10) {
+  const { data, error } = await admin
+    .from("payments")
+    .select("*")
+    .eq("channel", "INTENTS")
+    .in("status", ["pending", "expired"])
+    .gte("created_at", iso(Date.now() - 2 * H))
+    .order("created_at", { ascending: true })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  const report = { open: 0, paid: 0, failed: 0, left: 0 };
+  for (const row of data ?? []) {
+    if (Date.now() / 1000 >= intentOf(row).refundAfter - FUND_MARGIN_SECONDS) continue;
+    report.open++;
+    if (Date.now() >= untilMs) {
+      report.left++;
+      continue;
+    }
+    try {
+      const after = await advanceIntentPayment(admin, op, row);
+      if (after.status === "paid") report.paid++;
+    } catch (e) {
+      report.failed++;
+      console.error("[intents] cron could not bring a hold up to date:", row.id, chainError(e));
+    }
+  }
+  return report;
+}
+
+/**
  * Money waiting in a receiver with no order to go to, once the order's deadline has passed: back to the
  * refund address. Anyone could call this on chain; the daily cron does, so nobody has to. Returns how
  * many it sent.
  */
-export async function settleIntentLeftovers(admin: Admin, limit = 10) {
+export async function settleIntentLeftovers(admin: Admin, limit = 10, withinMs = 30 * 24 * H) {
   const op = intentsOperator();
   if (!op) return 0;
   const { data, error } = await admin
@@ -401,7 +479,7 @@ export async function settleIntentLeftovers(admin: Admin, limit = 10) {
     .select("*")
     .eq("channel", "INTENTS")
     .neq("status", "paid")
-    .gte("created_at", iso(Date.now() - 30 * 24 * H))
+    .gte("created_at", iso(Date.now() - withinMs))
     .order("created_at", { ascending: false })
     .limit(100);
   if (error) throw new Error(error.message);

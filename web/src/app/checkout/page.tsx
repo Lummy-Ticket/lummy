@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CONTACT_EMAIL } from "@/components/legal/LegalPage";
@@ -20,7 +20,7 @@ import { useCatalogue } from "@/lib/catalogue";
 import { chainCheckoutReady, demoPrefs, openChainOrder, useChainInfo } from "@/lib/chain/client";
 import { DEPLOYMENTS } from "@/lib/chain/deployments";
 import { OrderError, placeOrder } from "@/lib/orders/client";
-import { startPayment, useNearOptions, usePaymentsConfig, type PaymentView } from "@/lib/payments/client";
+import { openIntentPayment, startPayment, useNearOptions, usePaymentsConfig, type PaymentView } from "@/lib/payments/client";
 import { QrisPanel, SampleQrisPanel } from "@/components/checkout/QrisPanel";
 import dynamic from "next/dynamic";
 import { USDC_FAUCET } from "@/lib/chain/format";
@@ -86,6 +86,20 @@ function CheckoutInner() {
   const near = useNearOptions(usdc && account);
   const [intentsOpen, setIntentsOpen] = useState(false);
   const canPayIntents = usdc && account && !!near?.team && near.rail;
+  // A payment left open on that rail (the tab was closed after paying, say) is shown again by itself.
+  const openFor = canPayIntents ? listing?.id : undefined;
+  useEffect(() => {
+    if (!openFor) return;
+    let live = true;
+    void openIntentPayment(openFor)
+      .then((r) => {
+        if (live && r.open) setIntentsOpen(true);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [openFor]);
 
   const [processing, setProcessing] = useState(false);
   // Where the gate matches ID to the name, the buyer says they know before paying.

@@ -14,8 +14,8 @@
 // would load the database, so only a call carrying CRON_SECRET (Vercel sends it as a bearer token
 // on every cron run) gets in, and a server without the secret answers 503 instead of running for
 // anyone, as it did until 2 Nov 2026 (production audit, M6). Counts only in the answer.
-import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
+import { fromCron } from "@/lib/cron-auth";
 import { syncLedgerDue } from "@/lib/orders/ledger";
 import { settleDue } from "@/lib/orders/settle";
 import { expireHolds, recheckClosedHolds, type RecheckReport } from "@/lib/payments/checkout";
@@ -31,13 +31,6 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const noStore = { "Cache-Control": "no-store" };
-
-/** Only Vercel Cron, which sends `Bearer CRON_SECRET`, gets in. */
-function fromCron(req: Request, secret: string) {
-  const sent = Buffer.from(req.headers.get("authorization") ?? "");
-  const expected = Buffer.from(`Bearer ${secret}`);
-  return sent.length === expected.length && timingSafeEqual(sent, expected);
-}
 
 /**
  * New work starts only this long into the run, out of the function's sixty seconds: the rest covers

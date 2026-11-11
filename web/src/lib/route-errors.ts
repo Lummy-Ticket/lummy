@@ -8,6 +8,7 @@
 // browser imports it too.
 
 const EXACT: Record<string, string> = {
+  "uangmu untuk pembayaran sebelumnya sudah dalam perjalanan; buka lagi pembayaran itu dan jangan kirim dua kali": "the money for your earlier payment is already on its way; open that payment again and do not send it twice",
   "jumlah tidak valid": "the amount is not valid",
   "aset ini tidak ditawarkan": "this asset is not offered",
   "quote gagal dibaca": "the quote could not be read",

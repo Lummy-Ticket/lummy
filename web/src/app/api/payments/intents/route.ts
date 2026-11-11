@@ -5,7 +5,7 @@ import { isAddress } from "viem";
 import { NextResponse, type NextRequest } from "next/server";
 import { chainError } from "@/lib/chain/server";
 import { nearTeam } from "@/lib/near/team";
-import { intentsOperator, startIntentCheckout } from "@/lib/payments/intents";
+import { intentsOperator, intentView, openIntentOf, startIntentCheckout } from "@/lib/payments/intents";
 import { errorBody } from "@/lib/route-errors";
 import { postedFromThisSite, publicOrigin } from "@/lib/public-origin";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -17,6 +17,27 @@ export const maxDuration = 30;
 
 const noStore = { "Cache-Control": "private, no-store" };
 const fail = (status: number, error: string) => NextResponse.json(errorBody(error), { status, headers: noStore });
+
+/**
+ * The hold this buyer still has open on this rail, for one listing (?listing=...) or any. The checkout
+ * shows it again instead of starting another, so a tab closed after paying is not a second payment.
+ */
+export async function GET(req: NextRequest) {
+  const none = () => NextResponse.json({ open: null }, { headers: noStore });
+  const admin = supabaseAdmin();
+  if (!admin || !intentsOperator()) return none();
+  const user = await currentUser();
+  if (!user) return none();
+  const listing = req.nextUrl.searchParams.get("listing") ?? "";
+  if (listing && !/^[\w-]{1,64}$/.test(listing)) return fail(400, "listing tidak dikenal");
+  try {
+    const row = await openIntentOf(admin, user.id, listing || undefined);
+    return NextResponse.json({ open: row ? intentView(row, null) : null }, { headers: noStore });
+  } catch (e) {
+    console.error("[intents] open:", (e as Error).message);
+    return fail(500, "status pembayaran gagal dibaca");
+  }
+}
 
 export async function POST(req: NextRequest) {
   if (!postedFromThisSite(req.headers, publicOrigin(req))) return fail(403, "permintaan ini harus dari halaman Lummy");

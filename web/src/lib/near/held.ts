@@ -32,8 +32,10 @@ export function gasReserve(chainId: number, gasPrice: bigint, token: boolean): b
  */
 export function judge(p: { balance: bigint; needs: bigint | null; token: boolean; coin: bigint; reserve: bigint }): { enough: boolean; gas: boolean } {
   if (p.needs === null || p.balance <= BigInt(0)) return { enough: false, gas: true };
-  if (p.token) return { enough: p.balance >= p.needs, gas: p.coin >= p.reserve };
-  return { enough: p.balance >= p.needs + p.reserve, gas: true };
+  // The quote a payment is started on can come a little above the one read here: one part in 500 of room.
+  const needs = p.needs + p.needs / BigInt(500);
+  if (p.token) return { enough: p.balance >= needs, gas: p.coin >= p.reserve };
+  return { enough: p.balance >= needs + p.reserve, gas: true };
 }
 
 const STABLE = new Set(["USDC", "USDT"]);

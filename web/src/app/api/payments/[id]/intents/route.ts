@@ -26,7 +26,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!user) return fail(401, "masuk dulu");
   if (!PAYMENT_ID.test(id)) return fail(404, "pembayaran tidak ditemukan");
   const { data: row, error } = await admin.from("payments").select("*").eq("id", id).maybeSingle();
-  if (error) return fail(500, error.message);
+  if (error) {
+    console.error("[intents] read:", id, error.message);
+    return fail(500, "status pembayaran gagal dibaca");
+  }
   if (!row || row.channel !== "INTENTS" || (row.buyer_id !== user.id && !user.staff)) return fail(404, "pembayaran tidak ditemukan");
   try {
     const latest = await advanceIntentPayment(admin, op, row);

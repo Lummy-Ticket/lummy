@@ -15,6 +15,8 @@
 import { decodeFunctionData, erc20Abi } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { POST as ticketCheck } from "../src/app/api/near/ticket-check/route";
+import { GET as cronIntents } from "../src/app/api/cron/intents/route";
+import { swapUnderWay } from "../src/lib/payments/intents";
 import { RECORDINGS, replayRecording } from "../src/lib/near/recorded";
 import { nearTeam } from "../src/lib/near/team";
 import { allowed } from "../src/lib/near/throttle";
@@ -259,7 +261,11 @@ async function main() {
     check("held: a token with none of the chain's own coin is enough, but cannot be sent", dry.enough && !dry.gas);
     check(
       "held: the chain's own coin must cover the gas as well as the price",
-      !judge({ balance: BigInt(1000), needs: BigInt(1000), token: false, coin: BigInt(1000), reserve: BigInt(1) }).enough && judge({ balance: BigInt(1001), needs: BigInt(1000), token: false, coin: BigInt(1001), reserve: BigInt(1) }).enough
+      !judge({ balance: BigInt(1002), needs: BigInt(1000), token: false, coin: BigInt(1002), reserve: BigInt(1) }).enough && judge({ balance: BigInt(1003), needs: BigInt(1000), token: false, coin: BigInt(1003), reserve: BigInt(1) }).enough
+    );
+    check(
+      "held: a balance right at the quote is not called enough, since the quote a payment starts on can come a little higher",
+      !judge({ balance: U(9.6), needs: U(9.6), token: true, coin: gwei, reserve: BigInt(0) }).enough && judge({ balance: U(9.6) + U(9.6) / BigInt(500), needs: U(9.6), token: true, coin: gwei, reserve: BigInt(0) }).enough
     );
     check("held: no quote, no verdict", !judge({ balance: U(50), needs: null, token: true, coin: gwei, reserve: BigInt(0) }).enough);
     check("held: a rollup keeps three times more aside than its gas price shows", gasReserve(8453, gwei, true) === gasReserve(1, gwei, true) * BigInt(3));
@@ -317,6 +323,26 @@ async function main() {
     check("gpu: a token signed by a key NVIDIA does not publish is not confirmed", unknown?.signed === false && !gpuConfirmed(unknown));
     check("gpu: anything that is not NVIDIA's reply reads as nothing, and does not throw", (await readVerdict({ error: "x" }, NONCE, keys, now)) === null && (await readVerdict([["JWT", "nope"]], NONCE, keys, now)) === null);
     check("gpu: no verdict is never shown as confirmed", !gpuConfirmed(null) && !gpuConfirmed(undefined));
+  }
+
+  // --- An order is finished by the server, not by the buyer's tab (api/cron/intents, 11 Nov 2026)
+  {
+    const had = process.env.CRON_SECRET;
+    const ask = (auth?: string) => cronIntents(new Request("https://lummy.id/api/cron/intents", auth ? { headers: { authorization: auth } } : undefined));
+    try {
+      delete process.env.CRON_SECRET;
+      check("cron: a server with no secret runs for nobody", (await ask("Bearer anything")).status === 503);
+      process.env.CRON_SECRET = "a-secret-made-up-for-this-check";
+      check("cron: without the secret, refused", (await ask()).status === 401 && (await ask("Bearer something-else-of-this-length")).status === 401);
+      check("cron: with it, it runs, and says so when this server has no payments to finish", (await ask("Bearer a-secret-made-up-for-this-check")).status === 200);
+    } finally {
+      if (had === undefined) delete process.env.CRON_SECRET;
+      else process.env.CRON_SECRET = had;
+    }
+    check(
+      "under way: once 1Click has seen a deposit, in part or whole, the hold is not replaced or cancelled",
+      ["KNOWN_DEPOSIT_TX", "INCOMPLETE_DEPOSIT", "PROCESSING", "SUCCESS"].every((s) => swapUnderWay(s)) && ["PENDING_DEPOSIT", "REFUNDED", "FAILED", null, undefined].every((s) => !swapUnderWay(s))
+    );
   }
 
   // --- Who may pay for real

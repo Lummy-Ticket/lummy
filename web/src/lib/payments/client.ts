@@ -78,5 +78,8 @@ export const nearHeld = (address: string, amount: string) => call<{ held: HeldAs
 export const startIntentPayment = (p: { listingId: string; quantity: number; originAsset: string; refundTo: string; originRefund: string }) =>
   call<IntentView>("/api/payments/intents", post(p));
 
+/** The payment this buyer left open on this rail for one listing, if any: the checkout shows it again. */
+export const openIntentPayment = (listingId: string) => call<{ open: IntentView | null }>(`/api/payments/intents?listing=${encodeURIComponent(listingId)}`);
+
 /** Read a payment on this rail, which also moves it along once the money has arrived. */
 export const readIntentPayment = (id: string) => call<IntentView>(`/api/payments/${encodeURIComponent(id)}/intents`);

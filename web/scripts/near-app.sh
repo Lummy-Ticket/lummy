@@ -61,16 +61,18 @@ ESCROW=$(node -e "console.log(require('$CONTRACTS/deployments/fork-42161.json').
 FACTORY=$(node -e "console.log(require('$CONTRACTS/deployments/intents-fork-42161.json').factory)")
 echo "Fork of Arbitrum One: escrow $ESCROW, factory $FACTORY"
 
-# The server on the fork's contracts, with emails written to a folder instead of sent.
+# The server on the fork's contracts, with emails written to a folder instead of sent, and a cron secret
+# of its own for this run, so the check can stand in for Vercel Cron.
+CRON=$(newkey)
 LUMMY_INTENTS_RPC_URL=$RPC LUMMY_INTENTS_ESCROW=$ESCROW LUMMY_INTENTS_FACTORY=$FACTORY \
 LUMMY_INTENTS_OPERATOR_KEY=$OPERATOR_KEY LUMMY_INTENTS_SELLER=$SELLER \
-EMAIL_TRANSPORT=file EMAIL_DIR=$EMAIL_DIR \
+EMAIL_TRANSPORT=file EMAIL_DIR=$EMAIL_DIR CRON_SECRET=$CRON \
   bash scripts/start-local.sh --port "$PORT"
 for _ in $(seq 1 120); do
   curl -s -m 3 -o /dev/null "http://127.0.0.1:$PORT/" && break
   sleep 1
 done
 
-FORK_RPC=$RPC FORK_USDC=$USDC FORK_ESCROW=$ESCROW FORK_FACTORY=$FACTORY FORK_MINTER_KEY=$MINTER_KEY EMAIL_DIR=$EMAIL_DIR \
+FORK_RPC=$RPC FORK_USDC=$USDC FORK_ESCROW=$ESCROW FORK_FACTORY=$FACTORY FORK_MINTER_KEY=$MINTER_KEY EMAIL_DIR=$EMAIL_DIR CRON_SECRET=$CRON \
 BASE=http://127.0.0.1:$PORT \
   npx tsx scripts/near-app-check.ts

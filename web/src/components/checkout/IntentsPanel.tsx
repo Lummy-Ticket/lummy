@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/select-menu";
 import { explorerAddress, shortAddress } from "@/lib/chain/format";
 import { useFormatters, useT } from "@/lib/i18n";
-import { nearQuote, paymentAction, readIntentPayment, startIntentPayment, type IntentView, type NearOptions, type NearQuote } from "@/lib/payments/client";
+import { nearQuote, openIntentPayment, paymentAction, readIntentPayment, startIntentPayment, type IntentView, type NearOptions, type NearQuote } from "@/lib/payments/client";
 
 const POLL_MS = 4000;
 const ARBITRUM_ONE = 42161;
@@ -86,6 +86,25 @@ export function IntentsPanel({
     };
   }, [assetId, total, view]);
 
+  // A payment left open comes back: a tab closed after paying must not become a second payment. The
+  // server finishes the order either way (api/cron/intents); this only shows where it stands.
+  const [resumed, setResumed] = useState(false);
+  useEffect(() => {
+    let live = true;
+    void openIntentPayment(listingId)
+      .then((r) => {
+        if (!live || !r.open) return;
+        const found = r.open;
+        setAssetId(found.deposit.assetId);
+        setView((now) => now ?? found);
+        setResumed(true);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [listingId]);
+
   const paymentId = view?.payment.id;
   const open = view?.payment.status === "pending";
   useEffect(() => {
@@ -124,7 +143,7 @@ export function IntentsPanel({
   // Paying through the wallet: the address and its QR step aside, so the same deposit is not sent twice.
   const [viaWallet, setViaWallet] = useState(false);
   const wallet = injectedWallet();
-  const payable = !!view && !!asset?.chainId && asset.symbol === view.deposit.symbol;
+  const payable = !!view && !!asset?.chainId && asset.assetId === view.deposit.assetId;
   const payDeposit = async (v: IntentView) => {
     if (!wallet || !asset?.chainId) return;
     setViaWallet(true);
@@ -149,7 +168,7 @@ export function IntentsPanel({
     try {
       const v = await startIntentPayment({ listingId, quantity, originAsset: assetId, refundTo, originRefund: sameWallet ? refundTo : originRefund.trim() });
       setView(v);
-      if (pay && asset?.symbol === v.deposit.symbol) void payDeposit(v);
+      if (pay && asset?.assetId === v.deposit.assetId) void payDeposit(v);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -314,8 +333,8 @@ export function IntentsPanel({
               <p data-intents-sent className="text-sm font-semibold text-secondary-green-dark">{t("Sent from your wallet", "Terkirim dari wallet-mu")}</p>
               <p className="text-xs text-neutral-gray">
                 {t(
-                  "Do not send it again. NEAR Intents usually sees it within a minute. Keep this window open until the money is locked.",
-                  "Jangan kirim lagi. NEAR Intents biasanya melihatnya dalam semenit. Biarkan jendela ini terbuka sampai uangnya terkunci."
+                  "Do not send it again. NEAR Intents usually sees it within a minute. You can close this page: the order is finished without it, and an email tells you when the money is locked.",
+                  "Jangan kirim lagi. NEAR Intents biasanya melihatnya dalam semenit. Halaman ini boleh ditutup: pesanannya tetap diselesaikan, dan email mengabarimu saat uangnya terkunci."
                 )}
               </p>
               {asset?.chainId && depositTxUrl(asset.chainId, sent.hash) && (
@@ -350,6 +369,14 @@ export function IntentsPanel({
       )}
       {!closed && stage === 0 && !viaWallet && (
         <>
+          {resumed && (
+            <p data-intents-resumed className="rounded-2xl bg-secondary-orange-soft p-3 text-xs text-secondary-orange-dark">
+              {t(
+                "You started this payment earlier. If you have already sent it, do not send it again: it shows up here within a minute or two, and the order is finished even if you close this page.",
+                "Kamu memulai pembayaran ini tadi. Kalau sudah kamu kirim, jangan kirim lagi: statusnya muncul di sini dalam satu dua menit, dan pesanannya tetap diselesaikan walau halaman ini ditutup."
+              )}
+            </p>
+          )}
           <div className="flex justify-center">
             <QRCodeSVG value={view.deposit.address} size={176} marginSize={1} level="M" aria-label={t("Address to pay", "Alamat pembayaran")} />
           </div>

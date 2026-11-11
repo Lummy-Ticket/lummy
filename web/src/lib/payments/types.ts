@@ -44,7 +44,7 @@ export type UsdcStart = {
 export type IntentView = {
   payment: PaymentView;
   /** What to send, and where. */
-  deposit: { address: string; memo: string | null; amount: string; usd: string | null; symbol: string; chainLabel: string; etaSeconds: number | null };
+  deposit: { assetId: string; address: string; memo: string | null; amount: string; usd: string | null; symbol: string; chainLabel: string; etaSeconds: number | null };
   swapStatus: "PENDING_DEPOSIT" | "KNOWN_DEPOSIT_TX" | "INCOMPLETE_DEPOSIT" | "PROCESSING" | "SUCCESS" | "REFUNDED" | "FAILED";
   /** The contract this order's money lands on, on Arbitrum One. */
   receiver: string;

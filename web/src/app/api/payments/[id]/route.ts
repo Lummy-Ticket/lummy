@@ -4,6 +4,7 @@
 // (tasks/founder-house-usdc.md) is paid by its wallet's signatures (POST .../usdc), never by Xendit.
 import { NextResponse } from "next/server";
 import { cancelHold, orderIdOf, PAYMENT_ID, paymentView, syncPayment, type PaymentRow } from "@/lib/payments/checkout";
+import { cancelIntentHold, intentsOperator, UNDER_WAY } from "@/lib/payments/intents";
 import { cancelUsdcHold } from "@/lib/payments/usdc";
 import { simulateQris, xenditConfig, XenditError } from "@/lib/payments/xendit";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -62,6 +63,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   try {
     if (row.provider === "escrow") {
+      // On the NEAR Intents rail the buyer sends the money themselves, so a hold may be paid and still
+      // read "pending" here: it is cancelled only when nothing is on its way.
+      const op = row.channel === "INTENTS" && body?.action === "cancel" ? intentsOperator() : null;
+      if (op) {
+        const gone = await cancelIntentHold(admin, op, row);
+        return gone.ok ? await answer(admin, gone.row) : fail(409, UNDER_WAY);
+      }
       if (body?.action === "cancel") return await answer(admin, await cancelUsdcHold(admin, row));
       return fail(400, "aksi tidak dikenal");
     }

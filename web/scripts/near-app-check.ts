@@ -11,9 +11,11 @@
  *      page asks, with the extra sent straight back.
  *   4. A claim upheld in full: the refund goes through the receiver to the refund address.
  *   5. The emails say what this money is.
+ *   6. A payment left open is shown again, cannot be replaced or cancelled once money is on its way,
+ *      and is finished by the minute cron alone, with the buyer's page never asking.
  *
- * It writes to the database the server uses: five accounts, a show abroad with two listings, the
- * payments, the order and its claim. Everything it made is deleted at the end.
+ * It writes to the database the server uses: four accounts, a show abroad with three listings, the
+ * payments, two orders and one claim. Everything it made is deleted at the end.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -42,6 +44,7 @@ const ESCROW = need("FORK_ESCROW") as Address;
 const FACTORY = need("FORK_FACTORY") as Address;
 const MINTER_KEY = need("FORK_MINTER_KEY") as Hex;
 const DIR = need("EMAIL_DIR");
+const CRON = need("CRON_SECRET");
 const RUN = Date.now().toString(36);
 const EMAIL = (who: string) => `near-check-${RUN}-${who}@example.com`;
 const [BUYER, MEMBER, STAFF, SELLER] = ["buyer", "member", "staff", "seller"].map(EMAIL);
@@ -49,6 +52,7 @@ const EVENT = "ev-zz-near";
 const TIER = "t-zz-near";
 const L1 = "ls-zz-near-1";
 const L2 = "ls-zz-near-2";
+const L3 = "ls-zz-near-3";
 const PRICE = 9_500_000;
 const EXTRA = 370_000;
 const BASE_USDC_ASSET = "nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near";
@@ -120,13 +124,13 @@ async function main() {
   const cleanup = () =>
     (cleaning ??= (async () => {
       if (userIds.length) await admin.from("profiles").update({ role: "member" }).in("id", userIds);
-      const orders = (await admin.from("orders").select("id").in("listing_id", [L1, L2])).data?.map((o) => o.id) ?? [];
+      const orders = (await admin.from("orders").select("id").in("listing_id", [L1, L2, L3])).data?.map((o) => o.id) ?? [];
       if (orders.length) {
         await admin.from("disputes").delete().in("order_id", orders);
         await admin.from("orders").delete().in("id", orders);
       }
       if (userIds.length) await admin.from("payments").delete().in("buyer_id", userIds);
-      await admin.from("listings").delete().in("id", [L1, L2]);
+      await admin.from("listings").delete().in("id", [L1, L2, L3]);
       await admin.from("tiers").delete().eq("id", TIER);
       const gone = await admin.from("events").delete().eq("id", EVENT);
       const users = await Promise.all(userIds.map((id) => admin.auth.admin.deleteUser(id)));
@@ -152,7 +156,7 @@ async function main() {
       await admin.from("events").insert({ id: EVENT, title: "Uji NEAR", category: "Technology", starts_at: iso(Date.now() + 10 * 86_400_000), venue: "Queen Sirikit National Convention Center", city: "Bangkok", transfer_policy: "open", country: "TH", currency: "USDC" }),
       await admin.from("tiers").insert({ id: TIER, event_id: EVENT, name: "Early Bird", face_value: 19_000_000 }),
       await admin.from("listings").insert(
-        [L1, L2].map((id) => ({ id, event_id: EVENT, tier_id: TIER, seller_id: seller, seller_name: "Near S.", ask_price: PRICE, face_value: 19_000_000, quantity: 1, splittable: false, status: "active" as const, ticket_path: `near-check/${id}.pdf`, created_at: iso(Date.now() - 2 * 86_400_000) }))
+        [L1, L2, L3].map((id) => ({ id, event_id: EVENT, tier_id: TIER, seller_id: seller, seller_name: "Near S.", ask_price: PRICE, face_value: 19_000_000, quantity: 1, splittable: false, status: "active" as const, ticket_path: `near-check/${id}.pdf`, created_at: iso(Date.now() - 2 * 86_400_000) }))
       ),
     ];
     const setupError = setup.find((r) => r.error)?.error;
@@ -240,15 +244,51 @@ async function main() {
     check("the buyer's email says this is real USDC for the team's demo, not test money", !!paidMail && paidMail.text.includes("real USDC on Arbitrum One") && !paidMail.text.includes("Testnet demo"), paidMail?.text.slice(0, 400));
     check("the seller hears it sold", mail.some((m) => m.kind === "order-sold" && m.to === SELLER));
 
+    // --- 6. The buyer's tab is gone: the server finishes the order (api/cron/intents)
+    type Open = { payment?: { id?: string }; deposit?: { assetId?: string } } | null;
+    const second = await api(buyerCtx, "POST", "/api/payments/intents", pay(L2));
+    const id2 = String((second.body.payment as { id?: string } | undefined)?.id ?? "");
+    const receiver2 = String(second.body.receiver ?? "") as Address;
+    check("a second order's hold", second.status === 200 && !!id2 && receiver2.startsWith("0x"), JSON.stringify(second).slice(0, 240));
+    const left = (await api(buyerCtx, "GET", `/api/payments/intents?listing=${L2}`)).body.open as Open;
+    check("the checkout is told of the payment left open, and the asset it was started on", left?.payment?.id === id2 && left.deposit?.assetId === BASE_USDC_ASSET, JSON.stringify(left).slice(0, 200));
+    const others = await api(memberCtx, "GET", `/api/payments/intents?listing=${L2}`);
+    check("and nobody else is told of it", others.status === 200 && others.body.open === null, JSON.stringify(others).slice(0, 200));
+    await deliver(receiver2, PRICE - 1);
+    const twice = await api(buyerCtx, "POST", "/api/payments/intents", pay(L3));
+    const l3 = (await admin.from("listings").select("quantity, status").eq("id", L3).single()).data;
+    check("with money on its way, starting another payment is refused and takes no seat", twice.status === 409 && String(twice.body.error_en).includes("already on its way") && l3?.status === "active", JSON.stringify({ twice, l3 }).slice(0, 300));
+    const noCancel = await api(buyerCtx, "POST", `/api/payments/${id2}`, { action: "cancel" });
+    const stillHeld = (await admin.from("payments").select("status").eq("id", id2).single()).data;
+    check("and the hold cannot be cancelled", noCancel.status === 409 && stillHeld?.status === "pending", JSON.stringify({ noCancel, stillHeld }).slice(0, 300));
+    const stranger = await fetch(`${BASE}/api/cron/intents`);
+    check("the cron route answers only a call that carries the secret", stranger.status === 401, String(stranger.status));
+    await deliver(receiver2, 1);
+    // From here nobody reads the payment: only the cron runs.
+    let said: unknown = null;
+    let row2: { status: string } | null = null;
+    for (let i = 0; i < 20; i++) {
+      said = await (await fetch(`${BASE}/api/cron/intents`, { headers: { authorization: `Bearer ${CRON}` } })).json().catch(() => null);
+      row2 = (await admin.from("payments").select("status").eq("id", id2).single()).data;
+      if (row2?.status === "paid") break;
+      await sleep(3000);
+    }
+    const orders2 = (await admin.from("orders").select("id, escrow_status, buyer_wallet").eq("listing_id", L2)).data ?? [];
+    check("the rest arrives and the cron alone writes the order: the buyer's page never asked", row2?.status === "paid" && orders2.length === 1 && orders2[0].buyer_wallet === REFUND_TO, JSON.stringify({ row2, said, orders2 }).slice(0, 320));
+    const onceMore = (await (await fetch(`${BASE}/api/cron/intents`, { headers: { authorization: `Bearer ${CRON}` } })).json().catch(() => null)) as { holds?: { open?: number } } | null;
+    check("the next run finds nothing left to do, and writes no second order", onceMore?.holds?.open === 0 && ((await admin.from("orders").select("id").eq("listing_id", L2)).data ?? []).length === 1, JSON.stringify(onceMore));
+    await sleep(2500);
+    check("the buyer is told by email, having never looked", inbox().filter((m) => m.kind === "order-paid" && m.to === BUYER).length === 2);
+
     await Promise.all([buyerCtx, memberCtx, staffCtx].map((c) => c.close()));
   } catch (e) {
     check("check ran to the end", false, (e as Error).message.split("\n")[0].slice(0, 240));
   } finally {
     const error = await cleanup();
     const left = await Promise.all([
-      admin.from("listings").select("id").in("id", [L1, L2]),
+      admin.from("listings").select("id").in("id", [L1, L2, L3]),
       admin.from("events").select("id").eq("id", EVENT),
-      admin.from("orders").select("id").in("listing_id", [L1, L2]),
+      admin.from("orders").select("id").in("listing_id", [L1, L2, L3]),
       userIds.length ? admin.from("payments").select("id").in("buyer_id", userIds) : Promise.resolve({ data: [] }),
     ]);
     check("cleanup: the show, its listings, payments, order and accounts are gone", !error && left.every((r) => !r.data?.length), error ?? JSON.stringify(left.map((r) => r.data?.length)));
