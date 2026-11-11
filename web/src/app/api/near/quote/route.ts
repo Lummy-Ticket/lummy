@@ -4,7 +4,7 @@
 import { NextResponse } from "next/server";
 import { INTENTS } from "@/lib/chain/deployments";
 import { ARBITRUM_ONE } from "@/lib/chain/server";
-import { OneClickError, payOptions, requestQuote } from "@/lib/near/oneclick";
+import { DRY_RECIPIENT, OneClickError, payOptions, requestQuote } from "@/lib/near/oneclick";
 import { errorBody } from "@/lib/route-errors";
 import { allowed } from "@/lib/near/throttle";
 
@@ -16,8 +16,6 @@ const noStore = { "Cache-Control": "private, no-store" };
 const fail = (status: number, error: string) => NextResponse.json(errorBody(error), { status, headers: noStore });
 /** Up to 1,000 USDC, in micro-USDC. */
 const MAX_AMOUNT = BigInt(1_000_000_000);
-/** Where a dry quote says the money would arrive, before there is an order: any address will do. */
-const SOME_ADDRESS = "0x4d914aa93FdAd1DF38190413980EB49dc7557958";
 
 export async function POST(req: Request) {
   if (!allowed(req, "quote", 30, 60_000)) return fail(429, "terlalu banyak permintaan; coba lagi sebentar lagi");
@@ -33,7 +31,7 @@ export async function POST(req: Request) {
       originAsset,
       chain: option.chain,
       amountOut: amount,
-      recipient: INTENTS[ARBITRUM_ONE]?.escrow ?? SOME_ADDRESS,
+      recipient: INTENTS[ARBITRUM_ONE]?.escrow ?? DRY_RECIPIENT,
       deadline: new Date(Date.now() + 30 * 60_000).toISOString(),
     });
     return NextResponse.json(

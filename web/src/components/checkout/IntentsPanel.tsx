@@ -4,10 +4,14 @@
 // buyer picks what to pay with and sees a live quote. Then they name where a refund should go, and get
 // an address and an amount to send, like a QRIS code for crypto. The server moves the money into the
 // escrow when it has arrived. Real USDC on Arbitrum One, so only the team reaches this panel for now.
+// A browser wallet can be read first (HeldAssets): what covers the order is picked, the refund address
+// is filled in from it, and paying is one confirmation there instead of an address copied by hand.
 import { useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { injectedWallet, walletRefused } from "@/lib/chain/wallet";
+import type { HeldAsset } from "@/lib/near/held";
 import { depositTxUrl, sendDeposit } from "@/lib/near/send";
+import { HeldAssets } from "@/components/checkout/HeldAssets";
 import { Check, ExternalLink, Loader2, Shuffle } from "lucide-react";
 import { isAddress } from "viem";
 import { Button } from "@/components/ui/button";
@@ -52,6 +56,9 @@ export function IntentsPanel({
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const [refundTo, setRefundTo] = useState("");
   const [originRefund, setOriginRefund] = useState("");
+  // The connected wallet and what it holds, once HeldAssets has read it.
+  const [account, setAccount] = useState<string | null>(null);
+  const [held, setHeld] = useState<HeldAsset[] | null>(null);
   const [view, setView] = useState<IntentView | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,18 +114,6 @@ export function IntentsPanel({
   const refundOk = isAddress(refundTo);
   const originOk = sameWallet ? refundOk : originRefund.trim().length >= 20;
 
-  const start = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      setView(await startIntentPayment({ listingId, quantity, originAsset: assetId, refundTo, originRefund: sameWallet ? refundTo : originRefund.trim() }));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const cancel = async () => {
     if (view && view.payment.status === "pending") await paymentAction(view.payment.id, "cancel").catch(() => null);
     onClose();
@@ -128,15 +123,34 @@ export function IntentsPanel({
   const [sent, setSent] = useState<{ busy: boolean; hash?: string; error?: string }>({ busy: false });
   const wallet = injectedWallet();
   const payable = !!view && !!asset?.chainId && asset.symbol === view.deposit.symbol;
-  const payFromWallet = async () => {
-    if (!wallet || !view || !asset?.chainId) return;
+  const payDeposit = async (v: IntentView) => {
+    if (!wallet || !asset?.chainId) return;
     setSent({ busy: true });
     try {
-      const hash = await sendDeposit(wallet, { chainId: asset.chainId, to: view.deposit.address, amount: view.deposit.amount, decimals: asset.decimals, token: asset.contract });
+      const hash = await sendDeposit(wallet, { chainId: asset.chainId, to: v.deposit.address, amount: v.deposit.amount, decimals: asset.decimals, token: asset.contract });
       setSent({ busy: false, hash });
     } catch (e) {
       const said = walletRefused(e) ? t("You cancelled it in your wallet.", "Kamu membatalkannya di wallet.") : e instanceof Error ? e.message.split("\n")[0] : String(e);
       setSent({ busy: false, error: said });
+    }
+  };
+
+  // With a connected wallet that holds enough of the chosen asset, one press holds the seats and asks
+  // the wallet to send the deposit: the buyer confirms once there.
+  const mine = held?.find((h) => h.assetId === assetId);
+  const direct = !!wallet && !!account && !!asset?.chainId && !!mine?.enough && mine.gas;
+
+  const start = async (pay: boolean) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const v = await startIntentPayment({ listingId, quantity, originAsset: assetId, refundTo, originRefund: sameWallet ? refundTo : originRefund.trim() });
+      setView(v);
+      if (pay && asset?.symbol === v.deposit.symbol) void payDeposit(v);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -156,6 +170,17 @@ export function IntentsPanel({
             "NEAR Intents mengubah aset yang kamu punya menjadi USDC yang dibutuhkan pesanan ini, dan uangnya masuk ke escrow, bukan ke penjual."
           )}
         </p>
+        <HeldAssets
+          assets={options.assets}
+          amount={String(total)}
+          selected={assetId}
+          onPick={setAssetId}
+          onRead={(who, found) => {
+            setAccount(who);
+            setHeld(found);
+            setRefundTo((now) => now || who);
+          }}
+        />
         <label className="flex flex-col gap-1.5 text-xs text-neutral-gray">
           {t("Pay with", "Bayar dengan")}
           <NativeSelect data-intents-asset value={assetId} onChange={(e) => setAssetId(e.target.value)}>
@@ -202,6 +227,9 @@ export function IntentsPanel({
             placeholder="0x..."
             className="w-full rounded-xl border border-neutral-light-gray-1 px-3 py-2 font-mono text-sm text-neutral-black"
           />
+          {account && refundTo.toLowerCase() === account.toLowerCase() && (
+            <span data-intents-refund-mine className="text-secondary-green-dark">{t("Filled in from your connected wallet.", "Diisi dari wallet yang terhubung.")}</span>
+          )}
           <span>
             {t(
               "Locked on chain before you pay: if a claim is upheld, the refund can only go here, as USDC on Arbitrum One.",
@@ -233,10 +261,18 @@ export function IntentsPanel({
         {error && <p data-intents-error className="rounded-2xl bg-secondary-pink-soft p-3 text-sm text-secondary-pink-dark">{error}</p>}
 
         <div className="flex w-full flex-col gap-2">
-          <Button.Primary data-intents-start wrapperClass="w-full" className="w-full" disabled={busy || !quote || !refundOk || !originOk} onClick={() => void start()}>
+          <Button.Primary data-intents-start wrapperClass="w-full" className="w-full" disabled={busy || !quote || !refundOk || !originOk} data-intents-direct={direct} onClick={() => void start(direct)}>
             {busy && <Loader2 className="w-4 h-4 animate-spin" />}
-            {t("Get the address to pay", "Ambil alamat pembayaran")}
+            {direct && asset ? t(`Pay from my wallet: ${asset.symbol} on ${asset.chainLabel}`, `Bayar dari wallet-ku: ${asset.symbol} di ${asset.chainLabel}`) : t("Get the address to pay", "Ambil alamat pembayaran")}
           </Button.Primary>
+          {direct && (
+            <>
+              <p className="text-[11px] text-center text-neutral-gray">{t("You confirm once in your wallet. Nothing is copied by hand.", "Kamu konfirmasi sekali di wallet. Tidak ada yang disalin manual.")}</p>
+              <button type="button" data-intents-manual disabled={busy || !quote || !refundOk || !originOk} onClick={() => void start(false)} className="text-sm text-primary-navy font-medium hover:opacity-80 cursor-pointer disabled:opacity-50">
+                {t("Pay by address or QR instead", "Bayar lewat alamat atau QR saja")}
+              </button>
+            </>
+          )}
           <button type="button" onClick={onClose} className="text-sm text-neutral-gray hover:text-primary-navy cursor-pointer">
             {t("Close", "Tutup")}
           </button>
@@ -288,7 +324,7 @@ export function IntentsPanel({
                   )}
                 </p>
               ) : (
-                <Button.Primary data-intents-wallet wrapperClass="w-full" className="w-full" disabled={sent.busy} onClick={() => void payFromWallet()}>
+                <Button.Primary data-intents-wallet wrapperClass="w-full" className="w-full" disabled={sent.busy} onClick={() => void payDeposit(view)}>
                   {sent.busy && <Loader2 className="w-4 h-4 animate-spin" />}
                   {t(`Send ${view.deposit.amount} ${view.deposit.symbol} from my wallet`, `Kirim ${view.deposit.amount} ${view.deposit.symbol} dari wallet-ku`)}
                 </Button.Primary>

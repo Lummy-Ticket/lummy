@@ -100,6 +100,8 @@ const DRY_REFUND: Record<string, string> = {
   near: "lummy.near",
 };
 const DRY_EVM = "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045";
+/** Where a dry quote says the money would arrive when no escrow is configured: any address will do. */
+export const DRY_RECIPIENT = "0x4d914aa93FdAd1DF38190413980EB49dc7557958";
 
 /**
  * What it takes to have exactly `amountOut` micro-USDC arrive at `recipient` on Arbitrum. `refundTo`

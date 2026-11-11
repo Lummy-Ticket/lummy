@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { getJson } from "@/lib/fetch-json";
 import { OrderError } from "@/lib/orders/client";
 import type { IntentView, NearOptions, PaymentView, PaymentsConfig, UsdcStart } from "./types";
+import type { HeldAsset } from "@/lib/near/held";
 import { routeErrorText } from "@/lib/route-errors";
 
 export type { IntentView, NearOptions, PaymentStatus, PaymentView, PaymentsConfig, TypedMessage, UsdcStart } from "./types";
@@ -69,6 +70,9 @@ export type NearQuote = { symbol: string; chainLabel: string; amountIn: string; 
 
 /** A live quote, which holds nothing. `amount` in micro-USDC. */
 export const nearQuote = (originAsset: string, amount: string) => call<NearQuote>("/api/near/quote", post({ originAsset, amount }));
+
+/** What a wallet holds that could pay this much, on the EVM chains NEAR Intents takes. `amount` in micro-USDC. Moves nothing. */
+export const nearHeld = (address: string, amount: string) => call<{ held: HeldAsset[] }>("/api/near/held", post({ address, amount }));
 
 /** Hold the seats and get an address to pay, on the NEAR Intents rail. */
 export const startIntentPayment = (p: { listingId: string; quantity: number; originAsset: string; refundTo: string; originRefund: string }) =>

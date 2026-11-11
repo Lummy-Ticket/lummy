@@ -11,6 +11,7 @@ import { INTENTS } from "@/lib/chain/deployments";
 import { explorerAddress, shortAddress } from "@/lib/chain/format";
 import { useT } from "@/lib/i18n";
 import { nearQuote, useNearOptions, type NearQuote } from "@/lib/payments/client";
+import { HeldAssets } from "@/components/checkout/HeldAssets";
 
 /** The cheapest Binance Blockchain Week listing on Lummy, in micro-USDC: what the live quote is for. */
 const DEMO_PRICE = "9500000";
@@ -178,6 +179,7 @@ export default function NearPage() {
             "Quote live dari NEAR Intents untuk satu tiket seharga 9,50 USDC. Ini tidak menahan apa pun, dan gratis dicoba."
           )}
         </p>
+        {options && <HeldAssets assets={options.assets} amount={DEMO_PRICE} selected={asset} onPick={setAssetId} />}
         <label className="flex flex-col gap-1.5 text-xs text-neutral-gray">
           {t("Pay with", "Bayar dengan")}
           <NativeSelect data-near-asset value={asset} onChange={(e) => setAssetId(e.target.value)}>

@@ -20,6 +20,7 @@ import { nearTeam } from "../src/lib/near/team";
 import { allowed } from "../src/lib/near/throttle";
 import { ARBITRUM_USDC, payOptions, requestQuote } from "../src/lib/near/oneclick";
 import { depositTransfer } from "../src/lib/near/send";
+import { gasReserve, judge, orderHeld, pickHeld, shortAmount, type HeldAsset } from "../src/lib/near/held";
 import { SAMPLES } from "../src/lib/near/samples";
 import { buildPrompt, extractTicketFacts, responseSchema } from "../src/lib/tickets/ai";
 import { checkReceipt, DEFAULT_NEAR_MODEL, teeLink, verificationUrl, type TeeReceipt } from "../src/lib/tickets/near-ai";
@@ -214,6 +215,40 @@ async function main() {
     );
     const eth = depositTransfer({ chainId: 8453, to: DEPOSIT, amount: "0.004553610108364126", decimals: 18, token: null });
     check("wallet: an ETH deposit is the exact value to the deposit address, with no data", eth.to === DEPOSIT && eth.value === BigInt("4553610108364126") && !eth.data);
+  }
+
+  // --- What the buyer's wallet holds (lib/near/held.ts): which asset is offered first, after the
+  // team's run, where the buyer picked ETH while holding USDC and pasted the address by hand
+  {
+    const U = (n: number) => BigInt(Math.round(n * 1e6));
+    const gwei = BigInt(1_000_000_000);
+    check("held: a token balance that covers the quote is enough", judge({ balance: U(12.4), needs: U(9.6), token: true, coin: gwei * BigInt(1_000_000), reserve: gasReserve(8453, gwei / BigInt(100), true) }).enough);
+    check("held: one unit short is not enough", !judge({ balance: U(9.6) - BigInt(1), needs: U(9.6), token: true, coin: gwei, reserve: BigInt(0) }).enough);
+    const dry = judge({ balance: U(12.4), needs: U(9.6), token: true, coin: BigInt(0), reserve: gasReserve(1, gwei * BigInt(2), true) });
+    check("held: a token with none of the chain's own coin is enough, but cannot be sent", dry.enough && !dry.gas);
+    check(
+      "held: the chain's own coin must cover the gas as well as the price",
+      !judge({ balance: BigInt(1000), needs: BigInt(1000), token: false, coin: BigInt(1000), reserve: BigInt(1) }).enough && judge({ balance: BigInt(1001), needs: BigInt(1000), token: false, coin: BigInt(1001), reserve: BigInt(1) }).enough
+    );
+    check("held: no quote, no verdict", !judge({ balance: U(50), needs: null, token: true, coin: gwei, reserve: BigInt(0) }).enough);
+    check("held: a rollup keeps three times more aside than its gas price shows", gasReserve(8453, gwei, true) === gasReserve(1, gwei, true) * BigInt(3));
+    const opts = [
+      { assetId: "usdc-base", symbol: "USDC", chain: "base" },
+      { assetId: "usdc-eth", symbol: "USDC", chain: "eth" },
+      { assetId: "eth-base", symbol: "ETH", chain: "base" },
+      { assetId: "eth-eth", symbol: "ETH", chain: "eth" },
+    ];
+    const h = (assetId: string, enough = true, gas = true): HeldAsset => ({ assetId, balance: "1", needs: "1", enough, gas });
+    check("held: USDC on Base is offered before USDC on Ethereum", pickHeld(opts, [h("usdc-eth"), h("usdc-base")]) === "usdc-base");
+    check("held: ETH on Base before USDC on Ethereum, where fees are highest", pickHeld(opts, [h("usdc-eth"), h("eth-base")]) === "eth-base");
+    check("held: the wallet of the team's run, USDC and ETH on Ethereum, is offered USDC", pickHeld(opts, [h("eth-eth"), h("usdc-eth")]) === "usdc-eth");
+    check("held: an asset that falls short or cannot be sent is never picked", pickHeld(opts, [h("usdc-base", false), h("usdc-eth", true, false), h("eth-eth")]) === "eth-eth");
+    check(
+      "held: the list shows what can pay first, then the rest in the order the checkout lists them",
+      orderHeld(opts, [h("usdc-base", false), h("usdc-eth"), h("eth-base")]).map((o) => o.assetId).join() === "eth-base,usdc-eth,usdc-base,eth-eth"
+    );
+    check("held: nothing that can pay, nothing picked", pickHeld(opts, [h("usdc-base", false)]) === null && pickHeld(opts, []) === null);
+    check("held: amounts show six decimals at most, cut and never rounded up", shortAmount("12.400000") === "12.4" && shortAmount("0.004553610108364126") === "0.004553" && shortAmount("9") === "9");
   }
 
   // --- Who may pay for real
