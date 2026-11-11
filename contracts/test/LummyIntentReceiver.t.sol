@@ -376,6 +376,9 @@ contract LummyIntentReceiverTest is EscrowBase {
     function testFuzz_leakedOperator_neverReachesAThirdParty(address attacker, uint256 toBuyer) public {
         vm.assume(attacker != refundTo && attacker != seller && attacker != address(escrow) && attacker != address(0));
         toBuyer = bound(toBuyer, 0, PRICE);
+        // What it holds already is its own: the fuzzer can pick an account this suite funds in setUp
+        // (it picked `buyer`, with 10,000 USDC, in CI on 11 Nov 2026). The claim is that it gains nothing.
+        uint256 held = usdc.balanceOf(attacker);
         (, LummyIntentReceiver r) = _funded();
         vm.startPrank(operator);
         escrow.raiseDispute(ID);
@@ -383,7 +386,7 @@ contract LummyIntentReceiverTest is EscrowBase {
         vm.stopPrank();
         if (toBuyer != 0) r.sweep();
         if (toBuyer != PRICE) escrow.withdrawFor(seller);
-        assertEq(usdc.balanceOf(attacker), 0);
+        assertEq(usdc.balanceOf(attacker), held);
         assertEq(usdc.balanceOf(refundTo) + usdc.balanceOf(seller), PRICE);
     }
 
