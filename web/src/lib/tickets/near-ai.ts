@@ -11,6 +11,7 @@
 // and attested, and you can check it yourself".
 import { createHash, randomBytes } from "node:crypto";
 import { getAddress, recoverMessageAddress, type Hex } from "viem";
+import { askNvidia, type GpuCheck } from "@/lib/near/gpu";
 
 if (typeof window !== "undefined") throw new Error("lib/tickets/near-ai is server-only");
 
@@ -44,6 +45,12 @@ export type TeeReceipt = {
   verified: boolean;
   /** The signer is the key named in the model's attestation report, read with this call. */
   attested: boolean;
+  /**
+   * NVIDIA's attestation service on the GPU evidence of the node that signed, asked by this server
+   * with its own nonce (lib/near/gpu.ts). Null when NVIDIA could not be asked; absent on receipts
+   * from before 11 Nov 2026.
+   */
+  gpu?: GpuCheck | null;
   /** Why it is not verified. */
   problem?: string;
   verifiedAt: string;
@@ -51,25 +58,30 @@ export type TeeReceipt = {
 
 const sha256 = (data: string | Uint8Array) => createHash("sha256").update(data).digest("hex");
 
-type Report = { signers: Set<string>; at: number };
+type Report = { signers: Set<string>; gpu: Map<string, GpuCheck | null>; at: number };
 const reports = new Map<string, Report>();
 
-/** The signing addresses in the model's attestation report. No key needed. Null when it cannot be read. */
-async function attestedSigners(model: string): Promise<Set<string> | null> {
+/**
+ * The model's attestation report: the signing address of each node, and NVIDIA's verdict on that
+ * node's GPU evidence, asked with the same nonce. No key needed. Null when it cannot be read.
+ */
+async function attestation(model: string): Promise<Report | null> {
   const cached = reports.get(model);
-  if (cached && Date.now() - cached.at < REPORT_TTL_MS) return cached.signers;
+  if (cached && Date.now() - cached.at < REPORT_TTL_MS) return cached;
   const nonce = randomBytes(32).toString("hex");
   const url = new URL(`${NEAR_AI_URL}/attestation/report`);
   url.search = new URLSearchParams({ model, provider: "near", include_tls_fingerprint: "false", signing_algo: "ecdsa", nonce }).toString();
   try {
     const res = await fetch(url, { headers: { accept: "application/json", "x-no-aliasing": "true" }, signal: AbortSignal.timeout(6_000) });
     if (!res.ok) return null;
-    const body = (await res.json()) as { model_attestations?: { signing_address?: string; signing_algo?: string; request_nonce?: string }[] };
+    const body = (await res.json()) as { model_attestations?: { signing_address?: string; signing_algo?: string; request_nonce?: string; nvidia_payload?: unknown }[] };
     const fresh = (body.model_attestations ?? []).filter((a) => a.request_nonce === nonce && a.signing_algo === "ecdsa" && a.signing_address);
     if (!fresh.length) return null;
     const signers = new Set(fresh.map((a) => a.signing_address!.toLowerCase()));
-    reports.set(model, { signers, at: Date.now() });
-    return signers;
+    const verdicts = await Promise.all(fresh.map((a) => askNvidia(a.nvidia_payload, nonce)));
+    const report: Report = { signers, gpu: new Map(fresh.map((a, i) => [a.signing_address!.toLowerCase(), verdicts[i]])), at: Date.now() };
+    reports.set(model, report);
+    return report;
   } catch {
     return null;
   }
@@ -149,7 +161,7 @@ export type NearAnswer =
 export async function completeInTee(prompt: string, schema: object, o: { key: string; model: string; timeoutMs: number; maxTokens: number }): Promise<NearAnswer> {
   // The attestation report is read alongside the call, not before it, so its time does not add to
   // the read's (a cold start spent seconds on it, 9 Nov 2026). Unreadable, it is null, never a throw.
-  const signersP = attestedSigners(o.model).catch(() => null);
+  const reportP = attestation(o.model).catch(() => null);
   const body = JSON.stringify({
     model: o.model,
     messages: [{ role: "user", content: prompt }],
@@ -213,11 +225,14 @@ export async function completeInTee(prompt: string, schema: object, o: { key: st
     verifiedAt: new Date().toISOString(),
   };
   const check = signed ? await checkReceipt(base) : { ok: false, problem: "NEAR AI gave no signature for this reply" };
-  const signers = await signersP;
+  const report = await reportP;
+  const signer = base.signingAddress?.toLowerCase();
+  const attested = !!report && !!signer && report.signers.has(signer);
   const receipt: TeeReceipt = {
     ...base,
     verified: check.ok,
-    attested: !!signers && !!base.signingAddress && signers.has(base.signingAddress.toLowerCase()),
+    attested,
+    gpu: attested ? (report.gpu.get(signer) ?? null) : null,
     ...(check.problem ? { problem: check.problem } : {}),
   };
   return {

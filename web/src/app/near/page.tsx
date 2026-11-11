@@ -64,6 +64,7 @@ type Receipt = {
   responseHash: string;
   verified: boolean;
   attested: boolean;
+  gpu?: { ok: boolean; fresh: boolean; signed: boolean; gpus: number; at: string } | null;
   problem?: string;
   verifiedAt: string;
 };
@@ -272,6 +273,25 @@ export default function NearPage() {
                     ? ` · ${check.recordedAt ? t("named in the model's attestation report when recorded", "tercantum di laporan attestation model saat direkam") : t("named in the model's attestation report", "tercantum di laporan attestation model")}`
                     : ""}
                 </p>
+                {/* The third check, by this server: NVIDIA's own service on the GPU evidence (lib/near/gpu.ts). */}
+                {check.receipt.gpu && (
+                  <p data-near-gpu={check.receipt.gpu.ok && check.receipt.gpu.fresh && check.receipt.gpu.signed} className="flex items-start gap-2 text-xs text-neutral-gray">
+                    {check.receipt.gpu.ok && check.receipt.gpu.fresh && check.receipt.gpu.signed ? (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-0.5 text-secondary-green-dark" />
+                        {t(
+                          `NVIDIA's attestation service confirms the GPU evidence in that report (${check.receipt.gpu.gpus} GPU), made for a nonce this server chose, in a token signed by NVIDIA.`,
+                          `Layanan attestation NVIDIA mengonfirmasi bukti GPU di laporan itu (${check.receipt.gpu.gpus} GPU), dibuat untuk nonce pilihan server ini, dalam token bertanda tangan NVIDIA.`
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-secondary-pink-dark" />
+                        {t("NVIDIA's attestation service did not confirm the GPU evidence in that report just now.", "Layanan attestation NVIDIA tidak mengonfirmasi bukti GPU di laporan itu saat ini.")}
+                      </>
+                    )}
+                  </p>
+                )}
                 <div className="flex flex-wrap gap-3 items-center">
                   {check.verifyUrl && (
                     <a data-near-verify href={check.verifyUrl} target="_blank" rel="noreferrer" className="text-primary-navy font-medium inline-flex items-center gap-1 text-sm">

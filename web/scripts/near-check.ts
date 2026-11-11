@@ -20,6 +20,7 @@ import { nearTeam } from "../src/lib/near/team";
 import { allowed } from "../src/lib/near/throttle";
 import { ARBITRUM_USDC, payOptions, requestQuote } from "../src/lib/near/oneclick";
 import { depositTransfer } from "../src/lib/near/send";
+import { gpuConfirmed, readVerdict, signedBy, type Jwk } from "../src/lib/near/gpu";
 import { gasReserve, judge, orderHeld, pickHeld, shortAmount, type HeldAsset } from "../src/lib/near/held";
 import { SAMPLES } from "../src/lib/near/samples";
 import { buildPrompt, extractTicketFacts, responseSchema } from "../src/lib/tickets/ai";
@@ -249,6 +250,42 @@ async function main() {
     );
     check("held: nothing that can pay, nothing picked", pickHeld(opts, [h("usdc-base", false)]) === null && pickHeld(opts, []) === null);
     check("held: amounts show six decimals at most, cut and never rounded up", shortAmount("12.400000") === "12.4" && shortAmount("0.004553610108364126") === "0.004553" && shortAmount("9") === "9");
+  }
+
+  // --- NVIDIA's verdict on the GPU evidence (lib/near/gpu.ts): the verdict, our nonce, and the token's
+  // signature, with a key made here standing in for the ones NVIDIA publishes
+  {
+    const pair = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-384" }, true, ["sign", "verify"]);
+    const pub = await crypto.subtle.exportKey("jwk", pair.publicKey);
+    const keys: Jwk[] = [{ kty: "EC", crv: "P-384", kid: "k1", x: pub.x, y: pub.y }];
+    const b64 = (x: object) => Buffer.from(JSON.stringify(x)).toString("base64url");
+    const NONCE = "ab".repeat(32);
+    const now = 1_794_381_629_000;
+    const token = async (claims: object, kid = "k1") => {
+      const head = `${b64({ alg: "ES384", kid })}.${b64(claims)}`;
+      const sig = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-384" }, pair.privateKey, new TextEncoder().encode(head));
+      return `${head}.${Buffer.from(sig).toString("base64url")}`;
+    };
+    const good = { iss: "https://nras.attestation.nvidia.com", "x-nvidia-overall-att-result": true, eat_nonce: NONCE.toUpperCase(), exp: now / 1000 + 3600 };
+    const reply = async (claims: object, kid?: string) => [["JWT", await token(claims, kid)], { "GPU-0": "a.b.c", "GPU-1": "a.b.c" }];
+    const yes = await readVerdict(await reply(good), NONCE, keys, now);
+    check("gpu: NVIDIA's valid verdict, with our nonce, signed by a published key, is confirmed", gpuConfirmed(yes) && yes?.gpus === 2, JSON.stringify(yes));
+    const replayed = await readVerdict(await reply(good), "cd".repeat(32), keys, now);
+    check("gpu: evidence made for another nonce is not fresh", replayed?.fresh === false && !gpuConfirmed(replayed));
+    const failed = await readVerdict(await reply({ ...good, "x-nvidia-overall-att-result": false }), NONCE, keys, now);
+    check("gpu: a verdict of false is not confirmed", failed?.ok === false && !gpuConfirmed(failed));
+    const stale = await readVerdict(await reply(good), NONCE, keys, now + 2 * 3600_000);
+    check("gpu: an expired token is not confirmed", stale?.ok === false);
+    const elsewhere = await readVerdict(await reply({ ...good, iss: "https://example.com" }), NONCE, keys, now);
+    check("gpu: a token from another issuer is not confirmed", elsewhere?.ok === false);
+    const real = await token(good);
+    const [h, , s] = real.split(".");
+    const forged = `${h}.${b64({ ...good, eat_nonce: "cd".repeat(32) })}.${s}`;
+    check("gpu: a token whose claims were changed after signing fails its signature", (await signedBy(real, keys)) && !(await signedBy(forged, keys)));
+    const unknown = await readVerdict(await reply(good, "k2"), NONCE, keys, now);
+    check("gpu: a token signed by a key NVIDIA does not publish is not confirmed", unknown?.signed === false && !gpuConfirmed(unknown));
+    check("gpu: anything that is not NVIDIA's reply reads as nothing, and does not throw", (await readVerdict({ error: "x" }, NONCE, keys, now)) === null && (await readVerdict([["JWT", "nope"]], NONCE, keys, now)) === null);
+    check("gpu: no verdict is never shown as confirmed", !gpuConfirmed(null) && !gpuConfirmed(undefined));
   }
 
   // --- Who may pay for real
