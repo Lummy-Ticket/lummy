@@ -87,8 +87,9 @@ try {
   // Riwayat dari event kontrak, lalu halaman bukti publik yang bisa dibagikan
   await page.getByText("The buyer's money is locked in escrow").waitFor({ timeout: 60000 });
   check("riwayat escrow dari event kontrak tampil di halaman tiket", await page.getByText("Recorded on the blockchain").first().isVisible());
-  await page.getByText("Open the public proof page").click();
-  await page.waitForURL(/\/proof\/0x[0-9a-fA-F]{64}$/);
+  await page.getByText("Open the proof page").click();
+  await page.waitForURL(/\/proof\/0x[0-9a-fA-F]{64}\?order=[\w-]+$/);
+  check("halaman bukti yang dibuka dari pesanan punya jalan kembali ke pesanan itu", await page.locator("[data-proof-back]").isVisible());
   await page.getByText("Rules the contract enforces").waitFor({ timeout: 60000 });
   await page.getByText("Handover recorded").waitFor();
   const proofText = await page.locator("main").innerText();

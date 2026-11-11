@@ -693,16 +693,33 @@ export default function OrderDetailPage() {
           {record ? (
             <div className="mt-5">
               <EscrowTimeline history={record.history} live={record.live} />
-              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
-                <Link href={`/proof/${record.proofId}`} className="inline-flex items-center gap-1.5 text-primary-navy font-medium hover:opacity-80">
-                  <ShieldCheck className="w-3.5 h-3.5" /> {t("Open the public proof page", "Buka halaman bukti publik")}
-                </Link>
-                <button
-                  onClick={() => copy(`${window.location.origin}/proof/${record.proofId}`)}
-                  className="inline-flex items-center gap-1.5 text-neutral-gray hover:text-primary-navy cursor-pointer"
-                >
-                  <Copy className="w-3.5 h-3.5" /> {t("Copy the link to share", "Salin tautan untuk dibagikan")}
-                </button>
+              {/* The public side of this private page: the same record with no names and no ticket, for
+                  anyone the buyer or seller wants to show it to. The link carries the order only as a
+                  way back for whoever opened it from here; the copied link does not. */}
+              <div data-proof-card className="mt-3 rounded-2xl bg-secondary-blue-extra p-3 flex flex-col gap-2">
+                <div className="flex items-start gap-2">
+                  <ShieldCheck className="w-4 h-4 text-primary-navy shrink-0 mt-0.5" />
+                  <div>
+                    <div className="text-sm font-semibold text-neutral-black">{t("Public proof of this order", "Bukti publik pesanan ini")}</div>
+                    <p className="text-xs text-neutral-gray mt-0.5">
+                      {t(
+                        "A page anyone can open without an account, read straight from the contract: where the money stands and every step so far. No names, no ticket, nothing from this page.",
+                        "Halaman yang bisa dibuka siapa pun tanpa akun, dibaca langsung dari kontrak: posisi uangnya dan tiap langkah sejauh ini. Tanpa nama, tanpa tiket, tanpa isi halaman ini."
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs pl-6">
+                  <Link href={`/proof/${record.proofId}?order=${encodeURIComponent(order.id)}`} className="inline-flex items-center gap-1.5 text-primary-navy font-medium hover:opacity-80">
+                    <ExternalLink className="w-3.5 h-3.5" /> {t("Open the proof page", "Buka halaman bukti")}
+                  </Link>
+                  <button
+                    onClick={() => copy(`${window.location.origin}/proof/${record.proofId}`)}
+                    className="inline-flex items-center gap-1.5 text-neutral-gray hover:text-primary-navy cursor-pointer"
+                  >
+                    <Copy className="w-3.5 h-3.5" /> {t("Copy the link to share", "Salin tautan untuk dibagikan")}
+                  </button>
+                </div>
               </div>
             </div>
           ) : (

@@ -8,11 +8,12 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import toast from "react-hot-toast";
-import { AlertTriangle, Copy, ExternalLink, Landmark, Loader2, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Copy, ExternalLink, Landmark, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { EscrowTimeline } from "@/components/common/EscrowTimeline";
 import { useT } from "@/lib/i18n";
+import { useHydrated } from "@/lib/access";
 import { explorerAddress } from "@/lib/chain/format";
 import { useChainHistory, type ChainHistory } from "@/lib/chain/client";
 import { shortHash } from "@/lib/mock";
@@ -20,6 +21,8 @@ import { shortHash } from "@/lib/mock";
 type Words = { en: string; id: string };
 
 const BYTES32 = /^0x[0-9a-fA-F]{64}$/;
+/** An order id as the order page writes it into its link here (?order=...). Only ever used to link back. */
+const ORDER_ID = /^[A-Za-z0-9_-]{4,64}$/;
 const NETWORK: Record<number, string> = { 421614: "Arbitrum Sepolia", 42161: "Arbitrum One", 31337: "Anvil" };
 const TESTNETS = new Set([421614, 31337]);
 
@@ -123,6 +126,11 @@ export default function ProofPage() {
   const t = useT();
   const { id } = useParams<{ id: string }>();
   const valid = BYTES32.test(id);
+  // Whoever came from their own order page gets a way back. Nothing is looked up: the order page
+  // itself decides who may open it.
+  const hydrated = useHydrated();
+  const from = hydrated ? new URLSearchParams(window.location.search).get("order") : null;
+  const back = from && ORDER_ID.test(from) ? from : null;
   const { data, state, refresh } = useChainHistory(valid ? id : undefined);
   const copy = (value: string, what: Words) => {
     navigator.clipboard?.writeText(value);
@@ -168,6 +176,11 @@ export default function ProofPage() {
   const ledger = data.source === "ledger";
   return (
     <PageContainer width="form">
+      {back && (
+        <Link data-proof-back href={`/tickets/${back}`} className="mb-3 inline-flex items-center gap-1.5 text-sm text-primary-navy font-medium hover:opacity-80">
+          <ArrowLeft className="w-4 h-4" /> {t("Back to your order and ticket", "Kembali ke pesanan dan tiketmu")}
+        </Link>
+      )}
       <div className="text-xs font-semibold text-lummy-500 flex items-center gap-1.5">
         <ShieldCheck className="w-4 h-4" /> {ledger ? t("Order record", "Catatan pesanan") : t("Escrow proof", "Bukti escrow")}
       </div>
