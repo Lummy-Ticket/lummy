@@ -396,6 +396,9 @@ export default function NearPage() {
                 {t(d.en, d.id)} <ExternalLink className="w-3.5 h-3.5" />
               </a>
             ))}
+            <Link href="/proof" data-near-proof-list className="text-primary-navy font-medium">
+              {t("Every order paid into the escrow, read from the contract", "Semua pesanan yang dibayar ke escrow, dibaca dari kontraknya")}
+            </Link>
             {/* The guarantee itself, checked without trusting us: the receiver's terms are public, and the
                 factory turns them back into its address. Its source was verified on Arbiscan on 9 Nov 2026. */}
             <p data-near-terms className="mt-2 text-neutral-gray">

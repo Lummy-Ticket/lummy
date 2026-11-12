@@ -76,6 +76,9 @@ async function main() {
   const history = await ask(`/api/chain/history/${LOCKED}`);
   const live = history.json?.live;
   say(live?.status === "DisputeWindow" && live.disputed === false ? "ok" : "fail", "the order of 12 Nov is still locked in the escrow, for a judge to look at", `HTTP ${history.status}, ${JSON.stringify(live ?? null).slice(0, 160)}`);
+  const recent = await ask("/api/chain/recent");
+  const listed = recent.status === 200 ? (JSON.parse(recent.text).orders ?? []).some((o) => o.id.toLowerCase() === LOCKED.toLowerCase()) : false;
+  say(listed ? "ok" : "fail", "the public list of escrow orders names it", `HTTP ${recent.status}`);
   const proof = await ask(`/proof/${LOCKED}`);
   say(proof.status === 200 ? "ok" : "fail", "its public proof page opens", `HTTP ${proof.status}`);
 

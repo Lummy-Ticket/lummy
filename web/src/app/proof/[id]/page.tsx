@@ -259,6 +259,9 @@ export default function ProofPage() {
         <Button.Ghost className="text-sm" onClick={() => copy(window.location.href, { en: "Link copied", id: "Tautan disalin" })}>
           <Copy className="w-4 h-4" /> {t("Copy link", "Salin tautan")}
         </Button.Ghost>
+        <Link href="/proof" className="text-sm text-primary-navy font-medium hover:opacity-80">
+          {t("All orders in escrow", "Semua pesanan di escrow")}
+        </Link>
         <Link href="/how-it-works" className="text-sm text-primary-navy font-medium hover:opacity-80">
           {t("How Lummy works", "Cara kerja Lummy")}
         </Link>
