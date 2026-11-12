@@ -982,10 +982,27 @@ function SellForm() {
 
           <div className="flex gap-3">
             <Button.Ghost onClick={() => setStep(1)}><ArrowLeft className="w-4 h-4" /> {t("Back", "Kembali")}</Button.Ghost>
-            <Button.Primary disabled={blocked || ktpMissing || publishing || closed || (sendsRealFile && !agreed)} onClick={publish}>
-              {blocked ? t("Blocked (duplicate)", "Diblokir (duplikat)") : flagged || late ? t("Submit for review", "Ajukan untuk review") : t("Publish listing", "Tayangkan listing")}
+            <Button.Primary data-publish disabled={blocked || ktpMissing || publishing || closed || (sendsRealFile && !agreed)} onClick={publish}>
+              {publishing && <Loader2 className="w-4 h-4 animate-spin" />}
+              {publishing
+                ? t("Submitting...", "Mengirim...")
+                : blocked
+                  ? t("Blocked (duplicate)", "Diblokir (duplikat)")
+                  : flagged || late
+                    ? t("Submit for review", "Ajukan untuk review")
+                    : t("Publish listing", "Tayangkan listing")}
             </Button.Primary>
           </div>
+          {/* The server stores the file and reads it once more: twelve seconds in the team's run of 12 Nov
+              2026, behind a button that only went grey. */}
+          {publishing && (
+            <p data-publishing role="status" className="text-xs text-neutral-gray">
+              {t(
+                "Lummy is storing the file and checking it once more. This takes 5 to 20 seconds: keep this page open.",
+                "Lummy sedang menyimpan file-nya dan mengeceknya sekali lagi. Butuh 5 sampai 20 detik: biarkan halaman ini terbuka."
+              )}
+            </p>
+          )}
         </div>
       )}
     </PageContainer>

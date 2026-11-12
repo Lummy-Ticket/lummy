@@ -86,6 +86,7 @@ function CheckoutInner() {
   const near = useNearOptions(usdc && account);
   const [intentsOpen, setIntentsOpen] = useState(false);
   const canPayIntents = usdc && account && !!near?.team && near.rail;
+  const PayButton = canPayIntents ? Button.Secondary : Button.Primary;
   // A payment left open on that rail (the tab was closed after paying, say) is shown again by itself.
   const openFor = canPayIntents ? listing?.id : undefined;
   useEffect(() => {
@@ -311,19 +312,28 @@ function CheckoutInner() {
               </Link>
             </div>
           )}
-          <Button.Primary
+          {/* The team's real payment leads; the test-USDC button below it says what it is. In the team's run
+              of 12 Nov 2026 the buyer pressed "Pay 9.50 USDC" first, which was the testnet one. */}
+          {canPayIntents && (
+            <Button.Primary data-intents-open wrapperClass="w-full" className="w-full" disabled={mustConfirmName && !nameRiskOk} onClick={() => setIntentsOpen(true)}>
+              {t("Pay from any chain (NEAR Intents)", "Bayar dari chain mana pun (NEAR Intents)")}
+            </Button.Primary>
+          )}
+          <PayButton
+            data-pay
             wrapperClass="w-full"
             className="w-full"
             disabled={(mustConfirmName && !nameRiskOk) || (account && !onchain && !payments) || overQris || (usdc && (!account || !payments?.usdc))}
             onClick={pay}
           >
-            {t("Pay", "Bayar")} {money(total)}
-          </Button.Primary>
-          {canPayIntents && (
-            <Button.Secondary data-intents-open wrapperClass="w-full" className="w-full" disabled={mustConfirmName && !nameRiskOk} onClick={() => setIntentsOpen(true)}>
-              {t("Pay from any chain (NEAR Intents)", "Bayar dari chain mana pun (NEAR Intents)")}
-            </Button.Secondary>
-          )}
+            {canPayIntents ? (
+              t("Or pay with test USDC (testnet)", "Atau bayar dengan USDC uji (testnet)")
+            ) : (
+              <>
+                {t("Pay", "Bayar")} {money(total)}
+              </>
+            )}
+          </PayButton>
           {overQris && (
             <p data-qris-over className="text-xs text-secondary-pink-dark text-center">
               {t(
@@ -343,7 +353,12 @@ function CheckoutInner() {
                 t("USDC payment is switched off right now.", "Pembayaran USDC sedang dimatikan.")
               ) : (
                 <>
-                  {t("Testnet: test USDC on Arbitrum Sepolia, not real money. No test USDC yet? ", "Testnet: USDC uji di Arbitrum Sepolia, bukan uang sungguhan. Belum punya? ")}
+                  {canPayIntents
+                    ? t(
+                        "Pay from any chain moves real USDC into the escrow on Arbitrum One. Test USDC is on Arbitrum Sepolia and is not real money. No test USDC yet? ",
+                        "Bayar dari chain mana pun memindahkan USDC sungguhan ke escrow di Arbitrum One. USDC uji ada di Arbitrum Sepolia dan bukan uang sungguhan. Belum punya? "
+                      )
+                    : t("Testnet: test USDC on Arbitrum Sepolia, not real money. No test USDC yet? ", "Testnet: USDC uji di Arbitrum Sepolia, bukan uang sungguhan. Belum punya? ")}
                   <a href={USDC_FAUCET} target="_blank" rel="noreferrer" className="text-primary-navy font-medium">{t("Circle's faucet", "Faucet Circle")}</a>
                 </>
               )}

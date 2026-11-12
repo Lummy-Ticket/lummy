@@ -296,11 +296,15 @@ export function IntentsPanel({
 
         {error && <p data-intents-error className="rounded-2xl bg-secondary-pink-soft p-3 text-sm text-secondary-pink-dark">{error}</p>}
 
-        <div className="flex w-full flex-col gap-2">
+        {/* Stays at the bottom of the panel while the rest scrolls: with a wallet read the panel is taller
+            than a laptop screen, and the button sat below the fold (the team's run of 12 Nov 2026). */}
+        <div data-intents-actions className="sticky bottom-0 z-10 -mb-2 bg-neutral-white pt-3 pb-2">
           <Button.Primary data-intents-start wrapperClass="w-full" className="w-full" disabled={busy || !quote || !refundOk || !originOk} data-intents-direct={direct} onClick={() => void start(direct)}>
             {busy && <Loader2 className="w-4 h-4 animate-spin" />}
             {direct && asset ? t(`Pay from my wallet: ${asset.symbol} on ${asset.chainLabel}`, `Bayar dari wallet-ku: ${asset.symbol} di ${asset.chainLabel}`) : t("Get the address to pay", "Ambil alamat pembayaran")}
           </Button.Primary>
+        </div>
+        <div className="flex w-full flex-col gap-2">
           {direct && (
             <>
               <p className="text-[11px] text-center text-neutral-gray">{t("You confirm once in your wallet. Nothing is copied by hand.", "Kamu konfirmasi sekali di wallet. Tidak ada yang disalin manual.")}</p>
