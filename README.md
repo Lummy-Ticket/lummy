@@ -101,7 +101,7 @@ NEAR Intents used 9.507126 USDC of what was sent. The other 0.096 USDC did not c
 **And from a connected wallet, in one confirmation (12 November 2026).** The checkout as it is now. The buyer connected a wallet, Lummy read what it held on six chains and picked USDC on Base, and the buyer confirmed one transfer in the wallet. Nothing was copied by hand. The money was locked 37 seconds after that transfer:
 
 1. [One transfer of 9.603158 USDC on Base](https://basescan.org/tx/0x0c06d913f2b62a211527c2b913d6a11f3d304008c5c66a434a693320f0c47344), at 03:00:52 UTC
-2. [The swap on NEAR Intents](https://explorer.near-intents.org/transactions/0x63c43C8fBe26c9612BE6Aa648B5eE0531713E50e): 9.507126 USDC used, and the other 0.093632 sent back to the wallet on Base
+2. [The swap on NEAR Intents](https://explorer.near-intents.org/transactions/0x63c43C8fBe26c9612BE6Aa648B5eE0531713E50e): 9.507126 USDC used, and the other 0.093632 sent back to the wallet on Base. Between Base and Arbitrum the money crossed NEAR itself, in five transactions on `omft.near` and `intents.near` ([the first](https://nearblocks.io/txns/CTybrTedZcc2oc3U956qxm9XoZRoUEWJ6tLE9axwegCL), [the swap](https://nearblocks.io/txns/6NTxVBMPwq8SjoMpQbjaemWdeqbb9uu3o7hQKS29RXtE))
 3. [9.5 USDC at the order's receiver on Arbitrum One](https://arbiscan.io/tx/0x1cc6a97b1a6f5c90165281c55a151e6c24962955fd8e79aa7e0bc6f3dd7a2933), 27 seconds after the transfer
 4. [Locked in the escrow](https://arbiscan.io/tx/0x0e683dbaac9bc4ba29e6775d7f3495fc1a991d719050546cb142091a581d8e76) at 03:01:29 UTC, and [the handover recorded](https://arbiscan.io/tx/0x12bb31f539aaf0bfc81e1bbd419f5d970ef536ffaac8831c0fd29bb8bf5ed847)
 5. [Its public proof page](https://lummy.id/proof/0xcae8b654980f9b56ae6c63713f58cf0494bcbeb9ae71cd52b7a93bd63fa5c536). This order has not been claimed or refunded: the escrow holds its 9.50 USDC until 48 hours after the show, 30 November, unless a claim is filed
@@ -321,7 +321,7 @@ Measured on the team's own orders above, not projected.
 - The listings on shows abroad are the team's samples.
 - The TEE read runs for the team's accounts. Other sellers' tickets are still read by Claude Haiku, after the same cleaning.
 - NEAR AI's response times vary: 1 to 8 seconds this week, with the odd stall of 20 to 30 seconds. A try is cut at 12 seconds and sent again.
-- There is no NEAR smart contract. NEAR is how the money arrives and where the ticket is read.
+- We deployed no contract of our own on NEAR. NEAR is how the money arrives and where the ticket is read: every payment crosses NEAR through NEAR Intents (five NEAR transactions for the order of 12 November), and every ticket read runs on NEAR AI Cloud.
 - USDC that is already on Arbitrum One cannot pay yet. NEAR Intents swaps other assets into it, and the direct path, sending it straight to the order's receiver, is not built.
 - Paying from a connected wallet in one confirmation has carried one real payment: from Base, with the Rabby wallet, on 12 November. Other wallets and the other five chains are untried.
 - We do not verify the Intel TDX quote ourselves. NEAR's Verification Center does, in the reader's browser.
