@@ -79,6 +79,11 @@ async function main() {
   const proof = await ask(`/proof/${LOCKED}`);
   say(proof.status === 200 ? "ok" : "fail", "its public proof page opens", `HTTP ${proof.status}`);
 
+  const show = await ask("/events/ev-bbw-2026");
+  if (show.status !== 200) say("fail", "the show the team lists on opens", `HTTP ${show.status}`);
+  else if (!show.text.includes("cloud.near.ai/verify")) say("warn", "no listing on Binance Blockchain Week shows a TEE receipt any more: list and clear another sample ticket", "the last one sold or was withdrawn");
+  else say("ok", "a listing in the product shows the receipt of its TEE read");
+
   const cron = await ask("/api/cron/intents");
   say(cron.status === 401 ? "ok" : "fail", "the job that finishes orders is deployed, and closed to strangers", `HTTP ${cron.status}`);
 

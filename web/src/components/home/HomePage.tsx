@@ -160,6 +160,28 @@ export default function HomePage() {
   const upcoming = rest.filter((e) => !abroad(e));
   const overseas = rest.filter(abroad);
   const quickCats = Array.from(new Set(all.map((e) => e.category)));
+  // A visitor reading English is the likelier buyer of a show abroad, and during NEAR HACKATHON the
+  // likelier judge: for them those shows come before the twelve rupiah ones. Indonesian keeps its order.
+  const abroadFirst = lang === "en";
+  const comingUp = upcoming.length > 0 && (
+    <section data-home-upcoming className={`max-w-7xl mx-auto px-5 lg:px-10 ${abroadFirst ? "mt-12" : "mt-16"}`}>
+      <SectionHead title={t("Coming up", "Segera digelar")} />
+      <ComingUp events={upcoming} />
+    </section>
+  );
+  const showsAbroad = overseas.length > 0 && (
+    <section data-home-abroad className={`max-w-7xl mx-auto px-5 lg:px-10 ${abroadFirst ? "mt-16" : "mt-12"}`}>
+      <SectionHead title={t("Shows abroad", "Acara di luar negeri")} />
+      <p data-reveal className="-mt-3 mb-5 flex items-start gap-2 text-sm text-neutral-gray max-w-xl">
+        <Wallet aria-hidden className="w-4 h-4 text-primary-navy shrink-0 mt-0.5" />
+        {t(
+          "Paid in test USDC from your own wallet. Two signatures, no gas to pay.",
+          "Dibayar dengan USDC uji dari wallet-mu sendiri. Dua tanda tangan, tanpa bayar gas."
+        )}
+      </p>
+      <ComingUp events={overseas} />
+    </section>
+  );
 
   return (
     <>
@@ -191,26 +213,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {upcoming.length > 0 && (
-        <section className="max-w-7xl mx-auto px-5 lg:px-10 mt-16">
-          <SectionHead title={t("Coming up", "Segera digelar")} />
-          <ComingUp events={upcoming} />
-        </section>
-      )}
-
-      {overseas.length > 0 && (
-        <section data-home-abroad className="max-w-7xl mx-auto px-5 lg:px-10 mt-12">
-          <SectionHead title={t("Shows abroad", "Acara di luar negeri")} />
-          <p data-reveal className="-mt-3 mb-5 flex items-start gap-2 text-sm text-neutral-gray max-w-xl">
-            <Wallet aria-hidden className="w-4 h-4 text-primary-navy shrink-0 mt-0.5" />
-            {t(
-              "Paid in test USDC from your own wallet. Two signatures, no gas to pay.",
-              "Dibayar dengan USDC uji dari wallet-mu sendiri. Dua tanda tangan, tanpa bayar gas."
-            )}
-          </p>
-          <ComingUp events={overseas} />
-        </section>
-      )}
+      {abroadFirst ? showsAbroad : comingUp}
+      {abroadFirst ? comingUp : showsAbroad}
 
       <section className="max-w-7xl mx-auto px-5 lg:px-10 mt-20">
         <div data-reveal className="max-w-2xl">

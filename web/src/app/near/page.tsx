@@ -4,6 +4,7 @@
 // and the private ticket check on a made-up ticket, with a receipt that NEAR's own Verification Center
 // checks. It says plainly what is not open yet. The real money runs on the team's own account.
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { CheckCircle2, ExternalLink, Loader2, ShieldCheck, Shuffle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/select-menu";
@@ -230,6 +231,16 @@ export default function NearPage() {
           {t(
             "Ticket PDFs carry names and booking codes. Lummy takes those out first, then a model running in NEAR AI's hardware-isolated environment reads the rest and pre-fills the listing. It decides nothing: a person rules on claims. Try it on a made-up ticket.",
             "PDF tiket berisi nama dan kode pesanan. Lummy membuangnya dulu, lalu model yang berjalan di lingkungan terisolasi hardware milik NEAR AI membaca sisanya dan mengisi listing. Model tidak memutuskan apa pun: klaim diputus oleh orang. Coba dengan tiket karangan."
+          )}
+        </p>
+        {/* In the product itself, not only on this page: the team keeps one listing with its receipt on sale
+            through the judging (scripts/near-watch.mjs warns when it is gone). */}
+        <p data-near-in-product className="text-sm text-neutral-gray">
+          {t("In the product: a listing on ", "Di produknya: sebuah listing di ")}
+          <Link href="/events/ev-bbw-2026" className="text-primary-navy font-medium">Binance Blockchain Week 2026</Link>
+          {t(
+            ' shows "Read by AI in NEAR AI\'s TEE: check the receipt" beside its price, the receipt of its own read.',
+            ' menampilkan "Read by AI in NEAR AI\'s TEE: check the receipt" di samping harganya, bukti pembacaannya sendiri.'
           )}
         </p>
         <div className="flex flex-col sm:flex-row gap-2">
