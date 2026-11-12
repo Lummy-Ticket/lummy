@@ -13,6 +13,8 @@ is over. It existed before NEAR HACKATHON. The hackathon entry is the NEAR work 
   `web/src/components/checkout/IntentsPanel.tsx`, `web/src/app/api/near/`, `web/src/app/api/cron/intents/`.
 - **A ticket check you can verify** in NEAR AI Cloud's TEE: `web/src/lib/tickets/near-ai.ts`,
   `web/src/lib/near/gpu.ts`, `web/src/app/near/page.tsx`.
+- **A contract on NEAR** (testnet, `lummy-receipts.testnet`) that recovers the signer of a TEE receipt
+  itself and keeps recorded receipts: `contracts/near-receipts/` (Rust), asked by `web/src/lib/near/registry.ts`.
 
 Everything before the tag `pre-hackathon` is baseline. The diff since that tag is the entry.
 
@@ -27,6 +29,12 @@ npm run near:terms       # reads a real order's receiver on Arbitrum One through
 npm run near:held -- 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045   # what a wallet holds, dry quotes only
 npm run lint && npm run type-check && npm run build
 npm run dev              # localhost:3000 on sample data; /near shows a recorded TEE check and says so
+```
+
+With Rust installed (the toolchain is pinned in `contracts/near-receipts/rust-toolchain.toml`):
+
+```bash
+cd contracts/near-receipts && cargo test    # 7 pass: a real signature, one changed character, the refusals
 ```
 
 With Foundry installed:
@@ -51,7 +59,9 @@ The README's table "Without a browser" lists curl lines against the live site an
 - Error strings and some comments are in Indonesian. Every error of the NEAR routes also carries English
   (`error_en`), and a check enforces it.
 - With no environment the app runs on a sample catalogue, and `/api/near/options` says `"rail":false`.
-- There is no contract of ours on NEAR. Payments cross NEAR through NEAR Intents; reads run on NEAR AI Cloud.
+- The escrow is on Arbitrum One, not on NEAR. Payments cross NEAR through NEAR Intents, reads run on NEAR AI
+  Cloud, and the one contract of ours on NEAR is the receipt registry, on testnet. Nothing that holds money
+  depends on it.
 
 ## Please do not
 

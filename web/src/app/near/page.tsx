@@ -62,6 +62,8 @@ const TICKETS = [
   { id: "concert", en: "Concert ticket, Jakarta", idn: "Tiket konser, Jakarta" },
 ];
 
+type OnNear = { account: string; network: string; explorer: string; signer: string | null; matches: boolean; recordedAt: number | null };
+
 type Receipt = {
   completionId: string;
   model: string;
@@ -145,14 +147,24 @@ export default function NearPage() {
   const [checking, setChecking] = useState(false);
   const [checkError, setCheckError] = useState<string | null>(null);
   const [tampered, setTampered] = useState<{ ok: boolean; problem?: string } | null>(null);
+  /** The same receipt, asked of the registry contract on NEAR (lib/near/registry.ts). */
+  const [onNear, setOnNear] = useState<OnNear | null>(null);
 
   const runCheck = async () => {
     setChecking(true);
     setCheckError(null);
     setCheck(null);
     setTampered(null);
+    setOnNear(null);
     try {
-      setCheck(await postJson<Check>("/api/near/ticket-check", { sample }));
+      const done = await postJson<Check>("/api/near/ticket-check", { sample });
+      setCheck(done);
+      const r = done.receipt;
+      if (r?.verified && r.signedText && r.signature && r.signingAddress) {
+        void postJson<OnNear>("/api/near/registry", { signedText: r.signedText, signature: r.signature, signer: r.signingAddress })
+          .then(setOnNear)
+          .catch(() => setOnNear(null));
+      }
     } catch (e) {
       setCheckError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -319,6 +331,29 @@ export default function NearPage() {
                         {t("NVIDIA's attestation service did not confirm the GPU evidence in that report just now.", "Layanan attestation NVIDIA tidak mengonfirmasi bukti GPU di laporan itu saat ini.")}
                       </>
                     )}
+                  </p>
+                )}
+                {/* The fourth check, by nobody's server: a contract on NEAR recovers the signer itself
+                    (contracts/near-receipts), asked through NEAR's public RPC. */}
+                {onNear && (
+                  <p data-near-registry={onNear.matches} className="flex items-start gap-2 text-xs text-neutral-gray">
+                    {onNear.matches ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-0.5 text-secondary-green-dark" />
+                    ) : (
+                      <XCircle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-secondary-pink-dark" />
+                    )}
+                    <span>
+                      {onNear.matches
+                        ? t("A contract on NEAR recovers the same signer from this signature: ", "Kontrak di NEAR menemukan penanda tangan yang sama dari tanda tangan ini: ")
+                        : t("A contract on NEAR did not recover that signer: ", "Kontrak di NEAR tidak menemukan penanda tangan itu: ")}
+                      <a href={onNear.explorer} target="_blank" rel="noreferrer" className="text-primary-navy font-medium">
+                        {onNear.account}
+                      </a>
+                      {` (NEAR ${onNear.network})`}
+                      {onNear.recordedAt
+                        ? t(`, where this receipt has been recorded since ${new Date(onNear.recordedAt).toISOString().slice(0, 10)}.`, `, tempat bukti ini tercatat sejak ${new Date(onNear.recordedAt).toISOString().slice(0, 10)}.`)
+                        : t(". It checks the signature itself and stores nothing for this call.", ". Kontrak memeriksa tanda tangannya sendiri dan tidak menyimpan apa pun untuk panggilan ini.")}
+                    </span>
                   </p>
                 )}
                 <div className="flex flex-wrap gap-3 items-center">

@@ -76,6 +76,15 @@ async function main() {
   const history = await ask(`/api/chain/history/${LOCKED}`);
   const live = history.json?.live;
   say(live?.status === "DisputeWindow" && live.disputed === false ? "ok" : "fail", "the order of 12 Nov is still locked in the escrow, for a judge to look at", `HTTP ${history.status}, ${JSON.stringify(live ?? null).slice(0, 160)}`);
+  // The receipt recorded in the registry contract on NEAR testnet on 13 Nov 2026: the live site asks the
+  // contract, which must recover the TEE's signer and still hold the record.
+  const onNear = await ask("/api/near/registry", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ signedText: "Qwen/Qwen3.8-27B:96a90952dbaad059e47a2bef0a69a8d30994be452b07f21c8a3e20248f5af455:64bb01a7e2c5dab802fcdc4fa8276d3968e883f71830b34691d404da0528f3ed", signature: "0xad16014dd0517fe7079ba74b833477f7c81b7c771fca2ba52d25a5390600a72a689a44affeb0da8296fdad6732d30cb27fd640da55dc4542e5bdee16582d8d7b1b", signer: "0x835ab53d20294ef795906dff21ae4c045336aa26" }),
+  });
+  const answer = onNear.status === 200 ? JSON.parse(onNear.text) : {};
+  say(answer.matches && answer.recordedAt ? "ok" : "fail", "the contract on NEAR recovers the TEE signer and holds the recorded receipt", `HTTP ${onNear.status}, ${answer.account ?? "no answer"}`);
   const recent = await ask("/api/chain/recent");
   const listed = recent.status === 200 ? (JSON.parse(recent.text).orders ?? []).some((o) => o.id.toLowerCase() === LOCKED.toLowerCase()) : false;
   say(listed ? "ok" : "fail", "the public list of escrow orders names it", `HTTP ${recent.status}`);

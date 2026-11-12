@@ -35,6 +35,18 @@ jobs:
       - run: forge build --sizes
       - run: forge test
 
+  receipts:
+    name: cargo test (NEAR contract)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: contracts/near-receipts
+    steps:
+      - uses: actions/checkout@v7
+      # rustup reads rust-toolchain.toml and installs the pinned toolchain.
+      - run: cargo test --locked
+
   near:
     name: near:check
     runs-on: ubuntu-latest

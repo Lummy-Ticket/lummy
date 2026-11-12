@@ -15,6 +15,8 @@ const EXACT: Record<string, string> = {
   "contoh tiket tidak dikenal": "unknown sample ticket",
   "NEAR AI belum aktif di server ini": "NEAR AI is not set up on this server",
   "terlalu banyak permintaan; coba lagi sebentar lagi": "too many requests; try again in a moment",
+  "bukti tidak lengkap": "the receipt is incomplete",
+  "kontrak di NEAR belum bisa dibaca": "the contract on NEAR could not be read just now",
   "terlalu banyak percobaan; coba lagi beberapa menit lagi": "too many tries; try again in a few minutes",
   "saldo wallet gagal dibaca": "the wallet's balances could not be read",
   "permintaan ini harus dari halaman Lummy": "this request must come from a Lummy page",
