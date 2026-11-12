@@ -172,7 +172,7 @@ export default function NearPage() {
   return (
     <div className="max-w-3xl mx-auto px-5 pt-28 pb-16 flex flex-col gap-8">
       <header className="flex flex-col gap-3">
-        <span className="text-xs font-semibold text-lummy-500">{t("Built for NEAR HACKATHON", "Dibuat untuk NEAR HACKATHON")}</span>
+        <span className="text-xs font-semibold text-lummy-500">{t("Built at NEAR HACKATHON", "Dibuat di NEAR HACKATHON")}</span>
         <h1 className="text-3xl font-semibold text-neutral-black">{t("Buyer protection for payments from any chain", "Perlindungan pembeli untuk pembayaran dari chain mana pun")}</h1>
         <p className="text-neutral-gray">
           {t(
