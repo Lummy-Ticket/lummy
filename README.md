@@ -98,6 +98,20 @@ The swap cost 0.0054 USDC. The four transactions on Arbitrum One cost about 0.00
 
 NEAR Intents used 9.507126 USDC of what was sent. The other 0.096 USDC did not come back: returning it on Ethereum costs 0.30 USDC, more than it is worth, while on Base the same leftover did come back. Gas was about 0.000015 ETH on Ethereum for the buyer and 0.000026 ETH on Arbitrum One for the operator. The seller got emails when the listing went live, sold and was claimed; the buyer when the payment arrived and the claim was filed.
 
+**And from a connected wallet, in one confirmation (12 November 2026).** The checkout as it is now. The buyer connected a wallet, Lummy read what it held on six chains and picked USDC on Base, and the buyer confirmed one transfer in the wallet. Nothing was copied by hand. The money was locked 37 seconds after that transfer:
+
+1. [One transfer of 9.603158 USDC on Base](https://basescan.org/tx/0x0c06d913f2b62a211527c2b913d6a11f3d304008c5c66a434a693320f0c47344), at 03:00:52 UTC
+2. [The swap on NEAR Intents](https://explorer.near-intents.org/transactions/0x63c43C8fBe26c9612BE6Aa648B5eE0531713E50e): 9.507126 USDC used, and the other 0.093632 sent back to the wallet on Base
+3. [9.5 USDC at the order's receiver on Arbitrum One](https://arbiscan.io/tx/0x1cc6a97b1a6f5c90165281c55a151e6c24962955fd8e79aa7e0bc6f3dd7a2933), 27 seconds after the transfer
+4. [Locked in the escrow](https://arbiscan.io/tx/0x0e683dbaac9bc4ba29e6775d7f3495fc1a991d719050546cb142091a581d8e76) at 03:01:29 UTC, and [the handover recorded](https://arbiscan.io/tx/0x12bb31f539aaf0bfc81e1bbd419f5d970ef536ffaac8831c0fd29bb8bf5ed847)
+5. [Its public proof page](https://lummy.id/proof/0xcae8b654980f9b56ae6c63713f58cf0494bcbeb9ae71cd52b7a93bd63fa5c536). This order has not been claimed or refunded: the escrow holds its 9.50 USDC until 48 hours after the show, 30 November, unless a claim is filed
+
+<img src="assets/near-pay.png" alt="Three crops of the screen recording of that order: the wallet as Lummy read it with USDC on Base picked, the panel saying Sent from your wallet, and the order page with the money locked in escrow" width="860">
+
+<sub>From the screen recording of that order: the wallet as Lummy read it, the panel after the one transfer, and the order page a minute later.</sub>
+
+The ticket was read in NEAR AI's TEE when it was listed, and the receipt kept with the listing carries NVIDIA's verdict on the GPU evidence: valid, for our nonce, signed by NVIDIA.
+
 **Check the terms yourself.** The receiver of this payment, [`0x903C…8f6A`](https://arbiscan.io/address/0x903CE1751A2F5e8034b9A14a37b9294b8Ab58f6A#readContract), shows its listing, seller, price, show end, refund address and deadline under Read Contract. Give them to the factory's [`receiverOf`](https://arbiscan.io/address/0x3dFc2bFFBfC17F1e5F741E0dCD04e8F24dd6b75C#readContract) and it returns that same address. Change any one of them, the refund address included, and the address changes: the money could only go where those terms say.
 
 ### 2. A ticket check you can verify (Privacy & Private AI)
@@ -156,9 +170,9 @@ For an agent, or anyone in a terminal. Every line reads public data; only the la
 | B | `curl -s -X POST https://lummy.id/api/near/quote -H 'content-type: application/json' -d '{"originAsset":"nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near","amount":"9500000"}'` | A live quote from NEAR Intents for USDC on Base: `"amountIn"` near `9.60`, `"amountOut":"9.5"`, `"etaSeconds"`. Nothing is held |
 | C | `curl -s -X POST https://lummy.id/api/near/ticket-check -H 'content-type: application/json' -d '{"sample":"concert"}'` | A made-up ticket read in NEAR AI's TEE, in 3 to 8 seconds: `"facts"`, and a `"receipt"` with `"verified":true`, `"attested":true` and `"gpu":{"ok":true,"fresh":true,"signed":true}`. `"verifyUrl"` is NEAR's own page for that receipt. When NEAR AI is not answering, the reply carries `"recordedAt"` and `"liveError"` instead, and no `"gpu"`. Six reads in ten minutes for each visitor |
 | D | `curl -s -X POST https://lummy.id/api/near/held -H 'content-type: application/json' -d '{"address":"0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045","amount":"9500000"}'` | `"held"`: for each of the nine EVM assets, that wallet's `"balance"`, what a 9.50 USDC ticket `"needs"` of it, and whether that is `"enough"` |
-| E | `curl -s https://lummy.id/api/chain/history/0x435ad32a3c0844c5562365f0a12ddcf4126d7eaecc0b67290d49120b9883b181` | The team's real order of 10 November, read from the escrow's events on Arbitrum One: `Listed`, `Funded`, `HandoverMarked`, `DisputeRaised`, then `Resolved` with `"toBuyer":"9500000"`, each with its transaction hash. The [public proof page](https://lummy.id/proof/0x435ad32a3c0844c5562365f0a12ddcf4126d7eaecc0b67290d49120b9883b181) shows this same record |
+| E | `curl -s https://lummy.id/api/chain/history/0x435ad32a3c0844c5562365f0a12ddcf4126d7eaecc0b67290d49120b9883b181` | The team's real order of 10 November, read from the escrow's events on Arbitrum One: `Listed`, `Funded`, `HandoverMarked`, `DisputeRaised`, then `Resolved` with `"toBuyer":"9500000"`, each with its transaction hash. The [public proof page](https://lummy.id/proof/0x435ad32a3c0844c5562365f0a12ddcf4126d7eaecc0b67290d49120b9883b181) shows this same record. The same call with `0xcae8b654980f9b56ae6c63713f58cf0494bcbeb9ae71cd52b7a93bd63fa5c536` reads the order of 12 November, still locked: `Listed`, `Funded`, `HandoverMarked`, and `"status":"DisputeWindow"` |
 | F | `git clone --recurse-submodules https://github.com/Lummy-Ticket/lummy && cd lummy/web && npm ci && npm run near:check` | `94/94 checks pass`, offline, with no keys: the receipt, NVIDIA's verdict on the GPU evidence (its nonce and its signature), which asset a wallet is offered first, real receipts recorded from NEAR AI's TEE, what the page does when NEAR AI is down or flapping, paying the deposit from the buyer's own wallet, the Verification Center link, the 1Click request, and who may pay |
-| G | `npm run near:terms` | `6/6 checks pass`. It reads the terms that order's receiver carries from the contract itself, asks the factory which address those terms give (that very one), and shows that another refund address, price, deadline or seller each gives another address. A public RPC, no keys |
+| G | `npm run near:terms` | `6/6 checks pass`. It reads the terms that order's receiver carries from the contract itself, asks the factory which address those terms give (that very one), and shows that another refund address, price, deadline or seller each gives another address. A public RPC, no keys. `npm run near:terms -- 0xC68d92284f6E226e1F190bFEe409dc49b10C5F8e` does the same for the order of 12 November |
 | H | `npm run near:held -- 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045` (or any address) | What that wallet holds of the nine EVM assets, read from public RPCs, what a 9.50 USDC ticket would take of each, and which one the checkout would offer first. Dry quotes only: nothing is held or sent |
 | I | `cd ../contracts && forge test` (needs [Foundry](https://www.getfoundry.sh)) | 147 tests pass, 33 of them on the receiver and its factory |
 | J | `cd ../web && npm run near:fork` (Foundry again) | `13/13 checks pass` in about a minute: both contracts deployed on a fork of Arbitrum One with Circle's real USDC, then a payment with too much, a release to the seller, a claim refunded through the receiver, and money with no order going back by itself. Nothing leaves your machine |
@@ -293,7 +307,7 @@ Measured on the team's own orders above, not projected.
 | For one order | Cost | Who pays it |
 |---|---|---|
 | Gas on Arbitrum One for its four transactions (create the listing, fund it, record the handover, settle) | about 0.000026 ETH | Lummy's operator |
-| The swap through NEAR Intents | 0.0054 USDC on a 1 USDC order from Base, 0.0071 USDC on a 9.50 USDC order from Ethereum | The buyer, inside the quote |
+| The swap through NEAR Intents | 0.0054 USDC on a 1 USDC order, 0.0071 USDC on a 9.50 USDC order, the same from Ethereum and from Base | The buyer, inside the quote |
 | The ticket read in NEAR AI's TEE | about US$0.0005 | Lummy |
 
 - **How Lummy would earn.** A service fee on each order. The rupiah checkout already adds 5% for the buyer, in test mode. The USDC rail takes none yet: the escrow has no fee path, on purpose, and adding one is a contract change we would make together with an audit.
@@ -309,7 +323,7 @@ Measured on the team's own orders above, not projected.
 - NEAR AI's response times vary: 1 to 8 seconds this week, with the odd stall of 20 to 30 seconds. A try is cut at 12 seconds and sent again.
 - There is no NEAR smart contract. NEAR is how the money arrives and where the ticket is read.
 - USDC that is already on Arbitrum One cannot pay yet. NEAR Intents swaps other assets into it, and the direct path, sending it straight to the order's receiver, is not built.
-- Paying from a connected wallet in one confirmation was added on 11 November. Its parts are checked, the reading against real wallets, but it has not yet carried a real payment.
+- Paying from a connected wallet in one confirmation has carried one real payment: from Base, with the Rabby wallet, on 12 November. Other wallets and the other five chains are untried.
 - We do not verify the Intel TDX quote ourselves. NEAR's Verification Center does, in the reader's browser.
 
 <details>
