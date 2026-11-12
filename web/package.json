@@ -33,6 +33,7 @@
     "clean:check": "tsx scripts/clean-check.ts",
     "ai:check": "tsx scripts/ai-check.ts",
     "ai:eval": "tsx scripts/ai-eval.ts",
+    "test": "tsx scripts/near-check.ts",
     "near:check": "tsx scripts/near-check.ts",
     "near:held": "tsx scripts/near-held.ts",
     "near:terms": "tsx scripts/near-terms.ts",

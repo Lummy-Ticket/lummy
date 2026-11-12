@@ -162,7 +162,7 @@ Paying for real through NEAR Intents is open to the Lummy team's accounts only, 
 
 ### Without a browser
 
-For an agent, or anyone in a terminal. Every line reads public data; only the last needs a key, and that one is yours.
+For an agent, or anyone in a terminal. Every line reads public data; only the last needs a key, and that one is yours. [AGENTS.md](AGENTS.md) says the same for a coding agent in a few lines: what runs with no keys, what does not, and what may look wrong and is not. `npm test` runs the offline checks.
 
 | | Run this | See this |
 |---|---|---|
