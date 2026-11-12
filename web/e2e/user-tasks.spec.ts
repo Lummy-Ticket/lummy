@@ -59,8 +59,10 @@ test.describe("user tasks", { tag: "@smoke" }, () => {
     await search.fill(WORD);
     await search.press("Enter");
     await expect(page).toHaveURL(new RegExp(`/events\\?q=${WORD}`));
-    await page.getByRole("link", { name: new RegExp(WORD, "i") }).first().click();
-    await expect(page).toHaveURL(/\/events\/ev-/);
+    // The show itself, not the first result that carries the word: on 12 Nov 2026 the word was "Jakarta", and
+    // the first match was a show that had ended that evening, with nothing left to buy.
+    await page.locator(`a[href="/events/${SHOW.id}"]`).first().click();
+    await expect(page).toHaveURL(new RegExp(`/events/${SHOW.id}`));
     await expect(page.getByText("Termurah").first()).toBeVisible();
     await expect(page.getByText("Mulai dari")).toBeVisible();
     await expectFitsScreen(page);
