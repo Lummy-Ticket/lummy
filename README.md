@@ -207,7 +207,7 @@ Without a key, `npm run dev` still shows a real check on `localhost:3000/near`: 
 | `npm run near:pay` | One real payment from another chain into the escrow on Arbitrum One and back | [Done 9 Nov 2026](#tried-with-real-money) |
 | `npm run ai:eval -- --provider near` | 33 made-up tickets, each through the same cleaning as a real upload, then the TEE model; every request checked for names, numbers and codes that should have been taken out | 29 of 33 tickets, 97.8% of fields, 31 of 31 receipts |
 | `cargo test` in `contracts/near-receipts` (in CI) | The NEAR contract: a real TEE signature recovers its signer, one changed character gives another address, and it refuses a missing deposit, a second copy, text that is not a receipt, text too long for its deposit, and a short signature | 8 of 8 |
-| Slither (Trail of Bits), in CI | The new receiver triaged with the rest in [`contracts/SECURITY-ANALYSIS.md`](contracts/SECURITY-ANALYSIS.md). CI fails on any untriaged medium or high finding | 21 new findings triaged, none a real issue |
+| Slither (Trail of Bits), in our working repository's CI (the checks run on this public copy are `forge test`, `cargo test` and `near:check`) | The new receiver triaged with the rest in [`contracts/SECURITY-ANALYSIS.md`](contracts/SECURITY-ANALYSIS.md). CI fails on any untriaged medium or high finding | 21 new findings triaged, none a real issue |
 
 Anyone can run `near:check`, `near:terms`, `near:held` and `forge test` with no keys, and `near:fork` with Foundry: on 11 November it passed in under a minute from an environment with nothing but Foundry and Node. The app and payment runs need our keys or the database, so the team runs them. The results above are from 9 to 12 November 2026.
 
@@ -228,7 +228,7 @@ Both have verified source on Arbiscan and are not proxies. Neither takes a fee. 
 |---|---|---|
 | `lummy-receipts` (Rust) | [`lummy-receipts.near`](https://nearblocks.io/address/lummy-receipts.near) | Recovers the signer of a NEAR AI TEE receipt with its own `ecrecover` and keeps the receipts recorded in it; holds no money. [Deployed](https://nearblocks.io/txns/4dvSANR6nZtBASM4ffUA9Fnn8DAPRm2i2dahYQwi5cxz) with code hash `60535f35…de31b`, the same as building [`contracts/near-receipts`](contracts/near-receipts) here |
 
-**On Arbitrum Sepolia (chain ID 421614), from before the hackathon:** [`LummyEscrow`](https://sepolia.arbiscan.io/address/0x6830Db86283157E4cB80b0615d4c51381A0C25Dd#code) with test USDC, and [`LummyLedger`](https://sepolia.arbiscan.io/address/0xe454cbc81916E9BE1e6A768715134568FCEE8b0E#code), the public record of QRIS orders. Details: [`contracts/README.md`](contracts/README.md).
+**On Arbitrum Sepolia (chain ID 421614), from before the hackathon:** [`LummyEscrow`](https://sepolia.arbiscan.io/address/0x6830Db86283157E4cB80b0615d4c51381A0C25Dd#code) with test USDC, and [`LummyLedger`](https://sepolia.arbiscan.io/address/0xe454cbc81916E9bE1e6A768715134568FCEE8b0E#code), the public record of QRIS orders. Details: [`contracts/README.md`](contracts/README.md).
 
 ## Architecture
 
@@ -320,7 +320,7 @@ Everything before the tag `pre-hackathon` existed already and is not part of thi
 ## Built with
 
 - **App:** Next.js 16 and TypeScript on Vercel, Supabase (Postgres with row-level security, email sign-in), viem.
-- **Contracts:** Solidity 0.8.28 with Foundry and OpenZeppelin, Circle's USDC, Slither in CI.
+- **Contracts:** Solidity 0.8.28 with Foundry and OpenZeppelin, Circle's USDC, Slither in our working repository's CI.
 - **NEAR:** NEAR Intents through the 1Click API (quote, deposit, status). NEAR AI Cloud: Qwen3.8-27B in a TEE, its signature endpoint and its attestation report. A contract in Rust with near-sdk 5.30 and cargo-near, on NEAR mainnet.
 - **AI tools:** most of the code was written with Claude Code (Anthropic), directed and reviewed by the team, and Claude drafted this README. Claude Haiku 5.5 reads tickets for sellers outside the team.
 

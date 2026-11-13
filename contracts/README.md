@@ -33,7 +33,7 @@ Everything here was done by the team. There has been no external audit yet (see 
 | Tests | 147 Foundry tests pass: 76 for the escrow, 33 for the intent receiver, 28 for the ledger, 8 for MockUSDC, and an invariant suite each for the escrow and the ledger. Two more run against Circle's real USDC on a fork of Arbitrum One (`RUN_FORK=1 forge test --match-contract Fork`). Each fuzz test runs 1,000 random inputs; each invariant suite runs 256 random sequences of 64 actions |
 | Coverage | 100% of lines and functions in `src`; 100% of LummyEscrow's branches (table below) |
 | Slither (Trail of Bits) | 0 untriaged medium or high findings. 33 findings triaged, none a real issue: 12 for the escrow and ledger, 21 for the intent receiver. All in [`SECURITY-ANALYSIS.md`](SECURITY-ANALYSIS.md), with why it takes two passes |
-| CI | `ci.yml`: format, build with sizes, tests. `slither.yml`: both Slither passes on every change under `contracts/`, failing on any untriaged medium or high finding |
+| CI (our working repository; this public copy runs `forge test`, `cargo test` and `near:check`) | `ci.yml`: format, build with sizes, tests. `slither.yml`: both Slither passes on every change under `contracts/`, failing on any untriaged medium or high finding |
 | Source on chain | Arbitrum Sepolia: verified on Arbiscan and Sourcify. On 23 Oct 2026 the local build matched the runtime bytecode at both addresses, with the immutable values masked. Arbitrum One: both contracts verified on Arbiscan when deployed (9 Nov 2026) |
 
 Coverage, from `forge coverage --no-match-coverage "(test|script|slither)/"`:
