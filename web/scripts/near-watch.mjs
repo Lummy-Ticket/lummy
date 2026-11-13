@@ -77,7 +77,7 @@ async function main() {
   const live = history.json?.live;
   // Locked on 12 Nov, then claimed and refunded by the team on 13 Nov (03:36 UTC). That state is final.
   say(live?.status === "Refunded" ? "ok" : "fail", "the order of 12 Nov reads Refunded, as it has since the claim of 13 Nov", `HTTP ${history.status}, ${JSON.stringify(live ?? null).slice(0, 160)}`);
-  // The receipt recorded in the registry contract on NEAR testnet on 13 Nov 2026: the live site asks the
+  // The receipt recorded in the registry contract on NEAR mainnet on 13 Nov 2026: the live site asks the
   // contract, which must recover the TEE's signer and still hold the record.
   const onNear = await ask("/api/near/registry", {
     method: "POST",

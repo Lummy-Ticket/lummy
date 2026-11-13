@@ -13,7 +13,7 @@ is over. It existed before NEAR HACKATHON. The hackathon entry is the NEAR work 
   `web/src/components/checkout/IntentsPanel.tsx`, `web/src/app/api/near/`, `web/src/app/api/cron/intents/`.
 - **A ticket check you can verify** in NEAR AI Cloud's TEE: `web/src/lib/tickets/near-ai.ts`,
   `web/src/lib/near/gpu.ts`, `web/src/app/near/page.tsx`.
-- **A contract on NEAR** (testnet, `lummy-receipts.testnet`) that recovers the signer of a TEE receipt
+- **A contract on NEAR** (mainnet, `lummy-receipts.near`) that recovers the signer of a TEE receipt
   itself and keeps recorded receipts: `contracts/near-receipts/` (Rust), asked by `web/src/lib/near/registry.ts`.
 
 Everything before the tag `pre-hackathon` is baseline. The diff since that tag is the entry.
@@ -60,7 +60,7 @@ The README's table "Without a browser" lists curl lines against the live site an
   (`error_en`), and a check enforces it.
 - With no environment the app runs on a sample catalogue, and `/api/near/options` says `"rail":false`.
 - The escrow is on Arbitrum One, not on NEAR. Payments cross NEAR through NEAR Intents, reads run on NEAR AI
-  Cloud, and the one contract of ours on NEAR is the receipt registry, on testnet. Nothing that holds money
+  Cloud, and the one contract of ours on NEAR is the receipt registry, on mainnet. Nothing that holds money
   depends on it.
 
 ## Please do not

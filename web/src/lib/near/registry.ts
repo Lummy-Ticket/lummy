@@ -3,14 +3,14 @@
 // through NEAR's public RPC: a view call needs no key and costs nothing, so every check on /near can be
 // checked once more by code that nobody runs.
 //
-// It is on NEAR testnet today. A record there proves that `signer` signed `signedText`; that the signer
+// It is on NEAR mainnet since 13 Nov 2026 (lummy-receipts.near), after a day on testnet. A record there proves that `signer` signed `signedText`; that the signer
 // lives inside a TEE is what the model's attestation report says (lib/tickets/near-ai.ts).
 
 export const REGISTRY = {
-  account: "lummy-receipts.testnet",
-  network: "testnet" as "testnet" | "mainnet",
-  rpcs: ["https://rpc.testnet.fastnear.com", "https://test.rpc.fastnear.com", "https://rpc.testnet.near.org"],
-  explorer: "https://testnet.nearblocks.io/address/lummy-receipts.testnet",
+  account: "lummy-receipts.near",
+  network: "mainnet" as "testnet" | "mainnet",
+  rpcs: ["https://rpc.mainnet.fastnear.com", "https://free.rpc.fastnear.com", "https://rpc.mainnet.near.org"],
+  explorer: "https://nearblocks.io/address/lummy-receipts.near",
 };
 
 export type RegistryAnswer = {
