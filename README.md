@@ -34,6 +34,13 @@
 
 **NEAR HACKATHON entry for Real-World Money and for Privacy & Private AI, entered in Open Innovation as well** (there, for one idea: an order's terms are the address the money is sent to, so a payment from another chain can only end in that order's escrow or back with the buyer). Lummy existed before the hackathon, and only the NEAR work is new. All of it is in [the diff since the tag `pre-hackathon`](https://github.com/Lummy-Ticket/lummy/compare/pre-hackathon...main). [What came before](#before-this-hackathon) is listed at the end.
 
+**Where NEAR is in it.**
+
+- **Every payment from a wallet crosses NEAR.** NEAR Intents swaps it on `intents.near` and delivers it to the escrow: [five NEAR transactions](#tried-with-real-money) for the order of 12 November, Base to escrow in 37 seconds.
+- **The ticket check runs in NEAR AI Cloud's TEE** and is signed there, for every listing by the team and every check on [lummy.id/near](https://lummy.id/near).
+- **Our contract on NEAR mainnet,** [`lummy-receipts.near`](https://nearblocks.io/address/lummy-receipts.near), recovers the signer of each receipt again, on chain.
+- **The escrow stays on Arbitrum One,** where it was built and tested; NEAR Intents brings the money to it. [Why](#architecture).
+
 ## The problem
 
 Resale tickets change hands between strangers. The ticket can be fake, sold twice, or never sent. Paying in crypto makes this worse: a transfer cannot be taken back, and the buyer and the seller rarely hold the same coin on the same chain.
@@ -286,7 +293,7 @@ A ruling can also split the money. The clock settles an order, not a button: the
 
 ## Before this hackathon
 
-Everything before the tag `pre-hackathon` (9 November 2026) existed already and is not part of this entry:
+Everything before the tag `pre-hackathon` existed already and is not part of this entry. We set the tag on 9 November 2026, as the hackathon began. In this public copy it sits on 8 November, 14:36 WIB: the commit we tagged on the 9th held only our plan for the week, and the plan is not published, so the tag lands on the last commit before it.
 
 - **Before Lummy, 2025 to early 2026:** the team's first ticketing build was fully on-chain, made in a hackathon and an incubator in the Lisk ecosystem. It taught us that an ordinary fan will not install a wallet for a ticket, so we pivoted to a hybrid and narrowed to resale. None of that code is in this repository.
 - **Lummy, since July 2026:** escrow for concert ticket resale in Indonesia. Rupiah by QRIS through Xendit in test mode: the licensed provider holds the money until the show, and every paid order is recorded on `LummyLedger`. Ticket checks: each barcode held by one listing only, edited PDFs sent to a person, the show and seat read by Claude after personal data is taken out. Claims ruled by a person.
