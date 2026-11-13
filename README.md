@@ -18,6 +18,7 @@
 ![NEAR Intents: 15 assets on 9 chains](https://img.shields.io/badge/NEAR%20Intents-15%20assets%2C%209%20chains-00EC97?labelColor=111111)
 ![NEAR AI: signed TEE receipts](https://img.shields.io/badge/NEAR%20AI-signed%20TEE%20receipts-00EC97?labelColor=111111)
 ![Arbitrum One: 2 verified contracts](https://img.shields.io/badge/Arbitrum%20One-2%20verified%20contracts-0D3B9A)
+![NEAR mainnet: receipt registry](https://img.shields.io/badge/NEAR%20mainnet-receipt%20registry-00EC97?labelColor=111111)
 ![forge test: 147 passing](https://img.shields.io/badge/forge%20test-147%20passing-1E7F54)
 ![near:check: 94 of 94](https://img.shields.io/badge/near%3Acheck-94%2F94-1E7F54)
 [![checks, run on this repository](https://github.com/Lummy-Ticket/lummy/actions/workflows/checks.yml/badge.svg)](https://github.com/Lummy-Ticket/lummy/actions/workflows/checks.yml)
@@ -196,6 +197,7 @@ Without a key, `npm run dev` still shows a real check on `localhost:3000/near`: 
 | `npm run near:app` | The whole app flow: a local server, the real 1Click API, the database and the fork. A hold and a cancel, an overpayment, one order however often it is checked, a claim refunded to the refund address. Then a payment whose buyer never looks again: with part of the money delivered a second payment is refused and the hold cannot be cancelled, and with the rest delivered the minute cron alone writes the order and the buyer is told by email | 33 of 33 |
 | `npm run near:pay` | One real payment from another chain into the escrow on Arbitrum One and back | [Done 9 Nov 2026](#tried-with-real-money) |
 | `npm run ai:eval -- --provider near` | 33 made-up tickets, each through the same cleaning as a real upload, then the TEE model; every request checked for names, numbers and codes that should have been taken out | 29 of 33 tickets, 97.8% of fields, 31 of 31 receipts |
+| `cargo test` in `contracts/near-receipts` (in CI) | The NEAR contract: a real TEE signature recovers its signer, one changed character gives another address, and it refuses a missing deposit, a second copy, text that is not a receipt, text too long for its deposit, and a short signature | 8 of 8 |
 | Slither (Trail of Bits), in CI | The new receiver triaged with the rest in [`contracts/SECURITY-ANALYSIS.md`](contracts/SECURITY-ANALYSIS.md). CI fails on any untriaged medium or high finding | 21 new findings triaged, none a real issue |
 
 Anyone can run `near:check`, `near:terms`, `near:held` and `forge test` with no keys, and `near:fork` with Foundry: on 11 November it passed in under a minute from an environment with nothing but Foundry and Node. The app and payment runs need our keys or the database, so the team runs them. The results above are from 9 to 11 November 2026.
@@ -210,6 +212,12 @@ Anyone can run `near:check`, `near:terms`, `near:held` and `forge test` with no 
 | `LummyIntentFactory` | [`0x3dFc2bFFBfC17F1e5F741E0dCD04e8F24dd6b75C`](https://arbiscan.io/address/0x3dFc2bFFBfC17F1e5F741E0dCD04e8F24dd6b75C#code) | Computes each order's `LummyIntentReceiver` address, and deploys and funds it |
 
 Both have verified source on Arbiscan and are not proxies. Neither takes a fee. Money in the escrow can only go to a listing's buyer or seller, and money at a receiver only into its listing or back to its refund address.
+
+**On NEAR mainnet, new this week**
+
+| Contract | Account | What it does |
+|---|---|---|
+| `lummy-receipts` (Rust) | [`lummy-receipts.near`](https://nearblocks.io/address/lummy-receipts.near) | Recovers the signer of a NEAR AI TEE receipt with its own `ecrecover` and keeps the receipts recorded in it; holds no money. [Deployed](https://nearblocks.io/txns/4dvSANR6nZtBASM4ffUA9Fnn8DAPRm2i2dahYQwi5cxz) with code hash `60535f35…de31b`, the same as building [`contracts/near-receipts`](contracts/near-receipts) here |
 
 **On Arbitrum Sepolia (chain ID 421614), from before the hackathon:** [`LummyEscrow`](https://sepolia.arbiscan.io/address/0x6830Db86283157E4cB80b0615d4c51381A0C25Dd#code) with test USDC, and [`LummyLedger`](https://sepolia.arbiscan.io/address/0xe454cbc81916E9BE1e6A768715134568FCEE8b0E#code), the public record of QRIS orders. Details: [`contracts/README.md`](contracts/README.md).
 
@@ -228,6 +236,7 @@ flowchart TB
   subgraph NEAR["NEAR"]
     NI["NEAR Intents<br/>1Click API"]
     NA["NEAR AI Cloud<br/>a model in a TEE"]
+    RR["lummy-receipts.near<br/>re-checks each receipt"]
   end
   subgraph ARB["Arbitrum One"]
     R["LummyIntentReceiver<br/>one per order"]
@@ -240,6 +249,7 @@ flowchart TB
   NI -->|"USDC"| R
   API -->|"the cleaned ticket text"| NA
   NA -->|"facts and a signed receipt"| API
+  API -->|"who signed this?"| RR
   OP -->|"deployAndFund, refund, sweep"| R
   R -->|"fund, on the agreed terms"| E
   DB <--> API
@@ -302,7 +312,7 @@ Everything before the tag `pre-hackathon` (9 November 2026) existed already and 
 
 - **App:** Next.js 16 and TypeScript on Vercel, Supabase (Postgres with row-level security, email sign-in), viem.
 - **Contracts:** Solidity 0.8.28 with Foundry and OpenZeppelin, Circle's USDC, Slither in CI.
-- **NEAR:** NEAR Intents through the 1Click API (quote, deposit, status). NEAR AI Cloud: Qwen3.8-27B in a TEE, its signature endpoint and its attestation report.
+- **NEAR:** NEAR Intents through the 1Click API (quote, deposit, status). NEAR AI Cloud: Qwen3.8-27B in a TEE, its signature endpoint and its attestation report. A contract in Rust with near-sdk 5.30 and cargo-near, on NEAR mainnet.
 - **AI tools:** most of the code was written with Claude Code (Anthropic), directed and reviewed by the team, and Claude drafted this README. Claude Haiku 5.5 reads tickets for sellers outside the team.
 
 ## What an order costs, and what comes next
@@ -326,7 +336,7 @@ Measured on the team's own orders above, not projected.
 - The listings on shows abroad are the team's samples.
 - The TEE read runs for the team's accounts. Other sellers' tickets are still read by Claude Haiku, after the same cleaning.
 - NEAR AI's response times vary: 1 to 8 seconds this week, with the odd stall of 20 to 30 seconds. A try is cut at 12 seconds and sent again.
-- We deployed no contract of our own on NEAR. NEAR is how the money arrives and where the ticket is read: every payment crosses NEAR through NEAR Intents (five NEAR transactions for the order of 12 November), and every ticket read runs on NEAR AI Cloud.
+- The escrow is not on NEAR. Every payment crosses NEAR through NEAR Intents (five NEAR transactions for the order of 12 November) and lands in the escrow on Arbitrum One; our one contract on NEAR, `lummy-receipts.near`, checks ticket receipts and holds no money. The app asks it on every check on /near but does not yet record each listing's receipt in it.
 - USDC that is already on Arbitrum One cannot pay yet. NEAR Intents swaps other assets into it, and the direct path, sending it straight to the order's receiver, is not built.
 - Paying from a connected wallet in one confirmation has carried one real payment: from Base, with the Rabby wallet, on 12 November. Other wallets and the other five chains are untried.
 - We do not verify the Intel TDX quote ourselves. NEAR's Verification Center does, in the reader's browser.
@@ -344,6 +354,7 @@ Measured on the team's own orders above, not projected.
 | [`web/src/app/api`](web/src/app/api) | Server routes: listings, orders, payments, claims, the ticket checks, /near |
 | [`web/scripts`](web/scripts) | The checks above, and the local and fork rehearsals |
 | [`contracts/`](contracts) | Solidity and Foundry: `LummyEscrow`, `LummyLedger`, `LummyIntentReceiver`, tests, deploy scripts |
+| [`contracts/near-receipts`](contracts/near-receipts) | The receipt registry on NEAR, in Rust, with its tests and `record.sh` |
 | [`supabase/`](supabase) | The Postgres schema, row-level security and its tests, email templates |
 
 </details>
