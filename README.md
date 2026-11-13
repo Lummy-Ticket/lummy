@@ -278,6 +278,7 @@ A ruling can also split the money. The clock settles an order, not a button: the
 
 Everything before the tag `pre-hackathon` (9 November 2026) existed already and is not part of this entry:
 
+- **Before Lummy, 2025 to early 2026:** the team's first ticketing build was fully on-chain, made in a hackathon and an incubator in the Lisk ecosystem. It taught us that an ordinary fan will not install a wallet for a ticket, so we pivoted to a hybrid and narrowed to resale. None of that code is in this repository.
 - **Lummy, since July 2026:** escrow for concert ticket resale in Indonesia. Rupiah by QRIS through Xendit in test mode: the licensed provider holds the money until the show, and every paid order is recorded on `LummyLedger`. Ticket checks: each barcode held by one listing only, edited PDFs sent to a person, the show and seat read by Claude after personal data is taken out. Claims ruled by a person.
 - **Arbitrum Founder House Singapore, 23 to 25 October 2026:** we added the checkout for shows abroad, in test USDC from the buyer's own wallet, into `LummyEscrow` on Arbitrum Sepolia. We submitted it, and were not a finalist. The tag `founder-house-start` marks where that work began, and the [demo video from then](https://youtu.be/090tOYfTQ4I) shows the product as it was.
 
