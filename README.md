@@ -6,21 +6,15 @@
 
 [<kbd> <br> Try it: lummy.id/near &nbsp;→ <br> </kbd>](https://lummy.id/near)
 &nbsp;
+[<kbd> <br> Every order, on chain &nbsp;→ <br> </kbd>](https://lummy.id/proof)
+&nbsp;
 [<kbd> <br> What we built this week &nbsp;→ <br> </kbd>](https://github.com/Lummy-Ticket/lummy/compare/pre-hackathon...main)
-&nbsp;
-[<kbd> <br> The first real payment &nbsp;→ <br> </kbd>](#tried-with-real-money)
-&nbsp;
-[<kbd> <br> Live site &nbsp;→ <br> </kbd>](https://lummy.id)
 
 <br>
 
 ![Live demo: lummy.id/near](https://img.shields.io/badge/live%20demo-lummy.id%2Fnear-0F45B3)
 ![NEAR Intents: 15 assets on 9 chains](https://img.shields.io/badge/NEAR%20Intents-15%20assets%2C%209%20chains-00EC97?labelColor=111111)
 ![NEAR AI: signed TEE receipts](https://img.shields.io/badge/NEAR%20AI-signed%20TEE%20receipts-00EC97?labelColor=111111)
-![Arbitrum One: 2 verified contracts](https://img.shields.io/badge/Arbitrum%20One-2%20verified%20contracts-0D3B9A)
-![NEAR mainnet: receipt registry](https://img.shields.io/badge/NEAR%20mainnet-receipt%20registry-00EC97?labelColor=111111)
-![forge test: 147 passing](https://img.shields.io/badge/forge%20test-147%20passing-1E7F54)
-![near:check: 94 of 94](https://img.shields.io/badge/near%3Acheck-94%2F94-1E7F54)
 [![checks, run on this repository](https://github.com/Lummy-Ticket/lummy/actions/workflows/checks.yml/badge.svg)](https://github.com/Lummy-Ticket/lummy/actions/workflows/checks.yml)
 
 <br>
@@ -29,30 +23,19 @@
 
 </div>
 
+| | In 30 seconds |
+|---|---|
+| **The problem** | A resale ticket from a stranger can be fake, sold twice or never sent, and a crypto payment cannot be taken back. |
+| **Lummy** | A resale marketplace that holds the buyer's money in escrow until 48 hours after the show, and checks every ticket before it is listed. It existed before this hackathon. |
+| **New, on NEAR** | **Pay from any chain.** NEAR Intents turns any of 15 assets on 9 chains into exactly the ticket's price and delivers it into the escrow.<br>**A ticket check you can verify.** A model reads the ticket inside NEAR AI's TEE and signs its answer, and our contract on NEAR mainnet checks that signature again. |
+| **Proof** | Real USDC from a wallet on Base, locked in the escrow 37 seconds later. [Every order is public](https://lummy.id/proof), and [every check can be run from a terminal](#how-we-checked-it). |
+
 > [!IMPORTANT]
 > **Status (November 2026):** a working prototype, not launched. No users and no revenue yet. Real money moves only in the Lummy team's own demo payments on Arbitrum One, through contracts that are unaudited and capped at 25 USDC an order by the escrow (our admin key can change that cap). Everyone else pays in test mode: QRIS in Xendit's test mode, USDC on Arbitrum Sepolia.
 
-**NEAR HACKATHON entry for Real-World Money and for Privacy & Private AI, entered in Open Innovation as well** (there, for one idea: an order's terms are the address the money is sent to, so a payment from another chain can only end in that order's escrow or back with the buyer). Lummy existed before the hackathon, and only the NEAR work is new. All of it is in [the diff since the tag `pre-hackathon`](https://github.com/Lummy-Ticket/lummy/compare/pre-hackathon...main). [What came before](#before-this-hackathon) is listed at the end.
+**Tracks:** Real-World Money, Privacy & Private AI, and Open Innovation (there, for one idea: an order's terms are the address the money is sent to, so a payment from another chain can only end in that order's escrow or back with the buyer). Lummy existed before the hackathon, and only the NEAR work is new. All of it is in [the diff since the tag `pre-hackathon`](https://github.com/Lummy-Ticket/lummy/compare/pre-hackathon...main). [What came before](#before-this-hackathon) is listed at the end.
 
-**Where NEAR is in it.**
-
-- **Every payment from another chain crosses NEAR.** NEAR Intents swaps it on `intents.near` and delivers it to the escrow: [five NEAR transactions](#tried-with-real-money) for the order of 12 November, Base to escrow in 37 seconds.
-- **The ticket check runs in NEAR AI Cloud's TEE** (a trusted execution environment: hardware-isolated and attested) and is signed there, for every listing by the team and every check on [lummy.id/near](https://lummy.id/near).
-- **Our contract on NEAR mainnet,** [`lummy-receipts.near`](https://nearblocks.io/address/lummy-receipts.near), recovers the signer of each receipt again, on chain.
-- **The escrow stays on Arbitrum One,** where it was built and tested; NEAR Intents brings the money to it. [Why](#architecture).
-
-**Run the checks yourself.** Needs Node 22 (20 and 24 also passed), plus [Foundry](https://www.getfoundry.sh) (CI pins v1.8.3) for the contracts and [Rust](https://rustup.rs) for the NEAR contract; no keys. Timings from a clean clone: `npm ci` about 70 s, `near:check` about 10 s, `near:terms` about 15 s, `forge test` about 90 s, `cargo test` about 2 min the first time (it fetches the pinned toolchain), `near:fork` about 50 s. [The table of commands and what each prints](#without-a-browser) · [the same list for a coding agent](AGENTS.md).
-
-**Who can move the money, step by step.**
-
-| Step | Where the money is | Who can move it | Where it can go |
-|---|---|---|---|
-| 1. Paying | At NEAR Intents, then at the order's receiver on Arbitrum One | Nobody can redirect it: every function of the receiver but `raiseDispute` is open to anyone | Into the escrow on the order's terms, or back to the buyer's refund address |
-| 2. Locked | `LummyEscrow` | Lummy's operator key: refund, or rule on a claim (it can also file the buyer's claim for them) | This order's buyer or this order's seller, never anyone else |
-| 3. Show over, no claim | `LummyEscrow` | Anyone can release it 48 hours after the show, even with our servers gone | The seller (a team wallet today) |
-| 4. A claim is open | `LummyEscrow` | Only an operator can rule on it, and release is blocked until then | Split between this buyer and this seller |
-
-The operator key is one key we hold, and the contracts are unaudited. No real seller has been paid yet.
+**Jump to:** [What we built](#what-we-built-this-week) · [Real payments](#tried-with-real-money) · [Screens](#screens-of-the-product) · [Try it in 2 minutes](#try-it-in-2-minutes) · [Run the checks](#how-we-checked-it) · [Who can move the money](#who-can-move-the-money-step-by-step) · [Contracts](#contracts) · [Not done yet](#not-done-yet)
 
 ## The problem
 
@@ -60,7 +43,18 @@ Resale tickets change hands between strangers. The ticket can be fake, sold twic
 
 On Lummy the buyer's money is held until 48 hours after the show, and the seller is paid only if no claim stands. Every ticket is checked before it is listed. This week we brought both to NEAR: a buyer can pay from any chain into the escrow, and the ticket check runs in a TEE with a receipt anyone can verify.
 
+<p align="center"><img src="assets/promise.gif" alt="An order moves from Paid to In escrow to Show over, and the seller is paid only when no claim stands" width="760"></p>
+
 ## What we built this week
+
+**Where NEAR is in it.**
+
+**Where NEAR is in it.**
+
+- **Every payment from another chain crosses NEAR.** NEAR Intents swaps it on `intents.near` and delivers it to the escrow: [five NEAR transactions](#tried-with-real-money) for the order of 12 November, Base to escrow in 37 seconds.
+- **The ticket check runs in NEAR AI Cloud's TEE** (a trusted execution environment: hardware-isolated and attested) and is signed there, for every listing by the team and every check on [lummy.id/near](https://lummy.id/near).
+- **Our contract on NEAR mainnet,** [`lummy-receipts.near`](https://nearblocks.io/address/lummy-receipts.near), recovers the signer of each receipt again, on chain.
+- **The escrow stays on Arbitrum One,** where it was built and tested; NEAR Intents brings the money to it. [Why](#architecture).
 
 ### 1. Pay from any chain, into escrow (Real-World Money)
 
@@ -89,14 +83,46 @@ sequenceDiagram
 
 - **The terms are fixed before the buyer pays.** The receiver's address is computed with CREATE2 from the listing, the seller, the price, when the show ends, the refund address and a deadline. 1Click delivers to that address, so paying it is agreeing to those terms. The checkout shows them.
 - **Before the money is locked in the escrow, no key controls it, ours included; after, no key can send it to anyone but this order's seller or buyer.** Every function of the receiver except `raiseDispute` is open to anyone. Until the money is locked in the escrow it can only fund that listing on those terms or go back to the refund address, and if Lummy's servers were gone the buyer could deploy the receiver and take it back after the deadline. Once it is locked, Lummy's operator key decides: it can refund the buyer, or file the buyer's claim and rule on it, which can pay the seller early (today a team wallet). Without that key the escrow pays the seller 48 hours after the show, or holds the money while a claim is open.
+- **Finished by the server, not by the buyer's tab.** 1Click has no webhooks, so someone has to ask how the swap is going. The buyer's page asks while it is open, and a job on the server asks every minute ([`api/cron/intents`](web/src/app/api/cron/intents/route.ts)): once the USDC is at the receiver the escrow is funded and the order written, whether or not the page is still open, and an email says so. Both go through one lock, so an order is funded once. Until 11 November only the page asked; in our own run the buyer wondered what would happen if they closed it.
+
+<details>
+<summary><b>More on how the payment is built</b> (the escrow is unchanged, overpayments, paying twice, reading the wallet, where the code lives)</summary>
+
 - **The escrow did not change.** To `LummyEscrow`, the receiver is a buyer with a contract wallet (EIP-1271). It approves only the escrow and USDC, and only while its own `fund()` is running.
 - **Too much, or too late.** An overpayment goes back to the refund address in the same transaction. Money still at a receiver after its deadline is sent back by that same job within minutes, or by anyone.
-- **Finished by the server, not by the buyer's tab.** 1Click has no webhooks, so someone has to ask how the swap is going. The buyer's page asks while it is open, and a job on the server asks every minute ([`api/cron/intents`](web/src/app/api/cron/intents/route.ts)): once the USDC is at the receiver the escrow is funded and the order written, whether or not the page is still open, and an email says so. Both go through one lock, so an order is funded once. Until 11 November only the page asked; in our own run the buyer wondered what would happen if they closed it.
 - **Paid by hand, so guarded against paying twice.** A hold whose money is already on its way (1Click has seen a deposit, or USDC sits at the receiver) cannot be cancelled or replaced by a new payment, and a payment left open is shown again when the buyer comes back, with a warning not to send it twice.
 - **The wallet is read before the buyer chooses.** With a browser wallet connected, the server reads what it holds of the nine EVM assets on six chains (one batched call a chain, about 3 seconds), asks 1Click what this order would take of each, and the checkout lists them: enough, how much is missing, or no gas on that chain. What can pay is picked, a stablecoin before a coin whose price moves and Ethereum last. The refund address is filled in from the wallet, and the buyer confirms one transfer there. The deposit address and its QR stay, for Solana, Bitcoin, NEAR and exchanges. We added this on 11 November after our own run, where the buyer picked ETH while holding USDC and pasted the address by hand ([`held.ts`](web/src/lib/near/held.ts), [`balances.ts`](web/src/lib/near/balances.ts)).
 - **Where it lives:** [`contracts/src/LummyIntentReceiver.sol`](contracts/src/LummyIntentReceiver.sol), [`web/src/lib/near/oneclick.ts`](web/src/lib/near/oneclick.ts), [`web/src/lib/payments/intents.ts`](web/src/lib/payments/intents.ts), [`web/src/components/checkout/IntentsPanel.tsx`](web/src/components/checkout/IntentsPanel.tsx).
 
+</details>
+
+#### Who can move the money, step by step
+
+| Step | Where the money is | Who can move it | Where it can go |
+|---|---|---|---|
+| 1. Paying | At NEAR Intents, then at the order's receiver on Arbitrum One | Nobody can redirect it: every function of the receiver but `raiseDispute` is open to anyone | Into the escrow on the order's terms, or back to the buyer's refund address |
+| 2. Locked | `LummyEscrow` | Lummy's operator key: refund, or rule on a claim (it can also file the buyer's claim for them) | This order's buyer or this order's seller, never anyone else |
+| 3. Show over, no claim | `LummyEscrow` | Anyone can release it 48 hours after the show, even with our servers gone | The seller (a team wallet today) |
+| 4. A claim is open | `LummyEscrow` | Only an operator can rule on it, and release is blocked until then | Split between this buyer and this seller |
+
+The operator key is one key we hold, and the contracts are unaudited. No real seller has been paid yet.
+
 #### Tried with real money
+
+All three were the team's own money, and each is a public record.
+
+| When | Paid from | Amount | Locked in the escrow | Then | Record |
+|---|---|---|---|---|---|
+| 9 Nov 2026 | Base, by our test script | 1 USDC | about 20 seconds after NEAR Intents saw the deposit | refunded by the escrow | [proof](https://lummy.id/proof/0x80d16825fd506807139d5ace569b90ee6e1b130c6342fa3388d7c2f2754e9009) |
+| 10 Nov 2026 | Ethereum, at the checkout | 9.50 USDC | under two minutes after the buyer sent it | a claim, ruled for the buyer, refunded | [proof](https://lummy.id/proof/0x435ad32a3c0844c5562365f0a12ddcf4126d7eaecc0b67290d49120b9883b181) |
+| 12 Nov 2026 | Base, a connected wallet, one confirmation | 9.50 USDC | **37 seconds** after the transfer | held a day, then claimed by us and refunded | [proof](https://lummy.id/proof/0xcae8b654980f9b56ae6c63713f58cf0494bcbeb9ae71cd52b7a93bd63fa5c536) |
+
+<img src="assets/near-pay.png" alt="Three crops of the screen recording of that order: the wallet as Lummy read it with USDC on Base picked, the panel saying Sent from your wallet, and the order page with the money locked in escrow" width="860">
+
+<sub>From the screen recording of that order: the wallet as Lummy read it, the panel after the one transfer, and the order page a minute later.</sub>
+
+<details>
+<summary><b>Every transaction of the three payments</b></summary>
 
 On 9 November 2026 the team paid 1.0156 USDC from a wallet on Base. Each step is public:
 
@@ -127,9 +153,7 @@ NEAR Intents used 9.507126 USDC of what was sent. The other 0.096 USDC did not c
 4. [Locked in the escrow](https://arbiscan.io/tx/0x0e683dbaac9bc4ba29e6775d7f3495fc1a991d719050546cb142091a581d8e76) at 03:01:29 UTC, and [the handover recorded](https://arbiscan.io/tx/0x12bb31f539aaf0bfc81e1bbd419f5d970ef536ffaac8831c0fd29bb8bf5ed847)
 5. [Its public proof page](https://lummy.id/proof/0xcae8b654980f9b56ae6c63713f58cf0494bcbeb9ae71cd52b7a93bd63fa5c536). The escrow held its 9.50 USDC for a day. On 13 November we claimed it ourselves, to use the money again: [the claim](https://arbiscan.io/tx/0x9f4a3a2dac41efbe3cdd820a954aaea92f527fdc3f8aaa2ebf5729acd20f81c9), [a person's ruling](https://arbiscan.io/tx/0x82c83a918797dca8ebeaaa0293eac2ac6961371427a39e9e2808f2ac8d45a918) and [the 9.50 USDC back at the buyer's refund address](https://arbiscan.io/tx/0xb6284e52b5bb8831ed4b0eb61f2d7b643bf253c070541832bf8b47484bf2680b), 28 seconds apart. No real order is locked in the escrow right now; [the list](https://lummy.id/proof) shows each one's state
 
-<img src="assets/near-pay.png" alt="Three crops of the screen recording of that order: the wallet as Lummy read it with USDC on Base picked, the panel saying Sent from your wallet, and the order page with the money locked in escrow" width="860">
-
-<sub>From the screen recording of that order: the wallet as Lummy read it, the panel after the one transfer, and the order page a minute later.</sub>
+</details>
 
 The ticket was read in NEAR AI's TEE when it was listed, and the receipt kept with the listing carries NVIDIA's verdict on the GPU evidence: valid, for our nonce, signed by NVIDIA.
 
@@ -160,7 +184,7 @@ flowchart LR
 
 <table>
 <tr>
-<td width="50%"><img src="assets/near-tee.png" alt="A made-up ticket read in NEAR AI's TEE, with its signed receipt"><br><b>On lummy.id/near.</b> A made-up ticket read in the TEE in a few seconds, signed by the model's key, which is named in its attestation report, with NVIDIA's attestation service confirming the GPU evidence for a nonce our server chose.</td>
+<td width="50%"><img src="assets/near-check.png" alt="A made-up ticket read in NEAR AI's TEE: the signature, NVIDIA's verdict on the GPU evidence, and our contract on NEAR recovering the same signer"><br><b>On lummy.id/near.</b> A made-up ticket read in the TEE in a few seconds, signed by the model's key, which is named in its attestation report, with NVIDIA's attestation service confirming the GPU evidence for a nonce our server chose.</td>
 <td width="50%"><img src="assets/near-verify.png" alt="NEAR's Verification Center: the response verified, and the hardware verified (NVIDIA GPU and Intel TDX)"><br><b>On NEAR's own page.</b> The same kind of receipt: the signature verified, and the hardware evidence (NVIDIA GPU, Intel TDX) verified in the browser.</td>
 </tr>
 </table>
@@ -168,6 +192,23 @@ flowchart LR
 NEAR's page checks NVIDIA's freshly issued GPU token with no allowance for clock difference. On a computer whose clock runs a few seconds slow it reports the GPU check as failed, while the same receipt passes in full once the clock is right. [lummy.id/near](https://lummy.id/near) says so next to the link.
 
 **When NEAR AI is down.** On the morning of 10 November 2026 NEAR AI Cloud's API, its private models and its attestation service were all down for hours ([status.near.ai](https://status.near.ai)), and the page could only show an HTTP 500. Now it says the live check failed and why, and shows the same check recorded from NEAR AI earlier ([`recorded.json`](web/src/lib/near/recorded.json), made by `npm run near:record`). The recording keeps the exact request and reply, so it is checked again rather than trusted: both hashes are worked out from those bytes, the signature is recovered, and the facts are read from the signed reply. The one-character test works the same. What a recording cannot show again is the attestation: that the signer was named in the model's attestation report is what our check found when it was recorded ([`recorded.ts`](web/src/lib/near/recorded.ts)).
+
+## Screens of the product
+
+<table>
+<tr>
+<td width="50%"><img src="assets/home.png" alt="The catalogue on lummy.id"><br><b>A marketplace, not a demo page.</b> Shows, listings and prices next to face value.</td>
+<td width="50%"><img src="assets/sell-check.png" alt="The checks a seller's ticket meets"><br><b>Every ticket is checked first.</b> An edited sample PDF is flagged for a person; a barcode already on sale is refused.</td>
+</tr>
+<tr>
+<td><img src="assets/ticket.png" alt="An order page"><br><b>The money waits for the show.</b> The order page shows where the money is, when it pays out, and the handover documents.</td>
+<td><img src="assets/admin.png" alt="The claims queue"><br><b>A person rules on claims.</b> The evidence checks are signals for staff, not verdicts.</td>
+</tr>
+<tr>
+<td><img src="assets/proof-list.png" alt="lummy.id/proof: every order in the escrow on Arbitrum One"><br><b>Every order, read from the contract.</b> <a href="https://lummy.id/proof">lummy.id/proof</a> lists each order in the escrow with its state now.</td>
+<td><img src="assets/proof-order.png" alt="One order's public proof page: listed, locked, handover, claim, ruling"><br><b>One order, step by step.</b> Each step links to its transaction; no personal data is on the page.</td>
+</tr>
+</table>
 
 ## Try it in 2 minutes
 
@@ -206,6 +247,13 @@ For an agent, or anyone in a terminal. Every line reads public data; only the la
 Without a key, `npm run dev` still shows a real check on `localhost:3000/near`: the one recorded from NEAR AI, verified again from its bytes, and it says the server has no key.
 
 ## How we checked it
+
+![Arbitrum One: 2 verified contracts](https://img.shields.io/badge/Arbitrum%20One-2%20verified%20contracts-0D3B9A)
+![NEAR mainnet: receipt registry](https://img.shields.io/badge/NEAR%20mainnet-receipt%20registry-00EC97?labelColor=111111)
+![forge test: 147 passing](https://img.shields.io/badge/forge%20test-147%20passing-1E7F54)
+![near:check: 94 of 94](https://img.shields.io/badge/near%3Acheck-94%2F94-1E7F54)
+
+**Run the checks yourself.** Needs Node 22 (20 and 24 also passed), plus [Foundry](https://www.getfoundry.sh) (CI pins v1.8.3) for the contracts and [Rust](https://rustup.rs) for the NEAR contract; no keys. Timings from a clean clone: `npm ci` about 70 s, `near:check` about 10 s, `near:terms` about 15 s, `forge test` about 90 s, `cargo test` about 2 min the first time (it fetches the pinned toolchain), `near:fork` about 50 s. [The table of commands and what each prints](#without-a-browser) · [the same list for a coding agent](AGENTS.md).
 
 | Check | What it covers | Result |
 |---|---|---|
@@ -311,22 +359,6 @@ Everything before the tag `pre-hackathon` existed already and is not part of thi
 - **Before Lummy, 2025 to early 2026:** the team's first ticketing build was fully on-chain, made in a hackathon and an incubator in the Lisk ecosystem. It taught us that an ordinary fan will not install a wallet for a ticket, so we pivoted to a hybrid and narrowed to resale. None of that code is in this repository.
 - **Lummy, since July 2026:** escrow for concert ticket resale in Indonesia. Rupiah by QRIS through Xendit in test mode: the licensed provider holds the money until the show (in test mode, no real money), and every paid order is recorded on `LummyLedger`. Ticket checks: each barcode held by one listing only, edited PDFs sent to a person, the show and seat read by Claude after personal data is taken out. Claims ruled by a person.
 - **Arbitrum Founder House Singapore, 23 to 25 October 2026:** we added the checkout for shows abroad, in test USDC from the buyer's own wallet, into `LummyEscrow` on Arbitrum Sepolia. We submitted it, and were not a finalist. The tag `founder-house-start` marks where that work began, and the [demo video from then](https://youtu.be/090tOYfTQ4I) shows the product as it was.
-
-<details>
-<summary><b>Screens of the product</b></summary>
-
-<table>
-<tr>
-<td width="50%"><img src="assets/sell-check.png" alt="The checks a seller's ticket meets"><br><b>Every ticket is checked first.</b> An edited sample PDF is flagged for a person; a barcode already on sale is refused.</td>
-<td width="50%"><img src="assets/ticket.png" alt="An order page"><br><b>The money waits for the show.</b> The order page shows where the money is, when it pays out, and the handover documents.</td>
-</tr>
-<tr>
-<td><img src="assets/proof.png" alt="A public proof page"><br><b>Every paid order is a public record.</b> The proof page reads LummyLedger on Arbitrum: paid, claimed, ruled, refunded.</td>
-<td><img src="assets/admin.png" alt="The claims queue"><br><b>A person rules on claims.</b> The evidence checks are signals for staff, not verdicts.</td>
-</tr>
-</table>
-
-</details>
 
 ## Built with
 
