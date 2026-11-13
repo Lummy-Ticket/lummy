@@ -7,7 +7,7 @@ and was first tried on testnet as `lummy-receipts.testnet`.
 When a ticket is read by a model inside NEAR AI Cloud's TEE, the reply comes with a receipt: the text
 `model:request_hash:response_hash`, signed by the key inside that TEE. Lummy's server checks that
 signature, and NEAR's Verification Center checks it in your browser. This contract is a third checker
-that nobody runs: it recovers the signer with its own arithmetic (`ecrecover` over the EIP-191 form of
+that runs on a public chain and that any reader can ask: it recovers the signer with its own arithmetic (`ecrecover` over the EIP-191 form of
 the text) and keeps the receipts recorded in it.
 
 | Method | Kind | What it does |
@@ -17,7 +17,7 @@ the text) and keeps the receipts recorded in it.
 | `get(signed_text, signer)` | view | The record of this text signed by this address, or null. |
 | `count()`, `recent(limit)` | view | How many are recorded, and the newest of them. |
 
-Anyone may record. The deposit pays for the record's storage (0.01 NEAR covers 1,000 bytes; a record of the longest allowed text under the longest account name takes about 1,041, and the contract keeps the excess and its spare balance covers the difference; the comment in `src/lib.rs` says otherwise, and we left the deployed code alone so its hash stays reproducible), so the registry cannot be filled for free,
+Anyone may record. The deposit pays for the record's storage (0.01 NEAR covers 1,000 bytes and the longest possible record takes about 1,041; the contract's spare balance covers the difference. A comment in `src/lib.rs` still says 1,000: we left the deployed code unchanged so its hash stays reproducible), so the registry cannot be filled for free,
 and records are keyed by text and signer, so a stranger's signature over the same text cannot take the
 place of the TEE's.
 

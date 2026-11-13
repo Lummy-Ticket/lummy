@@ -314,8 +314,8 @@ export default function NearPage() {
               <div className="flex flex-col gap-2 text-sm">
                 <p className="text-xs text-neutral-gray">
                   {t(
-                    "In plain words: a model read this ticket inside a locked box and signed what it said. Each line below is a separate check that the signature is real.",
-                    "Singkatnya: sebuah model membaca tiket ini di dalam kotak terkunci dan menandatangani jawabannya. Tiap baris di bawah adalah pengecekan terpisah bahwa tanda tangannya asli."
+                    "In plain words: a model read this ticket inside hardware-isolated, attested hardware (a TEE) and signed what it said. Each line below is a separate check that the signature is real.",
+                    "Singkatnya: sebuah model membaca tiket ini di dalam perangkat keras yang terisolasi dan terverifikasi (TEE) dan menandatangani jawabannya. Tiap baris di bawah adalah pengecekan terpisah bahwa tanda tangannya asli."
                   )}
                 </p>
                 <p data-near-verified={check.receipt.verified} className={`flex items-center gap-2 font-medium ${check.receipt.verified ? "text-secondary-green-dark" : "text-secondary-pink-dark"}`}>

@@ -4,7 +4,7 @@ Slither (Trail of Bits) on `contracts/src`, with every finding triaged. This is 
 
 - **Scope:** `src/LummyEscrow.sol`, `src/LummyLedger.sol`, `src/MockUSDC.sol` (local test token) and `src/interfaces/IERC3009.sol`, as deployed and verified on Arbitrum Sepolia; since November 2026 also the receiver and its factory, and the escrow redeployed unchanged on Arbitrum One. Nothing in `src` was changed for this analysis.
 - **Tools:** Slither 0.11.6 with all 102 detectors, Foundry 1.8.3, solc 0.8.28, OpenZeppelin Contracts 5.7.0.
-- **Result:** 12 findings, none of them a real issue: 2 high (one false positive, one not exploitable), 0 medium, 6 low, 4 informational. No code change was needed.
+- **Result (escrow and ledger):** 12 findings, none of them a real issue: 2 high (one false positive, one not exploitable), 0 medium, 6 low, 4 informational. No code change was needed. The receiver and its factory add 21 more, triaged in the same way (33 in all).
 
 ## Running it
 

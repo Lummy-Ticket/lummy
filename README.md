@@ -36,12 +36,23 @@
 
 **Where NEAR is in it.**
 
-- **Every payment from a wallet crosses NEAR.** NEAR Intents swaps it on `intents.near` and delivers it to the escrow: [five NEAR transactions](#tried-with-real-money) for the order of 12 November, Base to escrow in 37 seconds.
-- **The ticket check runs in NEAR AI Cloud's TEE** and is signed there, for every listing by the team and every check on [lummy.id/near](https://lummy.id/near).
+- **Every payment from another chain crosses NEAR.** NEAR Intents swaps it on `intents.near` and delivers it to the escrow: [five NEAR transactions](#tried-with-real-money) for the order of 12 November, Base to escrow in 37 seconds.
+- **The ticket check runs in NEAR AI Cloud's TEE** (a trusted execution environment: hardware-isolated and attested) and is signed there, for every listing by the team and every check on [lummy.id/near](https://lummy.id/near).
 - **Our contract on NEAR mainnet,** [`lummy-receipts.near`](https://nearblocks.io/address/lummy-receipts.near), recovers the signer of each receipt again, on chain.
 - **The escrow stays on Arbitrum One,** where it was built and tested; NEAR Intents brings the money to it. [Why](#architecture).
 
 **Run the checks yourself.** Needs Node 22 (20 and 24 also passed), plus [Foundry](https://www.getfoundry.sh) (CI pins v1.8.3) for the contracts and [Rust](https://rustup.rs) for the NEAR contract; no keys. Timings from a clean clone: `npm ci` about 70 s, `near:check` about 10 s, `near:terms` about 15 s, `forge test` about 90 s, `cargo test` about 2 min the first time (it fetches the pinned toolchain), `near:fork` about 50 s. [The table of commands and what each prints](#without-a-browser) · [the same list for a coding agent](AGENTS.md).
+
+**Who can move the money, step by step.**
+
+| Step | Where the money is | Who can move it | Where it can go |
+|---|---|---|---|
+| 1. Paying | At NEAR Intents, then at the order's receiver on Arbitrum One | Nobody can redirect it: every function of the receiver but `raiseDispute` is open to anyone | Into the escrow on the order's terms, or back to the buyer's refund address |
+| 2. Locked | `LummyEscrow` | Lummy's operator key: refund, or rule on a claim (it can also file the buyer's claim for them) | This order's buyer or this order's seller, never anyone else |
+| 3. Show over, no claim | `LummyEscrow` | Anyone can release it 48 hours after the show, even with our servers gone | The seller (a team wallet today) |
+| 4. A claim is open | `LummyEscrow` | Only an operator can rule on it, and release is blocked until then | Split between this buyer and this seller |
+
+The operator key is one key we hold, and the contracts are unaudited. No real seller has been paid yet.
 
 ## The problem
 
@@ -53,7 +64,7 @@ On Lummy the buyer's money is held until 48 hours after the show, and the seller
 
 ### 1. Pay from any chain, into escrow (Real-World Money)
 
-A buyer pays for a ticket to a show abroad with any of 15 assets on 9 chains: USDC on Base, Solana, Ethereum, NEAR, Optimism, Polygon or Avalanche, USDT on Solana or Ethereum, ETH, SOL, BTC or wNEAR. NEAR Intents turns it into exactly the ticket's price in USDC and delivers it on Arbitrum One to a contract made for that one order. That contract can do only two things with the money: lock it in Lummy's escrow on the agreed terms, or send it back to the buyer.
+A buyer pays for a ticket to a show abroad with any of 15 assets on 9 chains: USDC on Base, Solana, Ethereum, NEAR, Optimism, Polygon or Avalanche, USDT on Solana or Ethereum, ETH on Base, Arbitrum or Ethereum, SOL, BTC or wNEAR. NEAR Intents turns it into exactly the ticket's price in USDC and delivers it on Arbitrum One to a contract made for that one order. That contract can do only two things with the money: lock it in Lummy's escrow on the agreed terms, or send it back to the buyer.
 
 ```mermaid
 sequenceDiagram
@@ -77,7 +88,7 @@ sequenceDiagram
 ```
 
 - **The terms are fixed before the buyer pays.** The receiver's address is computed with CREATE2 from the listing, the seller, the price, when the show ends, the refund address and a deadline. 1Click delivers to that address, so paying it is agreeing to those terms. The checkout shows them.
-- **No key can send the buyer's money anywhere but to this order's seller or back to the buyer, ours included.** Every function of the receiver except `raiseDispute` is open to anyone. Until the money is locked in the escrow it can only fund that listing on those terms or go back to the refund address, and if Lummy's servers were gone the buyer could deploy the receiver and take it back after the deadline. Once it is locked, Lummy's operator key decides: it can refund the buyer, or file the buyer's claim and rule on it, which can pay the seller early (today a team wallet). Without that key the escrow pays the seller 48 hours after the show, or holds the money while a claim is open.
+- **Before the money is locked in the escrow, no key controls it, ours included; after, no key can send it to anyone but this order's seller or buyer.** Every function of the receiver except `raiseDispute` is open to anyone. Until the money is locked in the escrow it can only fund that listing on those terms or go back to the refund address, and if Lummy's servers were gone the buyer could deploy the receiver and take it back after the deadline. Once it is locked, Lummy's operator key decides: it can refund the buyer, or file the buyer's claim and rule on it, which can pay the seller early (today a team wallet). Without that key the escrow pays the seller 48 hours after the show, or holds the money while a claim is open.
 - **The escrow did not change.** To `LummyEscrow`, the receiver is a buyer with a contract wallet (EIP-1271). It approves only the escrow and USDC, and only while its own `fund()` is running.
 - **Too much, or too late.** An overpayment goes back to the refund address in the same transaction. Money still at a receiver after its deadline is sent back by that same job within minutes, or by anyone.
 - **Finished by the server, not by the buyer's tab.** 1Click has no webhooks, so someone has to ask how the swap is going. The buyer's page asks while it is open, and a job on the server asks every minute ([`api/cron/intents`](web/src/app/api/cron/intents/route.ts)): once the USDC is at the receiver the escrow is funded and the order written, whether or not the page is still open, and an email says so. Both go through one lock, so an order is funded once. Until 11 November only the page asked; in our own run the buyer wondered what would happen if they closed it.
@@ -298,7 +309,7 @@ A ruling can also split the money. The clock settles an order, not a button: the
 Everything before the tag `pre-hackathon` existed already and is not part of this entry. We set the tag on 9 November 2026, the day we entered; the hackathon opened on 1 November. In this public copy it sits on 8 November, 14:36 WIB: the commit we tagged on the 9th held only our plan for the week, and the plan is not published, so the tag lands on the last commit before it.
 
 - **Before Lummy, 2025 to early 2026:** the team's first ticketing build was fully on-chain, made in a hackathon and an incubator in the Lisk ecosystem. It taught us that an ordinary fan will not install a wallet for a ticket, so we pivoted to a hybrid and narrowed to resale. None of that code is in this repository.
-- **Lummy, since July 2026:** escrow for concert ticket resale in Indonesia. Rupiah by QRIS through Xendit in test mode: the licensed provider holds the money until the show, and every paid order is recorded on `LummyLedger`. Ticket checks: each barcode held by one listing only, edited PDFs sent to a person, the show and seat read by Claude after personal data is taken out. Claims ruled by a person.
+- **Lummy, since July 2026:** escrow for concert ticket resale in Indonesia. Rupiah by QRIS through Xendit in test mode: the licensed provider holds the money until the show (in test mode, no real money), and every paid order is recorded on `LummyLedger`. Ticket checks: each barcode held by one listing only, edited PDFs sent to a person, the show and seat read by Claude after personal data is taken out. Claims ruled by a person.
 - **Arbitrum Founder House Singapore, 23 to 25 October 2026:** we added the checkout for shows abroad, in test USDC from the buyer's own wallet, into `LummyEscrow` on Arbitrum Sepolia. We submitted it, and were not a finalist. The tag `founder-house-start` marks where that work began, and the [demo video from then](https://youtu.be/090tOYfTQ4I) shows the product as it was.
 
 <details>
@@ -341,6 +352,7 @@ Measured on the team's own orders above, not projected.
 ## Not done yet
 
 - Real payments through NEAR Intents are for the team's accounts only, at most 25 USDC an order. "Team only" is a rule of the app, not of the contracts: on chain anyone could pay, and our admin key can change the cap. The contracts are unaudited.
+- No seller has been paid with real money yet: the release to a seller has run on a fork of Arbitrum One, not on the live escrow.
 - Once money is in the escrow, our operator key decides: it can refund the buyer, or file the buyer's claim and rule on it, which can pay the seller early. It cannot send money to anyone else. Without that key the escrow pays the seller 48 hours after the show and holds the money while a claim is open; a refund on a timeout is not built.
 - On Arbitrum One the seller's share goes to a team wallet: sellers sign in with an email and have no wallet yet.
 - The listings on shows abroad are the team's samples.
@@ -375,10 +387,10 @@ Measured on the team's own orders above, not projected.
 Node 22 and [Foundry](https://www.getfoundry.sh). Each line runs from the repository root:
 
 ```bash
-cd web && npm ci && npm run near:check    # the NEAR checks, offline
-cd contracts && git submodule update --init --recursive && forge test
-cd web && npm run dev                     # the app on localhost:3000, on sample data
-cd web && npm run chain:local             # Anvil, a deploy, and four escrow cycles
+(cd web && npm ci && npm run near:check)    # the NEAR checks, offline
+(cd contracts && git submodule update --init --recursive && forge test)
+(cd web && npm run dev)                     # the app on localhost:3000, on sample data
+(cd web && npm run chain:local)             # Anvil, a deploy, and four escrow cycles
 ```
 
 Without environment variables the app runs on its sample catalogue and sample accounts. [`web/.env.example`](web/.env.example) lists what a deploy sets, the NEAR keys included. Code comments are in English and Indonesian.

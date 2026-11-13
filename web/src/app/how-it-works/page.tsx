@@ -187,11 +187,11 @@ export default function HowItWorks() {
       title: t("Pay with QRIS", "Bayar pakai QRIS"),
       body: t(
         FEATURES.eStamp
-          ? "Pay in rupiah from any banking or e-wallet app. Xendit, our payment provider, holds the ticket price until the show, so the seller is not paid yet. The service fee and the e-stamp are shown before you pay. A show abroad is paid in USDC instead (below)."
-          : "Pay in rupiah from any banking or e-wallet app. Xendit, our payment provider, holds the ticket price until the show, so the seller is not paid yet. The service fee is shown before you pay. A show abroad is paid in USDC instead (below).",
+          ? "Pay in rupiah from any banking or e-wallet app. Xendit, our payment provider, holds the ticket price (in test mode for now) until the show, so the seller is not paid yet. The service fee and the e-stamp are shown before you pay. A show abroad is paid in USDC instead (below)."
+          : "Pay in rupiah from any banking or e-wallet app. Xendit, our payment provider, holds the ticket price (in test mode for now) until the show, so the seller is not paid yet. The service fee is shown before you pay. A show abroad is paid in USDC instead (below).",
         FEATURES.eStamp
-          ? "Bayar dalam rupiah dari aplikasi bank atau e-wallet apa pun. Xendit, penyedia pembayaran kami, menahan harga tiketnya sampai acara, jadi penjual belum dibayar. Biaya layanan dan e-meterai tampil sebelum kamu bayar. Acara di luar negeri dibayar dengan USDC (di bawah)."
-          : "Bayar dalam rupiah dari aplikasi bank atau e-wallet apa pun. Xendit, penyedia pembayaran kami, menahan harga tiketnya sampai acara, jadi penjual belum dibayar. Biaya layanan tampil sebelum kamu bayar. Acara di luar negeri dibayar dengan USDC (di bawah)."
+          ? "Bayar dalam rupiah dari aplikasi bank atau e-wallet apa pun. Xendit, penyedia pembayaran kami, menahan harga tiketnya (untuk sekarang di mode uji) sampai acara, jadi penjual belum dibayar. Biaya layanan dan e-meterai tampil sebelum kamu bayar. Acara di luar negeri dibayar dengan USDC (di bawah)."
+          : "Bayar dalam rupiah dari aplikasi bank atau e-wallet apa pun. Xendit, penyedia pembayaran kami, menahan harga tiketnya (untuk sekarang di mode uji) sampai acara, jadi penjual belum dibayar. Biaya layanan tampil sebelum kamu bayar. Acara di luar negeri dibayar dengan USDC (di bawah)."
       ),
       state: t("Held in escrow", "Ditahan escrow"),
       tone: "held",
@@ -409,7 +409,7 @@ export default function HowItWorks() {
     t("Takes about a minute with the PDF in hand.", "Sekitar satu menit kalau PDF-nya sudah ada."),
     t("Most tickets go live straight away.", "Kebanyakan tiket langsung tayang."),
     t("Buyers see your price next to face value.", "Pembeli melihat hargamu di samping harga asli."),
-    t("You cannot be paid for a ticket that did not work.", "Kamu tidak bisa dibayar untuk tiket yang tidak berfungsi."),
+    t("If the ticket does not work, the money goes back to the buyer, not to you.", "Kalau tiketnya tidak berfungsi, uangnya kembali ke pembeli, bukan ke kamu."),
     FEATURES.payouts
       ? t("The full price, to your bank account.", "Harga penuh, ke rekeningmu.")
       : t("The full price you set, on the public record.", "Harga penuh yang kamu pasang, di catatan publik."),
@@ -503,7 +503,7 @@ export default function HowItWorks() {
     },
     {
       Icon: Eye,
-      title: t("Open to audit", "Bisa diaudit"),
+      title: t("Open to checking", "Bisa dicek"),
       body: t(
         "Whether money is held, released or refunded is recorded publicly on Arbitrum. You can check it yourself.",
         "Status dana (ditahan, cair, dikembalikan) tercatat publik di Arbitrum. Kamu bisa cek sendiri."
@@ -579,8 +579,8 @@ export default function HowItWorks() {
           </h1>
           <p className="lm-in text-lg text-neutral-gray mt-5 max-w-xl" style={{ "--d": "240ms" } as React.CSSProperties}>
             {t(
-              "That one rule is what makes buying from a stranger safe. Here is every step, from either side of the sale.",
-              "Satu aturan itu yang membuat beli dari orang asing jadi aman. Ini tiap langkahnya, dari dua sisi transaksi."
+              "That one rule is what makes buying from a stranger safer. Here is every step, from either side of the sale.",
+              "Satu aturan itu yang membuat beli dari orang asing jadi lebih aman. Ini tiap langkahnya, dari dua sisi transaksi."
             )}
           </p>
         </div>
@@ -703,7 +703,7 @@ export default function HowItWorks() {
             )}
             {MAINNET_ESCROW && (
               <a href={`https://arbiscan.io/address/${MAINNET_ESCROW}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary-navy font-medium">
-                {t("LummyEscrow on Arbitrum One, holding real USDC", "LummyEscrow di Arbitrum One, yang menahan USDC sungguhan")} <ExternalLink className="w-3.5 h-3.5" />
+                {t("LummyEscrow on Arbitrum One (real USDC, the team's own orders)", "LummyEscrow di Arbitrum One (USDC sungguhan, pesanan tim sendiri)")} <ExternalLink className="w-3.5 h-3.5" />
               </a>
             )}
             <Link href="/proof" data-proof-link className="inline-flex items-center gap-1 text-primary-navy font-medium">

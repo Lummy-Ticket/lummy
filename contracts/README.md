@@ -71,13 +71,13 @@ Not done yet:
 - **No external audit.** Slither finds known patterns; it does not judge the design or the economics.
 - No formal verification, and no fuzzing beyond Foundry's own (no Echidna or Medusa campaign).
 - Arbitrum One holds one thing only since 9 Nov 2026: the team's own demo payments through NEAR Intents, at most 25 USDC an order (`priceCap`). Everyone else uses Arbitrum Sepolia with Circle's test USDC.
-- The operator key is trusted with timing and with how a disputed payment is split between buyer and seller (Model A). The tests and invariants check that it can never send funds to anyone else, but a leaked key could still delay a payout or make a wrong ruling while the window is open. It cannot move money out of an intent receiver: that only goes into its listing on its terms, or back to its refund address.
+- The operator key is trusted with timing and with how a disputed payment is split between buyer and seller (Model A). The tests and invariants check that it can never send funds to anyone else, but a leaked key could still delay a payout, make a wrong ruling, or pay the seller early by filing the buyer's claim itself and ruling it all to the seller while the window is open. It cannot move money out of an intent receiver: that only goes into its listing on its terms, or back to its refund address.
 
 ## Deploy and local cycles
 
 ```bash
-cd web && npm run chain:local   # Anvil, a deploy, then four cycles: release, refund, dispute, a show tomorrow
-cd web && npm run chain:fork    # a testnet rehearsal: an Arbitrum Sepolia fork with Circle's USDC, no faucet
+cd ../web && npm run chain:local   # Anvil, a deploy, then four cycles: release, refund, dispute, a show tomorrow
+cd ../web && npm run chain:fork    # a testnet rehearsal: an Arbitrum Sepolia fork with Circle's USDC, no faucet
 ```
 
 The operator sends every transaction in these cycles, so on testnet only the operator needs ETH. The simulated buyer only signs, and needs USDC.

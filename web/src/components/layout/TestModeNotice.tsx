@@ -35,6 +35,8 @@ export function TestModeNotice() {
   // A proof page shows one escrow on the chain it names, and on Arbitrum One that is real USDC:
   // "no real money moves" above it was wrong (10 Nov 2026).
   const proof = path?.startsWith("/proof") ?? false;
+  // The list at /proof has no "Technical details" section; a single order's page does.
+  const proofList = path === "/proof";
   // A team account pays real USDC on shows abroad (lib/near/team), so "no real money moves" is wrong for
   // it (T4, 10 Nov 2026). Asked only for a signed-in account; everyone else keeps the test-mode line.
   const account = useUser((s) => !!s.user?.account);
@@ -46,7 +48,9 @@ export function TestModeNotice() {
       <span className="block truncate">
         {/* Fits a 360px phone beside the link: the old line was 238px in a 238px space and lost its end */}
         <span className="sm:hidden">
-          {proof
+          {proofList
+            ? t("Beta. Read from the Arbitrum One escrow.", "Beta. Dibaca dari escrow di Arbitrum One.")
+            : proof
             ? t("Beta. Read from the chain named below.", "Beta. Dibaca dari chain yang tertera.")
             : near
             ? t("Beta: real money for the team only.", "Beta: uang asli khusus tim.")
@@ -55,7 +59,12 @@ export function TestModeNotice() {
               : t("Beta: test payments, no real money.", "Beta: pembayaran uji, bukan uang asli.")}
         </span>
         <span className="hidden sm:inline">
-          {proof
+          {proofList
+            ? t(
+                "Beta. Read from the escrow contract on Arbitrum One, not from our database. Real USDC, the team's own orders.",
+                "Beta. Dibaca dari kontrak escrow di Arbitrum One, bukan dari database kami. USDC sungguhan, pesanan tim sendiri."
+              )
+            : proof
             ? t(
                 "Beta. This page reads one record from the chain named under Technical details. Only an escrow on Arbitrum One holds real USDC.",
                 "Beta. Halaman ini membaca satu catatan dari chain yang tertera di Detail teknis. Hanya escrow di Arbitrum One yang memegang USDC sungguhan."

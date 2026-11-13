@@ -31,17 +31,19 @@ npm run lint && npm run type-check && npm run build
 npm run dev              # localhost:3000 on sample data; /near shows a recorded TEE check and says so
 ```
 
+(Stop the dev server with Ctrl+C, then `cd ..` back to the repository root for the blocks below.)
+
 With Rust installed (the toolchain is pinned in `contracts/near-receipts/rust-toolchain.toml`):
 
 ```bash
-cd contracts/near-receipts && cargo test    # 8 pass: a real signature, one changed character, the refusals
+(cd contracts/near-receipts && cargo test)    # 8 pass: a real signature, one changed character, the refusals
 ```
 
 With Foundry installed:
 
 ```bash
-cd contracts && git submodule update --init --recursive && forge test    # 147 pass
-cd web && npm run near:fork    # both contracts on a fork of Arbitrum One with real USDC; 13/13, about a minute
+(cd contracts && git submodule update --init --recursive && forge test)    # 147 pass
+(cd web && npm run near:fork)    # both contracts on a fork of Arbitrum One with real USDC; 13/13, about a minute
 ```
 
 The README's table "Without a browser" lists curl lines against the live site and what each returns.
