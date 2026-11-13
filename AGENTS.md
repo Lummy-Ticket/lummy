@@ -34,7 +34,7 @@ npm run dev              # localhost:3000 on sample data; /near shows a recorded
 With Rust installed (the toolchain is pinned in `contracts/near-receipts/rust-toolchain.toml`):
 
 ```bash
-cd contracts/near-receipts && cargo test    # 7 pass: a real signature, one changed character, the refusals
+cd contracts/near-receipts && cargo test    # 8 pass: a real signature, one changed character, the refusals
 ```
 
 With Foundry installed:

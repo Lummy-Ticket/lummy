@@ -1,6 +1,6 @@
 # Lummy contracts
 
-Foundry. Three contracts on Arbitrum, and a USDC stand-in for local tests. The design notes and their locked decisions are in `docs/09-technical-design.md` of the working repository, which is private.
+Foundry. Three contracts on Arbitrum, and a USDC stand-in for local tests. One more contract lives on NEAR and is built with Rust, not Foundry: the receipt registry in [`near-receipts/`](near-receipts), with its own README. The design notes and their locked decisions are in `docs/09-technical-design.md` of the working repository, which is private.
 
 ```bash
 cd contracts

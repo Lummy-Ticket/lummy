@@ -19,8 +19,10 @@ use near_sdk::{AccountId, NearToken, PanicOnDefault, env, near, require};
 
 /// What one record costs its caller: it covers the storage of the record (under 1 KB) with room to spare.
 const DEPOSIT: NearToken = NearToken::from_millinear(10);
-/// A receipt's text is a model name and two 64-character hashes; anything much longer is not one.
-const MAX_TEXT: usize = 400;
+/// A receipt's text is a model name and two 64-character hashes; anything much longer is not one. The
+/// limit also keeps a record under the 1,000 bytes its deposit pays for: a record holds the text twice (in
+/// its key and in itself), and one of 146 characters took 837 bytes on testnet.
+const MAX_TEXT: usize = 200;
 
 #[near(serializers = [json, borsh])]
 #[derive(Clone, Debug, PartialEq)]
@@ -220,6 +222,15 @@ mod tests {
     fn refuses_text_that_is_not_a_receipt() {
         paying(10);
         Registry::new().record("hello".into(), SIG.into());
+    }
+
+    #[test]
+    #[should_panic(expected = "too long to be a receipt")]
+    fn refuses_text_longer_than_its_deposit_pays_for() {
+        paying(10);
+        let long = format!("{}:{}", "m".repeat(80), &TEXT[17..]);
+        assert!(long.len() > 200);
+        Registry::new().record(long, SIG.into());
     }
 
     #[test]

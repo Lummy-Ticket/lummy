@@ -24,13 +24,17 @@ place of the TEE's.
 says, and NEAR's Verification Center checks it. A record here proves that `signer` signed `signed_text`,
 and that the record has existed since `recorded_at_ms`.
 
+**Who can change it.** We can. The contract's account still has its full-access key, as most NEAR contracts do
+while they are young, so we can deploy new code to it; that is how the text limit was tightened on 13 November.
+A record is evidence you can re-check yourself with `signer_of`, not something to take on our word.
+
 **Why testnet.** It was written on 13 November 2026, a day before the deadline, and it is unaudited.
 The escrow that holds money is on Arbitrum One and does not depend on it.
 
 ## Run it
 
 ```bash
-cargo test                                   # 7 tests: a real signature, one changed character, the refusals
+cargo test                                   # 8 tests: a real signature, one changed character, the refusals
 cargo near build non-reproducible-wasm       # target/near/lummy_receipts.wasm, about 144 KB
 bash record.sh                               # takes a live TEE receipt from lummy.id and asks the contract (needs near-cli-rs)
 ```
