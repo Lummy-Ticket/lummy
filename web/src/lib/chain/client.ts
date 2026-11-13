@@ -190,9 +190,10 @@ export const chainSettled = (s: ChainStatus | undefined) => s === "Released" || 
  * memegang id ini kalau sudah diketahui, supaya server tidak membaca keduanya. "missing": kontrak tidak
  * mengenal id ini. "failed": chain belum bisa dibaca dan belum ada data sebelumnya.
  */
-export function useChainHistory(listingId: string | undefined, intervalMs = 15000, source?: "escrow" | "ledger") {
-  const [data, setData] = useState<ChainHistory | null>(null);
-  const [state, setState] = useState<"loading" | "ok" | "missing" | "failed">("loading");
+/** `initial` is what the server already read for this listing (the public proof page), shown at once. */
+export function useChainHistory(listingId: string | undefined, intervalMs = 15000, source?: "escrow" | "ledger", initial?: ChainHistory | null) {
+  const [data, setData] = useState<ChainHistory | null>(initial ?? null);
+  const [state, setState] = useState<"loading" | "ok" | "missing" | "failed">(initial ? "ok" : "loading");
   const [nonce, setNonce] = useState(0);
   const settled = chainSettled(data?.live.status) && !data?.incomplete;
   useEffect(() => {

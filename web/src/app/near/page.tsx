@@ -1,6 +1,6 @@
 "use client";
 
-// What Lummy built for NEAR HACKATHON, for anyone to try without paying: a live quote from NEAR Intents,
+// What Lummy built at NEAR HACKATHON, for anyone to try without paying: a live quote from NEAR Intents,
 // and the private ticket check on a made-up ticket, with a receipt that NEAR's own Verification Center
 // checks. It says plainly what is not open yet. The real money runs on the team's own account.
 import { useEffect, useRef, useState } from "react";

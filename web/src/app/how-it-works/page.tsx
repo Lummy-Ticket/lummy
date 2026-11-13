@@ -687,7 +687,7 @@ export default function HowItWorks() {
             <TicketFeature key={c.title} Icon={c.Icon} title={c.title} body={c.body} />
           ))}
         </div>
-        {/* "Open to audit" holds only if the reader can get there in one tap. */}
+        {/* "Open to checking" holds only if the reader can get there in one tap. */}
         {(ESCROW || LEDGER) && (
           <p data-audit-links className="mt-5 text-sm text-neutral-gray flex flex-wrap gap-x-5 gap-y-2">
             <span>{t("Check it yourself on Arbiscan:", "Cek sendiri di Arbiscan:")}</span>
