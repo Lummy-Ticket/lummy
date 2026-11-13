@@ -8,7 +8,7 @@
 &nbsp;
 [<kbd> <br> Every order, on chain &nbsp;→ <br> </kbd>](https://lummy.id/proof)
 &nbsp;
-[<kbd> <br> What we built this week &nbsp;→ <br> </kbd>](https://github.com/Lummy-Ticket/lummy/compare/pre-hackathon...main)
+[<kbd> <br> What we built this week &nbsp;→ <br> </kbd>](https://github.com/Lummy-Ticket/lummy/compare/pre-hackathon...hackathon-submission)
 
 <br>
 
@@ -33,7 +33,7 @@
 > [!IMPORTANT]
 > **Status (November 2026):** a working prototype, not launched. No users and no revenue yet. Real money moves only in the Lummy team's own demo payments on Arbitrum One, through contracts that are unaudited and capped at 25 USDC an order by the escrow (our admin key can change that cap). Everyone else pays in test mode: QRIS in Xendit's test mode, USDC on Arbitrum Sepolia.
 
-**Tracks:** Real-World Money, Privacy & Private AI, and Open Innovation (there, for one idea: an order's terms are the address the money is sent to, so a payment from another chain can only end in that order's escrow or back with the buyer). Lummy existed before the hackathon, and only the NEAR work is new. All of it is in [the diff since the tag `pre-hackathon`](https://github.com/Lummy-Ticket/lummy/compare/pre-hackathon...main). [What came before](#before-this-hackathon) is listed at the end.
+**Tracks:** Real-World Money, Privacy & Private AI, and Open Innovation (there, for one idea: an order's terms are the address the money is sent to, so a payment from another chain can only end in that order's escrow or back with the buyer). Lummy existed before the hackathon, and only the NEAR work is new. All of it is in [the diff since the tag `pre-hackathon`](https://github.com/Lummy-Ticket/lummy/compare/pre-hackathon...hackathon-submission). [What came before](#before-this-hackathon) is listed at the end.
 
 **Jump to:** [What we built](#what-we-built-this-week) · [Real payments](#tried-with-real-money) · [Screens](#screens-of-the-product) · [Try it in 2 minutes](#try-it-in-2-minutes) · [Run the checks](#how-we-checked-it) · [Who can move the money](#who-can-move-the-money-step-by-step) · [Contracts](#contracts) · [Not done yet](#not-done-yet)
 
