@@ -1,5 +1,5 @@
 // What a judge of NEAR HACKATHON would find at lummy.id right now, checked from outside: the pages
-// and public endpoints the README sends them to, the one escrow that is still locked, and the gas left
+// and public endpoints the README sends them to, the order of 12 Nov (locked, then refunded on 13 Nov), and the gas left
 // for the team's own orders. Run every three hours while the judging lasts
 // (.github/workflows/judging-watch.yml in our working repository); a failed run sends an email.
 // No keys, no dependencies: Node 22 and the public internet.
@@ -75,7 +75,8 @@ async function main() {
 
   const history = await ask(`/api/chain/history/${LOCKED}`);
   const live = history.json?.live;
-  say(live?.status === "DisputeWindow" && live.disputed === false ? "ok" : "fail", "the order of 12 Nov is still locked in the escrow, for a judge to look at", `HTTP ${history.status}, ${JSON.stringify(live ?? null).slice(0, 160)}`);
+  // Locked on 12 Nov, then claimed and refunded by the team on 13 Nov (03:36 UTC). That state is final.
+  say(live?.status === "Refunded" ? "ok" : "fail", "the order of 12 Nov reads Refunded, as it has since the claim of 13 Nov", `HTTP ${history.status}, ${JSON.stringify(live ?? null).slice(0, 160)}`);
   // The receipt recorded in the registry contract on NEAR testnet on 13 Nov 2026: the live site asks the
   // contract, which must recover the TEE's signer and still hold the record.
   const onNear = await ask("/api/near/registry", {

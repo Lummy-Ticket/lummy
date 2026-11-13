@@ -54,7 +54,7 @@ const WALLET_TXS: { en: string; id: string; url: string }[] = [
   { en: "2. The swap on NEAR Intents: 9.507126 used, 0.093632 sent back to the wallet", id: "2. Swap di NEAR Intents: 9,507126 terpakai, 0,093632 dikembalikan ke wallet", url: "https://explorer.near-intents.org/transactions/0x63c43C8fBe26c9612BE6Aa648B5eE0531713E50e" },
   { en: "3. 9.5 USDC at the order's receiver on Arbitrum One, 27 seconds after the transfer", id: "3. 9,5 USDC tiba di kontrak penerima pesanan di Arbitrum One, 27 detik setelah transfer", url: "https://arbiscan.io/tx/0x1cc6a97b1a6f5c90165281c55a151e6c24962955fd8e79aa7e0bc6f3dd7a2933" },
   { en: "4. Locked in the escrow, 37 seconds after the transfer", id: "4. Dikunci di escrow, 37 detik setelah transfer", url: "https://arbiscan.io/tx/0x0e683dbaac9bc4ba29e6775d7f3495fc1a991d719050546cb142091a581d8e76" },
-  { en: "5. Its public proof page: the escrow holds this money until 48 hours after the show", id: "5. Halaman bukti publiknya: escrow menahan uang ini sampai 48 jam setelah acara", url: "https://lummy.id/proof/0xcae8b654980f9b56ae6c63713f58cf0494bcbeb9ae71cd52b7a93bd63fa5c536" },
+  { en: "5. Its public proof page: locked on 12 Nov, claimed and refunded on 13 Nov", id: "5. Halaman bukti publiknya: terkunci 12 Nov, diklaim dan di-refund 13 Nov", url: "https://lummy.id/proof/0xcae8b654980f9b56ae6c63713f58cf0494bcbeb9ae71cd52b7a93bd63fa5c536" },
 ];
 /** The made-up tickets in lib/near/samples.ts. */
 const TICKETS = [
@@ -422,8 +422,8 @@ export default function NearPage() {
             ))}
             <p data-near-wallet-run className="mt-2 text-neutral-black font-medium">
               {t(
-                "And from a connected wallet, 12 Nov 2026: Lummy read the wallet, picked USDC on Base, and the buyer confirmed one transfer. Still locked in the escrow today",
-                "Lalu dari wallet yang terhubung, 12 Nov 2026: Lummy membaca isi wallet, memilih USDC di Base, dan pembeli mengonfirmasi satu transfer. Sampai hari ini masih terkunci di escrow"
+                "And from a connected wallet, 12 Nov 2026: Lummy read the wallet, picked USDC on Base, and the buyer confirmed one transfer. Locked in the escrow 37 seconds later; on 13 Nov we filed a claim on it, a person ruled, and the money went back",
+                "Lalu dari wallet yang terhubung, 12 Nov 2026: Lummy membaca isi wallet, memilih USDC di Base, dan pembeli mengonfirmasi satu transfer. Terkunci di escrow 37 detik kemudian; pada 13 Nov kami mengajukan klaim atasnya, seorang petugas memutuskan, dan uangnya kembali"
               )}
             </p>
             {WALLET_TXS.map((d) => (
