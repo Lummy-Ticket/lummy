@@ -1,7 +1,7 @@
 # Notes for coding agents
 
 For any agent opened in this repository (Claude Code, Codex and others). It says what is here and how
-to run it, so you do not have to find out by trial. It asks nothing of you beyond that.
+to run it, so you do not have to find out by trial. It lists what is here, what runs with no keys, and what does not.
 
 ## What this is
 
@@ -50,10 +50,10 @@ The README's table "Without a browser" lists curl lines against the live site an
 
 - `npm run near:app`, `near:pay` and the other `*:check` scripts that sign in: they need our database or
   keys. Their results are in the README, dated.
-- Paying for real: open to the team's accounts only, capped at 25 USDC an order, in unaudited contracts.
+- Paying for real: open to the team's accounts only (a rule of the app), capped at 25 USDC an order (a setting of the escrow that our admin key can change), in unaudited contracts.
 - `npm run near:prove` needs a NEAR AI Cloud key of your own (`NEAR_AI_API_KEY`); about US$0.001.
 
-## Things that may look wrong and are not
+## Notes on things a reader may notice
 
 - Comments cite `tasks/`, `docs/` and `submission/`. Those are our internal notes; they are not published.
 - Error strings and some comments are in Indonesian. Every error of the NEAR routes also carries English

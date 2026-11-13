@@ -97,8 +97,8 @@ const joined = joinTextItems([
 ]);
 check("a glyph with no character joins its neighbours with no space", joined.includes("luth�hadi77@example.com") && joined.includes("con�rmed"), JSON.stringify(joined));
 const ligature = clean(
-  [`E-TICKET Day6 3rd World Tour\nTanggal Dipilih Sab, 19 Okt 2024\nOrange (Seating Number)\nDetail Pemesan\n${joined}\nSelamat datang Luth�Hadi\nTeman: RA�I\nHalo luth�!`],
-  ["Luthfi Hadi", "Raffi"],
+  [`E-TICKET Day6 3rd World Tour\nTanggal Dipilih Sab, 19 Okt 2024\nOrange (Seating Number)\nDetail Pemesan\n${joined}\nSelamat datang Luth�Hadi\nTeman: GA�I\nHalo luth�!`],
+  ["Luthfi Hadi", "Gaffi"],
   []
 );
 const lig = text(ligature);

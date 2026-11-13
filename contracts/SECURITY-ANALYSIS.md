@@ -2,7 +2,7 @@
 
 Slither (Trail of Bits) on `contracts/src`, with every finding triaged. This is static analysis by the team, not an audit; what is not done yet is listed at the end of `README.md`.
 
-- **Scope:** `src/LummyEscrow.sol`, `src/LummyLedger.sol`, `src/MockUSDC.sol` (local test token) and `src/interfaces/IERC3009.sol`, as deployed and verified on Arbitrum Sepolia. Nothing in `src` was changed for this analysis.
+- **Scope:** `src/LummyEscrow.sol`, `src/LummyLedger.sol`, `src/MockUSDC.sol` (local test token) and `src/interfaces/IERC3009.sol`, as deployed and verified on Arbitrum Sepolia; since November 2026 also the receiver and its factory, and the escrow redeployed unchanged on Arbitrum One. Nothing in `src` was changed for this analysis.
 - **Tools:** Slither 0.11.6 with all 102 detectors, Foundry 1.8.3, solc 0.8.28, OpenZeppelin Contracts 5.7.0.
 - **Result:** 12 findings, none of them a real issue: 2 high (one false positive, one not exploitable), 0 medium, 6 low, 4 informational. No code change was needed.
 
@@ -73,8 +73,8 @@ Read again as a reviewer would, with the tests beside it. None of these moves mo
 
 - **A blacklisted refund address.** If Circle blacklists the address the buyer chose, USDC cannot be sent to it, so `sweep` and an overpaid `fund` revert and the money stays at the receiver. Nobody can redirect it elsewhere, which is the rule that protects the buyer in every other case. No test covers this.
 - **Funding the listing first.** Anyone can fund the escrow listing with their own money before the receiver does. The buyer's money then goes straight back (`test_sweep_listingFundedBySomeoneElse_goesBackAtOnce`) and the purchase fails. It costs the one who does it the full price, held until staff refund it.
-- **A leaked operator key** can refuse a sale or refund it, and cannot send money to anyone but the buyer's refund address and the seller (`testFuzz_leakedOperator_neverReachesAThirdParty`).
-- **Lummy's server writes the order.** Since 11 Nov a job on the server does it every minute, with or without the buyer's page. If the server is gone, the money is not: past the deadline anyone can call `deploy` and `sweep` with the order's terms (`test_sweep_afterRefundAfter_needsNoBackend`).
+- **The operator key is powerful, and its limit is who gets paid.** It can refuse a sale or refund it, delay a payout with `postponeEvent`, and file a claim in the buyer's name and rule it all to the seller, so the seller is paid before the show. It cannot send money to anyone but this buyer and this seller (`testFuzz_leakedOperator_neverReachesAThirdParty`). The admin key can grant that role to another key and change the price cap.
+- **Lummy's server writes the order.** Since 11 Nov a job on the server does it every minute, with or without the buyer's page. If the server is gone before the money is locked in the escrow, it is not lost: past the deadline anyone can call `deploy` and `sweep` with the order's terms (`test_sweep_afterRefundAfter_needsNoBackend`). Once it is locked, a refund or a ruling needs the operator key; without it the escrow pays the seller after the window, and a claim stays open until an operator rules on it. There is no refund on a timeout.
 - **The seller on Arbitrum One is a team wallet.** Sellers sign in with an email and have no wallet yet, so the release goes to an address the team holds.
 
 ## How the CI gate works

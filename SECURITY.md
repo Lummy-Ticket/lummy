@@ -4,8 +4,8 @@
 We answer within three working days. Please do not open a public issue for something that could move
 money or expose a ticket file.
 
-**What is at stake today.** The contracts are unaudited. On Arbitrum One only the team's own accounts
-can pay, with the team's own money, and an order is capped at 25 USDC. Everyone else is on test rails:
+**What is at stake today.** The contracts are unaudited. On Arbitrum One the app lets only the team's own
+accounts pay, with the team's own money, and the escrow caps an order at 25 USDC (a cap our admin key can change). Everyone else is on test rails:
 QRIS in the payment provider's test mode, and test USDC on Arbitrum Sepolia.
 
 **What we already know.** [`contracts/SECURITY-ANALYSIS.md`](contracts/SECURITY-ANALYSIS.md) lists the
