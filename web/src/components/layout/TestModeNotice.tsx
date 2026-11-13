@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CONTACT_EMAIL } from "@/components/legal/LegalPage";
 import { useT } from "@/lib/i18n";
@@ -69,10 +70,12 @@ export function TestModeNotice() {
                 "Beta: everyone else pays in test mode. The real payments on this page are the Lummy team's own, on Arbitrum One.",
                 "Beta: selain tim, semua pembayaran masih uji. Pembayaran sungguhan di halaman ini milik tim Lummy sendiri, di Arbitrum One."
               )
-            : t(
-                "Beta: QRIS in Xendit's test mode and USDC on testnet, so no real money moves. Some listings are samples.",
-                "Beta: QRIS di mode uji Xendit dan USDC di testnet, jadi tidak ada uang sungguhan yang berpindah. Sebagian listing masih contoh."
-              )}
+            : (
+              <>
+                {t("Beta: QRIS in test mode and USDC on testnet for the public. The team's real USDC: ", "Beta: QRIS mode uji dan USDC di testnet untuk umum. USDC asli tim: ")}
+                <Link href="/near" className="underline underline-offset-2">/near</Link>
+              </>
+            )}
         </span>
       </span>
       <a

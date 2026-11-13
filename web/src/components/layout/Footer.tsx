@@ -31,6 +31,7 @@ const cols: { en: string; id: string; links: { en: string; id: string; href: str
       { en: "How it works", id: "Cara kerja", href: "/how-it-works" },
       { en: "When something goes wrong", id: "Kalau ada masalah", href: "/how-it-works#coverage" },
       { en: "About", id: "Tentang", href: "/about" },
+      { en: "NEAR HACKATHON entry", id: "Karya NEAR HACKATHON", href: "/near" },
       { en: "Public proof", id: "Bukti publik", href: "/proof" },
       { en: "Privacy", id: "Privasi", href: "/privacy" },
       { en: "Terms", id: "Syarat dan ketentuan", href: "/terms" },
@@ -67,10 +68,10 @@ export function Footer() {
           )}
         </div>
         {cols.map((c) => (
-          <div key={c.en} className="flex flex-col gap-3">
-            <h2 className="font-semibold text-neutral-black text-base">{t(c.en, c.id)}</h2>
+          <div key={c.en} className="flex flex-col gap-0.5">
+            <h2 className="font-semibold text-neutral-black text-base mb-2">{t(c.en, c.id)}</h2>
             {c.links.map((l) => (
-              <Link key={l.en} href={l.href} prefetch={false} className="text-neutral-gray text-sm hover:text-primary-navy transition">
+              <Link key={l.en} href={l.href} prefetch={false} className="text-neutral-gray text-sm hover:text-primary-navy transition py-1.5">
                 {t(l.en, l.id)}
               </Link>
             ))}
@@ -79,7 +80,7 @@ export function Footer() {
       </div>
       <div className="border-t border-neutral-light-gray-1">
         <div className="max-w-7xl mx-auto px-5 lg:px-10 py-5 flex flex-col sm:flex-row justify-between gap-2 text-xs text-neutral-gray">
-          <span>© 2026 Lummy Ticket · {TEST_MODE ? t("Beta, test payments only", "Beta, pembayaran uji") : t("Escrow-backed ticket resale", "Resale tiket dengan escrow")}</span>
+          <span>© 2026 Lummy Ticket · {TEST_MODE ? t("Beta, test payments for the public", "Beta, pembayaran uji untuk umum") : t("Escrow-backed ticket resale", "Resale tiket dengan escrow")}</span>
           <span>{t("Built for Indonesia.", "Dibangun untuk Indonesia.")}</span>
         </div>
       </div>

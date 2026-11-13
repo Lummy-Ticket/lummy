@@ -3,7 +3,7 @@
 // What Lummy built for NEAR HACKATHON, for anyone to try without paying: a live quote from NEAR Intents,
 // and the private ticket check on a made-up ticket, with a receipt that NEAR's own Verification Center
 // checks. It says plainly what is not open yet. The real money runs on the team's own account.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, ExternalLink, Loader2, ShieldCheck, Shuffle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -120,22 +120,24 @@ export default function NearPage() {
   const factory = INTENTS[ARBITRUM_ONE]?.factory ?? options?.factory ?? null;
 
   const [assetId, setAssetId] = useState("");
-  const [quote, setQuote] = useState<NearQuote | null>(null);
-  const [quoteError, setQuoteError] = useState<string | null>(null);
+  // What a quote answered is kept with the asset it was for, so changing the asset shows the loading line at
+  // once instead of the last asset's numbers.
+  const [quoted, setQuoted] = useState<{ asset: string; quote: NearQuote } | null>(null);
+  const [quoteFailed, setQuoteFailed] = useState<{ asset: string; message: string } | null>(null);
   const asset = assetId || options?.assets[0]?.assetId || "";
+  const quote = quoted?.asset === asset ? quoted.quote : null;
+  const quoteError = quoteFailed?.asset === asset ? quoteFailed.message : null;
   useEffect(() => {
     if (!asset) return;
     let live = true;
     void nearQuote(asset, DEMO_PRICE)
       .then((q) => {
         if (!live) return;
-        setQuote(q);
-        setQuoteError(null);
+        setQuoted({ asset, quote: q });
       })
       .catch((e: Error) => {
         if (!live) return;
-        setQuote(null);
-        setQuoteError(e.message);
+        setQuoteFailed({ asset, message: e.message });
       });
     return () => {
       live = false;
@@ -147,6 +149,11 @@ export default function NearPage() {
   const [checking, setChecking] = useState(false);
   const [checkError, setCheckError] = useState<string | null>(null);
   const [tampered, setTampered] = useState<{ ok: boolean; problem?: string } | null>(null);
+  const tamperedRef = useRef<HTMLParagraphElement>(null);
+  // The answer to "change one character" is the point of the button: bring it into view on a phone.
+  useEffect(() => {
+    if (tampered) tamperedRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [tampered]);
   /** The same receipt, asked of the registry contract on NEAR (lib/near/registry.ts). */
   const [onNear, setOnNear] = useState<OnNear | null>(null);
 
@@ -218,7 +225,12 @@ export default function NearPage() {
             <>
               <Fact label={t("You send", "Kamu kirim")} value={`${previewAmount(quote.amountIn)} ${quote.symbol}`} />
               <Fact label={t("Reaches the escrow on Arbitrum One", "Masuk ke escrow di Arbitrum One")} value={`${quote.amountOut} USDC`} />
-              {quote.etaSeconds !== null && <Fact label={t("Usually takes", "Biasanya butuh")} value={t(`${quote.etaSeconds} seconds`, `${quote.etaSeconds} detik`)} />}
+              {quote.etaSeconds !== null && (
+                <Fact
+                  label={t("Usually takes", "Biasanya butuh")}
+                  value={quote.etaSeconds >= 120 ? t(`about ${Math.round(quote.etaSeconds / 60)} minutes`, `sekitar ${Math.round(quote.etaSeconds / 60)} menit`) : t(`${quote.etaSeconds} seconds`, `${quote.etaSeconds} detik`)}
+                />
+              )}
             </>
           ) : quoteError ? (
             <span className="text-secondary-pink-dark text-xs">{quoteError}</span>
@@ -256,7 +268,7 @@ export default function NearPage() {
           )}
         </p>
         <div className="flex flex-col sm:flex-row gap-2">
-          <NativeSelect data-near-sample value={sample} onChange={(e) => setSample(e.target.value)}>
+          <NativeSelect data-near-sample aria-label={t("Sample ticket to check", "Contoh tiket yang dicek")} value={sample} onChange={(e) => setSample(e.target.value)}>
             {TICKETS.map((s) => (
               <option key={s.id} value={s.id}>{t(s.en, s.idn)}</option>
             ))}
@@ -300,6 +312,12 @@ export default function NearPage() {
             </div>
             {check.receipt ? (
               <div className="flex flex-col gap-2 text-sm">
+                <p className="text-xs text-neutral-gray">
+                  {t(
+                    "In plain words: a model read this ticket inside a locked box and signed what it said. Each line below is a separate check that the signature is real.",
+                    "Singkatnya: sebuah model membaca tiket ini di dalam kotak terkunci dan menandatangani jawabannya. Tiap baris di bawah adalah pengecekan terpisah bahwa tanda tangannya asli."
+                  )}
+                </p>
                 <p data-near-verified={check.receipt.verified} className={`flex items-center gap-2 font-medium ${check.receipt.verified ? "text-secondary-green-dark" : "text-secondary-pink-dark"}`}>
                   {check.receipt.verified ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
                   {check.receipt.verified
@@ -378,9 +396,11 @@ export default function NearPage() {
                   </p>
                 )}
                 {tampered && (
-                  <p data-near-tampered={tampered.ok} className={`text-sm flex items-center gap-2 ${tampered.ok ? "text-secondary-pink-dark" : "text-secondary-green-dark"}`}>
+                  <p ref={tamperedRef} role="status" data-near-tampered={tampered.ok} className={`text-sm flex items-start gap-2 ${tampered.ok ? "text-secondary-pink-dark" : "text-secondary-green-dark"}`}>
                     {tampered.ok ? <XCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
-                    {tampered.ok ? t("It passed, which it must not.", "Lolos, padahal seharusnya tidak.") : t(`Refused: ${tampered.problem}`, `Ditolak: ${tampered.problem}`)}
+                    {tampered.ok
+                      ? t("It passed, which it must not.", "Lolos, padahal seharusnya tidak.")
+                      : t(`We changed one character, and the check refused it, as it should. Reason: ${tampered.problem}.`, `Kami mengubah satu karakter, dan pengecekan menolaknya, seperti seharusnya. Alasan: ${tampered.problem}.`)}
                   </p>
                 )}
               </div>
