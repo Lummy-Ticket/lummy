@@ -70,6 +70,10 @@ export function MotionObserver() {
       held.set(el, anims);
       io.observe(el);
     };
+    // Nothing below the fold is held until the reader scrolls. A page that is only looked at, or captured
+    // whole by a tool or an agent that never scrolls, shows all of its content (found 13 Nov 2026: a
+    // full-page capture of /how-it-works was blank below the first screen).
+    let armed = false;
     const scan = (node: ParentNode, atLoad: boolean) => {
       const found: Element[] = node instanceof Element && node.hasAttribute("data-reveal") ? [node] : [];
       node.querySelectorAll("[data-reveal]").forEach((el) => found.push(el));
@@ -77,11 +81,19 @@ export function MotionObserver() {
         if (shown.has(el) || held.has(el)) continue;
         // At load, what is already painted on screen is left alone: hiding it now would flash.
         if (atLoad && onScreen(el)) markShown(el);
+        // Before the first scroll, what is below the fold stays as it is; it is held once the reader moves.
+        else if (!armed && !onScreen(el)) continue;
         else track(el);
       }
     };
 
     scan(document, true);
+    const arm = () => {
+      if (armed) return;
+      armed = true;
+      scan(document, true);
+    };
+    window.addEventListener("scroll", arm, { passive: true, once: true });
 
     // Runs before the next paint, so new elements never flash in before being held
     const mo = new MutationObserver((records) => {
@@ -114,6 +126,7 @@ export function MotionObserver() {
     mo.observe(document.body, { childList: true, subtree: true });
 
     return () => {
+      window.removeEventListener("scroll", arm);
       io.disconnect();
       mo.disconnect();
       held.forEach((anims) => anims.forEach((a) => a.cancel()));

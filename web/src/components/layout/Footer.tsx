@@ -31,6 +31,7 @@ const cols: { en: string; id: string; links: { en: string; id: string; href: str
       { en: "How it works", id: "Cara kerja", href: "/how-it-works" },
       { en: "When something goes wrong", id: "Kalau ada masalah", href: "/how-it-works#coverage" },
       { en: "About", id: "Tentang", href: "/about" },
+      { en: "Public proof", id: "Bukti publik", href: "/proof" },
       { en: "Privacy", id: "Privasi", href: "/privacy" },
       { en: "Terms", id: "Syarat dan ketentuan", href: "/terms" },
     ],

@@ -58,7 +58,12 @@ const sample = (page) => page.evaluate(() => {
   await page.waitForTimeout(1500);
   const late = await sample(page);
   check("muat ulang: semua yang di layar akhirnya tampil penuh", late.on.length > 0 && late.on.every((o) => o === 1), JSON.stringify(late.on));
-  check("muat ulang: yang di bawah layar ditahan", late.off.length > 0 && late.off.every((o) => o === 0), JSON.stringify(late.off.slice(0, 6)));
+  // Since 13 Nov 2026: before any scroll nothing is held, so a capture of the whole page shows all of it.
+  check("muat ulang: sebelum digulir, yang di bawah layar pun tampil", late.off.length > 0 && late.off.every((o) => o === 1), JSON.stringify(late.off.slice(0, 6)));
+  await page.mouse.wheel(0, 30);
+  await page.waitForTimeout(400);
+  const held = await sample(page);
+  check("guliran pertama: yang masih di bawah layar ditahan", held.off.length > 0 && held.off.every((o) => o === 0), JSON.stringify(held.off.slice(0, 6)));
 
   // 2. Below the fold rises in when it arrives
   const idx = await page.evaluate(() =>

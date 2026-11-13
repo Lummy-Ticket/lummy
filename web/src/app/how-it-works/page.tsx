@@ -3,6 +3,7 @@
 import type React from "react";
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   ArrowRight, Banknote, CalendarClock, CalendarX, ExternalLink, Eye, FileText, FileUp, Flag, Landmark, Lock, PackageX, QrCode, Repeat,
   ScanLine, Search, ShieldAlert, Tag, Timer, TrendingUp, XCircle, FileWarning, Wallet,
@@ -24,6 +25,8 @@ import { TEST_MODE } from "@/components/layout/TestModeNotice";
 // QRIS order. The escrow's claim window is short on purpose, so a demo runs to the end.
 const ESCROW = DEPLOYMENTS[421614]?.escrow;
 const LEDGER = LEDGERS[421614]?.ledger;
+// The escrow on Arbitrum One, where orders paid through NEAR Intents lock real USDC (the team's own for now).
+const MAINNET_ESCROW = DEPLOYMENTS[42161]?.escrow;
 const TESTNET_WINDOW_MIN = Math.round((DEPLOYMENTS[421614]?.disputeWindow ?? 600) / 60);
 
 // One ticket, followed from both sides: the buyer's order and the seller's listing are the
@@ -258,16 +261,16 @@ export default function HowItWorks() {
       Icon: QrCode,
       title: t("Shows in Indonesia: QRIS", "Acara di Indonesia: QRIS"),
       body: t(
-        `Pay in rupiah from any banking or e-wallet app. Xendit, a licensed payment company, holds the money until the show; each step is recorded publicly on Arbitrum. Service fee 5%, at least ${formatIDR(25_000)}. For now QRIS runs in Xendit's test mode, so no real money moves.`,
-        `Bayar dalam rupiah dari aplikasi bank atau e-wallet apa pun. Xendit, perusahaan pembayaran berlisensi, memegang dananya sampai acara; tiap langkahnya tercatat publik di Arbitrum. Biaya layanan 5%, minimal ${formatIDR(25_000)}. Untuk sekarang QRIS berjalan di mode uji Xendit, jadi tidak ada uang sungguhan yang berpindah.`
+        `Any banking or e-wallet app can pay it, in rupiah. Xendit, a licensed payment company, holds the money until the show; each step is recorded publicly on Arbitrum. Service fee 5%, at least ${formatIDR(25_000)}. For now QRIS runs in Xendit's test mode, so no real money moves.`,
+        `Aplikasi bank atau e-wallet apa pun bisa membayarnya, dalam rupiah. Xendit, perusahaan pembayaran berlisensi, memegang dananya sampai acara; tiap langkahnya tercatat publik di Arbitrum. Biaya layanan 5%, minimal ${formatIDR(25_000)}. Untuk sekarang QRIS berjalan di mode uji Xendit, jadi tidak ada uang sungguhan yang berpindah.`
       ),
     },
     {
       Icon: Wallet,
       title: t("Shows abroad: USDC", "Acara di luar negeri: USDC"),
       body: t(
-        `Pay from your own wallet. You sign twice, Lummy pays the gas, and the USDC is locked in the escrow contract on Arbitrum, which releases it to the seller on chain once the claim window has passed. No service fee while it runs on testnet: test USDC on Arbitrum Sepolia, not real money. The claim window after the show is ${TESTNET_WINDOW_MIN} minutes on this testnet demo, ${DISPUTE_WINDOW_H} hours in production.`,
-        `Bayar dari wallet-mu sendiri. Kamu tanda tangan dua kali, gas dibayar Lummy, dan USDC-nya dikunci di kontrak escrow di Arbitrum, yang melepasnya untuk penjual di chain begitu masa klaim lewat. Tanpa biaya layanan selama di testnet: USDC uji di Arbitrum Sepolia, bukan uang sungguhan. Masa klaim setelah acara: ${TESTNET_WINDOW_MIN} menit di demo testnet ini, ${DISPUTE_WINDOW_H} jam di produksi.`
+        `Pay from your own wallet. You sign twice, Lummy pays the gas, and the USDC is locked in the escrow contract on Arbitrum, which releases it to the seller on chain once the claim window has passed. Holding something else on another chain? Through NEAR Intents the checkout takes 15 assets on 9 chains and delivers exactly the price into the same kind of escrow on Arbitrum One, in real USDC; that rail is open to the team's accounts only for now. Everyone else pays in test USDC on Arbitrum Sepolia: no real money, no service fee, and a claim window of ${TESTNET_WINDOW_MIN} minutes there instead of ${DISPUTE_WINDOW_H} hours.`,
+        `Bayar dari wallet-mu sendiri. Kamu tanda tangan dua kali, gas dibayar Lummy, dan USDC-nya dikunci di kontrak escrow di Arbitrum, yang melepasnya untuk penjual di chain begitu masa klaim lewat. Pegang aset lain di chain lain? Lewat NEAR Intents, checkout menerima 15 aset di 9 chain dan mengantar tepat seharga tiket ke escrow yang sama jenisnya di Arbitrum One, dalam USDC sungguhan; jalur itu untuk sekarang hanya dibuka bagi akun tim. Yang lain membayar dengan USDC uji di Arbitrum Sepolia: bukan uang sungguhan, tanpa biaya layanan, dan masa klaimnya ${TESTNET_WINDOW_MIN} menit di sana, bukan ${DISPUTE_WINDOW_H} jam.`
       ),
     },
   ];
@@ -478,8 +481,8 @@ export default function HowItWorks() {
       Icon: ScanLine,
       title: t("Every ticket is read", "Tiap tiket dibaca"),
       body: t(
-        "The server reads each barcode and checks how the PDF was made and changed. A suspicious file goes to a person; the machine never decides alone. With a real PDF, Claude (Anthropic's AI) reads its text after names and numbers are taken out, and fills in the show and tier for you to check.",
-        "Server membaca tiap barcode dan memeriksa cara PDF dibuat dan diubah. File yang mencurigakan dikirim ke manusia, mesin tidak memutus sendiri. Untuk PDF asli, Claude (AI dari Anthropic) membaca teksnya setelah nama dan nomor dibuang, lalu mengisi acara dan kategorinya untuk kamu cek."
+        "The server reads each barcode and checks how the PDF was made and changed. A suspicious file goes to a person; the machine never decides alone. With a real PDF, an AI model reads its text after names and numbers are taken out, and fills in the show and tier for you to check: Claude (Anthropic's AI), or a model inside NEAR AI's Trusted Execution Environment, where the read leaves a signed receipt anyone can check.",
+        "Server membaca tiap barcode dan memeriksa cara PDF dibuat dan diubah. File yang mencurigakan dikirim ke manusia, mesin tidak memutus sendiri. Untuk PDF asli, model AI membaca teksnya setelah nama dan nomor dibuang, lalu mengisi acara dan kategorinya untuk kamu cek: Claude (AI dari Anthropic), atau model di dalam Trusted Execution Environment NEAR AI, yang pembacaannya meninggalkan bukti bertanda tangan yang bisa dicek siapa pun."
       ),
     },
     {
@@ -611,8 +614,8 @@ export default function HowItWorks() {
                 <h2 className="font-bold text-2xl md:text-3xl text-neutral-black">{t("Two ways to pay", "Dua cara bayar")}</h2>
                 <p className="text-neutral-gray mt-2">
                   {t(
-                    "Where the show is decides how you pay. Both run on test money for now.",
-                    "Lokasi acara menentukan cara bayarnya. Untuk sekarang, dua-duanya memakai uang uji."
+                    "Where the show is decides how you pay. For the public, both run on test money for now.",
+                    "Lokasi acara menentukan cara bayarnya. Untuk umum, dua-duanya masih memakai uang uji."
                   )}
                 </p>
               </div>
@@ -621,6 +624,13 @@ export default function HowItWorks() {
                   <TicketFeature key={r.title} Icon={r.Icon} title={r.title} body={r.body} />
                 ))}
               </div>
+              {/* The two things built at NEAR HACKATHON live on their own page; this one only points there. */}
+              <p data-near-link className="mt-5 text-sm text-neutral-gray">
+                {t("Built at NEAR HACKATHON: ", "Dibuat di NEAR HACKATHON: ")}
+                <Link href="/near" className="text-primary-navy font-medium">
+                  {t("pay from any chain, and a ticket check you can verify", "bayar dari chain mana pun, dan cek tiket yang bisa kamu verifikasi")}
+                </Link>
+              </p>
             </section>
 
             <section id="coverage" className="max-w-6xl mx-auto px-5 lg:px-10 mt-20 scroll-mt-40">
@@ -691,6 +701,14 @@ export default function HowItWorks() {
                 {t("LummyLedger, recording QRIS orders", "LummyLedger, yang mencatat pesanan QRIS")} <ExternalLink className="w-3.5 h-3.5" />
               </a>
             )}
+            {MAINNET_ESCROW && (
+              <a href={`https://arbiscan.io/address/${MAINNET_ESCROW}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary-navy font-medium">
+                {t("LummyEscrow on Arbitrum One, holding real USDC", "LummyEscrow di Arbitrum One, yang menahan USDC sungguhan")} <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            )}
+            <Link href="/proof" data-proof-link className="inline-flex items-center gap-1 text-primary-navy font-medium">
+              {t("Every order in that escrow", "Semua pesanan di escrow itu")}
+            </Link>
           </p>
         )}
       </section>
